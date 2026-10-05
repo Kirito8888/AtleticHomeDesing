@@ -422,13 +422,15 @@ export async function getPerformanceSeries(userId: string, days: number) {
     }),
   ]);
 
+  // Un punto por día del rango (aunque no haya datos) para que el eje X sea el pedido.
   const byDay = new Map<string, Record<string, unknown>>();
+  for (let d = start; d <= end; d = addDays(d, 1)) byDay.set(toIsoDay(d), { date: toIsoDay(d) });
   for (const l of loads) byDay.set(toIsoDay(l.date), { ...l, date: toIsoDay(l.date) });
   for (const r of recovery) {
     const key = toIsoDay(r.date);
     byDay.set(key, { ...(byDay.get(key) ?? { date: key }), ...r, date: key });
   }
-  const series = [...byDay.values()].sort((a, b) => String(a.date).localeCompare(String(b.date)));
+  const series = [...byDay.values()];
   const latest = loads.at(-1) ?? null;
   const weekAgo = loads.length >= 8 ? loads[loads.length - 8] : null;
   return {
