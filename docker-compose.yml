@@ -1,0 +1,78 @@
+# LifeOS — stack local / self-hosted.
+# Todas las credenciales vienen de .env.production (nunca hardcodeadas aquí).
+#   cp .env.example .env.production   # y rellena los valores
+#   docker compose --env-file .env.production up -d --build
+#   docker compose --env-file .env.production --profile tools run --rm migrate
+# Guía completa: manual_docker_debian.md
+
+name: lifeos
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?define POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?define POSTGRES_DB}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Solo accesible desde el host (localhost), no desde la LAN.
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    env_file: ${APP_ENV_FILE:-.env.production}
+    environment:
+      # Dentro de la red de compose el host de la BD es "db".
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+    # Solo localhost por defecto: se publica detrás de un proxy HTTPS (Caddy/nginx).
+    # Ojo: los puertos publicados por Docker se saltan ufw/iptables del host.
+    ports:
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-3000}:3000"
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:?define PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:?define PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "127.0.0.1:${PGADMIN_PORT:-5050}:80"
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    depends_on:
+      - db
+
+  # One-shot (no arranca con `up`): aplica migraciones de Prisma.
+  migrate:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: migrate
+    env_file: ${APP_ENV_FILE:-.env.production}
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  pgadmin:
+  uploads:
