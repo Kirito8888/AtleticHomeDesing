@@ -10,7 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
-import { formatDate, formatNum } from "@/lib/format";
+import { capitalizeFirst, formatDate, formatNum } from "@/lib/format";
 import { getDay } from "@/lib/nutrition/service";
 
 export const metadata = { title: "Nutrición · LifeOS" };
@@ -35,7 +35,7 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
           </Link>
         </Button>
         <div className="text-center">
-          <div className="font-semibold capitalize">{formatDate(date, { weekday: "long", day: "numeric", month: "long" })}</div>
+          <div className="font-semibold">{capitalizeFirst(formatDate(date, { weekday: "long", day: "numeric", month: "long" }))}</div>
           {day.isTrainingDay ? <div className="text-xs text-muted-foreground">Día de entreno</div> : null}
         </div>
         <Button asChild variant="ghost" size="icon" aria-label="Día siguiente">

@@ -1,6 +1,11 @@
 import { auth } from "@/auth";
 
-const PUBLIC_PATHS = ["/login", "/register"];
+/** Páginas de acceso: con sesión iniciada no tiene sentido verlas. */
+const AUTH_PATHS = ["/login", "/register"];
+/** Accesibles sin sesión. */
+const PUBLIC_PATHS = [...AUTH_PATHS, "/offline"];
+
+const matches = (pathname: string, list: string[]) => list.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
 /**
  * Proxy (antes "middleware" en Next ≤ 15): protege todas las páginas.
@@ -8,13 +13,12 @@ const PUBLIC_PATHS = ["/login", "/register"];
  */
 export default auth((req) => {
   const { pathname, search } = req.nextUrl;
-  const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
-  if (!req.auth && !isPublic) {
+  if (!req.auth && !matches(pathname, PUBLIC_PATHS)) {
     const url = new URL("/login", req.nextUrl);
     if (pathname !== "/") url.searchParams.set("callbackUrl", pathname + search);
     return Response.redirect(url);
   }
-  if (req.auth && isPublic) return Response.redirect(new URL("/", req.nextUrl));
+  if (req.auth && matches(pathname, AUTH_PATHS)) return Response.redirect(new URL("/", req.nextUrl));
 });
 
 export const config = {

@@ -208,7 +208,7 @@ export async function cashflow(userId: string, months: number) {
     const pick = (type: FinancialAccountType) =>
       Number(rows.find((r) => toIsoDay(r.month).slice(0, 7) === key && r.type === type)?.total ?? 0);
     // Ingresos se acreditan (negativo) → se invierte el signo para mostrarlos en positivo.
-    const incomeCents = -pick("INCOME");
+    const incomeCents = -pick("INCOME") || 0; // evita "-0,00 €" cuando no hay ingresos
     const expenseCents = pick("EXPENSE");
     out.push({ month: key, incomeCents, expenseCents, netCents: incomeCents - expenseCents });
   }

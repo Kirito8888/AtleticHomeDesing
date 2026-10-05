@@ -30,6 +30,7 @@ export function Stepper({
   suffix?: string;
   className?: string;
 }) {
+  const stepText = String(step).replace(".", ",");
   const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v * 10 ** decimals) / 10 ** decimals));
   return (
     <div className={cn("flex items-center rounded-md border", className)}>
@@ -38,7 +39,7 @@ export function Stepper({
         variant="ghost"
         size="icon"
         className="size-10 shrink-0 rounded-r-none"
-        aria-label={`Restar ${step} a ${label}`}
+        aria-label={`Restar ${stepText} a ${label}`}
         onClick={() => onChange(clamp((value ?? 0) - step))}
       >
         <Minus />
@@ -47,7 +48,7 @@ export function Stepper({
         <input
           aria-label={label}
           inputMode={decimals ? "decimal" : "numeric"}
-          className="h-10 w-full min-w-0 bg-transparent text-center text-base font-semibold tabular-nums outline-none"
+          className={cn("h-10 w-full min-w-0 bg-transparent text-center text-base font-semibold tabular-nums outline-none", suffix && "pr-7 pl-1")}
           value={value == null ? "" : String(value).replace(".", ",")}
           onChange={(e) => {
             const raw = e.target.value.replace(",", ".");
@@ -66,7 +67,7 @@ export function Stepper({
         variant="ghost"
         size="icon"
         className="size-10 shrink-0 rounded-l-none"
-        aria-label={`Sumar ${step} a ${label}`}
+        aria-label={`Sumar ${stepText} a ${label}`}
         onClick={() => onChange(clamp((value ?? 0) + step))}
       >
         <Plus />

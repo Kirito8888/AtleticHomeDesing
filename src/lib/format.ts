@@ -58,3 +58,6 @@ export const TECHNICAL_EVENT_LABEL: Record<string, string> = {
 };
 
 export const READINESS_LABEL = { READY: "Listo", MODERATE: "Moderado", RECOVER: "Recuperar" } as const;
+
+/** "octubre de 2026" → "Octubre de 2026" (CSS `capitalize` pondría "De" en mayúscula). */
+export const capitalizeFirst = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);

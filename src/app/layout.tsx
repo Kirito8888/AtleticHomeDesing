@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { ServiceWorkerRegister } from "@/components/sw-register";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -20,6 +21,7 @@ export const metadata: Metadata = {
   description: "Rendimiento atlético, recuperación, finanzas, nutrición y estudio con IA.",
   applicationName: "LifeOS",
   appleWebApp: { capable: true, title: "LifeOS", statusBarStyle: "black-translucent" },
+  icons: { icon: "/icons/icon.svg", apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
@@ -43,6 +45,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
           <Toaster />
+          <ServiceWorkerRegister />
         </ThemeProvider>
       </body>
     </html>
