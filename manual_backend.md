@@ -1,0 +1,393 @@
+# LifeOS — Manual del backend
+
+Arquitectura, flujos de datos, matemáticas de carga y arquitectura RAG.
+Para el despliegue, ver [`manual_docker_debian.md`](manual_docker_debian.md).
+
+---
+
+## 1. Arquitectura
+
+```
+Navegador (PWA, Next.js App Router)
+  │  Server Components ──► servicios (src/lib/*) ──► Prisma ──► PostgreSQL 17 + pgvector
+  │  Client Components ──► API REST (src/app/api/**/route.ts) ──► servicios
+  │
+  └─ proxy.ts (antes "middleware"): exige sesión en todas las páginas
+```
+
+| Capa | Ubicación | Responsabilidad |
+|---|---|---|
+| Páginas | `src/app/(app)/**/page.tsx` | Server Components: leen los servicios directamente, sin pasar por HTTP |
+| Formularios | `src/components/**` | Client Components: escriben vía API y luego `router.refresh()` |
+| API REST | `src/app/api/**/route.ts` | Validación con zod, autenticación y llamada al servicio |
+| Servicios | `src/lib/{training,nutrition,finance,ai}/service.ts`, `rag.ts`, `coach.ts`… | Lógica de dominio con acceso a BD |
+| Lógica pura | `tss.ts`, `strength.ts`, `pmc.ts`, `readiness.ts`, `ledger.ts`, `chunking.ts`, `sm2.ts`, `openfoodfacts.ts` | Sin BD ni red, con tests unitarios (`npm test`) |
+| Datos | `prisma/schema.prisma`, `prisma/migrations/` | 37 modelos; la migración inicial incluye SQL manual (HNSW y trigger contable) |
+
+### Convenciones transversales
+
+- **Errores.** Todos los handlers pasan por `route()` (`src/lib/api.ts`), que traduce cada tipo de error a un código HTTP:
+
+  | Error | Respuesta |
+  |---|---|
+  | `ZodError` | 400 con `details[]` |
+  | `ApiError` | su propio código |
+  | Prisma `P2002` | 409 |
+  | Prisma `P2025` | 404 |
+  | Prisma `P2003` | 400 |
+  | Cualquier otro | 500 (se registra en el log) |
+- **Fechas.** Las columnas `@db.Date` se manejan como medianoche UTC (`src/lib/dates.ts`). "Hoy" se calcula en `Europe/Madrid`.
+- **Dinero.** Siempre en céntimos de EUR (`Int`), nunca en coma flotante. `toCents("12,50") = 1250`.
+- **Unidades.** Distancia en metros, tiempo en segundos, carga en kg y peso de implementos en gramos.
+- **Entorno.** `src/lib/env.ts` valida las variables. Gemini y OpenFoodFacts son opcionales: si faltan, sus endpoints devuelven 503 en vez de impedir el arranque.
+- **Cliente Prisma perezoso** (`src/lib/prisma.ts`). Se crea en el primer uso, no al importar. Así `next build` funciona sin `DATABASE_URL`, que no debe estar en la imagen Docker.
+
+---
+
+## 2. Autenticación y permisos
+
+- **Auth.js v5** (`src/auth.ts`) con proveedor de credenciales y sesiones **JWT** (Auth.js no persiste sesiones de credenciales).
+- **Contraseñas** con `scrypt` nativo de Node (`N=2^15, r=8, p=1`) y sal aleatoria; se comparan con `timingSafeEqual`.
+- **Roles:** `ATHLETE`, `COACH` y `ADMIN`.
+- **`requireUser()`** (API) devuelve 401 en JSON. **`pageUser()`** (páginas) redirige a `/login`.
+- **Vínculo coach → atleta** (`CoachAthlete`):
+  1. El coach invita al atleta por email; el vínculo queda en `PENDING`.
+  2. Solo el atleta puede aceptarlo (`ACTIVE`) y conceder `canPlan`.
+  3. Cualquiera de los dos puede revocarlo.
+  4. `resolveAthleteId(user, athleteId, mode)` (`src/lib/auth/session.ts`) aplica las reglas:
+
+     | Caso | Resultado |
+     |---|---|
+     | Sin `athleteId` | El propio usuario |
+     | `ADMIN` | Acceso a cualquier atleta |
+     | `COACH` | Solo con vínculo `ACTIVE`; para escribir además necesita `canPlan` |
+- **Privacidad.** Finanzas, nutrición y estudio **nunca** aceptan `athleteId`: son datos privados de cada usuario.
+
+---
+
+## 3. Flujos de datos por módulo
+
+### 3.1 Entrenamiento
+
+```
+POST /api/training/sessions
+  └─ createTrainingSession()                       src/lib/training/service.ts
+       ├─ umbrales vigentes en la fecha            thresholdsAt()
+       ├─ derivados: ritmo, tonelaje, e1RM por serie, mejor marca técnica
+       ├─ computeSessionTss()                      src/lib/training/tss.ts
+       ├─ INSERT cabecera + detalle 1:1 (track | technical | strength) en una transacción
+       ├─ detectPersonalRecords()                  marca técnica por prueba+implemento, 1RM por ejercicio
+       └─ recomputeDailyLoads(desde la fecha)      PMC
+```
+
+- **Una sola cabecera.** `TrainingSession` guarda fecha, tipo, duración, RPE de sesión, `tss` y `tssMethod`. El detalle va en `TrackSession` / `TechnicalSession` / `StrengthSession`. CTL/ATL salen de una única serie, sin `UNION`.
+- **Sesiones planificadas.** Con `status=PLANNED` no suman carga ni generan marcas personales.
+- **Umbrales versionados.** `ThresholdHistory` guarda FCmáx, FC de reposo, LTHR, ritmo umbral y CSS, cada uno con `effectiveFrom`. Cada sesión usa los umbrales de su fecha, así que actualizar el LTHR no reescribe el histórico.
+- **Al borrar una sesión** se recalcula la PMC desde su fecha.
+
+### 3.2 Recuperación
+
+```
+POST /api/recovery  (upsert por fecha)
+  └─ upsertRecovery() → ensureLoadsUpToDate() → refreshReadiness(fecha)
+       ├─ línea base: 60 días previos de VFC y FC de reposo
+       ├─ TSB del día (DailyLoad)
+       └─ computeReadiness() → readinessScore + readinessParts (desglose auditable)
+```
+
+### 3.3 Nutrición (OpenFoodFacts)
+
+- **Búsqueda:** `GET /api/nutrition/search?q=hacendado yogur` llama a `https://es.openfoodfacts.org/cgi/search.pl` y guarda los productos con código de barras en `FoodProduct`.
+- **Código de barras:** `GET /api/nutrition/products/{ean}` consulta `/api/v2/product/{ean}`.
+  - Caché local de 30 días.
+  - Si OFF falla, se devuelve el dato en caché aunque esté caducado.
+- **Errores de OFF:**
+
+  | Respuesta de OFF | Resultado |
+  |---|---|
+  | 404 | 404 tipado |
+  | 429 | Aviso de límite de peticiones |
+  | Timeout de 8 s | 502 |
+  | En la búsqueda, cualquier fallo | Se cae a una búsqueda en la caché local (`source: "cache"` + `warning`) |
+- **User-Agent identificable:** obligatorio para OFF (`OFF_USER_AGENT`).
+- **Límites de OFF:** ~10 búsquedas/min y ~100 productos/min por IP. La caché amortigua ambos.
+- **Diario (`Macros`).** Cada fila guarda una **copia** de kcal y macros calculada en el momento del registro: `macro = valor_por_100g × gramos / 100`. Si OFF corrige el producto después, el histórico no cambia.
+- **Objetivo del día (`NutritionGoal`, versionado).** En días con sesión se multiplica por `trainingDayKcalFactor`; el extra se asigna a hidratos (`(kcal × (factor−1)) / 4` g).
+
+### 3.4 Finanzas: partida doble
+
+- **Modelo:** `FinancialAccount` (`ASSET`, `LIABILITY`, `INCOME`, `EXPENSE`, `EQUITY`) + `FinancialTransaction` (cabecera) + `Posting` (líneas).
+- **Signo:** `+` es débito y `−` es crédito. **Invariante: Σ `amountCents` = 0 en cada transacción.**
+- **Ejemplos de asientos:**
+
+  | Operación | Líneas |
+  |---|---|
+  | Gasto de 12,50 € | `Gastos +1250` / `Banco −1250` |
+  | Nómina | `Banco +150000` / `Ingresos −150000` |
+  | Transferencia | `Ahorro +X` / `Corriente −X` |
+  | Saldo inicial | `Cuenta +X` / `Saldo inicial (EQUITY) −X` |
+- **Doble garantía del invariante:**
+  1. `assertBalanced()` en el servicio, que da un 400 legible.
+  2. `CONSTRAINT TRIGGER posting_balanced`, `DEFERRABLE INITIALLY DEFERRED`: se comprueba en el `COMMIT`, así que ni un acceso SQL directo puede dejar un asiento descuadrado.
+- **Saldo de una cuenta:** Σ de sus líneas.
+- **Flujo de caja mensual:** ingresos = −Σ(INCOME) y gastos = Σ(EXPENSE), agrupados por mes con `date_trunc`.
+- **Presupuestos:** gasto del periodo actual (semanal ISO, mensual, trimestral o anual) sumando la categoría y sus subcategorías.
+
+  | Gasto respecto al presupuesto | Estado |
+  |---|---|
+  | `pct ≥ alertThresholdPct` | `WARNING` |
+  | `pct ≥ 100` | `EXCEEDED` |
+- **Suscripciones `autoPost`:** `POST /api/finance/subscriptions/run` contabiliza cada cobro vencido (≤ hoy) y avanza `nextChargeDate`.
+  - Es idempotente.
+  - Conserva el día ancla: un cobro el día 31 pasa a 28/29 en febrero y vuelve al 31 en marzo.
+
+---
+
+## 4. Matemáticas de carga
+
+Convención TrainingPeaks: **una hora exactamente en umbral = 100 TSS**. Todo está en `src/lib/training/` y es puro y testeado.
+
+### 4.1 Cardio por frecuencia cardíaca: hrTSS
+
+TRIMP de Banister, con reserva de FC `HRr = (FCmedia − FCreposo) / (FCmáx − FCreposo)`:
+
+```
+TRIMP = minutos × HRr × a × e^(b × HRr)        hombres: a=0.64, b=1.92 · mujeres: a=0.86, b=1.67
+hrTSS = TRIMP(sesión) / TRIMP(60 min a LTHR) × 100
+```
+
+Necesita FCmáx, FC de reposo y LTHR, con `FCreposo < LTHR ≤ FCmáx`; si no, devuelve `null` y se prueba el siguiente método.
+
+### 4.2 Cardio por ritmo: rTSS y swim TSS
+
+```
+IF_carrera  = ritmo_umbral / ritmo_medio        (s/km: menor = más rápido)
+rTSS        = horas × IF² × 100
+IF_natación = CSS / ritmo_medio_100m
+sTSS_nat    = horas × IF³ × 100                 (el arrastre crece con el cubo de la velocidad)
+```
+
+### 4.3 Session-RPE (Foster)
+
+Lineal, como está validado (Foster 2001), y reescalado a TSS:
+
+```
+carga_Foster = RPE (CR-10) × minutos
+TSS_sRPE     = carga_Foster / (7 × 60) × 100       → 60 min a RPE 7 = 100
+```
+
+> Nota de diseño: un primer prototipo elevaba el RPE al cuadrado. Con datos reales sobrevaloraba las sesiones técnicas largas con mucho descanso (90 min de jabalina a RPE 8 daban 196 TSS), así que se volvió a la forma lineal validada.
+
+### 4.4 Fuerza: series duras
+
+No hay un sTSS estándar para fuerza. Se usa el recuento de series cercanas al fallo ponderado por esfuerzo:
+
+```
+esfuerzo  = RPE/10   (o (10 − RIR)/10; si no hay ninguno se asume RPE 7,5)
+peso_serie = (esfuerzo / 0,8)²          RPE 8 → 1 · RPE 10 → 1,56 · RPE 6 → 0,56
+TSS_fuerza = Σ peso_serie × 5           (~20 series duras ≈ 100 TSS; calentamiento excluido)
+tonelaje   = Σ reps × (peso + factor_peso_corporal × peso_corporal)   (calentamiento excluido)
+```
+
+El tonelaje se guarda y se muestra, pero no se usa como TSS: compara mal entre ejercicios (100 kg de sentadilla no equivalen a 100 kg de curl).
+
+**1RM estimado** (`estimateOneRm`). Las repeticiones hasta el fallo son `reps + RIR`; si no hay RIR, se usa `10 − RPE`:
+
+| Repeticiones hasta el fallo | Fórmula |
+|---|---|
+| 1 | El propio peso levantado |
+| 2–10 | Brzycki: `peso × 36 / (37 − r)` |
+| 11–15 | Epley: `peso × (1 + r/30)` |
+| > 15 | `null` (no fiable) |
+
+En ejercicios con peso corporal (dominadas, fondos) el 1RM incluye ese peso.
+
+### 4.5 Técnica: lanzamientos y saltos
+
+Sin duración ni RPE: `TSS = intentos × 1,5 × (RPE/7)²`. Con duración y RPE se prefiere sRPE.
+
+### 4.6 Selección automática del método
+
+`computeSessionTss()` devuelve el método elegido y **todos los candidatos** (`tssCandidates`), para auditarlo:
+
+```
+MANUAL  >  HR_TSS  >  PACE_TSS  >  SRPE  >  TONNAGE (series duras) / TECHNICAL
+```
+
+### 4.7 PMC: CTL, ATL, TSB y ACWR
+
+Modelo impulso-respuesta de Banister (`pmc.ts`), con recurrencia diaria. **Los días sin entreno cuentan como TSS 0**; si no, la fatiga nunca bajaría.
+
+```
+CTL_hoy = CTL_ayer + (TSS_hoy − CTL_ayer) / 42        Fitness
+ATL_hoy = ATL_ayer + (TSS_hoy − ATL_ayer) / 7         Fatiga
+TSB_hoy = CTL_ayer − ATL_ayer                          Forma con la que se llega a hoy
+ACWR    = ATL / CTL                                    solo con ≥ 28 días de historia
+rampa   = CTL_hoy − CTL_hace_7_días
+```
+
+- **Constantes 42 y 7:** configurables por atleta (`AthleteProfile`). Al cambiarlas se recalcula toda la serie.
+- **`DailyLoad`:** tabla materializada que se puede recalcular en cualquier momento. `recomputeDailyLoads(desde)` usa como semilla el día anterior, reescribe desde esa fecha y refresca el readiness del rango.
+- **Lectura actualizada:** `ensureLoadsUpToDate()` alarga la serie hasta hoy antes de cada lectura.
+- **Umbral del ACWR:** antes de 28 días el CTL es casi 0 y el cociente se dispara (con datos reales llegó a 5,54 a los 3 días). Por eso es `null` hasta entonces.
+
+### 4.8 Readiness (0–100)
+
+Combina la forma (TSB) con marcadores de recuperación (`readiness.ts`):
+
+| Componente | Peso | Cálculo de la puntuación (0–100) |
+|---|---|---|
+| VFC | 30 % | z = (ln rMSSD_hoy − media(ln base)) / max(sd, 0,05) → `75 + 30·z` (Plews: escala logarítmica y comparación individual) |
+| TSB | 20 % | `70 + 2·TSB` (0 → 70; −30 → 10; +15 → 100) |
+| Sueño | 20 % | horas: `100 − 20·déficit_vs_8h − 5·exceso_sobre_10h` (70 %) + calidad 1–5 (30 %) |
+| FC en reposo | 10 % | z frente a línea base con sd mínima 1,5 → `75 − 30·z` |
+| DOMS | 10 % | `100 − 10·DOMS` |
+| Bienestar | 10 % | media de fatiga, estrés y ánimo (1–5; fatiga y estrés invertidos) |
+
+Reglas:
+
+- **Línea base:** los 60 días anteriores, con un mínimo de 5 mediciones. Sin línea base no hay componente de VFC ni de FC.
+- **Componentes que faltan:** los pesos se **renormalizan**. Si hay menos del 30 % del peso total, el resultado es `null`.
+- **Interpretación:**
+
+  | Puntuación | Estado |
+  |---|---|
+  | ≥ 75 | `READY` |
+  | 50–74 | `MODERATE` |
+  | < 50 | `RECOVER` |
+- **`readinessParts`:** guarda el desglose y el peso usado para poder explicar el número.
+
+---
+
+## 5. Astras AI (Gemini, `@google/genai`)
+
+### 5.1 RAG sobre apuntes
+
+```
+POST /api/ai/documents (multipart: file, subject?)
+  ├─ valida: PDF / TXT / MD, ≤ 15 MB; sin GEMINI_API_KEY → 503 antes de tocar disco
+  ├─ guarda el fichero en UPLOAD_DIR/<userId>/<docId>.<ext>
+  ├─ extrae texto: unpdf (pdf.js), por página
+  ├─ trocea: chunkText() ≈1200 caracteres, 200 de solape,
+  │          corte en párrafo > frase > palabra; conserva la página de origen
+  ├─ embedContent(gemini-embedding-001, taskType=RETRIEVAL_DOCUMENT,
+  │               outputDimensionality=768), lotes de 100
+  ├─ normalización L2: Google solo normaliza la salida de 3072 dimensiones
+  └─ INSERT DocumentChunk + UPDATE embedding = '[…]'::vector (SQL parametrizado)
+```
+
+- **Consulta:**
+  1. `embed(pregunta, RETRIEVAL_QUERY)`.
+  2. KNN por **distancia coseno** sobre el índice **HNSW** (`vector_cosine_ops`, m=16, ef_construction=64), siempre **filtrado por `userId`**.
+  3. Se queda con los 6 mejores y descarta los de similitud < 0,35.
+- **Respuesta:** prompt de sistema "responde solo con los fragmentos, cita con [n]; si no está, dilo". Se envían los últimos 10 mensajes del hilo como contexto.
+- **Persistencia:** `ChatMessage` con `citations` (fragmento, documento, página, score) y el consumo de tokens.
+- **Por qué `vector(768)`:** cabe en HNSW (límite de 2000 dimensiones) y ocupa 4 veces menos que 3072. **Cambiar el modelo o la dimensión obliga a re-vectorizar** todos los documentos (`embedModel` queda registrado en cada documento).
+- **Prisma y pgvector:**
+  - Prisma no soporta el tipo `vector`: la columna es `Unsupported("vector(768)")` y se lee y escribe con `$queryRaw` / `$executeRaw`.
+  - Prisma tampoco sabe declarar índices HNSW. Por eso `DocumentChunk` está marcada como **tabla externa** en `prisma.config.ts` (`experimental.externalTables`); sin eso, cada `migrate dev` generaría un `DROP INDEX`.
+  - **Consecuencia:** los cambios de estructura de `DocumentChunk` se escriben a mano en SQL dentro de una migración.
+
+### 5.2 Flashcards
+
+- **Generación:** toma fragmentos repartidos por todo el documento (máximo ~40 000 caracteres) y llama a `generateJson()` con un esquema zod.
+  - Gemini recibe el esquema como `responseJsonSchema` (decodificación restringida).
+  - El servidor vuelve a **validar** la respuesta: si no cumple el contrato, 502.
+- **Repaso:** **SM-2** (`sm2.ts`).
+
+  | Nota | Efecto |
+  |---|---|
+  | < 3 | Reinicia la serie (intervalo de 1 día) y resta 0,2 al EF |
+  | ≥ 3 | Intervalos de 1 → 6 → intervalo × EF |
+
+  El EF (factor de facilidad) nunca baja de 1,3.
+
+### 5.3 Coach de rendimiento semanal
+
+- **Endpoints:**
+  - `POST /api/ai/coach/weekly` (por defecto, la semana ISO anterior) hace un upsert de `CoachReport(userId, weekStart)`.
+  - `GET …?preview=1` devuelve el snapshot sin llamar a Gemini.
+- **Snapshot** (`buildWeeklySnapshot`). Es **lo único que ve el modelo**:
+  - Carga total y por tipo (pista, técnica, fuerza): sesiones, TSS y minutos; además, el TSS de la semana anterior.
+  - PMC: CTL al inicio y al final, ATL, TSB, ACWR y rampa.
+  - Por sesión: lanzamientos (intentos, nulos, mejor marca, valoración media) y fuerza (tonelaje, series efectivas, series duras equivalentes).
+  - Recuperación diaria y media semanal frente a la **línea base de 28 días** (VFC, sueño, FC de reposo, DOMS, readiness).
+  - Ciclos activos y competiciones de los próximos 35 días.
+- **Prompt de sistema** (`COACH_SYSTEM_PROMPT` en `src/lib/ai/coach.ts`). Incluye estos criterios, que el modelo debe aplicar con juicio:
+  - Rampa de CTL > 5–8 puntos/semana o ACWR > 1,3–1,5 indican riesgo de sobrecarga.
+  - TSB sostenido por debajo de −20 a −30 indica fatiga acumulada.
+  - VFC por debajo de su línea base junto con FC de reposo por encima indica que conviene bajar la intensidad.
+  - Sueño < 7 h: recomendar sueño antes que cambiar la carga.
+  - Lanzadores y saltadores con fatiga: recortar primero los intentos de máxima intensidad o el peso del implemento (codo, hombro, lumbar, tendones).
+  - Fuerza con readiness bajo: mantener la intensidad y recortar volumen.
+  - Competición en ≤ 14 días: tapering (−40 a −60 % de volumen, intensidad mantenida).
+  - Cada recomendación debe citar el dato que la justifica. Si faltan datos, va a `dataGaps`. Nunca diagnosticar lesiones.
+- **Salida validada:** `riskLevel`, `summary`, `keyFindings[]`, `recommendations[{area, action, rationale, priority}]`, `nextWeek{targetTssMin, targetTssMax, maxHardSessions, notes}` y `dataGaps[]`.
+- **Cron opcional:** para generarlo automáticamente cada lunes, programar un `POST` autenticado o una tarea que llame a `generateWeeklyCoachReport()`.
+
+---
+
+## 6. Referencia de la API
+
+Todas las rutas requieren sesión, salvo `/api/auth/*`. Los cuerpos son JSON y se validan con zod. Las fechas usan el formato `YYYY-MM-DD`.
+
+| Ruta | Métodos | Notas |
+|---|---|---|
+| `/api/auth/register` | POST | `{name, email, password≥10, role}` |
+| `/api/auth/[...nextauth]` | GET, POST | Auth.js (csrf, callback/credentials, session, signout) |
+| `/api/profile` | GET, PATCH | Perfil del atleta; cambiar CTL/ATL recalcula la PMC |
+| `/api/coach/links` | GET, POST | El coach invita por email |
+| `/api/coach/links/[id]` | PATCH | El atleta acepta, concede `canPlan` o revoca |
+| `/api/training/sessions` | GET, POST | Filtros `from`, `to`, `type`, `status`, `athleteId`; POST con unión discriminada por `type` |
+| `/api/training/sessions/[id]` | GET, DELETE | El DELETE recalcula la PMC |
+| `/api/training/pmc` | GET | `?days=7…730` → `series[]` (un punto por día) + `current` |
+| `/api/training/thresholds` | GET, POST | Umbrales con `effectiveFrom` |
+| `/api/training/exercises` | GET, POST | Catálogo global + ejercicios propios; `?q=` |
+| `/api/training/records` | GET | Marcas personales |
+| `/api/recovery` | GET, POST | Upsert diario → `readinessScore` |
+| `/api/planning/cycles` (`/[id]`) | GET, POST, DELETE | Macro, meso y micro jerárquicos; el hijo debe caber en las fechas del padre |
+| `/api/planning/events` (`/[id]`) | GET, POST, DELETE | Competición (prioridad A/B/C), test de 1RM, toma de marca, taper, descarga, bloque de estudio, examen |
+| `/api/tasks` (`/[id]`) | GET, POST, PATCH, DELETE | Prioridades LOW…URGENT |
+| `/api/nutrition/search` | GET | `?q=` (OFF con respaldo en caché) |
+| `/api/nutrition/products/[barcode]` | GET | EAN-8/13, UPC |
+| `/api/nutrition/entries` (`/[id]`) | GET, POST, DELETE | GET `?date=` → entradas, totales y objetivo |
+| `/api/nutrition/goals` | GET, POST | Versionado por `effectiveFrom` |
+| `/api/finance/accounts` | GET, POST | Con saldo; `openingBalanceCents` opcional |
+| `/api/finance/categories` | GET, POST | Jerárquicas |
+| `/api/finance/transactions` (`/[id]`) | GET, POST, DELETE | `mode: "simple"` o `mode: "split"` (líneas libres que deben sumar 0) |
+| `/api/finance/budgets` | GET, POST | GET devuelve el estado del periodo actual |
+| `/api/finance/cashflow` | GET | `?months=1…36` |
+| `/api/finance/spending` | GET | Gasto por categoría (por defecto, el mes actual) |
+| `/api/finance/subscriptions` (`/run`) | GET, POST | `run` contabiliza los cobros vencidos (idempotente) |
+| `/api/ai/documents` (`/[id]`) | GET, POST, DELETE | Subida multipart |
+| `/api/ai/study/chat` | POST | `{question, threadId?, documentIds?}` |
+| `/api/ai/study/threads` (`/[id]`) | GET, DELETE | Historial |
+| `/api/ai/flashcards/generate` | POST | `{documentId, count 3–40}` |
+| `/api/ai/flashcards/decks` · `/due` · `/[id]/review` | GET, GET, POST | Repaso SM-2 (`grade` 0–5) |
+| `/api/ai/coach/weekly` | GET, POST | `?preview=1` devuelve solo el snapshot |
+
+---
+
+## 7. Pruebas
+
+```bash
+npm test             # 65 tests unitarios (motor de carga, contabilidad, OFF, troceado, SM-2, formatos)
+npm run typecheck    # next typegen + tsc
+npm run lint
+npm run e2e          # recorrido de la UI en Chromium (necesita la app arrancada; BASE_URL)
+```
+
+**Sin probar contra los servicios reales:**
+
+- **Gemini:** el entorno de desarrollo no tenía clave. Se verificó la degradación (503 y avisos en la UI), la extracción de PDF en el build standalone y el SQL de pgvector con vectores sintéticos.
+- **OpenFoodFacts:** estaba bloqueado por el proxy. El cliente está cubierto con `fetch` simulado y se verificó el respaldo en caché.
+
+---
+
+## 8. Limitaciones conocidas y próximos pasos
+
+- **Ingesta RAG síncrona:** cabe en una petición para apuntes normales (≤ 15 MB). Para libros enteros, moverla a una cola (pg-boss o BullMQ) y procesar en segundo plano.
+- **PDFs escaneados sin capa de texto:** devuelven 422. Haría falta OCR.
+- **TSS ya guardado:** si cambian los umbrales o la calibración, no se recalcula. Falta un endpoint de "recalcular TSS" por rango de fechas.
+- **`Exercise @@unique([userId, name])`:** PostgreSQL trata los `NULL` como distintos, así que no impide duplicados en el catálogo global. El seed es idempotente con `findFirst`; si se crean ejercicios globales a mano, conviene un índice parcial único.
+- **Calibraciones heurísticas:** `TSS_PER_HARD_SET = 5`, `TSS_PER_TECHNICAL_ATTEMPT = 1,5` y los pesos del readiness son puntos de partida razonables, no valores validados. Conviene ajustarlos a cada atleta con su propio histórico.
