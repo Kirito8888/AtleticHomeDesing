@@ -21,11 +21,11 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma generate && npm run build
 
-# ---------- migrate: herramienta one-shot para `prisma migrate deploy` ----------
+# ---------- migrate: herramienta one-shot (migraciones + seed idempotente) ----------
 # Usada por el servicio `migrate` (perfil "tools") del docker-compose.
 FROM deps AS migrate
 WORKDIR /app
-CMD ["npx", "prisma", "migrate", "deploy"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed"]
 
 # ---------- runner: imagen mínima de producción ----------
 FROM node:${NODE_VERSION} AS runner
