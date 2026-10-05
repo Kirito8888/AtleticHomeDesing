@@ -3,6 +3,7 @@
 #   cp .env.example .env.production   # y rellena los valores
 #   docker compose --env-file .env.production up -d --build
 #   docker compose --env-file .env.production --profile tools run --rm migrate
+# Guía completa: manual_docker_debian.md
 
 name: lifeos
 
@@ -30,12 +31,14 @@ services:
       context: .
       target: runner
     restart: unless-stopped
-    env_file: .env.production
+    env_file: ${APP_ENV_FILE:-.env.production}
     environment:
       # Dentro de la red de compose el host de la BD es "db".
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+    # Solo localhost por defecto: se publica detrás de un proxy HTTPS (Caddy/nginx).
+    # Ojo: los puertos publicados por Docker se saltan ufw/iptables del host.
     ports:
-      - "${WEB_PORT:-3000}:3000"
+      - "${WEB_BIND:-127.0.0.1}:${WEB_PORT:-3000}:3000"
     volumes:
       - uploads:/app/uploads
     depends_on:
@@ -62,7 +65,7 @@ services:
     build:
       context: .
       target: migrate
-    env_file: .env.production
+    env_file: ${APP_ENV_FILE:-.env.production}
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
     depends_on:
