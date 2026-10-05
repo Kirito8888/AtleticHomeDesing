@@ -118,4 +118,10 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Listas en cuadrícula: columna implícita minmax(0,1fr) para que una fila con
+     texto truncado no ensanche la página en móvil. Las utilidades grid-cols-*
+     (capa utilities) siguen teniendo prioridad. */
+  :where(ul, ol).grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

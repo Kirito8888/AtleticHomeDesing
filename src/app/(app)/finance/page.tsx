@@ -198,7 +198,13 @@ export default async function FinancePage() {
                       <div className="min-w-0 flex-1">
                         <div className="truncate">{t.description}</div>
                         <div className="truncate text-xs text-muted-foreground">
-                          {t.kind === "TRANSFER" ? "Transferencia" : (cat ?? "Sin categoría")}
+                          {t.kind === "TRANSFER"
+                            ? "Transferencia"
+                            : t.kind === "OPENING_BALANCE"
+                              ? "Saldo de apertura"
+                              : t.kind === "ADJUSTMENT"
+                                ? "Ajuste"
+                                : (cat ?? "Sin categoría")}
                           {moneyLeg ? ` · ${moneyLeg.account.name}` : ""}
                         </div>
                       </div>

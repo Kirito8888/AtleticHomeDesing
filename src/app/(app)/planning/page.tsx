@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
-import { formatDate } from "@/lib/format";
+import { capitalizeFirst, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 
@@ -45,7 +45,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
   const days: Date[] = [];
   for (let d = gridStart; d <= gridEnd; d = addDays(d, 1)) days.push(d);
   const todayIso = toIsoDay(now);
-  const monthLabel = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: "UTC" }).format(first);
+  const monthLabel = capitalizeFirst(new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: "UTC" }).format(first));
   const monthEvents = events.filter((e) => e.startAt >= first && e.startAt <= last);
   const taskItems: TaskItem[] = tasks
     .map((t) => ({ id: t.id, title: t.title, priority: t.priority, status: t.status, dueDate: t.dueDate ? toIsoDay(t.dueDate) : null }))
@@ -61,7 +61,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
             <ChevronLeft />
           </Link>
         </Button>
-        <h2 className="text-lg font-semibold capitalize">{monthLabel}</h2>
+        <h2 className="text-lg font-semibold">{monthLabel}</h2>
         <Button asChild variant="ghost" size="icon" aria-label="Mes siguiente">
           <Link href={`?month=${next}`}>
             <ChevronRight />

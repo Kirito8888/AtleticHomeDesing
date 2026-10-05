@@ -180,7 +180,7 @@ export function ManageFinance({ accounts, categories, today }: { accounts: Accou
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button size="sm" variant="outline">
+        <Button size="sm" variant="outline" aria-label="Gestionar">
           <Settings2 /> <span className="hidden sm:inline">Gestionar</span>
         </Button>
       </SheetTrigger>

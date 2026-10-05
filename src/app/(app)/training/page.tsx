@@ -39,7 +39,7 @@ export default async function TrainingPage() {
         action={
           <div className="flex gap-2">
             <Button asChild variant="outline" size="sm">
-              <Link href="/training/performance">
+              <Link href="/training/performance" aria-label="Rendimiento">
                 <LineChart /> <span className="hidden sm:inline">Rendimiento</span>
               </Link>
             </Button>
