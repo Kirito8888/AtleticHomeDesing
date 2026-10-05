@@ -1,0 +1,1076 @@
+// =============================================================================
+// LifeOS — schema.prisma
+// PostgreSQL 17 + pgvector. Multiusuario (ATHLETE / COACH / ADMIN).
+// Convenciones:
+//   - ids cuid(), timestamps createdAt/updatedAt.
+//   - Fechas "de día" (sin hora) como @db.Date.
+//   - Importes monetarios en céntimos de EUR (Int). Nunca Float para dinero.
+//   - Distancias en metros, tiempos en segundos, pesos de carga en kg,
+//     pesos de implementos en gramos.
+// =============================================================================
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+
+// =============================================================================
+// 1. IDENTIDAD, AUTH (Auth.js v5 Prisma Adapter) Y RELACIÓN COACH → ATLETA
+// =============================================================================
+
+enum UserRole {
+  ATHLETE
+  COACH
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String? // solo para login con credenciales
+  role          UserRole  @default(ATHLETE)
+  timezone      String    @default("Europe/Madrid")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+
+  coaching  CoachAthlete[] @relation("CoachLinks")
+  coachedBy CoachAthlete[] @relation("AthleteLinks")
+
+  athleteProfile    AthleteProfile?
+  thresholds        ThresholdHistory[]
+  trainingSessions  TrainingSession[]
+  plannedSessions   TrainingSession[]      @relation("PlannedBy")
+  personalRecords   PersonalRecord[]
+  dailyLoads        DailyLoad[]
+  recoveryMetrics   RecoveryMetrics[]
+  customExercises   Exercise[]
+  trainingCycles    TrainingCycle[]
+  calendarEvents    CalendarEvent[]
+  tasks             Task[]
+  financialAccounts FinancialAccount[]
+  financialCats     FinancialCategory[]
+  transactions      FinancialTransaction[]
+  budgets           Budget[]
+  subscriptions     Subscription[]
+  macros            Macros[]
+  nutritionGoals    NutritionGoal[]
+  studyDocuments    StudyDocument[]
+  chatThreads       ChatThread[]
+  flashcardDecks    FlashcardDeck[]
+  coachReports      CoachReport[]
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?  @db.Text
+  access_token      String?  @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?  @db.Text
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum CoachLinkStatus {
+  PENDING
+  ACTIVE
+  REVOKED
+}
+
+/// Un coach puede leer (y opcionalmente planificar) los datos deportivos del atleta.
+/// Finanzas / estudio NUNCA se comparten por esta relación.
+model CoachAthlete {
+  id         String          @id @default(cuid())
+  coachId    String
+  athleteId  String
+  status     CoachLinkStatus @default(PENDING)
+  canPlan    Boolean         @default(false) // puede crear sesiones planificadas/ciclos
+  createdAt  DateTime        @default(now())
+  acceptedAt DateTime?
+
+  coach   User @relation("CoachLinks", fields: [coachId], references: [id], onDelete: Cascade)
+  athlete User @relation("AthleteLinks", fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([coachId, athleteId])
+  @@index([athleteId])
+}
+
+// =============================================================================
+// 2. PERFIL DEL ATLETA Y UMBRALES (versionados para no reescribir el TSS histórico)
+// =============================================================================
+
+enum Sex {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum Discipline {
+  SPRINT
+  MIDDLE_DISTANCE
+  LONG_DISTANCE
+  HURDLES
+  JUMPS
+  THROWS
+  COMBINED_EVENTS
+  SWIMMING
+  CYCLING
+  STRENGTH
+  OTHER
+}
+
+model AthleteProfile {
+  id                String       @id @default(cuid())
+  userId            String       @unique
+  birthDate         DateTime?    @db.Date
+  sex               Sex?
+  heightCm          Float?
+  bodyWeightKg      Float?
+  primaryDiscipline Discipline?
+  disciplines       Discipline[]
+  // Constantes del modelo de Banister (configurables por atleta)
+  ctlTimeConstant   Int          @default(42)
+  atlTimeConstant   Int          @default(7)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Umbrales fisiológicos con fecha de vigencia. El cálculo de TSS de una sesión
+/// usa el registro con mayor effectiveFrom <= fecha de la sesión.
+model ThresholdHistory {
+  id                          String   @id @default(cuid())
+  userId                      String
+  effectiveFrom               DateTime @db.Date
+  hrMax                       Int?
+  hrRest                      Int?
+  lthr                        Int? // FC en umbral láctico (base de hrTSS)
+  thresholdPaceSecPerKm       Float? // ritmo umbral carrera (rTSS)
+  thresholdPaceSecPer100mSwim Float? // CSS natación (sTSS natación)
+  ftpWatts                    Int?
+  notes                       String?
+  createdAt                   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, effectiveFrom])
+}
+
+// =============================================================================
+// 3. ENTRENAMIENTO MULTI-DISCIPLINA
+//    TrainingSession = cabecera común (alimenta CTL/ATL/TSB con una sola serie).
+//    TrackSession / TechnicalSession / StrengthSession = detalle 1:1 por tipo.
+// =============================================================================
+
+enum SessionType {
+  TRACK // pista / cardio: fondo, velocidad, natación, ciclismo
+  TECHNICAL // lanzamientos y saltos
+  STRENGTH // gimnasio
+  MIXED // sesión con varias partes (p.ej. técnica + fuerza)
+}
+
+enum SessionStatus {
+  PLANNED
+  COMPLETED
+  SKIPPED
+}
+
+enum TssMethod {
+  HR_TSS // basado en FC y LTHR (Coggan/Friel)
+  PACE_TSS // rTSS / swim TSS basado en ritmo umbral
+  SRPE // Foster: RPE de sesión x minutos, normalizado
+  TONNAGE // carga de fuerza: tonelaje relativo + intensidad (RPE/RIR)
+  TECHNICAL // nº de intentos x intensidad del implemento x RPE
+  MANUAL
+}
+
+model TrainingSession {
+  id            String        @id @default(cuid())
+  userId        String
+  plannedById   String? // coach que la planificó (null = el propio atleta)
+  cycleId       String? // microciclo al que pertenece
+  date          DateTime      @db.Date
+  startedAt     DateTime?
+  type          SessionType
+  discipline    Discipline?
+  status        SessionStatus @default(COMPLETED)
+  title         String?
+  durationSec   Int? // duración total de la sesión
+  sessionRpe    Float? // 1-10 (CR-10 de Foster)
+  // Carga calculada por el motor de fatiga (Fase 2). Persistida para series rápidas.
+  tss           Float?
+  tssMethod     TssMethod?
+  tssComputedAt DateTime?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plannedBy User?          @relation("PlannedBy", fields: [plannedById], references: [id], onDelete: SetNull)
+  cycle     TrainingCycle? @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+
+  track           TrackSession?
+  technical       TechnicalSession?
+  strength        StrengthSession?
+  personalRecords PersonalRecord[]
+
+  @@index([userId, date])
+  @@index([cycleId])
+}
+
+// ---------- 3.1 Pista / Cardio ----------
+
+enum TrackModality {
+  RUN
+  SPRINT
+  HURDLES
+  SWIM
+  CYCLE
+  ROW
+  WALK
+  OTHER
+}
+
+enum TrackSurface {
+  TRACK
+  ROAD
+  TRAIL
+  TREADMILL
+  POOL_25
+  POOL_50
+  OPEN_WATER
+  OTHER
+}
+
+model TrackSession {
+  id                String        @id @default(cuid())
+  sessionId         String        @unique
+  modality          TrackModality
+  surface           TrackSurface?
+  distanceM         Float?
+  movingTimeSec     Int?
+  avgPaceSecPerKm   Float? // derivado; para natación usar avgPaceSecPer100m
+  avgPaceSecPer100m Float?
+  hrAvg             Int?
+  hrMax             Int?
+  elevationGainM    Float?
+  avgCadence        Int?
+  temperatureC      Float?
+  // Tiempo en zonas de FC en segundos [Z1..Z5] — permite TRIMP/hrTSS más fino
+  hrZoneSeconds     Int[]
+
+  session   TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  intervals TrackInterval[]
+}
+
+/// Series / repeticiones (p.ej. 6x300m rec 3') con splits opcionales.
+model TrackInterval {
+  id             String  @id @default(cuid())
+  trackSessionId String
+  order          Int
+  repetition     Int     @default(1) // nº de la repetición dentro del bloque
+  distanceM      Float?
+  timeSec        Float? // Float: los sprints se miden en centésimas
+  recoverySec    Int?
+  hrAvg          Int?
+  hrMax          Int?
+  rpe            Float?
+  isStartBlocks  Boolean @default(false) // salida de tacos
+  isFlying       Boolean @default(false) // lanzado
+  splitsSec      Float[] // parciales (p.ej. cada 100m)
+  notes          String?
+
+  trackSession TrackSession @relation(fields: [trackSessionId], references: [id], onDelete: Cascade)
+
+  @@unique([trackSessionId, order])
+}
+
+// ---------- 3.2 Técnica: lanzamientos y saltos ----------
+
+enum TechnicalEvent {
+  JAVELIN
+  SHOT_PUT
+  DISCUS
+  HAMMER
+  WEIGHT_THROW
+  LONG_JUMP
+  TRIPLE_JUMP
+  HIGH_JUMP
+  POLE_VAULT
+  OTHER
+}
+
+enum ApproachType {
+  STANDING // parado
+  SHORT // carrera corta
+  MEDIUM
+  FULL // carrera completa
+  GLIDE // desplazamiento (peso)
+  ROTATIONAL // giro (peso/disco/martillo)
+}
+
+model TechnicalSession {
+  id               String         @id @default(cuid())
+  sessionId        String         @unique
+  event            TechnicalEvent
+  implementWeightG Int? // 800 (jabalina sénior M), 600, 7260 (peso), etc.
+  implementModel   String? // marca/modelo de la jabalina o pértiga
+  poleLengthCm     Int?
+  poleFlex         Float?
+  approachType     ApproachType?
+  approachSteps    Int? // nº de apoyos/zancadas de carrera
+  windMs           Float? // viento general de la sesión
+  isCompetition    Boolean        @default(false)
+  focus            String? // objetivo técnico de la sesión
+  bestMarkM        Float? // desnormalizado del mejor intento válido
+
+  session  TrainingSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  attempts TechnicalAttempt[]
+}
+
+model TechnicalAttempt {
+  id                 String   @id @default(cuid())
+  technicalSessionId String
+  order              Int
+  markM              Float? // null si nulo / no medido
+  isFoul             Boolean  @default(false)
+  isMeasured         Boolean  @default(true)
+  windMs             Float?
+  barHeightM         Float? // altura / pértiga
+  cleared            Boolean? // altura / pértiga
+  approachSteps      Int?
+  rating             Int? // 1-5 autovaloración
+  // Notas técnicas por fase
+  runUpNotes         String? // fase de carrera / ritmo de los últimos apoyos
+  blockNotes         String? // bloqueo / batida
+  releaseNotes       String? // suelta / ángulo / vuelo
+  videoUrl           String?
+  createdAt          DateTime @default(now())
+
+  technicalSession TechnicalSession @relation(fields: [technicalSessionId], references: [id], onDelete: Cascade)
+
+  @@unique([technicalSessionId, order])
+}
+
+// ---------- 3.3 Fuerza (gimnasio) ----------
+
+enum MuscleGroup {
+  CHEST
+  BACK
+  SHOULDERS
+  BICEPS
+  TRICEPS
+  FOREARMS
+  CORE
+  QUADS
+  HAMSTRINGS
+  GLUTES
+  CALVES
+  FULL_BODY
+}
+
+enum MovementPattern {
+  SQUAT
+  HINGE
+  LUNGE
+  HORIZONTAL_PUSH
+  VERTICAL_PUSH
+  HORIZONTAL_PULL
+  VERTICAL_PULL
+  CARRY
+  ROTATION
+  OLYMPIC_LIFT
+  PLYOMETRIC
+  ISOLATION
+}
+
+enum LoadType {
+  BARBELL
+  DUMBBELL
+  KETTLEBELL
+  MACHINE
+  CABLE
+  BODYWEIGHT
+  MEDBALL
+  BAND
+  OTHER
+}
+
+/// Catálogo de ejercicios. userId null = ejercicio global del sistema.
+model Exercise {
+  id               String           @id @default(cuid())
+  userId           String?
+  name             String
+  primaryMuscle    MuscleGroup?
+  secondaryMuscles MuscleGroup[]
+  pattern          MovementPattern?
+  loadType         LoadType         @default(BARBELL)
+  isUnilateral     Boolean          @default(false)
+  // Si el peso corporal cuenta en el tonelaje (dominadas, fondos...)
+  bodyweightFactor Float            @default(0)
+  createdAt        DateTime         @default(now())
+
+  user            User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sets            StrengthSet[]
+  personalRecords PersonalRecord[]
+
+  @@unique([userId, name])
+}
+
+model StrengthSession {
+  id           String @id @default(cuid())
+  sessionId    String @unique
+  tonnageKg    Float? // Σ reps x peso de series efectivas (calculado en Fase 2)
+  bodyWeightKg Float? // peso corporal del día, para ejercicios con peso corporal
+
+  session TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sets    StrengthSet[]
+}
+
+model StrengthSet {
+  id                String   @id @default(cuid())
+  strengthSessionId String
+  exerciseId        String
+  order             Int // orden global en la sesión
+  setIndex          Int // nº de serie dentro del ejercicio
+  reps              Int
+  weightKg          Float    @default(0)
+  rpe               Float? // 6-10 (escala RPE de Tuchscherer)
+  rir               Int? // repeticiones en reserva
+  isWarmup          Boolean  @default(false)
+  isFailure         Boolean  @default(false)
+  tempo             String? // "3-1-X-0"
+  restSec           Int?
+  velocityMs        Float? // velocidad media propulsiva (VBT), si se mide
+  est1RmKg          Float? // Epley/Brzycki ajustado por RIR (Fase 2)
+  notes             String?
+  createdAt         DateTime @default(now())
+
+  strengthSession StrengthSession @relation(fields: [strengthSessionId], references: [id], onDelete: Cascade)
+  exercise        Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+
+  @@unique([strengthSessionId, order])
+  @@index([exerciseId])
+}
+
+// ---------- 3.4 Marcas personales ----------
+
+enum RecordKind {
+  TECHNICAL_MARK // marca en lanzamiento/salto (m)
+  TRACK_TIME // tiempo en distancia (s)
+  ONE_RM // 1RM real o estimado (kg)
+}
+
+model PersonalRecord {
+  id               String          @id @default(cuid())
+  userId           String
+  kind             RecordKind
+  technicalEvent   TechnicalEvent?
+  implementWeightG Int?
+  trackDistanceM   Float?
+  exerciseId       String?
+  value            Float // metros, segundos o kg según kind
+  isEstimated      Boolean         @default(false)
+  isCompetition    Boolean         @default(false)
+  achievedOn       DateTime        @db.Date
+  sessionId        String?
+  createdAt        DateTime        @default(now())
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise?        @relation(fields: [exerciseId], references: [id], onDelete: SetNull)
+  session  TrainingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, kind, achievedOn])
+}
+
+// ---------- 3.5 Carga diaria (PMC) ----------
+
+/// Serie diaria materializada. Recalculable en cualquier momento desde
+/// TrainingSession.tss (no es fuente de verdad).
+model DailyLoad {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  tss       Float    @default(0) // Σ TSS del día
+  ctl       Float // Fitness  (EWMA 42 d)
+  atl       Float // Fatiga   (EWMA 7 d)
+  tsb       Float // Forma    (CTL_ayer - ATL_ayer)
+  acwr      Float? // ratio carga aguda:crónica
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// =============================================================================
+// 4. RECUPERACIÓN
+// =============================================================================
+
+model RecoveryMetrics {
+  id             String        @id @default(cuid())
+  userId         String
+  date           DateTime      @db.Date
+  sleepHours     Float?
+  sleepQuality   Int? // 1-5
+  hrvRmssdMs     Float? // VFC (rMSSD, ms) medida al despertar
+  restingHr      Int? // FC en reposo
+  doms           Int? // 0-10 dolor muscular de aparición tardía
+  domsAreas      MuscleGroup[]
+  fatigue        Int? // 1-5 (wellness Hooper)
+  stress         Int? // 1-5
+  mood           Int? // 1-5
+  bodyWeightKg   Float?
+  // Resultado del algoritmo de Readiness (Fase 2) + desglose para auditar
+  readinessScore Float? // 0-100
+  readinessParts Json? // { tsb, hrv, sleep, rhr, doms }
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+}
+
+// =============================================================================
+// 5. PERIODIZACIÓN Y PRODUCTIVIDAD
+// =============================================================================
+
+enum CycleLevel {
+  MACRO
+  MESO
+  MICRO
+}
+
+enum CyclePhase {
+  GENERAL_PREP
+  SPECIFIC_PREP
+  PRE_COMPETITION
+  COMPETITION
+  TAPER
+  DELOAD
+  TRANSITION
+}
+
+model TrainingCycle {
+  id          String      @id @default(cuid())
+  userId      String
+  parentId    String?
+  level       CycleLevel
+  phase       CyclePhase?
+  name        String
+  goal        String?
+  startDate   DateTime    @db.Date
+  endDate     DateTime    @db.Date
+  plannedLoad Float? // TSS objetivo del ciclo (útil en microciclos)
+  color       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent   TrainingCycle?    @relation("CycleTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children TrainingCycle[]   @relation("CycleTree")
+  sessions TrainingSession[]
+  events   CalendarEvent[]
+
+  @@index([userId, startDate])
+}
+
+enum CalendarEventType {
+  COMPETITION
+  TEST_1RM
+  TIME_TRIAL // toma de marca / test de pista
+  TAPER
+  DELOAD
+  STUDY_BLOCK
+  EXAM
+  OTHER
+}
+
+enum CompetitionPriority {
+  A
+  B
+  C
+}
+
+model CalendarEvent {
+  id          String               @id @default(cuid())
+  userId      String
+  cycleId     String?
+  type        CalendarEventType
+  title       String
+  description String?
+  startAt     DateTime
+  endAt       DateTime?
+  allDay      Boolean              @default(true)
+  priority    CompetitionPriority? // solo competiciones
+  location    String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  user  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cycle TrainingCycle? @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+
+  @@index([userId, startAt])
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  priority    TaskPriority @default(MEDIUM)
+  status      TaskStatus   @default(TODO)
+  dueDate     DateTime?    @db.Date
+  completedAt DateTime?
+  tags        String[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, dueDate])
+}
+
+// =============================================================================
+// 6. FINANZAS — PARTIDA DOBLE (solo EUR, céntimos)
+//    Invariante: Σ Posting.amountCents de una transacción = 0.
+//    Convención de signo: + = débito, − = crédito.
+//      Gasto 12,50 € con tarjeta: EXPENSE:+1250 / ASSET(banco):−1250
+//      Nómina 1500 €:             ASSET(banco):+150000 / INCOME:−150000
+//      Transferencia:             ASSET(ahorro):+X / ASSET(corriente):−X
+// =============================================================================
+
+enum FinancialAccountType {
+  ASSET // cuentas bancarias, efectivo, inversiones
+  LIABILITY // tarjetas de crédito, préstamos
+  INCOME
+  EXPENSE
+  EQUITY // saldo de apertura
+}
+
+model FinancialAccount {
+  id          String               @id @default(cuid())
+  userId      String
+  name        String
+  type        FinancialAccountType
+  currency    String               @default("EUR") @db.Char(3)
+  institution String?
+  isArchived  Boolean              @default(false)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postings      Posting[]
+  subscriptions Subscription[]
+
+  @@unique([userId, name])
+}
+
+model FinancialCategory {
+  id       String               @id @default(cuid())
+  userId   String
+  parentId String?
+  name     String
+  kind     FinancialAccountType // INCOME o EXPENSE
+  color    String?
+  icon     String?
+
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent        FinancialCategory?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children      FinancialCategory[] @relation("CategoryTree")
+  postings      Posting[]
+  budgets       Budget[]
+  subscriptions Subscription[]
+
+  @@unique([userId, name])
+}
+
+enum TransactionKind {
+  INCOME
+  EXPENSE
+  TRANSFER
+  OPENING_BALANCE
+  ADJUSTMENT
+}
+
+model FinancialTransaction {
+  id             String          @id @default(cuid())
+  userId         String
+  date           DateTime        @db.Date
+  kind           TransactionKind
+  description    String
+  payee          String?
+  subscriptionId String? // si la generó una suscripción recurrente
+  reconciled     Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  postings     Posting[]
+
+  @@index([userId, date])
+}
+
+model Posting {
+  id            String  @id @default(cuid())
+  transactionId String
+  accountId     String
+  categoryId    String? // para informes de gasto/ingreso por categoría
+  amountCents   Int // con signo: + débito / − crédito
+  memo          String?
+
+  transaction FinancialTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  account     FinancialAccount     @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category    FinancialCategory?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([accountId])
+  @@index([categoryId])
+  @@index([transactionId])
+}
+
+enum BudgetPeriod {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+model Budget {
+  id                String       @id @default(cuid())
+  userId            String
+  categoryId        String
+  period            BudgetPeriod @default(MONTHLY)
+  amountCents       Int
+  alertThresholdPct Int          @default(80) // alerta visual al superar este %
+  rollover          Boolean      @default(false)
+  startDate         DateTime     @db.Date
+  endDate           DateTime?    @db.Date
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category FinancialCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@index([userId, categoryId])
+}
+
+enum RecurrenceInterval {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+model Subscription {
+  id             String             @id @default(cuid())
+  userId         String
+  name           String
+  amountCents    Int
+  interval       RecurrenceInterval @default(MONTHLY)
+  nextChargeDate DateTime           @db.Date
+  accountId      String // cuenta de pago (ASSET/LIABILITY)
+  categoryId     String?
+  isActive       Boolean            @default(true)
+  autoPost       Boolean            @default(false) // generar transacción automáticamente
+  url            String?
+  notes          String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      FinancialAccount       @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category     FinancialCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  transactions FinancialTransaction[]
+
+  @@index([userId, nextChargeDate])
+}
+
+// =============================================================================
+// 7. NUTRICIÓN (OpenFoodFacts España)
+// =============================================================================
+
+/// Caché compartida de productos de OpenFoodFacts (no pertenece a un usuario).
+model FoodProduct {
+  id             String   @id @default(cuid())
+  barcode        String?  @unique
+  name           String
+  brand          String?
+  imageUrl       String?
+  servingSizeG   Float?
+  kcalPer100g    Float?
+  proteinPer100g Float?
+  carbsPer100g   Float?
+  sugarsPer100g  Float?
+  fatPer100g     Float?
+  satFatPer100g  Float?
+  fiberPer100g   Float?
+  saltPer100g    Float?
+  nutriScore     String?  @db.Char(1)
+  source         String   @default("openfoodfacts")
+  raw            Json? // respuesta original para reprocesar
+  fetchedAt      DateTime @default(now())
+
+  entries Macros[]
+
+  @@index([name])
+  @@index([brand])
+}
+
+enum MealType {
+  BREAKFAST
+  MID_MORNING
+  LUNCH
+  SNACK
+  DINNER
+  PRE_WORKOUT
+  POST_WORKOUT
+  OTHER
+}
+
+/// Registro diario de ingesta (una fila por alimento consumido).
+/// Los macros se guardan como snapshot: si OpenFoodFacts cambia el producto,
+/// el histórico no se altera.
+model Macros {
+  id            String   @id @default(cuid())
+  userId        String
+  date          DateTime @db.Date
+  mealType      MealType
+  foodProductId String?
+  customName    String? // alimento manual sin producto
+  quantityG     Float
+  kcal          Float
+  proteinG      Float
+  carbsG        Float
+  fatG          Float
+  fiberG        Float?
+  createdAt     DateTime @default(now())
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foodProduct FoodProduct? @relation(fields: [foodProductId], references: [id], onDelete: SetNull)
+
+  @@index([userId, date])
+}
+
+model NutritionGoal {
+  id                    String   @id @default(cuid())
+  userId                String
+  effectiveFrom         DateTime @db.Date
+  kcal                  Int
+  proteinG              Int
+  carbsG                Int
+  fatG                  Int
+  fiberG                Int?
+  // Ajuste según día de entrenamiento: multiplicador de kcal si hay sesión
+  trainingDayKcalFactor Float    @default(1.0)
+  createdAt             DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, effectiveFrom])
+}
+
+// =============================================================================
+// 8. ASTRAS AI — RAG (pgvector), chat, flashcards y coach
+// =============================================================================
+
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  EMBEDDED
+  FAILED
+}
+
+model StudyDocument {
+  id          String         @id @default(cuid())
+  userId      String
+  title       String
+  subject     String? // asignatura
+  mimeType    String
+  storagePath String // ruta en volumen /uploads (no en BD)
+  sizeBytes   Int
+  status      DocumentStatus @default(PENDING)
+  error       String?
+  embedModel  String? // p.ej. "gemini-embedding-001@768"
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chunks     DocumentChunk[]
+  flashcards Flashcard[]
+
+  @@index([userId, subject])
+}
+
+/// Fragmento vectorizado. `embedding` se escribe/lee con SQL crudo
+/// ($executeRaw / $queryRaw) porque Prisma no soporta el tipo vector.
+/// Índice HNSW (vector_cosine_ops) creado en la migración inicial
+/// a partir de prisma/sql/pgvector_setup.sql.
+model DocumentChunk {
+  id         String                      @id @default(cuid())
+  documentId String
+  userId     String // desnormalizado: filtrar por usuario antes del KNN
+  chunkIndex Int
+  content    String
+  tokenCount Int?
+  page       Int?
+  embedding  Unsupported("vector(768)")?
+  createdAt  DateTime                    @default(now())
+
+  document StudyDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
+  @@index([userId])
+}
+
+enum ChatKind {
+  STUDY
+  COACH
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+model ChatThread {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      ChatKind
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([userId, kind])
+}
+
+model ChatMessage {
+  id           String   @id @default(cuid())
+  threadId     String
+  role         ChatRole
+  content      String
+  citations    Json? // [{ chunkId, documentId, page, score }]
+  model        String?
+  inputTokens  Int?
+  outputTokens Int?
+  createdAt    DateTime @default(now())
+
+  thread ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+}
+
+model FlashcardDeck {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  subject   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cards Flashcard[]
+
+  @@unique([userId, name])
+}
+
+/// Repetición espaciada SM-2.
+model Flashcard {
+  id               String    @id @default(cuid())
+  deckId           String
+  sourceDocumentId String?
+  front            String
+  back             String
+  easeFactor       Float     @default(2.5)
+  intervalDays     Int       @default(0)
+  repetitions      Int       @default(0)
+  dueAt            DateTime  @default(now())
+  lastReviewedAt   DateTime?
+  createdAt        DateTime  @default(now())
+
+  deck           FlashcardDeck  @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  sourceDocument StudyDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+
+  @@index([deckId, dueAt])
+}
+
+/// Informe semanal del Coach de Rendimiento (Gemini).
+model CoachReport {
+  id              String   @id @default(cuid())
+  userId          String
+  weekStart       DateTime @db.Date // lunes de la semana analizada
+  inputSnapshot   Json // carga (TSS por tipo), CTL/ATL/TSB, VFC, sueño...
+  summary         String // markdown
+  recommendations Json? // [{ area, action, rationale, priority }]
+  model           String
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+}
