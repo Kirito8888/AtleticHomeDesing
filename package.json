@@ -18,7 +18,8 @@
     "db:seed": "prisma db seed",
     "user": "tsx prisma/scripts/user-admin.ts",
     "e2e": "node e2e/smoke.mjs",
-    "e2e:security": "node e2e/security.mjs"
+    "e2e:security": "node e2e/security.mjs",
+    "e2e:plan": "tsx e2e/plan-import.mts"
   },
   "dependencies": {
     "@garmin/fitsdk": "21.217.0",
@@ -28,6 +29,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fast-xml-parser": "5.11.2",
+    "fflate": "0.8.3",
     "lucide-react": "^1.52.0",
     "next": "16.3.8",
     "next-auth": "5.0.0-beta.32",

@@ -5,11 +5,14 @@ import { Pencil } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Stat } from "@/components/stat";
 import { DeleteSessionButton } from "@/components/training/delete-session-button";
+import { PlanDayView } from "@/components/training/plan-day-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { formatDate, formatDuration, formatNum, formatPace, SESSION_TYPE_LABEL, TECHNICAL_EVENT_LABEL } from "@/lib/format";
+import type { PlanBlock, VariantOption } from "@/lib/planning/plan-import/types";
+import { planDayForSession } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { isEditableType } from "@/lib/training/form-initial";
 
@@ -35,6 +38,7 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
     },
   });
   if (!s) notFound();
+  const plan = await planDayForSession(user.id, s.id);
 
   const byExercise = new Map<string, NonNullable<typeof s.strength>["sets"]>();
   for (const set of s.strength?.sets ?? []) {
@@ -68,6 +72,23 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
           <Stat label="RPE" value={s.sessionRpe ?? "—"} />
         </CardContent>
       </Card>
+
+      {plan ? (
+        <PlanDayView
+          blocks={plan.content as PlanBlock[]}
+          heading={
+            <>
+              <Link href={`/planning/meso/${plan.meso.code}`} className="underline-offset-2 hover:underline">
+                {plan.meso.code} · {plan.meso.name}
+              </Link>{" "}
+              · {plan.code}
+              {plan.weekTitle ? ` · ${plan.weekTitle}` : ""}
+              {plan.variant ? ` · ${(plan.meso.variants as VariantOption[]).find((v) => v.code === plan.variant || v.code.startsWith(`${plan.variant}-`))?.label ?? plan.variant}` : ""}
+              {s.status === "COMPLETED" ? " · ya hecha (el plan puede haber cambiado después)" : ""}
+            </>
+          }
+        />
+      ) : null}
 
       {s.personalRecords.length ? (
         <p className="mb-4 flex flex-wrap gap-2">
