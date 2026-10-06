@@ -1,56 +1,83 @@
 # LifeOS
 
-PWA de gestión personal centrada en atletismo multi-disciplina (pista, saltos,
-lanzamientos), fuerza, recuperación, finanzas, nutrición y estudio con IA.
+PWA personal para un atleta (pista, saltos y lanzamientos) que junta en una sola app:
+- **entrenamiento:** fuerza, técnica y carga (PMC), recuperación y planificación;
+- **nutrición**, **finanzas** y **estudio con IA**.
 
-**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui ·
-PostgreSQL 17 + pgvector · Prisma 7 · Docker Compose.
+Pensada para el móvil y autoalojada en tu propio servidor.
 
-## Estado
+**Versión actual: v1.3**: importa tu planificación en PDF y la ves día a día en tus entrenamientos. Ver [`CHANGELOG.md`](CHANGELOG.md).
 
-- [x] **Fase 1 — Init:** proyecto, Prisma, `schema.prisma` (aprobado), Docker.
-- [x] **Fase 2 — Backend & APIs:** auth multiusuario, motor de carga (TSS/CTL/ATL/TSB/ACWR/Readiness), OpenFoodFacts, finanzas de partida doble, Astras AI (RAG, flashcards, coach semanal).
-- [x] **Fase 3 — Frontend mobile-first:** panel de widgets, registro ágil de fuerza/técnica/pista, PMC, recuperación, periodización, nutrición con escáner, finanzas, Astras AI, ajustes y PWA instalable.
-- [x] **Fase 4 — Documentación:** [`manual_backend.md`](manual_backend.md) y [`manual_docker_debian.md`](manual_docker_debian.md).
-- [x] **v1.1 — Seguridad y privacidad:** registro cerrado, límites de intentos y bloqueo de cuenta, CSP con nonce y HSTS, sesiones revocables, cambio de contraseña/email, consentimiento de IA, exportación y borrado de cuenta, copias cifradas, editar sesiones, tareas programadas y CI. Actualización desde v1.0: [`manual_docker_debian.md` § 8](manual_docker_debian.md#de-v10-a-v11-seguridad-y-privacidad).
-- [x] **v1.2 — 20 mejoras:** 2FA con códigos de recuperación, registro de actividad, permisos del coach por ámbito, fail2ban, Semgrep/Dependabot, healthcheck, copias automáticas cifradas con restauración comprobada, `scripts/update.sh` con vuelta atrás, temporizador de descanso, plantillas de sesión, comidas favoritas, gráfica de 1RM, lesiones, calendario con detalle del día, notificaciones push, importar FIT/GPX/TCX, importar extractos (CSV/Norma 43) e ingesta de apuntes en segundo plano. Actualización: [`manual_docker_debian.md` § 8](manual_docker_debian.md#de-v11-a-v12-20-mejoras).
+**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · PostgreSQL 17 + pgvector · Prisma 7 · pg-boss · Docker Compose · Google Gemini (opcional).
 
-## Producción (Debian + Docker)
+## Qué hace
 
-Ver [`manual_docker_debian.md`](manual_docker_debian.md). En resumen:
+| Módulo | Lo principal |
+|---|---|
+| **Inicio** | Readiness, forma (CTL/ATL/TSB, ACWR), «Hoy toca», próxima competición, nutrición, finanzas y tareas |
+| **Entreno** | Fuerza con temporizador de descanso y plantillas, técnica intento a intento, pista, importar del reloj (FIT/GPX/TCX), 1RM estimado, marcas personales |
+| **Planificación** | Calendario con ciclos, eventos y tareas; **importar el plan en PDF** con versiones (A/B, día de competición, «Si me clasifico»), plan del día legible en el móvil |
+| **Recuperación** | Sueño, VFC y FC en reposo → readiness; molestias y lesiones con aviso de carga |
+| **Nutrición** | OpenFoodFacts y escáner de códigos de barras, comidas favoritas, objetivo ajustado al día de entreno |
+| **Finanzas** | Partida doble, presupuestos, suscripciones, importar extractos (CSV/Norma 43) sin duplicados |
+| **Astras AI** | Chat sobre tus apuntes (RAG), flashcards con repaso espaciado, coach semanal. Solo con tu consentimiento |
+| **Ajustes** | 2FA, notificaciones push, actividad reciente, permisos del entrenador, exportar y borrar tus datos |
+
+## Documentación
+
+| Para… | Lee |
+|---|---|
+| Usar la app (incluido importar tu plan) | [`docs/guia-usuario.md`](docs/guia-usuario.md) |
+| Instalarla o actualizarla en Debian con Docker | [`manual_docker_debian.md`](manual_docker_debian.md) (actualizar: § 8) |
+| Entender cómo está hecha | [`docs/arquitectura.md`](docs/arquitectura.md) → [`manual_backend.md`](manual_backend.md) (API, fórmulas, RAG) |
+| Contribuir o probar en local | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| Avisar de un fallo de seguridad | [`SECURITY.md`](SECURITY.md) |
+| Ver qué cambió en cada versión | [`CHANGELOG.md`](CHANGELOG.md) |
+
+## Inicio rápido
+
+**Producción** (Debian + Docker; detalle en el manual):
 
 ```bash
 cp .env.example .env.production   # rellena secretos y AUTH_URL
 alias dc='docker compose --env-file .env.production'
 dc up -d db && dc --profile tools run --rm --build migrate && dc up -d --build web
-dc --profile tools run --rm migrate npm run user -- list    # gestión de usuarios
-./scripts/update.sh                                         # actualizar (copia + vuelta atrás automática)
+dc --profile tools run --rm migrate npm run user -- create tu@email   # primer usuario
+./scripts/update.sh                                                   # actualizar (copia previa + vuelta atrás automática)
 ```
 
-## Desarrollo local
+**Desarrollo:**
 
 ```bash
-cp .env.example .env.local        # rellena valores
+cp .env.example .env.local
 APP_ENV_FILE=.env.local docker compose --env-file .env.local up -d db
-npm install                       # ejecuta `prisma generate`
-npx prisma migrate dev && npm run db:seed
+npm install && npx prisma migrate deploy && npm run db:seed
 npm run dev
 ```
 
-Scripts útiles: `npm test`, `npm run typecheck`, `npm run lint`, `npm run e2e` y `npm run e2e:security` (con la app arrancada; `BASE_URL`), `npm run user -- <list|create|reset-password|unlock|set-role>`.
+Comprobaciones:
+- `npm run lint`, `npm run typecheck` y `npm test` (con `DATABASE_URL`, también los de integración);
+- con la app arrancada: `npm run e2e`, `npm run e2e:plan` y `npm run e2e:security`.
+
+## Privacidad
+
+El repositorio es público; tus datos no. Ninguna credencial va en el código: todo por variables de entorno.
+
+Los tests usan datos sintéticos; tu plan, tus métricas y tus extractos solo entran por la app, en tu servidor:
+- **Copias:** se cifran con tu clave pública.
+- **IA:** desactivada hasta que la autorizas.
+- **Plan en PDF:** los ficheros no se guardan tras importarlos.
 
 ## Archivos clave
 
 | Archivo | Qué es |
 |---|---|
-| `prisma/schema.prisma` | Modelo de datos completo (37 tablas) |
-| `prisma/migrations/*_init` | Migración inicial + índice HNSW y trigger de partida doble (SQL manual al final) |
-| `src/lib/training/` | Motor de carga: `tss.ts`, `strength.ts`, `pmc.ts`, `readiness.ts` (funciones puras con tests) |
-| `src/lib/{nutrition,finance,ai}/` | Servicios de cada módulo |
+| `prisma/schema.prisma` · `prisma/migrations/` | Modelo de datos y migraciones, siempre aditivas |
+| `src/lib/training/` | Motor de carga (`tss.ts`, `pmc.ts`, `readiness.ts`), importar del reloj |
+| `src/lib/planning/plan-import/` | Lector del plan en PDF (`parse.ts`), versiones (`rules.ts`) e importación (`service.ts`) |
+| `src/lib/{nutrition,finance,ai,security,push,jobs}/` | Servicios de cada módulo |
 | `src/app/api/**/route.ts` | API REST (referencia en `manual_backend.md` § 6) |
-| `docker-compose.yml` | `web`, `db` (pgvector), `pgadmin` (perfil `pgadmin`) + `migrate` (perfil `tools`) |
-| `src/proxy.ts` · `src/auth.ts` | Protección de páginas + CSP con nonce · login con límites, bloqueo y revocación de sesiones |
-| `prisma/scripts/user-admin.ts` | Gestión de usuarios por terminal (`npm run user`) |
-| `scripts/update.sh` · `deploy/backup` · `deploy/fail2ban` | Actualizar con vuelta atrás · servicio de copias cifradas · filtro y jail de fail2ban |
-| `.semgrep.yml` · `.github/dependabot.yml` | Reglas de seguridad propias (bloquean la CI) · actualizaciones de dependencias |
-| `.env.example` | Plantilla de variables; ninguna credencial en el repo |
+| `src/proxy.ts` · `src/auth.ts` | Páginas protegidas + CSP con nonce · login con límites, 2FA y revocación |
+| `docker-compose.yml` | `web`, `db` y, por perfiles, `migrate`, `backup` y `pgadmin` |
+| `scripts/update.sh` · `deploy/` | Actualizar con vuelta atrás · copias cifradas y fail2ban |
+| `.github/workflows/ci.yml` | Lint, tipos, tests, build, Semgrep, E2E y stack Docker real |

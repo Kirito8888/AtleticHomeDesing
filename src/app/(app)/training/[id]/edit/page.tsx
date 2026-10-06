@@ -17,11 +17,20 @@ export default async function EditSessionPage({ params }: PageProps<"/training/[
     exerciseOptions(user.id),
     prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { bodyWeightKg: true } }),
   ]);
-  if (!session || !isEditableType(session.type)) notFound();
+  // Una sesión planificada de cualquier tipo (p. ej. MIXED del plan importado) se puede registrar como hecha.
+  const planned = session?.status === "PLANNED";
+  if (!session || (!isEditableType(session.type) && !planned)) notFound();
   const initial = sessionToFormInitial(session);
   return (
     <>
-      <PageHeader title="Editar sesión" description="Al guardar se recalculan el TSS, las marcas personales y la curva de carga." />
+      <PageHeader
+        title={planned ? "Registrar sesión" : "Editar sesión"}
+        description={
+          planned
+            ? "Anota lo que hiciste y desmarca «Guardar como planificada». El plan del día sigue enlazado a la sesión."
+            : "Al guardar se recalculan el TSS, las marcas personales y la curva de carga."
+        }
+      />
       <SessionForm
         exercises={exercises}
         defaultDate={initial.date}

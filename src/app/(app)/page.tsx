@@ -102,7 +102,7 @@ export default async function DashboardPage() {
           )}
         </Widget>
 
-        <Widget title="Hoy" icon={CalendarDays} href="/training">
+        <Widget title="Hoy toca" icon={CalendarDays} href="/training">
           {d.sessions.length ? (
             <ul className="grid gap-2">
               {d.sessions.map((s) => (
@@ -111,7 +111,7 @@ export default async function DashboardPage() {
                     {s.title ?? SESSION_TYPE_LABEL[s.type]}
                   </Link>
                   <span className="shrink-0 text-muted-foreground tabular-nums">
-                    {s.status === "PLANNED" ? "Planificada" : s.tss != null ? `${formatNum(s.tss)} TSS` : formatDuration(s.durationSec)}
+                    {s.status === "PLANNED" ? (s.durationSec ? `○ ~${Math.round(s.durationSec / 60)} min` : "Planificada") : s.tss != null ? `${formatNum(s.tss)} TSS` : formatDuration(s.durationSec)}
                   </span>
                 </li>
               ))}

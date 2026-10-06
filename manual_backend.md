@@ -106,6 +106,28 @@ POST /api/training/sessions
 - **Repetir la última sesión de fuerza:** `/training/new?repeat=strength` precarga ejercicios, series y pesos con fecha de hoy (`sessionToFormInitial()`, `src/lib/training/form-initial.ts`).
 - **Recalcular TSS** (`POST /api/training/recompute`, botón en Ajustes): recalcula el TSS de las sesiones completadas con los umbrales vigentes en el día de cada una (respeta el TSS manual) y rehace la PMC.
 
+### 3.1b Planificación importada (PDF «día a día»)
+
+```
+POST /api/planning/import (multipart: zip o PDF)          src/app/api/planning/import/route.ts
+  └─ parsePlanUpload()                                      src/lib/planning/plan-import/files.ts
+       ├─ pdfsFromZip()    fflate, solo .pdf, ≤ 40 entradas, ≤ 60 MB descomprimidos (anti zip bomb)
+       ├─ pdfLines()       unpdf/pdf.js: cada trozo con x, y y tamaño de letra   extract.ts
+       └─ parsePlanPdf()   máquina de estados sobre líneas (pura, con tests)      parse.ts
+  ├─ sin ?commit=1 → previewPlanImport(): altas / cambios / sin cambios / retirados / ya hechos
+  └─ con ?commit=1 → commitPlanImport(): una transacción por bloque             service.ts
+       ├─ ciclos: MACRO «Temporada AAAA-AA» · MESO por bloque (fase deducida del nombre) · MICRO por semana activa
+       ├─ PlanMeso (intro, semanas, anexos, versiones) + PlanDay (contenido estructurado por día)
+       └─ materialize(): sesiones PLANNED solo de la versión activa + competiciones en CalendarEvent
+```
+
+- **Cómo lee el PDF.** Las columnas de las tablas se cortan por la x de la cabecera «Ejercicio | Series × reps | %RM / carga | RIR | Desc. | Cómo lo hago», no por espacios. Una fila nueva empieza cuando hay texto en la columna «Ejercicio» y el salto vertical supera ~12 pt; si no, es la continuación de la celda. Una tabla que sigue en la página siguiente (cabecera repetida) se une a la anterior, y la fila partida por el salto de página también. Cabecera y pie de página (bandas de 45 pt) se descartan. Desde «Anexo X» todo va a `annexes`.
+- **Versiones.** El código del día dice la versión: `A·S1` (A), `A·S2-V` (A, subvariante V), `S2·A` o `S1·sáb` (día de competición), `C·D−5` (rama, 5 días antes de la competición). Las opciones elegibles son las «hojas» (`A-V`, `A-S`, `B`…); elegir `A-V` activa también los días `A`. Por defecto: `B` si el bloque tiene «VERSIÓN A/B», `N` (plan normal) si hay rama, si no la primera. Los días relativos (D−n) necesitan la fecha de la competición (`anchorDate`).
+- **Por qué PlanDay y no sesiones ocultas.** Las versiones no activas no deben sumar en nutrición (día de entreno), en el coach IA ni en los listados. Solo la versión activa existe como `TrainingSession`; cambiar de versión crea y retira sesiones `PLANNED`.
+- **Reimportar** (versión nueva del PDF): la clave `meso|variante|fecha|orden` es estable. Los días cambiados actualizan su sesión si sigue `PLANNED`; las sesiones hechas u omitidas nunca se tocan (siguen enlazadas al día para ver el plan). Los días que desaparecen retiran su sesión planificada.
+- **`PlanDay.sessionId` sin clave foránea**, a propósito: editar una sesión la borra y la recrea con el mismo id dentro de una transacción.
+- **Privacidad.** Los PDF no se guardan: se leen en memoria. El plan entra en la exportación de datos (`planning.importedPlan`) y se borra con la cuenta (cascada).
+
 ### 3.2 Recuperación
 
 ```
@@ -412,6 +434,10 @@ Todas las rutas requieren sesión, salvo `/api/auth/*`. Los cuerpos son JSON y s
 | `/api/nutrition/meal-templates` (`/[id]`, `/[id]/apply`) | GET, POST, DELETE, POST | Comidas favoritas |
 | `/api/finance/import` (`/profiles`) | POST · GET, POST, DELETE | multipart `file`, `accountId`, `mapping`; `?commit=1` importa · formatos guardados |
 | `/api/health` | GET | Healthcheck público (`SELECT 1`), sin datos |
+| `/api/planning/import` | POST | multipart `files` (zip o PDF «día a día», ≤ 30 MB); vista previa, o importa con `?commit=1`. Límite: 20/hora |
+| `/api/planning/plan` | GET | Bloques importados con sus versiones (`needsAnchor` si cuentan días hacia atrás) |
+| `/api/planning/plan/variant` | POST | `{code, variant, anchorDate?}` → activa una versión: crea sus sesiones y retira las planificadas de la otra |
+| `/api/planning/plan/[code]` | DELETE | Borra un bloque importado (sus sesiones planificadas y competiciones; lo hecho se queda) |
 | `/api/ai/study/chat` | POST | `{question, threadId?, documentIds?}` |
 | `/api/ai/study/threads` (`/[id]`) | GET, DELETE | Historial |
 | `/api/ai/flashcards/generate` | POST | `{documentId, count 3–40}` |
@@ -425,12 +451,15 @@ Todas las rutas requieren sesión, salvo `/api/auth/*`. Los cuerpos son JSON y s
 ```bash
 npm test             # tests unitarios (motor de carga, contabilidad, OFF, troceado, SM-2, formatos,
                      #   limitador, scrypt, CSP, CSV, subidas, 2FA, cifrado, push RFC 8291, FIT/GPX/TCX,
-                     #   CSV bancario y Norma 43, temporizador, agenda, lesiones, e1RM…)
+                     #   CSV bancario y Norma 43, temporizador, agenda, lesiones, e1RM, plan en PDF con PDF sintéticos…)
                      # Con DATABASE_URL además los de integración (*.int.test.ts): ingesta con pg-boss y
-                     #   pgvector, push contra la BD e importación de extractos sin duplicados
+                     #   pgvector, push contra la BD, importación de extractos sin duplicados y plan importado
+                     #   (reimportar, respetar lo hecho, versiones, rama con fecha de competición)
 npm run typecheck    # next typegen + tsc
 npm run lint
 npm run e2e          # recorrido de la UI en Chromium (app con ALLOW_REGISTRATION=true; BASE_URL)
+npm run e2e:plan     # importar un plan sintético en 390 px: vista previa, versiones, plan del día y anexos
+                     #   (PLAN_ZIP=ruta prueba tu propio zip en local; nunca lo subas al repositorio)
 npm run e2e:security # registro cerrado, límites por IP, bloqueo de cuenta, revocación de sesiones y caché,
                      #   2FA (erróneos, reutilizados, recuperación), auditoría, permisos del coach,
                      #   consentimiento IA, editar sesión, exportación y borrado de cuenta
@@ -447,6 +476,8 @@ La CI (`.github/workflows/ci.yml`) ejecuta `npm audit` (producción), lint, tipo
 ---
 
 ## 8. Limitaciones conocidas y próximos pasos
+
+- **Importar la planificación:** el lector está hecho para la maquetación de los PDF «día a día» del plan 2026-27 (cabeceras «M5 · S1 · LUNES 26/10 · …», tabla de 6 columnas). Si una versión futura cambia esa maquetación, la vista previa lo dirá (bloques no reconocidos, semanas sin días, días sin tabla) **antes** de importar. Los %RM se muestran tal cual; aún no se convierten a kg.
 
 - **Importar del reloj:** los tests usan ficheros FIT generados con el codificador oficial de Garmin imitando a cada marca, y GPX/TCX escritos según cada formato; **no** ficheros exportados de relojes físicos. Si un reloj concreto escribe algo inesperado, la vista previa lo muestra antes de guardar.
 - **Notificaciones en iPhone:** solo con la PWA instalada en la pantalla de inicio (iOS 16.4+). La vibración del temporizador no existe en Safari.

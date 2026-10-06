@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { EVENT_META, LEVEL_META, PHASE_LABEL, type EventType } from "@/components/planning/meta";
+import { PlanImportSheet } from "@/components/planning/plan-import-sheet";
+import { PlanVersions, type VariantDay } from "@/components/planning/plan-versions";
 import { AddPlanningSheet, DeleteButton } from "@/components/planning/planning-forms";
 import { TaskList, type TaskItem } from "@/components/planning/task-list";
 import { Button } from "@/components/ui/button";
@@ -11,6 +13,7 @@ import { pageUser } from "@/lib/auth/page";
 import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { capitalizeFirst, formatDate, formatNum, SESSION_TYPE_LABEL } from "@/lib/format";
 import { agendaForDay, tasksDuePerDay } from "@/lib/planning/agenda";
+import { planOverview } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 
@@ -32,7 +35,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
   const prev = toIsoDay(new Date(Date.UTC(y, m - 2, 1))).slice(0, 7);
   const next = toIsoDay(new Date(Date.UTC(y, m, 1))).slice(0, 7);
 
-  const [cycles, events, sessions, allCycles, tasks] = await Promise.all([
+  const [cycles, events, sessions, allCycles, tasks, planMesos, variantDays] = await Promise.all([
     prisma.trainingCycle.findMany({
       where: { userId: user.id, startDate: { lte: gridEnd }, endDate: { gte: gridStart } },
       orderBy: [{ level: "asc" }, { startDate: "asc" }],
@@ -45,7 +48,21 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
     }),
     prisma.trainingCycle.findMany({ where: { userId: user.id, endDate: { gte: addDays(now, -365) } }, select: { id: true, name: true, level: true }, orderBy: { startDate: "desc" } }),
     prisma.task.findMany({ where: { userId: user.id, status: { in: ["TODO", "IN_PROGRESS"] } }, orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }] }),
+    planOverview(user.id),
+    prisma.planDay.findMany({
+      where: { userId: user.id, variant: { not: null } },
+      orderBy: [{ date: { sort: "asc", nulls: "last" } }, { relDay: "asc" }],
+      select: { id: true, variant: true, date: true, relDay: true, title: true, meso: { select: { code: true } } },
+    }),
   ]);
+  const variantItems: VariantDay[] = variantDays.map((d) => ({
+    id: d.id,
+    meso: d.meso.code,
+    variant: d.variant!,
+    date: d.date ? toIsoDay(d.date) : null,
+    relDay: d.relDay,
+    title: d.title,
+  }));
 
   const dueByDay = tasksDuePerDay(tasks);
   const selectedDay = typeof rawDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : null;
@@ -62,7 +79,13 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
 
   return (
     <>
-      <PageHeader title="Planificación" description="Periodización, eventos y tareas" action={<AddPlanningSheet cycles={allCycles} defaultDate={todayIso} />} />
+      <PageHeader title="Planificación" description="Periodización, eventos y tareas" action={
+          <div className="flex gap-2">
+            <PlanImportSheet />
+            <AddPlanningSheet cycles={allCycles} defaultDate={todayIso} />
+          </div>
+        }
+      />
 
       <div className="mb-3 flex items-center justify-between">
         <Button asChild variant="ghost" size="icon" aria-label="Mes anterior">
@@ -256,6 +279,20 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
           </CardContent>
         </Card>
       </div>
+
+      {planMesos.length ? (
+        <Card id="plan" className="mt-6 scroll-mt-4 gap-3 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-sm">Versiones del plan</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Elige qué versión pasa a tus entrenamientos. Cambiarla crea las sesiones de la nueva y retira las planificadas de la otra; lo que ya hiciste no se toca.
+            </p>
+          </CardHeader>
+          <CardContent className="px-4">
+            <PlanVersions mesos={planMesos} days={variantItems} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       <section className="mt-6 grid gap-3" aria-labelledby="tasks-h">
         <h2 id="tasks-h" className="text-lg font-semibold">
