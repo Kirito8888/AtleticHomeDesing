@@ -1,17 +1,34 @@
 import "server-only";
 import { z } from "zod";
 
-import { hashPassword } from "@/lib/auth/password";
+import { ApiError } from "@/lib/api";
+import { hashPassword, MIN_PASSWORD_LENGTH } from "@/lib/auth/password";
+import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+
+export const passwordSchema = z
+  .string()
+  .min(MIN_PASSWORD_LENGTH, `Mínimo ${MIN_PASSWORD_LENGTH} caracteres`)
+  .max(200);
 
 export const registerSchema = z.object({
   name: z.string().trim().min(1, "Indica tu nombre").max(100),
   email: z.string().trim().toLowerCase().email("Email no válido"),
-  password: z.string().min(10, "Mínimo 10 caracteres").max(200),
+  password: passwordSchema,
   role: z.enum(["ATHLETE", "COACH"]).default("ATHLETE"),
 });
 
+/**
+ * ¿Se aceptan cuentas nuevas? Solo con ALLOW_REGISTRATION=true, salvo en una
+ * instalación vacía: el primer usuario siempre puede registrarse.
+ */
+export async function registrationOpen(): Promise<boolean> {
+  if (env().ALLOW_REGISTRATION) return true;
+  return (await prisma.user.count()) === 0;
+}
+
 export async function createUser(data: z.infer<typeof registerSchema>) {
+  if (!(await registrationOpen())) throw new ApiError(403, "El registro de cuentas nuevas está cerrado");
   return prisma.user.create({
     data: {
       name: data.name,

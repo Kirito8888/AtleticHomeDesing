@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { buildWeeklySnapshot, generateWeeklyCoachReport } from "@/lib/ai/coach";
-import { parseBody, parseQuery, route } from "@/lib/api";
+import { enforceRateLimit, parseBody, parseQuery, route } from "@/lib/api";
 import { requireUser, resolveAthleteId } from "@/lib/auth/session";
 import { addDays, dateOnly, isoDate, startOfIsoWeek, today } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +24,7 @@ export const GET = route(async (req) => {
  */
 export const POST = route(async (req) => {
   const user = await requireUser();
+  enforceRateLimit("aiGenerate", user.id);
   const body = await parseBody(req, z.object({ athleteId: z.string().optional(), weekOf: isoDate.optional() }));
   const userId = await resolveAthleteId(user, body.athleteId);
   const report = await generateWeeklyCoachReport(userId, body.weekOf ? dateOnly(body.weekOf) : addDays(today(), -7));

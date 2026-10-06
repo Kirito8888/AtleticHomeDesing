@@ -43,7 +43,12 @@ function derivePaces(track: z.infer<typeof trackDetailSchema>) {
  * (ritmos, tonelaje, 1RM estimado, mejor marca, TSS), detecta marcas
  * personales y recalcula la serie PMC desde la fecha de la sesión.
  */
-export async function createTrainingSession(userId: string, plannedById: string | null, input: CreateSessionInput) {
+export async function createTrainingSession(
+  userId: string,
+  plannedById: string | null,
+  input: CreateSessionInput,
+  opts: { replace?: { id: string; date: Date } } = {},
+) {
   const date = dateOnly(input.date);
   const track = "track" in input ? input.track : null;
   const technical = "technical" in input ? input.technical : null;
@@ -98,8 +103,15 @@ export async function createTrainingSession(userId: string, plannedById: string 
   const counts = input.status === "COMPLETED";
 
   const session = await prisma.$transaction(async (tx) => {
+    if (opts.replace) {
+      // Editar = sustituir conservando el id: el detalle (series, intentos,
+      // intervalos) se recrea entero y las marcas de esta sesión se recalculan.
+      await tx.personalRecord.deleteMany({ where: { userId, sessionId: opts.replace.id } });
+      await tx.trainingSession.delete({ where: { id: opts.replace.id } });
+    }
     const created = await tx.trainingSession.create({
       data: {
+        id: opts.replace?.id,
         userId,
         plannedById,
         cycleId: input.cycleId ?? null,
@@ -189,8 +201,68 @@ export async function createTrainingSession(userId: string, plannedById: string 
     return { ...created, newPersonalRecords: prs };
   });
 
-  if (counts) await recomputeDailyLoads(userId, date);
+  // Al editar, la carga cambia desde la fecha más antigua (la sesión pudo cambiar de día o de estado).
+  if (opts.replace) await recomputeDailyLoads(userId, opts.replace.date < date ? opts.replace.date : date);
+  else if (counts) await recomputeDailyLoads(userId, date);
   return { ...session, tssCandidates: tssResult.candidates };
+}
+
+/**
+ * Recalcula el TSS de las sesiones completadas desde `from` con los umbrales
+ * vigentes en el día de cada una (útil tras registrar umbrales con fecha
+ * pasada). El TSS manual se respeta. Después rehace la serie PMC.
+ */
+export async function recomputeSessionsTss(userId: string, from?: Date) {
+  const [profile, thresholdRows, sessions] = await Promise.all([
+    prisma.athleteProfile.findUnique({ where: { userId }, select: { sex: true } }),
+    prisma.thresholdHistory.findMany({ where: { userId }, orderBy: { effectiveFrom: "asc" } }),
+    prisma.trainingSession.findMany({
+      where: { userId, status: "COMPLETED", date: from ? { gte: dateOnly(from) } : undefined },
+      orderBy: { date: "asc" },
+      include: {
+        track: true,
+        technical: { select: { _count: { select: { attempts: true } } } },
+        strength: { include: { sets: { include: { exercise: { select: { bodyweightFactor: true } } } } } },
+      },
+    }),
+  ]);
+  const thresholdsOn = (d: Date) => thresholdRows.findLast((t) => t.effectiveFrom <= d) ?? null;
+
+  let changed = 0;
+  for (const s of sessions) {
+    if (s.tssMethod === "MANUAL") continue;
+    const r = computeSessionTss({
+      type: s.type,
+      durationSec: s.durationSec,
+      sessionRpe: s.sessionRpe,
+      sex: profile?.sex,
+      thresholds: thresholdsOn(s.date),
+      track: s.track,
+      technical: s.technical ? { attempts: s.technical._count.attempts } : null,
+      strength: s.strength
+        ? {
+            sets: s.strength.sets.map((x) => ({ ...x, bodyweightFactor: x.exercise.bodyweightFactor })),
+            bodyWeightKg: s.strength.bodyWeightKg,
+          }
+        : null,
+    });
+    if (r.tss !== s.tss || r.method !== s.tssMethod) {
+      await prisma.trainingSession.update({
+        where: { id: s.id },
+        data: { tss: r.tss, tssMethod: r.method as TssMethod | null, tssComputedAt: new Date() },
+      });
+      changed++;
+    }
+  }
+  if (sessions.length) await recomputeDailyLoads(userId, sessions[0].date);
+  return { sessions: sessions.length, changed };
+}
+
+/** Sustituye una sesión existente por `input` (mismo id; conserva quién la planificó). */
+export async function updateTrainingSession(userId: string, id: string, input: CreateSessionInput) {
+  const existing = await prisma.trainingSession.findFirst({ where: { id, userId }, select: { date: true, plannedById: true } });
+  if (!existing) throw new ApiError(404, "Sesión no encontrada");
+  return createTrainingSession(userId, existing.plannedById, input, { replace: { id, date: existing.date } });
 }
 
 async function detectPersonalRecords(
@@ -339,7 +411,11 @@ export async function ensureLoadsUpToDate(userId: string): Promise<void> {
 export async function deleteTrainingSession(userId: string, id: string): Promise<void> {
   const s = await prisma.trainingSession.findFirst({ where: { id, userId }, select: { date: true } });
   if (!s) throw new ApiError(404, "Sesión no encontrada");
-  await prisma.trainingSession.delete({ where: { id } });
+  // Las marcas conseguidas en esta sesión desaparecen con ella (la FK es SET NULL).
+  await prisma.$transaction([
+    prisma.personalRecord.deleteMany({ where: { userId, sessionId: id } }),
+    prisma.trainingSession.delete({ where: { id } }),
+  ]);
   await recomputeDailyLoads(userId, s.date);
 }
 

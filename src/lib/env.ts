@@ -6,6 +6,23 @@ import { z } from "zod";
 const schema = z.object({
   DATABASE_URL: z.string().min(1),
   AUTH_SECRET: z.string().min(1).optional(),
+  // Debe ser la URL pública completa (https://…). Sin esquema, Auth.js falla con "Invalid URL".
+  AUTH_URL: z
+    .string()
+    .regex(/^https?:\/\/[^/\s]+\/?$/, "AUTH_URL debe ser una URL completa, p.ej. https://lifeos.midominio.es")
+    .optional(),
+  // Registro de cuentas nuevas. Por defecto cerrado; el primer usuario siempre puede registrarse.
+  ALLOW_REGISTRATION: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  // Tareas programadas (suscripciones diarias, coach semanal) dentro del contenedor web.
+  SCHEDULER_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  // Cuota de almacenamiento de apuntes por usuario.
+  UPLOAD_QUOTA_MB: z.coerce.number().int().positive().default(200),
   GEMINI_API_KEY: z.string().optional(),
   GEMINI_CHAT_MODEL: z.string().default("gemini-2.5-flash"),
   GEMINI_EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),

@@ -3,12 +3,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ZodError, type z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
+import { LIMITS, rateLimit } from "@/lib/rate-limit";
 
 export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
     public details?: unknown,
+    public headers?: HeadersInit,
   ) {
     super(message);
   }
@@ -34,7 +36,7 @@ export function route<C = unknown>(fn: Handler<C>) {
 
 export function errorResponse(err: unknown): Response {
   if (err instanceof ApiError) {
-    return NextResponse.json({ error: err.message, details: err.details }, { status: err.status });
+    return NextResponse.json({ error: err.message, details: err.details }, { status: err.status, headers: err.headers });
   }
   if (err instanceof ZodError) {
     return NextResponse.json(
@@ -63,4 +65,15 @@ export async function parseBody<T extends z.ZodType>(req: Request, schema: T): P
 
 export function parseQuery<T extends z.ZodType>(req: NextRequest, schema: T): z.infer<T> {
   return schema.parse(Object.fromEntries(req.nextUrl.searchParams));
+}
+
+/** Aplica un límite de `LIMITS` a `key` (usuario o IP); si se supera, 429 con Retry-After. */
+export function enforceRateLimit(bucket: keyof typeof LIMITS, key: string): void {
+  const { limit, windowMs } = LIMITS[bucket];
+  const r = rateLimit(`${bucket}:${key}`, limit, windowMs);
+  if (!r.ok) {
+    throw new ApiError(429, "Demasiadas peticiones, espera unos minutos", { retryAfterSec: r.retryAfterSec }, {
+      "Retry-After": String(r.retryAfterSec),
+    });
+  }
 }
