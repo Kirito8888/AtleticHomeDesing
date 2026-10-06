@@ -150,6 +150,13 @@ await b.waitForFunction(async () => Boolean(await caches.match("/finance")), nul
   const on = await (await a.request.put(B + "/api/account/ai-consent", { data: { enabled: true } })).json();
   if (!on.enabled) fail("no se pudo activar el consentimiento");
   log("IA bloqueada sin consentimiento; interruptor operativo");
+  // Push: solo endpoints de servicios de push reales (el servidor les hace POST: anti-SSRF)
+  const keys = { p256dh: "B".repeat(87), auth: "A".repeat(22) };
+  const evil = await a.request.post(B + "/api/push/subscription", { data: { endpoint: "https://169.254.169.254/latest/meta-data", keys } });
+  if (evil.status() !== 400) fail(`se aceptó un endpoint de push arbitrario (${evil.status()})`);
+  const good = await a.request.post(B + "/api/push/subscription", { data: { endpoint: `https://fcm.googleapis.com/fcm/send/e2e-${run}`, keys } });
+  if (![201, 503].includes(good.status())) fail(`no se aceptó un endpoint de FCM (${good.status()})`);
+  log("push: endpoints arbitrarios rechazados (anti-SSRF)");
 }
 
 // 6. Editar una sesión y repetir la última de fuerza

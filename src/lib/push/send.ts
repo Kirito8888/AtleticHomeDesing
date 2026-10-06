@@ -50,3 +50,24 @@ export async function sendPush(target: PushTarget, msg: PushMessage, vapid: Vapi
 }
 
 export const generateVapidKeys = () => webpush.generateVAPIDKeys();
+
+/**
+ * Servicios de push reales de los navegadores. El servidor hace POST al
+ * endpoint de cada suscripción: sin esta lista, un usuario podría registrar
+ * cualquier URL y usar LifeOS para lanzar peticiones a terceros (SSRF).
+ */
+const PUSH_HOSTS = [
+  /^fcm\.googleapis\.com$/, // Chrome, Edge (Android), Brave, Opera…
+  /^updates\.push\.services\.mozilla\.com$/, // Firefox
+  /^web\.push\.apple\.com$/, // Safari / iOS
+  /^[a-z0-9-]+\.notify\.windows\.com$/, // Edge (Windows)
+];
+
+export function isAllowedPushEndpoint(endpoint: string): boolean {
+  try {
+    const u = new URL(endpoint);
+    return u.protocol === "https:" && u.port === "" && !u.username && !u.password && PUSH_HOSTS.some((re) => re.test(u.hostname));
+  } catch {
+    return false;
+  }
+}

@@ -25,7 +25,7 @@ describe.skipIf(!HAS_DB)("notificaciones push (BD real)", () => {
     vi.unstubAllEnvs();
   });
 
-  const sub = (n: number) => ({ endpoint: `https://push.example.test/${Date.now()}-${n}`, keys: { p256dh: "B".repeat(87), auth: "A".repeat(22) } });
+  const sub = (n: number) => ({ endpoint: `https://fcm.googleapis.com/fcm/send/${Date.now()}-${n}`, keys: { p256dh: "B".repeat(87), auth: "A".repeat(22) } });
 
   it("envía a todos los dispositivos y borra los que el servicio da por muertos (410)", async () => {
     const alive = sub(1);

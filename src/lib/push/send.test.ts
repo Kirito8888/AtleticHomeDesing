@@ -2,7 +2,7 @@ import { createDecipheriv, createECDH, hkdfSync, randomBytes } from "node:crypto
 
 import { describe, expect, it } from "vitest";
 
-import { buildPushRequest, generateVapidKeys } from "./send";
+import { buildPushRequest, generateVapidKeys, isAllowedPushEndpoint } from "./send";
 
 const b64url = (b: Buffer) => b.toString("base64url");
 
@@ -62,5 +62,29 @@ describe("Web Push", () => {
     const other = createECDH("prime256v1");
     other.generateKeys();
     expect(() => decrypt(Buffer.from(req.body as Buffer), other, auth)).toThrow();
+  });
+});
+
+describe("endpoints de push permitidos (anti-SSRF)", () => {
+  it("acepta los servicios de los navegadores", () => {
+    for (const e of [
+      "https://fcm.googleapis.com/fcm/send/abc:def",
+      "https://updates.push.services.mozilla.com/wpush/v2/gAAAA",
+      "https://web.push.apple.com/QGuQyavXutnMH",
+      "https://wns2-par02p.notify.windows.com/w/?token=xyz",
+    ]) expect(isAllowedPushEndpoint(e)).toBe(true);
+  });
+
+  it("rechaza cualquier otro destino", () => {
+    for (const e of [
+      "http://fcm.googleapis.com/fcm/send/abc", // sin TLS
+      "https://fcm.googleapis.com:8443/x", // otro puerto
+      "https://fcm.googleapis.com.evil.com/x",
+      "https://evil.com/fcm.googleapis.com",
+      "https://user:pw@fcm.googleapis.com/x",
+      "https://192.168.1.10/push",
+      "https://localhost/push",
+      "no es una url",
+    ]) expect(isAllowedPushEndpoint(e)).toBe(false);
   });
 });
