@@ -248,13 +248,25 @@ export async function runDueSubscriptions(userId: string) {
   for (const sub of due) {
     let next = sub.nextChargeDate;
     const anchor = next.getUTCDate();
+    const dates: Date[] = [];
     while (next <= now) {
+      dates.push(next);
+      next = nextOccurrence(next, sub.interval, anchor);
+    }
+    // Reserva optimista: si otra ejecución (tarea programada o botón) ya avanzó
+    // la fecha, no se cobra dos veces.
+    const claim = await prisma.subscription.updateMany({
+      where: { id: sub.id, nextChargeDate: sub.nextChargeDate },
+      data: { nextChargeDate: next },
+    });
+    if (!claim.count) continue;
+    for (const date of dates) {
       const tx = await createTransaction(
         userId,
         {
           mode: "simple",
           kind: "EXPENSE",
-          date: toIsoDay(next),
+          date: toIsoDay(date),
           description: sub.name,
           amountCents: sub.amountCents,
           moneyAccountId: sub.accountId,
@@ -262,10 +274,8 @@ export async function runDueSubscriptions(userId: string) {
         },
         { subscriptionId: sub.id },
       );
-      posted.push({ subscriptionId: sub.id, date: toIsoDay(next), transactionId: tx.id });
-      next = nextOccurrence(next, sub.interval, anchor);
+      posted.push({ subscriptionId: sub.id, date: toIsoDay(date), transactionId: tx.id });
     }
-    await prisma.subscription.update({ where: { id: sub.id }, data: { nextChargeDate: next } });
   }
   return posted;
 }

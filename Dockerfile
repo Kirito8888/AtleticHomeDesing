@@ -25,6 +25,8 @@ RUN npx prisma generate && npm run build
 # Usada por el servicio `migrate` (perfil "tools") del docker-compose.
 FROM deps AS migrate
 WORKDIR /app
+# Para `npm run user` (prisma/scripts/user-admin.ts): mismo hash que la app.
+COPY src/lib/auth/scrypt.ts src/lib/auth/constants.ts ./src/lib/auth/
 CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed"]
 
 # ---------- runner: imagen mínima de producción ----------

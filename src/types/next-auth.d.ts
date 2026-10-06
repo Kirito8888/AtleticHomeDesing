@@ -8,6 +8,7 @@ declare module "next-auth" {
   }
   interface User {
     role?: UserRole;
+    sessionVersion?: number;
   }
 }
 
@@ -15,5 +16,7 @@ declare module "@auth/core/jwt" {
   interface JWT {
     id?: string;
     role?: UserRole;
+    /** Versión de sesión del usuario al iniciar sesión (revocación). */
+    sv?: number;
   }
 }

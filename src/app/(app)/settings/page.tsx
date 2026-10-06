@@ -1,8 +1,24 @@
-import { CoachLinks, CustomExerciseForm, NutritionGoalForm, ProfileForm, ThresholdForm } from "@/components/settings/settings-forms";
+import {
+  AiConsentToggle,
+  ChangeEmailForm,
+  ChangePasswordForm,
+  DeleteAccountForm,
+  SignOutEverywhere,
+} from "@/components/settings/account-forms";
+import {
+  CoachLinks,
+  CustomExerciseForm,
+  NutritionGoalForm,
+  ProfileForm,
+  RecomputeTssButton,
+  ThresholdForm,
+} from "@/components/settings/settings-forms";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
+import { env } from "@/lib/env";
 import { formatDate, formatDuration } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -84,6 +100,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               </tbody>
             </table>
           ) : null}
+          <RecomputeTssButton />
         </Section>
         <Section title="Objetivo nutricional diario">
           <NutritionGoalForm today={todayIso} initial={goal} />
@@ -106,6 +123,40 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               ))}
             </ul>
           ) : null}
+        </Section>
+        <Section title="Seguridad" description="Cambiar la contraseña o el email cierra la sesión en todos tus dispositivos.">
+          <div className="grid gap-6">
+            <ChangePasswordForm />
+            <ChangeEmailForm email={me.email} />
+            <SignOutEverywhere />
+          </div>
+        </Section>
+        <Section title="Privacidad e IA" description="Astras AI usa Google Gemini. Sin tu permiso no se envía nada.">
+          <AiConsentToggle initial={me.aiConsentAt != null} configured={Boolean(env().GEMINI_API_KEY)} />
+        </Section>
+        <Section title="Tus datos" description="Descarga una copia completa (JSON) o elimina tu cuenta.">
+          <div className="grid gap-6">
+            <div className="grid gap-2">
+              <Button asChild variant="outline">
+                <a href="/api/account/export" download>
+                  Descargar todos mis datos (JSON)
+                </a>
+              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <a href="/api/export/training" download>
+                    Entrenos (CSV)
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <a href="/api/export/finance" download>
+                    Finanzas (CSV)
+                  </a>
+                </Button>
+              </div>
+            </div>
+            <DeleteAccountForm />
+          </div>
         </Section>
       </div>
     </>

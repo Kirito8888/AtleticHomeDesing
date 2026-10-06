@@ -16,7 +16,9 @@
     "db:studio": "prisma studio",
     "test": "vitest run",
     "db:seed": "prisma db seed",
-    "e2e": "node e2e/smoke.mjs"
+    "user": "tsx prisma/scripts/user-admin.ts",
+    "e2e": "node e2e/smoke.mjs",
+    "e2e:security": "node e2e/security.mjs"
   },
   "dependencies": {
     "@google/genai": "2.27.0",
