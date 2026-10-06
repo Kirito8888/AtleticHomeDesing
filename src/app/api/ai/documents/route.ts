@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { ingestDocument } from "@/lib/ai/rag";
+import { createDocumentFromUpload } from "@/lib/ai/rag";
 import { ApiError, enforceRateLimit, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
+import { enqueueIngest } from "@/lib/jobs/queue";
 import { prisma } from "@/lib/prisma";
 
 export const GET = route(async () => {
@@ -24,7 +25,11 @@ export const GET = route(async () => {
   });
 });
 
-/** multipart/form-data: file (PDF/TXT/MD), title?, subject? */
+/**
+ * multipart/form-data: file (PDF/TXT/MD), title?, subject?
+ * Responde 202 con el documento en PENDING; el proceso sigue en segundo plano
+ * (consultar GET hasta EMBEDDED o FAILED).
+ */
 export const POST = route(async (req) => {
   const user = await requireUser();
   enforceRateLimit("aiUpload", user.id);
@@ -33,9 +38,10 @@ export const POST = route(async (req) => {
   });
   const file = form.get("file");
   if (!(file instanceof File)) throw new ApiError(400, "Falta el campo 'file'");
-  const doc = await ingestDocument(user.id, file, {
+  const doc = await createDocumentFromUpload(user.id, file, {
     title: form.get("title")?.toString(),
     subject: form.get("subject")?.toString(),
   });
-  return NextResponse.json(doc, { status: 201 });
+  await enqueueIngest(doc.id);
+  return NextResponse.json(doc, { status: 202 });
 });

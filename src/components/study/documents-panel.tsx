@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
-import { FileText, Sparkles, Trash2, Upload } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { FileText, RotateCcw, Sparkles, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { Field } from "@/components/form/chips";
@@ -31,6 +31,15 @@ export function DocumentsPanel({ docs, aiEnabled }: { docs: DocItem[]; aiEnabled
   const [subject, setSubject] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
+  // El proceso va en segundo plano: mientras haya documentos en cola o en curso,
+  // se refresca la lista cada 3 s (se para sola al terminar).
+  const inProgress = docs.some((d) => d.status === "PENDING" || d.status === "PROCESSING");
+  useEffect(() => {
+    if (!inProgress) return;
+    const id = setInterval(() => router.refresh(), 3000);
+    return () => clearInterval(id);
+  }, [inProgress, router]);
+
   async function upload(e: React.FormEvent) {
     e.preventDefault();
     const file = fileRef.current?.files?.[0];
@@ -40,8 +49,8 @@ export function DocumentsPanel({ docs, aiEnabled }: { docs: DocItem[]; aiEnabled
     if (subject) form.set("subject", subject);
     setBusy("upload");
     try {
-      const d = await api<{ _count: { chunks: number } }>("/api/ai/documents", { form });
-      toast.success(`Apuntes procesados: ${d._count.chunks} fragmentos`);
+      await api("/api/ai/documents", { form });
+      toast.success("Apuntes subidos: se están procesando en segundo plano");
       if (fileRef.current) fileRef.current.value = "";
       router.refresh();
     } catch (err) {
@@ -74,7 +83,7 @@ export function DocumentsPanel({ docs, aiEnabled }: { docs: DocItem[]; aiEnabled
           <Input id="doc-subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Bioquímica" />
         </Field>
         <Button type="submit" disabled={!aiEnabled || busy === "upload"}>
-          <Upload /> {busy === "upload" ? "Procesando…" : "Subir"}
+          <Upload /> {busy === "upload" ? "Subiendo…" : "Subir"}
         </Button>
       </form>
 
@@ -93,6 +102,16 @@ export function DocumentsPanel({ docs, aiEnabled }: { docs: DocItem[]; aiEnabled
               </div>
               <Badge variant={d.status === "FAILED" ? "destructive" : d.status === "EMBEDDED" ? "secondary" : "outline"}>{STATUS[d.status]}</Badge>
               <div className="flex gap-1">
+                {d.status === "FAILED" ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!aiEnabled || busy === d.id}
+                    onClick={() => action(d.id, () => api(`/api/ai/documents/${d.id}/retry`, { method: "POST" }), "Reintentando en segundo plano")}
+                  >
+                    <RotateCcw /> Reintentar
+                  </Button>
+                ) : null}
                 <Button
                   size="sm"
                   variant="outline"

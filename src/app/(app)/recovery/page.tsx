@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/page-header";
+import { InjuriesPanel } from "@/components/recovery/injuries-panel";
 import { RecoveryForm } from "@/components/recovery/recovery-form";
 import { readinessStatus, StatusLabel } from "@/components/status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +8,7 @@ import { pageUser } from "@/lib/auth/page";
 import { addDays, today, toIsoDay } from "@/lib/dates";
 import { formatDate, formatNum, READINESS_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { listInjuries } from "@/lib/recovery/injuries";
 import { READINESS_WEIGHTS, type ReadinessComponent } from "@/lib/training/readiness";
 
 export const metadata = { title: "Recuperación · LifeOS" };
@@ -23,10 +25,11 @@ const PART_LABEL: Record<ReadinessComponent, string> = {
 export default async function RecoveryPage() {
   const user = await pageUser();
   const now = today();
-  const [todayRow, recent, profile] = await Promise.all([
+  const [todayRow, recent, profile, injuries] = await Promise.all([
     prisma.recoveryMetrics.findUnique({ where: { userId_date: { userId: user.id, date: now } } }),
     prisma.recoveryMetrics.findMany({ where: { userId: user.id, date: { gte: addDays(now, -13) } }, orderBy: { date: "desc" } }),
     prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { bodyWeightKg: true } }),
+    listInjuries(user.id),
   ]);
   const parts = (todayRow?.readinessParts ?? {}) as Partial<Record<ReadinessComponent, number>> & { label?: keyof typeof READINESS_LABEL; usedWeight?: number };
   const status = readinessStatus(todayRow?.readinessScore);
@@ -50,6 +53,19 @@ export default async function RecoveryPage() {
           }}
         />
         <div className="grid content-start gap-4">
+          <InjuriesPanel
+            today={toIsoDay(now)}
+            injuries={injuries.map((i) => ({
+              id: i.id,
+              area: i.area,
+              side: i.side,
+              pain: i.pain,
+              limitsTraining: i.limitsTraining,
+              startedOn: toIsoDay(i.startedOn),
+              resolvedOn: i.resolvedOn ? toIsoDay(i.resolvedOn) : null,
+              notes: i.notes,
+            }))}
+          />
           <Card className="gap-3 py-4">
             <CardHeader className="px-4">
               <CardTitle className="text-sm">Readiness de hoy</CardTitle>

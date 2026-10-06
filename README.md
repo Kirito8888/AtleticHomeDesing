@@ -13,6 +13,7 @@ PostgreSQL 17 + pgvector · Prisma 7 · Docker Compose.
 - [x] **Fase 3 — Frontend mobile-first:** panel de widgets, registro ágil de fuerza/técnica/pista, PMC, recuperación, periodización, nutrición con escáner, finanzas, Astras AI, ajustes y PWA instalable.
 - [x] **Fase 4 — Documentación:** [`manual_backend.md`](manual_backend.md) y [`manual_docker_debian.md`](manual_docker_debian.md).
 - [x] **v1.1 — Seguridad y privacidad:** registro cerrado, límites de intentos y bloqueo de cuenta, CSP con nonce y HSTS, sesiones revocables, cambio de contraseña/email, consentimiento de IA, exportación y borrado de cuenta, copias cifradas, editar sesiones, tareas programadas y CI. Actualización desde v1.0: [`manual_docker_debian.md` § 8](manual_docker_debian.md#de-v10-a-v11-seguridad-y-privacidad).
+- [x] **v1.2 — 20 mejoras:** 2FA con códigos de recuperación, registro de actividad, permisos del coach por ámbito, fail2ban, Semgrep/Dependabot, healthcheck, copias automáticas cifradas con restauración comprobada, `scripts/update.sh` con vuelta atrás, temporizador de descanso, plantillas de sesión, comidas favoritas, gráfica de 1RM, lesiones, calendario con detalle del día, notificaciones push, importar FIT/GPX/TCX, importar extractos (CSV/Norma 43) e ingesta de apuntes en segundo plano. Actualización: [`manual_docker_debian.md` § 8](manual_docker_debian.md#de-v11-a-v12-20-mejoras).
 
 ## Producción (Debian + Docker)
 
@@ -23,6 +24,7 @@ cp .env.example .env.production   # rellena secretos y AUTH_URL
 alias dc='docker compose --env-file .env.production'
 dc up -d db && dc --profile tools run --rm --build migrate && dc up -d --build web
 dc --profile tools run --rm migrate npm run user -- list    # gestión de usuarios
+./scripts/update.sh                                         # actualizar (copia + vuelta atrás automática)
 ```
 
 ## Desarrollo local
@@ -49,4 +51,6 @@ Scripts útiles: `npm test`, `npm run typecheck`, `npm run lint`, `npm run e2e` 
 | `docker-compose.yml` | `web`, `db` (pgvector), `pgadmin` (perfil `pgadmin`) + `migrate` (perfil `tools`) |
 | `src/proxy.ts` · `src/auth.ts` | Protección de páginas + CSP con nonce · login con límites, bloqueo y revocación de sesiones |
 | `prisma/scripts/user-admin.ts` | Gestión de usuarios por terminal (`npm run user`) |
+| `scripts/update.sh` · `deploy/backup` · `deploy/fail2ban` | Actualizar con vuelta atrás · servicio de copias cifradas · filtro y jail de fail2ban |
+| `.semgrep.yml` · `.github/dependabot.yml` | Reglas de seguridad propias (bloquean la CI) · actualizaciones de dependencias |
 | `.env.example` | Plantilla de variables; ninguna credencial en el repo |

@@ -45,6 +45,11 @@ model User {
   sessionVersion Int       @default(1)
   // Privacidad (v1.1): fecha en que el usuario autorizó enviar datos a Gemini (null = no)
   aiConsentAt    DateTime?
+  // Seguridad (v1.2): 2FA TOTP. Secreto cifrado (AES-256-GCM, TOTP_ENCRYPTION_KEY);
+  // totpEnabledAt null = pendiente de confirmar o desactivado. totpLastStep evita reutilizar un código.
+  totpSecret     String?
+  totpEnabledAt  DateTime?
+  totpLastStep   Int?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -76,6 +81,58 @@ model User {
   chatThreads       ChatThread[]
   flashcardDecks    FlashcardDeck[]
   coachReports      CoachReport[]
+  recoveryCodes     RecoveryCode[]
+  securityEvents    SecurityEvent[]
+  sessionTemplates  SessionTemplate[]
+  mealTemplates     MealTemplate[]
+  injuries          Injury[]
+  pushSubscriptions PushSubscription[]
+  notificationLogs  NotificationLog[]
+  bankProfiles      BankImportProfile[]
+}
+
+/// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum SecurityEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  ACCOUNT_LOCKED
+  PASSWORD_CHANGED
+  EMAIL_CHANGED
+  SESSIONS_REVOKED
+  TOTP_ENABLED
+  TOTP_DISABLED
+  RECOVERY_CODE_USED
+  DATA_EXPORTED
+  AI_CONSENT_CHANGED
+  COACH_SCOPES_CHANGED
+}
+
+/// Registro de auditoría visible por el usuario (Ajustes → Actividad). Se borra con la cuenta
+/// y a los 180 días (src/lib/scheduler.ts).
+model SecurityEvent {
+  id        String            @id @default(cuid())
+  userId    String
+  type      SecurityEventType
+  ip        String?
+  userAgent String?
+  detail    String?
+  createdAt DateTime          @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model Account {
@@ -121,6 +178,15 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+/// Qué datos deportivos del atleta ve el coach (v1.2). Por defecto, todos.
+enum CoachScope {
+  LOAD // PMC, carga diaria, marcas
+  SESSIONS // sesiones de entrenamiento
+  RECOVERY // recuperación, readiness y lesiones
+  PLANNING // ciclos y calendario
+  REPORTS // informes del coach IA
+}
+
 enum CoachLinkStatus {
   PENDING
   ACTIVE
@@ -135,6 +201,7 @@ model CoachAthlete {
   athleteId  String
   status     CoachLinkStatus @default(PENDING)
   canPlan    Boolean         @default(false) // puede crear sesiones planificadas/ciclos
+  scopes     CoachScope[]    @default([LOAD, SESSIONS, RECOVERY, PLANNING, REPORTS])
   createdAt  DateTime        @default(now())
   acceptedAt DateTime?
 
@@ -768,6 +835,9 @@ model FinancialTransaction {
   description    String
   payee          String?
   subscriptionId String? // si la generó una suscripción recurrente
+  // Huella del movimiento importado de un extracto (fecha|importe|concepto|n.º de orden):
+  // reimportar el mismo extracto no duplica movimientos.
+  importHash     String?
   reconciled     Boolean         @default(false)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -776,6 +846,7 @@ model FinancialTransaction {
   subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   postings     Posting[]
 
+  @@unique([userId, importHash])
   @@index([userId, date])
 }
 
@@ -878,7 +949,8 @@ model FoodProduct {
   raw            Json? // respuesta original para reprocesar
   fetchedAt      DateTime @default(now())
 
-  entries Macros[]
+  entries       Macros[]
+  templateItems MealTemplateItem[]
 
   @@index([name])
   @@index([brand])
@@ -1079,4 +1151,153 @@ model CoachReport {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, weekStart])
+}
+
+// =============================================================================
+// v1.2 — Uso diario: plantillas de sesión, comidas favoritas y lesiones
+// =============================================================================
+
+/// Plantilla de sesión ("Fuerza A", "Series 6×400"). `payload` es el cuerpo de
+/// POST /api/training/sessions sin fecha, validado con createSessionSchema al usarla.
+model SessionTemplate {
+  id        String      @id @default(cuid())
+  userId    String
+  name      String
+  type      SessionType
+  payload   Json
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+}
+
+/// Comida favorita: un conjunto de alimentos con cantidades que se registra de una vez.
+model MealTemplate {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  mealType  MealType?
+  createdAt DateTime  @default(now())
+
+  user  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items MealTemplateItem[]
+
+  @@unique([userId, name])
+}
+
+model MealTemplateItem {
+  id            String  @id @default(cuid())
+  templateId    String
+  foodProductId String?
+  customName    String?
+  quantityG     Float
+  kcal          Float
+  proteinG      Float
+  carbsG        Float
+  fatG          Float
+  fiberG        Float?
+
+  template    MealTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  foodProduct FoodProduct? @relation(fields: [foodProductId], references: [id], onDelete: SetNull)
+
+  @@index([templateId])
+}
+
+enum BodyArea {
+  HEAD_NECK
+  SHOULDER
+  ELBOW
+  WRIST_HAND
+  CHEST
+  UPPER_BACK
+  LOWER_BACK
+  ABDOMEN
+  HIP_GROIN
+  GLUTE
+  HAMSTRING
+  QUADRICEPS
+  KNEE
+  CALF
+  ACHILLES
+  ANKLE
+  FOOT
+  OTHER
+}
+
+enum BodySide {
+  LEFT
+  RIGHT
+  BOTH
+}
+
+/// Molestia o lesión. Dato de salud: no se envía a la IA; el coach solo la ve
+/// con el permiso RECOVERY. Activa mientras resolvedOn sea null.
+model Injury {
+  id             String    @id @default(cuid())
+  userId         String
+  area           BodyArea
+  side           BodySide?
+  pain           Int // 0–10
+  limitsTraining Boolean   @default(false)
+  startedOn      DateTime  @db.Date
+  resolvedOn     DateTime? @db.Date
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedOn])
+}
+
+// =============================================================================
+// v1.2 — Notificaciones push e importación de extractos
+// =============================================================================
+
+/// Suscripción Web Push de un navegador/dispositivo. Se borra sola si el
+/// servicio de push responde 404/410 (el usuario la revocó o desinstaló la PWA).
+model PushSubscription {
+  id            String    @id @default(cuid())
+  userId        String
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  lastSuccessAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Notificaciones ya enviadas (clave lógica, p. ej. "digest:2026-10-06"): evita
+/// repetirlas si el planificador se ejecuta varias veces o el contenedor se reinicia.
+model NotificationLog {
+  id     String   @id @default(cuid())
+  userId String
+  key    String
+  sentAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+}
+
+/// Cómo leer el extracto de un banco (columnas, formato de fecha y de importe).
+/// `mapping` sigue el esquema bankMappingSchema (src/lib/finance/bank-import.ts).
+model BankImportProfile {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  accountId String
+  mapping   Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
 }

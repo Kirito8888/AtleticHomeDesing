@@ -69,19 +69,19 @@ export async function getFoodByBarcode(barcode: string) {
   }
 }
 
-const mealType = z.enum(["BREAKFAST", "MID_MORNING", "LUNCH", "SNACK", "DINNER", "PRE_WORKOUT", "POST_WORKOUT", "OTHER"]);
+export const mealTypeEnum = z.enum(["BREAKFAST", "MID_MORNING", "LUNCH", "SNACK", "DINNER", "PRE_WORKOUT", "POST_WORKOUT", "OTHER"]);
 
 export const createEntrySchema = z.union([
   z.object({
     date: isoDate,
-    mealType,
+    mealType: mealTypeEnum,
     foodProductId: z.string().optional(),
     barcode: z.string().optional(),
     quantityG: z.number().positive().max(5000),
   }).refine((d) => d.foodProductId || d.barcode, "Indica foodProductId o barcode"),
   z.object({
     date: isoDate,
-    mealType,
+    mealType: mealTypeEnum,
     customName: z.string().trim().min(1).max(200),
     quantityG: z.number().positive().max(5000),
     kcal: z.number().min(0).max(10_000),

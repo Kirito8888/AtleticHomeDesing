@@ -310,12 +310,23 @@ export function CustomExerciseForm() {
   );
 }
 
+export type CoachScopeName = "LOAD" | "SESSIONS" | "RECOVERY" | "PLANNING" | "REPORTS";
+
 export interface LinkView {
   id: string;
   status: "PENDING" | "ACTIVE" | "REVOKED";
   canPlan: boolean;
+  scopes: CoachScopeName[];
   other: { name: string | null; email: string };
 }
+
+const SCOPES: Array<{ value: CoachScopeName; label: string }> = [
+  { value: "LOAD", label: "Carga y marcas" },
+  { value: "SESSIONS", label: "Sesiones" },
+  { value: "RECOVERY", label: "Recuperación y lesiones" },
+  { value: "PLANNING", label: "Planificación" },
+  { value: "REPORTS", label: "Informes IA" },
+];
 
 export function CoachLinks({ isCoach, asCoach, asAthlete }: { isCoach: boolean; asCoach: LinkView[]; asAthlete: LinkView[] }) {
   const { busy, save } = useSave();
@@ -363,6 +374,39 @@ export function CoachLinks({ isCoach, asCoach, asAthlete }: { isCoach: boolean; 
                   </Button>
                 </div>
               ) : null}
+              {l.status !== "REVOKED" ? (
+                <fieldset className="grid gap-1.5">
+                  <legend className="mb-1 text-xs text-muted-foreground">Qué puede ver</legend>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SCOPES.map((sc) => {
+                      const on = l.scopes.includes(sc.value);
+                      return (
+                        <button
+                          key={sc.value}
+                          type="button"
+                          role="switch"
+                          aria-checked={on}
+                          disabled={busy}
+                          onClick={() =>
+                            save(
+                              `/api/coach/links/${l.id}`,
+                              { scopes: on ? l.scopes.filter((x) => x !== sc.value) : [...l.scopes, sc.value] },
+                              "PATCH",
+                              "Permisos actualizados",
+                            )
+                          }
+                          className={cn(
+                            "rounded-full border px-3 py-1 text-xs transition-colors",
+                            on ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground line-through",
+                          )}
+                        >
+                          {sc.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              ) : null}
             </div>
           ))}
         </div>
@@ -374,9 +418,12 @@ export function CoachLinks({ isCoach, asCoach, asAthlete }: { isCoach: boolean; 
           {asCoach.map((l) => (
             <div key={l.id} className="flex items-center justify-between gap-2 rounded-md border p-3 text-sm">
               <span className="truncate">{l.other.name ?? l.other.email}</span>
-              <span className="text-xs text-muted-foreground">
+              <span className="text-right text-xs text-muted-foreground">
                 {STATUS[l.status]}
                 {l.canPlan ? " · planifica" : ""}
+                {l.status === "ACTIVE" && l.scopes.length < SCOPES.length
+                  ? ` · ve: ${l.scopes.map((x) => SCOPES.find((sc) => sc.value === x)?.label.toLowerCase()).join(", ") || "nada"}`
+                  : ""}
               </span>
             </div>
           ))}

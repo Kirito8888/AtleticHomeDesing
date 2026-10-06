@@ -11,7 +11,7 @@ import { prisma } from "@/lib/prisma";
 export const GET = route(async (req) => {
   const user = await requireUser();
   const q = parseQuery(req, z.object({ athleteId: z.string().optional(), preview: z.string().optional(), weekOf: isoDate.optional() }));
-  const userId = await resolveAthleteId(user, q.athleteId);
+  const userId = await resolveAthleteId(user, q.athleteId, "REPORTS");
   if (q.preview) {
     return buildWeeklySnapshot(userId, startOfIsoWeek(q.weekOf ? dateOnly(q.weekOf) : addDays(today(), -7)));
   }
@@ -26,7 +26,7 @@ export const POST = route(async (req) => {
   const user = await requireUser();
   enforceRateLimit("aiGenerate", user.id);
   const body = await parseBody(req, z.object({ athleteId: z.string().optional(), weekOf: isoDate.optional() }));
-  const userId = await resolveAthleteId(user, body.athleteId);
+  const userId = await resolveAthleteId(user, body.athleteId, "REPORTS");
   const report = await generateWeeklyCoachReport(userId, body.weekOf ? dateOnly(body.weekOf) : addDays(today(), -7));
   return NextResponse.json(report, { status: 201 });
 });

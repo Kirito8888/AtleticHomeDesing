@@ -1,0 +1,21 @@
+# Actualizaciones de dependencias semanales. Cada PR pasa por la CI completa
+# (incluidos los E2E), así que solo se fusiona lo que sigue funcionando.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+    groups:
+      # Parches y menores juntos para no inundar de PRs; las mayores, una a una.
+      minor-and-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: docker
+    directory: /
+    schedule: { interval: weekly, day: monday }
+  - package-ecosystem: docker
+    directory: /deploy/backup
+    schedule: { interval: weekly, day: monday }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }

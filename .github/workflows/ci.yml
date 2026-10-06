@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # main y las ramas de trabajo (se valida antes de abrir el PR)
+    branches: [main, "claude/**"]
   pull_request:
 
 concurrency:
@@ -23,11 +24,24 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Vulnerabilidades altas en dependencias de producción (las de desarrollo no llegan a la imagen).
+      - run: npm audit --omit=dev --audit-level=high
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
       # Sin DATABASE_URL ni secretos: el build no debe necesitarlos.
       - run: npm run build
+
+  semgrep:
+    name: Análisis estático (Semgrep)
+    runs-on: ubuntu-latest
+    container: semgrep/semgrep
+    steps:
+      - uses: actions/checkout@v4
+      # Reglas propias (.semgrep.yml): bloquean.
+      - run: semgrep scan --config .semgrep.yml --error --metrics=off src prisma e2e
+      # Reglas públicas: informe (no bloquea) para revisar hallazgos nuevos sin romper la CI por falsos positivos.
+      - run: semgrep scan --config p/typescript --config p/react --config p/nextjs --config p/secrets --metrics=off --exclude src/generated src prisma || true
 
   e2e:
     name: E2E (UI + seguridad)
@@ -50,6 +64,12 @@ jobs:
       BASE_URL: http://localhost:3000
       CHROMIUM_PATH: /usr/bin/google-chrome
       SCHEDULER_ENABLED: "false"
+      # Clave solo para la CI (32 bytes en base64), no es un secreto real
+      TOTP_ENCRYPTION_KEY: Y2ktb25seS0zMi1ieXRlcy1rZXktZm9yLXRvdHAhISE=
+      # Claves VAPID solo para la CI (generadas para esto, sin valor fuera de los tests)
+      VAPID_PUBLIC_KEY: BJ12Ybt-28O9IW2mu3X0U_6wCoqBaUTzVASwoOk8wWidqzWk5PnUV3Mi8lekFvqhStgSUNLj1X882CARKCPFPJg
+      VAPID_PRIVATE_KEY: WR6TKd8X0HhDbnzMaiYLa1-Ye5SPRYYjarLHcVna1Is
+      VAPID_SUBJECT: mailto:ci@example.com
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -58,6 +78,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma migrate deploy && npx prisma db seed
+      # Con DATABASE_URL se ejecutan también los tests de integración (*.int.test.ts: ingesta + pg-boss + pgvector)
+      - run: npm test
       - run: npm run build
       - name: Preparar el servidor standalone
         run: cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/
@@ -83,13 +105,48 @@ jobs:
             e2e/screenshots/
 
   docker:
-    name: Imagen Docker
+    name: Stack Docker (healthcheck, copias y update.sh)
     runs-on: ubuntu-latest
     needs: check
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - name: Build runner y migrate
+      - name: Entorno de prueba (.env.production efímero y clave age)
         run: |
-          docker buildx build --target runner -t lifeos-web:ci .
-          docker buildx build --target migrate -t lifeos-migrate:ci .
+          sudo apt-get update -q && sudo apt-get install -y -q age postgresql-client
+          age-keygen -o /tmp/age.key 2> /tmp/age.pub
+          cat > .env.production <<EOF
+          POSTGRES_USER=lifeos
+          POSTGRES_PASSWORD=ci-password
+          POSTGRES_DB=lifeos
+          PGADMIN_DEFAULT_EMAIL=ci@example.com
+          PGADMIN_DEFAULT_PASSWORD=ci-password
+          AUTH_SECRET=ci-only-not-a-secret
+          AUTH_URL=http://localhost:3000
+          BACKUP_AGE_RECIPIENT=$(grep -o 'age1[a-z0-9]*' /tmp/age.pub)
+          BACKUP_ON_START=false
+          EOF
+      - name: Base de datos, migraciones y web (espera al healthcheck)
+        run: |
+          docker compose --env-file .env.production up -d --wait db
+          docker compose --env-file .env.production --profile tools run --rm --build migrate
+          docker compose --env-file .env.production --profile tools run --rm migrate npm run user -- create ci@example.com
+          docker compose --env-file .env.production up -d --build --wait web
+          curl -sf http://127.0.0.1:3000/api/health
+      - name: Copia cifrada y restauración real
+        run: |
+          docker compose --env-file .env.production --profile backup run --rm --build backup /usr/local/bin/backup.sh
+          sudo age -d -i /tmp/age.key backups/db-*.dump.age > /tmp/db.dump
+          docker compose --env-file .env.production exec -T db createdb -U lifeos restored
+          docker compose --env-file .env.production exec -T db pg_restore -U lifeos --no-owner -d restored < /tmp/db.dump
+          users=$(docker compose --env-file .env.production exec -T db psql -U lifeos -d restored -tAc 'select count(*) from "User"')
+          test "$users" = "1"
+      - name: update.sh (actualización y vuelta atrás forzada)
+        run: |
+          ./scripts/update.sh --no-pull
+          if LIFEOS_SIMULATE_UNHEALTHY=1 UPDATE_HEALTH_TIMEOUT=30 ./scripts/update.sh --no-pull; then
+            echo "la vuelta atrás debía terminar con error"; exit 1
+          fi
+          id=$(docker compose --env-file .env.production ps -q web)
+          test "$(docker inspect -f '{{.State.Health.Status}}' "$id")" = "healthy"
+      - if: failure()
+        run: docker compose --env-file .env.production logs --tail=200

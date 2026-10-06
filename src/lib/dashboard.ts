@@ -4,13 +4,15 @@ import { addDays, today, toIsoDay } from "@/lib/dates";
 import { budgetsStatus } from "@/lib/finance/service";
 import { getDay } from "@/lib/nutrition/service";
 import { prisma } from "@/lib/prisma";
+import { activeInjuries } from "@/lib/recovery/injuries";
+import { injuryAlert } from "@/lib/recovery/injury-rules";
 import { getPerformanceSeries } from "@/lib/training/service";
 
 /** Todo lo que necesita el panel de inicio, en paralelo. */
 export async function getDashboard(userId: string) {
   const now = today();
   const day = toIsoDay(now);
-  const [perf, recovery, sessions, nutrition, budgets, dueCards, tasks, nextCompetition] = await Promise.all([
+  const [perf, recovery, sessions, nutrition, budgets, dueCards, tasks, nextCompetition, injuries] = await Promise.all([
     getPerformanceSeries(userId, 14),
     prisma.recoveryMetrics.findUnique({ where: { userId_date: { userId, date: now } } }),
     prisma.trainingSession.findMany({
@@ -30,6 +32,7 @@ export async function getDashboard(userId: string) {
       where: { userId, type: "COMPETITION", startAt: { gte: now } },
       orderBy: { startAt: "asc" },
     }),
+    activeInjuries(userId),
   ]);
   const rank = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 } as const;
   return {
@@ -42,5 +45,6 @@ export async function getDashboard(userId: string) {
     dueCards,
     tasks: tasks.sort((a, b) => rank[a.priority] - rank[b.priority]).slice(0, 5),
     nextCompetition,
+    injuryAlert: injuryAlert(injuries, perf.current?.acwr ?? null),
   };
 }

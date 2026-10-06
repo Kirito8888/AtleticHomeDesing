@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isEditableType, sessionToFormInitial } from "./form-initial";
+import { isEditableType, sessionToFormInitial, templateToFormInitial } from "./form-initial";
 
 const base = {
   type: "STRENGTH",
@@ -63,5 +63,28 @@ describe("sessionToFormInitial", () => {
   it("aplica overrides (repetir sesión) y detecta tipos no editables", () => {
     expect(sessionToFormInitial(base, { date: "2026-10-06", rpe: null }).date).toBe("2026-10-06");
     expect(isEditableType("MIXED")).toBe(false);
+  });
+});
+
+describe("templateToFormInitial", () => {
+  it("convierte el cuerpo guardado (sin fecha) en el formulario del día", () => {
+    const payload = {
+      type: "STRENGTH",
+      title: "Fuerza A",
+      discipline: "STRENGTH",
+      status: "COMPLETED",
+      durationSec: 3600,
+      strength: { sets: [{ exerciseId: "sq", reps: 5, weightKg: 100 }, { exerciseId: "sq", reps: 5, weightKg: 105, rpe: 8 }] },
+    };
+    const r = templateToFormInitial(payload, "2026-10-06");
+    expect(r.date).toBe("2026-10-06");
+    expect(r.title).toBe("Fuerza A");
+    expect(r.minutes).toBe("60");
+    expect(r.blocks).toHaveLength(1);
+    expect(r.blocks?.[0].sets.map((x) => x.weightKg)).toEqual([100, 105]);
+  });
+
+  it("rechaza una plantilla que ya no es una sesión válida", () => {
+    expect(() => templateToFormInitial({ type: "STRENGTH", strength: { sets: [{ exerciseId: "", reps: -1 }] } }, "2026-10-06")).toThrow();
   });
 });

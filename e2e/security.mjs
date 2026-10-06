@@ -3,7 +3,10 @@
 // DATABASE_URL en el entorno (crea usuarios con `npm run user`).
 //   BASE_URL=http://localhost:3000 npm run e2e:security
 // Cada contexto del navegador simula una IP distinta con X-Forwarded-For.
+// Necesita un servidor recién arrancado: los límites por IP viven en memoria y
+// una segunda pasada contra el mismo proceso los encontraría ya gastados.
 import { execFileSync } from "node:child_process";
+import { generate } from "otplib";
 import { chromium } from "playwright-core";
 
 const B = process.env.BASE_URL ?? "http://localhost:3000";
@@ -22,6 +25,15 @@ function createUser(email) {
   return pw;
 }
 const adminCli = (...args) => execFileSync("npm", ["run", "-s", "user", "--", ...args], { encoding: "utf8" });
+
+// TOTP: un código ya usado no vuelve a valer (anti-reutilización), así que para
+// cada uso hay que esperar al siguiente periodo de 30 s.
+let lastTotpStep = -1;
+async function freshTotp(secret) {
+  while (Math.floor(Date.now() / 30_000) <= lastTotpStep) await new Promise((r) => setTimeout(r, 500));
+  lastTotpStep = Math.floor(Date.now() / 30_000);
+  return generate({ secret });
+}
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 let ipSeq = 1;
@@ -69,7 +81,7 @@ const alertText = (page) => page.locator("p[role=alert]").first().textContent({ 
   const page = await newPage();
   for (let i = 0; i < 10; i++) {
     await login(page, `nadie${i}-${run}@test.dev`, "x");
-    if (!/incorrectos/.test(await alertText(page))) fail(`intento ${i + 1}: mensaje inesperado`);
+    { const t = await alertText(page); if (!/incorrectos/.test(t)) fail(`intento ${i + 1}: mensaje inesperado: ${t}`); }
   }
   await login(page, `nadie-${run}@test.dev`, "x");
   if (!/Demasiados intentos/.test(await alertText(page))) fail("el intento 11 desde la misma IP no se limitó");
@@ -105,6 +117,12 @@ for (const p of [a, b]) {
   await login(p, email, password);
   await p.waitForURL((u) => !u.pathname.startsWith("/login"));
 }
+// El service worker guarda el HTML de las páginas visitadas (también las privadas).
+const cachedPage = (p, path) =>
+  p.evaluate(async (path) => Boolean(await caches.match(path)), path);
+await b.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+await go(b, "/finance");
+await b.waitForFunction(async () => Boolean(await caches.match("/finance")), null, { timeout: 10000 });
 {
   await go(a, "/settings");
   await a.fill("#pw-current", password);
@@ -115,9 +133,12 @@ for (const p of [a, b]) {
   await a.waitForURL(/\/login/);
   await go(b, "/training");
   if (!/\/login/.test(b.url())) fail("la otra sesión sigue abierta tras cambiar la contraseña");
+  await b.waitForFunction(async () => !(await caches.match("/finance")), null, { timeout: 10000 }).catch(() => {});
+  if (await cachedPage(b, "/finance")) fail("la caché del service worker conserva /finance tras revocar la sesión");
+  if (!(await cachedPage(b, "/offline"))) fail("se borró también la página /offline");
   await login(a, email, password);
   await a.waitForURL((u) => !u.pathname.startsWith("/login"));
-  log("cambio de contraseña cierra todas las sesiones");
+  log("cambio de contraseña cierra todas las sesiones y vacía la caché de páginas privadas");
 }
 
 // 5. Consentimiento IA (sin consentimiento → 403 antes de llamar a Gemini)
@@ -129,6 +150,13 @@ for (const p of [a, b]) {
   const on = await (await a.request.put(B + "/api/account/ai-consent", { data: { enabled: true } })).json();
   if (!on.enabled) fail("no se pudo activar el consentimiento");
   log("IA bloqueada sin consentimiento; interruptor operativo");
+  // Push: solo endpoints de servicios de push reales (el servidor les hace POST: anti-SSRF)
+  const keys = { p256dh: "B".repeat(87), auth: "A".repeat(22) };
+  const evil = await a.request.post(B + "/api/push/subscription", { data: { endpoint: "https://169.254.169.254/latest/meta-data", keys } });
+  if (evil.status() !== 400) fail(`se aceptó un endpoint de push arbitrario (${evil.status()})`);
+  const good = await a.request.post(B + "/api/push/subscription", { data: { endpoint: `https://fcm.googleapis.com/fcm/send/e2e-${run}`, keys } });
+  if (![201, 503].includes(good.status())) fail(`no se aceptó un endpoint de FCM (${good.status()})`);
+  log("push: endpoints arbitrarios rechazados (anti-SSRF)");
 }
 
 // 6. Editar una sesión y repetir la última de fuerza
@@ -162,11 +190,101 @@ for (const p of [a, b]) {
   log(`sesión editada (TSS ${created.tss} → ${after.tss}) y "repetir última fuerza" precarga`);
 }
 
+// 7a. Verificación en dos pasos (TOTP + códigos de recuperación + anti-reutilización)
+{
+  await go(a, "/settings");
+  await a.fill("#totp-pw", password);
+  await a.getByRole("button", { name: "Configurar verificación en dos pasos" }).click();
+  await a.getByRole("img", { name: /Código QR/ }).waitFor();
+  const secret = (await a.locator("code.break-all").textContent()).trim();
+  await a.fill("#totp-confirm", await freshTotp(secret));
+  await a.getByRole("button", { name: "Activar", exact: true }).click();
+  const codesList = a.getByRole("list", { name: "Códigos de recuperación" });
+  await codesList.waitFor({ timeout: 10000 }).catch(async () => {
+    fail(`no aparecieron los códigos de recuperación: ${await a.locator("[data-sonner-toast]").allTextContents()}`);
+  });
+  const codes = (await a.getByRole("list", { name: "Códigos de recuperación" }).locator("li").allTextContents()).map((c) => c.trim());
+  if (codes.length !== 10) fail(`se esperaban 10 códigos de recuperación, hay ${codes.length}`);
+  await a.getByRole("button", { name: "Ya los he guardado" }).click();
+  await a.getByText(/Activada desde el/).waitFor();
+
+  // Login: contraseña correcta → pide código; código erróneo → rechazado; código bueno → entra
+  const c = await newPage();
+  await login(c, email, password);
+  await c.locator("#code").waitFor();
+  await c.fill("#code", "000000");
+  await c.click("button[type=submit]");
+  if (!/Código incorrecto/.test(await alertText(c))) fail("un código TOTP erróneo no se rechazó");
+  const code = await freshTotp(secret);
+  await c.fill("#code", code);
+  await c.click("button[type=submit]");
+  await c.waitForURL((u) => !u.pathname.startsWith("/login"));
+
+  // El mismo código no vale dos veces (aunque siga dentro de su ventana de 30 s)
+  const d = await newPage();
+  await login(d, email, password);
+  await d.fill("#code", code);
+  await d.click("button[type=submit]");
+  if (!/Código incorrecto/.test(await alertText(d))) fail("se aceptó un código TOTP reutilizado");
+
+  // Código de recuperación: vale una vez
+  await d.fill("#code", codes[0].toLowerCase());
+  await d.click("button[type=submit]");
+  await d.waitForURL((u) => !u.pathname.startsWith("/login"));
+  const e = await newPage();
+  await login(e, email, password);
+  await e.fill("#code", codes[0]);
+  await e.click("button[type=submit]");
+  if (!/Código incorrecto/.test(await alertText(e))) fail("se aceptó un código de recuperación ya usado");
+
+  // Registro de actividad visible
+  await go(a, "/settings");
+  for (const t of ["Verificación en dos pasos activada", "Código de recuperación usado", "Intento de inicio de sesión fallido"]) {
+    if (!(await a.getByText(t).count())) fail(`falta "${t}" en la actividad reciente`);
+  }
+
+  // Recuperación por terminal: desactiva el 2FA y cierra las sesiones
+  adminCli("disable-2fa", email);
+  await go(a, "/settings");
+  if (!/\/login/.test(a.url())) fail("disable-2fa debía cerrar las sesiones abiertas");
+  await login(a, email, password);
+  await a.waitForURL((u) => !u.pathname.startsWith("/login")); // ya sin código
+  log("2FA: QR, código, rechazo de erróneos y reutilizados, recuperación de un solo uso, auditoría y disable-2fa");
+}
+
+// 7b. Permisos granulares del coach
+{
+  const coachEmail = `coach${run}@test.dev`;
+  const coachPw = createUser(coachEmail);
+  adminCli("set-role", coachEmail, "COACH");
+  const coach = await newPage();
+  await login(coach, coachEmail, coachPw);
+  await coach.waitForURL((u) => !u.pathname.startsWith("/login"));
+  const inv = await coach.request.post(B + "/api/coach/links", { data: { athleteEmail: email } });
+  if (!inv.ok()) fail(`invitación del coach falló: ${inv.status()}`);
+  const link = (await (await a.request.get(B + "/api/coach/links")).json()).asAthlete?.[0] ?? (await inv.json());
+  const athleteId = link.athleteId;
+  const ok = await a.request.patch(B + `/api/coach/links/${link.id}`, { data: { status: "ACTIVE" } });
+  if (!ok.ok()) fail("el atleta no pudo aceptar el vínculo");
+
+  if ((await coach.request.get(B + `/api/recovery?athleteId=${athleteId}`)).status() !== 200) fail("con todos los permisos el coach debía ver recuperación");
+  await go(a, "/settings");
+  await a.getByRole("switch", { name: "Recuperación y lesiones" }).click();
+  await a.getByText("Permisos actualizados").first().waitFor();
+  if ((await coach.request.get(B + `/api/recovery?athleteId=${athleteId}`)).status() !== 403) fail("sin el permiso RECOVERY el coach sigue viendo la recuperación");
+  if ((await coach.request.get(B + `/api/training/pmc?athleteId=${athleteId}`)).status() !== 200) fail("quitar RECOVERY no debía afectar a la carga");
+  const otherCoachScope = await a.request.patch(B + `/api/coach/links/${link.id}`, { data: { scopes: ["LOAD"] } });
+  if (!otherCoachScope.ok()) fail("el atleta no pudo cambiar los permisos por API");
+  const coachTry = await coach.request.patch(B + `/api/coach/links/${link.id}`, { data: { scopes: ["LOAD", "RECOVERY"] } });
+  if (coachTry.status() !== 403) fail("el coach no debe poder ampliarse los permisos");
+  log("permisos del coach por ámbito: recuperación bloqueada, carga permitida, el coach no puede cambiarlos");
+}
+
 // 7. Exportaciones
 {
   const res = await a.request.get(B + "/api/account/export");
   const text = await res.text();
-  if (!res.ok() || !text.includes(email) || /passwordHash|scrypt\$/.test(text)) fail("exportación JSON incorrecta");
+  if (!res.ok() || !text.includes(email) || /passwordHash|scrypt\$|totpSecret|recoveryCode|"v1:/.test(text)) fail("exportación JSON incorrecta (o con secretos)");
   const csv = await a.request.get(B + "/api/export/training");
   const body = await csv.text();
   if (!body.startsWith("﻿fecha;tipo") || !body.includes("Sesión editada E2E")) fail("CSV de entrenos incorrecto");
