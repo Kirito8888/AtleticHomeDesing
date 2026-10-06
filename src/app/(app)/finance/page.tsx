@@ -1,3 +1,4 @@
+import { BankImport, type ImportProfile } from "@/components/finance/bank-import";
 import { CashflowChart } from "@/components/finance/cashflow-chart";
 import { DeleteTransaction, ManageFinance, QuickTransaction, RunSubscriptionsButton } from "@/components/finance/finance-forms";
 import { PageHeader } from "@/components/page-header";
@@ -20,7 +21,7 @@ export default async function FinancePage() {
   const user = await pageUser();
   const now = today();
   const month = periodWindow("MONTHLY", now);
-  const [accounts, categories, budgets, flow, spending, subs, recent] = await Promise.all([
+  const [accounts, categories, budgets, flow, spending, subs, recent, importProfiles] = await Promise.all([
     listAccounts(user.id),
     prisma.financialCategory.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true, kind: true } }),
     budgetsStatus(user.id, now),
@@ -33,6 +34,7 @@ export default async function FinancePage() {
       take: 12,
       include: { postings: { include: { account: { select: { name: true, type: true } }, category: { select: { name: true } } } } },
     }),
+    prisma.bankImportProfile.findMany({ where: { userId: user.id }, orderBy: { name: "asc" } }),
   ]);
   const money = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
   const netWorth = money.reduce((a, x) => a + x.balanceCents, 0);
@@ -46,6 +48,12 @@ export default async function FinancePage() {
         title="Finanzas"
         action={
           <div className="flex gap-2">
+            {money.length ? (
+              <BankImport
+                accounts={money.map((a) => ({ id: a.id, name: a.name }))}
+                profiles={importProfiles.map((p) => ({ id: p.id, name: p.name, accountId: p.accountId, mapping: p.mapping as unknown as ImportProfile["mapping"] }))}
+              />
+            ) : null}
             <ManageFinance accounts={accounts} categories={categories} today={todayIso} />
             <QuickTransaction accounts={accounts} categories={categories} today={todayIso} />
           </div>
