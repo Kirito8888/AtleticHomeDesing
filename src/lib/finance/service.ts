@@ -97,7 +97,7 @@ async function assertOwnership(userId: string, postings: PostingInput[]) {
 export async function createTransaction(
   userId: string,
   input: CreateTransactionInput,
-  extra: { subscriptionId?: string } = {},
+  extra: { subscriptionId?: string; importHash?: string } = {},
 ) {
   let postings: PostingInput[];
   try {
@@ -133,6 +133,7 @@ export async function createTransaction(
       description: input.description,
       payee: input.payee ?? null,
       subscriptionId: extra.subscriptionId ?? null,
+      importHash: extra.importHash ?? null,
       postings: {
         create: postings.map((p) => ({
           accountId: p.accountId,
