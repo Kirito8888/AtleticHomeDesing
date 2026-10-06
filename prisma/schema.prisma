@@ -45,6 +45,11 @@ model User {
   sessionVersion Int       @default(1)
   // Privacidad (v1.1): fecha en que el usuario autorizó enviar datos a Gemini (null = no)
   aiConsentAt    DateTime?
+  // Seguridad (v1.2): 2FA TOTP. Secreto cifrado (AES-256-GCM, TOTP_ENCRYPTION_KEY);
+  // totpEnabledAt null = pendiente de confirmar o desactivado. totpLastStep evita reutilizar un código.
+  totpSecret     String?
+  totpEnabledAt  DateTime?
+  totpLastStep   Int?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -76,6 +81,52 @@ model User {
   chatThreads       ChatThread[]
   flashcardDecks    FlashcardDeck[]
   coachReports      CoachReport[]
+  recoveryCodes     RecoveryCode[]
+  securityEvents    SecurityEvent[]
+}
+
+/// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
+model RecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum SecurityEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  ACCOUNT_LOCKED
+  PASSWORD_CHANGED
+  EMAIL_CHANGED
+  SESSIONS_REVOKED
+  TOTP_ENABLED
+  TOTP_DISABLED
+  RECOVERY_CODE_USED
+  DATA_EXPORTED
+  AI_CONSENT_CHANGED
+  COACH_SCOPES_CHANGED
+}
+
+/// Registro de auditoría visible por el usuario (Ajustes → Actividad). Se borra con la cuenta
+/// y a los 180 días (src/lib/scheduler.ts).
+model SecurityEvent {
+  id        String            @id @default(cuid())
+  userId    String
+  type      SecurityEventType
+  ip        String?
+  userAgent String?
+  detail    String?
+  createdAt DateTime          @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model Account {
@@ -121,6 +172,15 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+/// Qué datos deportivos del atleta ve el coach (v1.2). Por defecto, todos.
+enum CoachScope {
+  LOAD // PMC, carga diaria, marcas
+  SESSIONS // sesiones de entrenamiento
+  RECOVERY // recuperación, readiness y lesiones
+  PLANNING // ciclos y calendario
+  REPORTS // informes del coach IA
+}
+
 enum CoachLinkStatus {
   PENDING
   ACTIVE
@@ -135,6 +195,7 @@ model CoachAthlete {
   athleteId  String
   status     CoachLinkStatus @default(PENDING)
   canPlan    Boolean         @default(false) // puede crear sesiones planificadas/ciclos
+  scopes     CoachScope[]    @default([LOAD, SESSIONS, RECOVERY, PLANNING, REPORTS])
   createdAt  DateTime        @default(now())
   acceptedAt DateTime?
 

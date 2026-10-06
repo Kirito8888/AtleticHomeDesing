@@ -5,6 +5,7 @@ import { addDays, startOfIsoWeek, today } from "@/lib/dates";
 import { env } from "@/lib/env";
 import { runDueSubscriptions } from "@/lib/finance/service";
 import { prisma } from "@/lib/prisma";
+import { AUDIT_RETENTION_DAYS } from "@/lib/security/audit";
 
 const HOUR_MS = 60 * 60_000;
 
@@ -55,8 +56,17 @@ export async function runWeeklyCoachJob(): Promise<number> {
   return generated;
 }
 
+/** Minimización de datos: el registro de auditoría se conserva AUDIT_RETENTION_DAYS días. */
+export async function pruneAuditJob(): Promise<number> {
+  const { count } = await prisma.securityEvent.deleteMany({
+    where: { createdAt: { lt: new Date(Date.now() - AUDIT_RETENTION_DAYS * 24 * 60 * 60_000) } },
+  });
+  return count;
+}
+
 async function tick() {
   try {
+    await pruneAuditJob();
     const posted = await runSubscriptionsJob();
     const reports = await runWeeklyCoachJob();
     if (posted || reports) console.info(`[scheduler] ${posted} cobro(s) de suscripciones, ${reports} informe(s) del coach`);

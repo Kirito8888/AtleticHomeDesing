@@ -21,6 +21,12 @@ const schema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((v) => v === "true"),
+  // Clave para cifrar los secretos de 2FA en la BD (32 bytes en base64: openssl rand -base64 32).
+  // Sin ella no se puede activar la verificación en dos pasos.
+  TOTP_ENCRYPTION_KEY: z
+    .string()
+    .refine((v) => Buffer.from(v, "base64").length === 32, "TOTP_ENCRYPTION_KEY debe ser 32 bytes en base64 (openssl rand -base64 32)")
+    .optional(),
   // Cuota de almacenamiento de apuntes por usuario.
   UPLOAD_QUOTA_MB: z.coerce.number().int().positive().default(200),
   GEMINI_API_KEY: z.string().optional(),

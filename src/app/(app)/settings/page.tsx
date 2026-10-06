@@ -14,6 +14,7 @@ import {
   ThresholdForm,
 } from "@/components/settings/settings-forms";
 import { PageHeader } from "@/components/page-header";
+import { TwoFactorSettings } from "@/components/settings/two-factor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
@@ -21,8 +22,33 @@ import { today, toIsoDay } from "@/lib/dates";
 import { env } from "@/lib/env";
 import { formatDate, formatDuration } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { recentEvents } from "@/lib/security/audit";
+import { totpStatus } from "@/lib/security/totp";
 
 export const metadata = { title: "Ajustes · LifeOS" };
+
+const EVENT_LABEL: Record<string, string> = {
+  LOGIN_SUCCESS: "Inicio de sesión",
+  LOGIN_FAILED: "Intento de inicio de sesión fallido",
+  ACCOUNT_LOCKED: "Cuenta bloqueada por intentos fallidos",
+  PASSWORD_CHANGED: "Contraseña cambiada",
+  EMAIL_CHANGED: "Email cambiado",
+  SESSIONS_REVOKED: "Sesiones cerradas en todos los dispositivos",
+  TOTP_ENABLED: "Verificación en dos pasos activada",
+  TOTP_DISABLED: "Verificación en dos pasos desactivada",
+  RECOVERY_CODE_USED: "Código de recuperación usado",
+  DATA_EXPORTED: "Datos exportados",
+  AI_CONSENT_CHANGED: "Consentimiento de IA",
+  COACH_SCOPES_CHANGED: "Permisos del entrenador cambiados",
+};
+
+/** "Chrome · Android" a partir del user-agent (solo para que el usuario reconozca el dispositivo). */
+function device(ua: string | null): string {
+  if (!ua) return "";
+  const browser = /Edg\//.test(ua) ? "Edge" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Navegador";
+  const os = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iOS" : /Windows/.test(ua) ? "Windows" : /Mac OS/.test(ua) ? "macOS" : /Linux/.test(ua) ? "Linux" : "";
+  return [browser, os].filter(Boolean).join(" · ");
+}
 
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
@@ -40,13 +66,15 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const user = await pageUser();
   const { welcome } = await searchParams;
   const todayIso = toIsoDay(today());
-  const [me, thresholds, goal, asCoach, asAthlete, customExercises] = await Promise.all([
+  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { athleteProfile: true } }),
     prisma.thresholdHistory.findMany({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" }, take: 5 }),
     prisma.nutritionGoal.findFirst({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" } }),
     prisma.coachAthlete.findMany({ where: { coachId: user.id }, include: { athlete: { select: { name: true, email: true } } } }),
     prisma.coachAthlete.findMany({ where: { athleteId: user.id }, include: { coach: { select: { name: true, email: true } } } }),
     prisma.exercise.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    totpStatus(user.id),
+    recentEvents(user.id, 15),
   ]);
   const p = me.athleteProfile;
 
@@ -108,8 +136,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <Section title="Entrenador / atletas" description="El entrenador solo ve datos deportivos; nunca finanzas, nutrición ni estudio.">
           <CoachLinks
             isCoach={user.role === "COACH" || user.role === "ADMIN"}
-            asCoach={asCoach.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, other: l.athlete }))}
-            asAthlete={asAthlete.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, other: l.coach }))}
+            asCoach={asCoach.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, scopes: l.scopes, other: l.athlete }))}
+            asAthlete={asAthlete.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, scopes: l.scopes, other: l.coach }))}
           />
         </Section>
         <Section title="Mis ejercicios" description="Se suman al catálogo global en el registro de fuerza.">
@@ -130,6 +158,31 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             <ChangeEmailForm email={me.email} />
             <SignOutEverywhere />
           </div>
+        </Section>
+        <Section title="Verificación en dos pasos" description="Un código de tu móvil además de la contraseña.">
+          <TwoFactorSettings initial={{ ...twoFactor, enabledAt: twoFactor.enabledAt?.toISOString() ?? null }} />
+        </Section>
+        <Section title="Actividad reciente" description="Si ves algo que no reconoces, cambia la contraseña y cierra las sesiones.">
+          {events.length ? (
+            <ul className="grid gap-2 text-sm">
+              {events.map((e) => (
+                <li key={e.id} className="flex items-start justify-between gap-3 border-b pb-2 last:border-0">
+                  <div className="min-w-0">
+                    <p className={e.type === "LOGIN_FAILED" || e.type === "ACCOUNT_LOCKED" ? "font-medium text-destructive" : "font-medium"}>
+                      {EVENT_LABEL[e.type] ?? e.type}
+                      {e.detail ? <span className="font-normal text-muted-foreground"> · {e.detail}</span> : null}
+                    </p>
+                    <p className="truncate text-xs text-muted-foreground">{[e.ip, device(e.userAgent)].filter(Boolean).join(" · ")}</p>
+                  </div>
+                  <time className="shrink-0 text-xs text-muted-foreground tabular-nums" dateTime={e.createdAt.toISOString()}>
+                    {e.createdAt.toLocaleString("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </time>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm text-muted-foreground">Sin actividad registrada todavía.</p>
+          )}
         </Section>
         <Section title="Privacidad e IA" description="Astras AI usa Google Gemini. Sin tu permiso no se envía nada.">
           <AiConsentToggle initial={me.aiConsentAt != null} configured={Boolean(env().GEMINI_API_KEY)} />

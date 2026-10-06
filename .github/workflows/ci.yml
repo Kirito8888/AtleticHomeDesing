@@ -64,6 +64,8 @@ jobs:
       BASE_URL: http://localhost:3000
       CHROMIUM_PATH: /usr/bin/google-chrome
       SCHEDULER_ENABLED: "false"
+      # Clave solo para la CI (32 bytes en base64), no es un secreto real
+      TOTP_ENCRYPTION_KEY: Y2ktb25seS0zMi1ieXRlcy1rZXktZm9yLXRvdHAhISE=
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

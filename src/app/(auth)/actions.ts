@@ -11,6 +11,8 @@ import { clientIp, LIMITS, rateLimit } from "@/lib/rate-limit";
 
 export interface FormState {
   error?: string;
+  /** La cuenta tiene 2FA: el formulario debe pedir el código. */
+  needCode?: boolean;
 }
 
 /** Solo rutas internas como destino tras el login (evita open redirects). */
@@ -26,11 +28,16 @@ export async function loginAction(_prev: FormState, form: FormData): Promise<For
     await signIn("credentials", {
       email: form.get("email"),
       password: form.get("password"),
+      code: form.get("code") || undefined,
       redirectTo: safeCallback(form.get("callbackUrl")),
     });
     return {};
   } catch (err) {
     if (err instanceof CredentialsSignin && err.code === "rate_limited") return { error: TOO_MANY };
+    if (err instanceof CredentialsSignin && err.code === "totp_required") return { needCode: true };
+    if (err instanceof CredentialsSignin && err.code === "totp_invalid") {
+      return { needCode: true, error: "Código incorrecto o ya usado. Espera al siguiente código de la app." };
+    }
     if (err instanceof AuthError) return { error: "Email o contraseña incorrectos" };
     throw err; // NEXT_REDIRECT debe propagarse
   }
