@@ -260,9 +260,11 @@ export async function recomputeSessionsTss(userId: string, from?: Date) {
 
 /** Sustituye una sesión existente por `input` (mismo id; conserva quién la planificó). */
 export async function updateTrainingSession(userId: string, id: string, input: CreateSessionInput) {
-  const existing = await prisma.trainingSession.findFirst({ where: { id, userId }, select: { date: true, plannedById: true } });
+  const existing = await prisma.trainingSession.findFirst({ where: { id, userId }, select: { date: true, plannedById: true, cycleId: true } });
   if (!existing) throw new ApiError(404, "Sesión no encontrada");
-  return createTrainingSession(userId, existing.plannedById, input, { replace: { id, date: existing.date } });
+  // El formulario no envía el ciclo: si no viene, se conserva (p. ej. el microciclo del plan importado).
+  const withCycle = input.cycleId === undefined ? { ...input, cycleId: existing.cycleId } : input;
+  return createTrainingSession(userId, existing.plannedById, withCycle, { replace: { id, date: existing.date } });
 }
 
 async function detectPersonalRecords(
