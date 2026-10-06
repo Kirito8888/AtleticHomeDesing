@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { AiPlanActions, WeekFeedback } from "@/components/ai-plan/ai-plan-actions";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
+import { overlapDays } from "@/lib/ai-plan/service";
+import { today, toIsoDay } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
 import type { ParsedWeek } from "@/lib/planning/plan-import/types";
 import { prisma } from "@/lib/prisma";
@@ -29,9 +32,24 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
   const { code } = await params;
   const meso = await prisma.planMeso.findUnique({
     where: { userId_code: { userId: user.id, code: decodeURIComponent(code) } },
-    include: { days: { orderBy: [{ date: { sort: "asc", nulls: "last" } }, { relDay: "asc" }], select: { id: true, date: true, relDay: true, title: true, code: true, sessionId: true } } },
+    include: {
+      days: { orderBy: [{ date: { sort: "asc", nulls: "last" } }, { relDay: "asc" }], select: { id: true, date: true, relDay: true, title: true, code: true, sessionId: true } },
+      feedback: { select: { week: true } },
+    },
   });
   if (!meso) notFound();
+  const isAi = meso.source === "AI";
+  const meta = (meso.meta ?? {}) as { warnings?: string[]; model?: string };
+  const overlap = isAi && meso.status === "DRAFT" ? await overlapDays(user.id, meso.id, toIsoDay(meso.startDate), toIsoDay(meso.endDate)) : 0;
+  // Última semana ya terminada sin valorar (planes con IA activos).
+  const todayIso = toIsoDay(today());
+  const pendingWeek = isAi && meso.status === "ACTIVE"
+    ? (meso.weeks as ParsedWeek[])
+        .filter((w) => w.number != null && w.end != null && w.end < todayIso && !meso.feedback.some((f) => f.week === w.number))
+        .map((w) => w.number!)
+        .filter((n) => (meso.weeks as ParsedWeek[]).some((w) => w.number === n + 1))
+        .at(-1) ?? null
+    : null;
   const intro = sections(meso.intro as Section[]);
   const annexes = sections(meso.annexes as Section[]);
   const weeks = meso.weeks as ParsedWeek[];
@@ -54,6 +72,28 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
     <>
       <PageHeader title={`${meso.code} · ${meso.name}`} description={`${formatDate(meso.startDate)}–${formatDate(meso.endDate)}${meso.version ? ` · versión ${meso.version}` : ""}`} />
       <div className="grid gap-4">
+        {isAi ? (
+          <Card className="gap-3 py-4">
+            <CardHeader className="px-4">
+              <CardTitle className="text-sm">Plan creado con IA{meta.model && meta.model !== "simulado" ? ` (${meta.model})` : ""}</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 px-4">
+              <AiPlanActions code={meso.code} status={meso.status} overlapDays={overlap} />
+              {meta.warnings?.length ? (
+                <details className="text-sm">
+                  <summary className="cursor-pointer text-amber-700 dark:text-amber-400">{meta.warnings.length} avisos de la revisión automática</summary>
+                  <ul className="mt-1 list-disc pl-4 text-muted-foreground">
+                    {meta.warnings.map((w) => (
+                      <li key={w}>{w}</li>
+                    ))}
+                  </ul>
+                </details>
+              ) : null}
+              {pendingWeek ? <WeekFeedback code={meso.code} week={pendingWeek} /> : null}
+              <p className="text-xs text-muted-foreground">Generado por IA: es una propuesta. Si algo te duele o no encaja, ajústalo o consulta con tu entrenador/a.</p>
+            </CardContent>
+          </Card>
+        ) : null}
         {intro.length ? (
           <section className="grid gap-2" aria-label="Introducción del bloque">
             {intro.map((s, i) => (

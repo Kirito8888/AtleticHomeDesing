@@ -5,13 +5,17 @@ import { Pencil } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Stat } from "@/components/stat";
 import { DeleteSessionButton } from "@/components/training/delete-session-button";
+import { DayActions } from "@/components/ai-plan/day-actions";
 import { PlanDayView } from "@/components/training/plan-day-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { formatDate, formatDuration, formatNum, formatPace, SESSION_TYPE_LABEL, TECHNICAL_EVENT_LABEL } from "@/lib/format";
-import type { PlanBlock, VariantOption } from "@/lib/planning/plan-import/types";
+import { dayView } from "@/lib/ai-plan/day-view";
+import { toIsoDay } from "@/lib/dates";
+import { cycleToday } from "@/lib/health/cycle-service";
+import type { VariantOption } from "@/lib/planning/plan-import/types";
 import { planDayForSession } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { isEditableType } from "@/lib/training/form-initial";
@@ -39,6 +43,8 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
   });
   if (!s) notFound();
   const plan = await planDayForSession(user.id, s.id);
+  const view = plan ? dayView(plan) : null;
+  const cycle = view?.hasLight && s.status === "PLANNED" ? await cycleToday(user.id, toIsoDay(s.date)) : null;
 
   const byExercise = new Map<string, NonNullable<typeof s.strength>["sets"]>();
   for (const set of s.strength?.sets ?? []) {
@@ -73,9 +79,12 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
         </CardContent>
       </Card>
 
-      {plan ? (
+      {plan && view && s.status === "PLANNED" ? (
+        <DayActions dayId={plan.id} mode={plan.mode} hasLight={view.hasLight} swappable={view.swappable} suggestion={cycle?.suggestion} />
+      ) : null}
+      {plan && view ? (
         <PlanDayView
-          blocks={plan.content as PlanBlock[]}
+          blocks={view.blocks}
           heading={
             <>
               <Link href={`/planning/meso/${plan.meso.code}`} className="underline-offset-2 hover:underline">

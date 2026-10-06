@@ -1,0 +1,73 @@
+import Link from "next/link";
+
+import { PlanWizard } from "@/components/ai-plan/plan-wizard";
+import { PageHeader } from "@/components/page-header";
+import type { AGE_BANDS } from "@/lib/ai-plan/options";
+import { pageUser } from "@/lib/auth/page";
+import { today, toIsoDay } from "@/lib/dates";
+import { env } from "@/lib/env";
+import { prisma } from "@/lib/prisma";
+import { activeInjuries } from "@/lib/recovery/injuries";
+
+export const metadata = { title: "Crear mi planificación · LifeOS" };
+
+function ageBand(birth: Date | null | undefined): keyof typeof AGE_BANDS | null {
+  if (!birth) return null;
+  const age = Math.floor((Date.now() - birth.getTime()) / (365.25 * 864e5));
+  return age < 18 ? "u18" : age < 30 ? "18-29" : age < 40 ? "30-39" : age < 50 ? "40-49" : age < 60 ? "50-59" : "60+";
+}
+
+/** Astras AI → Crear planificación: cuestionario sin escribir → plan con Gemini (borrador). */
+export default async function CreatePlanPage() {
+  const user = await pageUser();
+  const now = today();
+  const [me, profile, injuries, events, cycle, drafts] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { aiConsentAt: true } }),
+    prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { sex: true, birthDate: true } }),
+    activeInjuries(user.id),
+    prisma.calendarEvent.findMany({ where: { userId: user.id, type: "COMPETITION", startAt: { gte: now } }, orderBy: { startAt: "asc" }, take: 30, select: { id: true, title: true, startAt: true } }),
+    prisma.cycleProfile.count({ where: { userId: user.id } }),
+    prisma.planMeso.findMany({ where: { userId: user.id, source: "AI" }, orderBy: { createdAt: "desc" }, select: { code: true, name: true, status: true } }),
+  ]);
+  const fake = process.env.LIFEOS_FAKE_AI === "1";
+  const configured = fake || Boolean(env().GEMINI_API_KEY);
+  const consent = fake || me.aiConsentAt != null;
+
+  return (
+    <>
+      <PageHeader title="Crear mi planificación" description="Responde con unos toques; la IA (Gemini) prepara un plan a tu medida que revisas antes de activarlo." />
+      {!configured ? (
+        <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+          La IA no está configurada en el servidor: añade <code>GEMINI_API_KEY</code> al fichero de entorno y reinicia.
+        </p>
+      ) : !consent ? (
+        <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+          Para generar el plan, autoriza la IA en{" "}
+          <Link href="/settings" className="font-medium text-foreground underline underline-offset-4">
+            Ajustes → Privacidad e IA
+          </Link>
+          . A Gemini solo le llegan tus respuestas del cuestionario: ni tu nombre, ni tu email, ni tus datos de salud.
+        </p>
+      ) : null}
+      {drafts.length ? (
+        <ul className="mb-4 grid gap-1 text-sm" aria-label="Tus planes con IA">
+          {drafts.map((d) => (
+            <li key={d.code}>
+              <Link href={`/planning/meso/${d.code}`} className="underline-offset-2 hover:underline">
+                {d.code} · {d.name}
+              </Link>{" "}
+              <span className="text-xs text-muted-foreground">{d.status === "DRAFT" ? "borrador" : "activo"}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      <PlanWizard
+        isFemale={profile?.sex === "FEMALE"}
+        hasCycle={cycle > 0}
+        presetAreas={[...new Set(injuries.map((i) => i.area))]}
+        competitions={events.map((e) => ({ id: e.id, title: e.title, date: toIsoDay(e.startAt) }))}
+        defaultAgeBand={ageBand(profile?.birthDate)}
+      />
+    </>
+  );
+}
