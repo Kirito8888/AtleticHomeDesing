@@ -1,10 +1,12 @@
 import "server-only";
 
 import { generateWeeklyCoachReport } from "@/lib/ai/coach";
-import { addDays, startOfIsoWeek, today } from "@/lib/dates";
+import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
+import { formatEur } from "@/lib/format";
 import { env } from "@/lib/env";
 import { runDueSubscriptions } from "@/lib/finance/service";
 import { prisma } from "@/lib/prisma";
+import { notifyOnce } from "@/lib/push/service";
 import { AUDIT_RETENTION_DAYS } from "@/lib/security/audit";
 
 const HOUR_MS = 60 * 60_000;
@@ -49,6 +51,12 @@ export async function runWeeklyCoachJob(): Promise<number> {
     try {
       await generateWeeklyCoachReport(id, weekStart);
       generated++;
+      await notifyOnce(id, `coach:${toIsoDay(weekStart)}`, {
+        title: "Informe semanal del coach",
+        body: "Ya tienes el análisis de tu semana y las recomendaciones para la siguiente.",
+        url: "/study?tab=coach",
+        tag: "coach",
+      });
     } catch (err) {
       console.error(`[scheduler] coach semanal de ${id}:`, err);
     }
@@ -61,12 +69,56 @@ export async function pruneAuditJob(): Promise<number> {
   const { count } = await prisma.securityEvent.deleteMany({
     where: { createdAt: { lt: new Date(Date.now() - AUDIT_RETENTION_DAYS * 24 * 60 * 60_000) } },
   });
+  await prisma.notificationLog.deleteMany({ where: { sentAt: { lt: new Date(Date.now() - 60 * 24 * 60 * 60_000) } } });
   return count;
+}
+
+/** Hora local de Madrid (0–23). */
+const madridHour = () => Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hourCycle: "h23" }).format(new Date()));
+
+/**
+ * Resumen diario por push (desde las 7:00, una vez al día): sesiones planificadas
+ * para hoy y suscripciones que se cobran mañana. Solo a quien tenga dispositivos
+ * suscritos y algo que contar.
+ */
+export async function runDailyDigestJob(hour = madridHour()): Promise<number> {
+  if (hour < 7) return 0;
+  const day = today();
+  const tomorrow = addDays(day, 1);
+  const users = await prisma.user.findMany({
+    where: { pushSubscriptions: { some: {} }, notificationLogs: { none: { key: `digest:${toIsoDay(day)}` } } },
+    select: {
+      id: true,
+      trainingSessions: { where: { date: day, status: "PLANNED" }, select: { title: true, type: true } },
+      subscriptions: { where: { isActive: true, nextChargeDate: tomorrow }, select: { name: true, amountCents: true } },
+    },
+  });
+  let sent = 0;
+  for (const u of users) {
+    const parts: string[] = [];
+    if (u.trainingSessions.length) {
+      const names = u.trainingSessions.map((s) => s.title).filter(Boolean).join(", ");
+      parts.push(`${u.trainingSessions.length} sesión${u.trainingSessions.length > 1 ? "es" : ""} planificada${u.trainingSessions.length > 1 ? "s" : ""}${names ? ` (${names})` : ""}`);
+    }
+    if (u.subscriptions.length) {
+      parts.push(`mañana se cobra ${u.subscriptions.map((s) => `${s.name} ${formatEur(s.amountCents)}`).join(", ")}`);
+    }
+    if (!parts.length) continue;
+    const ok = await notifyOnce(u.id, `digest:${toIsoDay(day)}`, {
+      title: "Tu día en LifeOS",
+      body: parts.join(" · ").replace(/^./, (c) => c.toUpperCase()),
+      url: u.trainingSessions.length ? "/training" : "/finance",
+      tag: "digest",
+    });
+    if (ok) sent++;
+  }
+  return sent;
 }
 
 async function tick() {
   try {
     await pruneAuditJob();
+    await runDailyDigestJob();
     const posted = await runSubscriptionsJob();
     const reports = await runWeeklyCoachJob();
     if (posted || reports) console.info(`[scheduler] ${posted} cobro(s) de suscripciones, ${reports} informe(s) del coach`);
