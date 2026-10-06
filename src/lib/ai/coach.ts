@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { Prisma } from "@/generated/prisma/client";
 import { generateJson } from "@/lib/ai/gemini";
+import { assertAiAllowed } from "@/lib/ai/guard";
 import { addDays, round, startOfIsoWeek, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { strengthSessionStress } from "@/lib/training/strength";
@@ -201,6 +202,7 @@ Reglas:
   consultar a un profesional sanitario.`;
 
 export async function generateWeeklyCoachReport(userId: string, weekOf: Date) {
+  await assertAiAllowed(userId); // consentimiento del atleta, aunque lo pida su coach
   const weekStart = startOfIsoWeek(weekOf);
   const snapshot = await buildWeeklySnapshot(userId, weekStart);
   const { data, model } = await generateJson(coachReportSchema, {

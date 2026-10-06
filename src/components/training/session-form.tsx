@@ -15,8 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
 import { formatNum } from "@/lib/format";
-
-type Kind = "STRENGTH" | "TECHNICAL" | "TRACK";
+import type { FormKind as Kind, SessionFormInitial } from "@/lib/training/form-initial";
 
 const RPE = Array.from({ length: 10 }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
 
@@ -32,23 +31,29 @@ export function SessionForm({
   defaultDate,
   bodyWeightKg,
   initialType = "STRENGTH",
+  initial,
+  sessionId,
 }: {
   exercises: ExerciseOption[];
   defaultDate: string;
   bodyWeightKg: number | null;
   initialType?: Kind;
+  /** Valores precargados (editar una sesión o repetir la última). */
+  initial?: SessionFormInitial;
+  /** Si se indica, se guarda con PATCH sobre esa sesión en vez de crear otra. */
+  sessionId?: string;
 }) {
   const router = useRouter();
-  const [type, setType] = useState<Kind>(initialType);
-  const [date, setDate] = useState(defaultDate);
-  const [title, setTitle] = useState("");
-  const [minutes, setMinutes] = useState("");
-  const [rpe, setRpe] = useState<number | null>(null);
-  const [notes, setNotes] = useState("");
-  const [planned, setPlanned] = useState(false);
-  const [blocks, setBlocks] = useState<ExerciseBlock[]>([]);
-  const [technical, setTechnical] = useState<TechnicalState>(initialTechnical);
-  const [track, setTrack] = useState<TrackState>(initialTrack);
+  const [type, setType] = useState<Kind>(initial?.type ?? initialType);
+  const [date, setDate] = useState(initial?.date ?? defaultDate);
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [minutes, setMinutes] = useState(initial?.minutes ?? "");
+  const [rpe, setRpe] = useState<number | null>(initial?.rpe ?? null);
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [planned, setPlanned] = useState(initial?.planned ?? false);
+  const [blocks, setBlocks] = useState<ExerciseBlock[]>(initial?.blocks ?? []);
+  const [technical, setTechnical] = useState<TechnicalState>(initial?.technical ?? initialTechnical);
+  const [track, setTrack] = useState<TrackState>(initial?.track ?? initialTrack);
   const [saving, setSaving] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -76,7 +81,9 @@ export function SessionForm({
 
     setSaving(true);
     try {
-      const s = await api<Created>("/api/training/sessions", { body });
+      const s = sessionId
+        ? await api<Created>(`/api/training/sessions/${sessionId}`, { method: "PATCH", body })
+        : await api<Created>("/api/training/sessions", { body });
       const prs = s.newPersonalRecords.length ? ` · ${s.newPersonalRecords.length} marca(s) personal(es) 🎉` : "";
       toast.success(planned ? "Sesión planificada" : `Guardada${s.tss != null ? ` · ${formatNum(s.tss)} TSS` : ""}${prs}`);
       router.push(`/training/${s.id}`);
@@ -142,7 +149,7 @@ export function SessionForm({
 
       <div className="sticky bottom-20 z-10 md:bottom-4">
         <Button type="submit" size="lg" className="h-12 w-full text-base shadow-lg" disabled={saving}>
-          {saving ? "Guardando…" : "Guardar sesión"}
+          {saving ? "Guardando…" : sessionId ? "Guardar cambios" : "Guardar sesión"}
         </Button>
       </div>
     </form>

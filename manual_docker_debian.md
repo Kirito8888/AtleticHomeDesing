@@ -4,10 +4,10 @@ Guía de comandos para levantar la PWA en un servidor Debian 12 (bookworm) o 13 
 Para la arquitectura interna, ver [`manual_backend.md`](manual_backend.md).
 
 ```
-Internet ──HTTPS──► Caddy (host, :443) ──► web (Next.js, 127.0.0.1:3000)
+Internet ──HTTPS──► Caddy / NPM (:443) ──► web (Next.js, 127.0.0.1:3000)
                                               │
                                               ▼
-                                   db (PostgreSQL 17 + pgvector) ◄── pgadmin (127.0.0.1:5050, vía túnel SSH)
+                                   db (PostgreSQL 17 + pgvector) ◄── pgadmin (bajo demanda, 127.0.0.1:5050, vía túnel SSH)
                                    volúmenes: pgdata · uploads · pgadmin
 ```
 
@@ -15,8 +15,8 @@ Internet ──HTTPS──► Caddy (host, :443) ──► web (Next.js, 127.0.0
 |---|---|---|---|
 | `db` | `pgvector/pgvector:pg17` | `127.0.0.1:5432` | Sí |
 | `web` | Build local (`Dockerfile`, target `runner`) | `127.0.0.1:3000` | Sí |
-| `pgadmin` | `dpage/pgadmin4` | `127.0.0.1:5050` | Sí |
-| `migrate` | Build local (target `migrate`) | — | No: tarea puntual (perfil `tools`) que aplica migraciones y seed |
+| `pgadmin` | `dpage/pgadmin4` | `127.0.0.1:5050` | No: bajo demanda (perfil `pgadmin`, § 7) |
+| `migrate` | Build local (target `migrate`) | — | No: tarea puntual (perfil `tools`) que aplica migraciones y seed, y ejecuta `npm run user` (§ 8) |
 
 > **Por qué HTTPS:** el service worker (PWA instalable) y la cámara del escáner de códigos de barras solo funcionan en contexto seguro (HTTPS o `localhost`).
 
@@ -99,7 +99,10 @@ Valores a revisar:
 | `POSTGRES_PASSWORD` | El generado arriba. Usa hex: sin `@ : / ?`, que romperían la URL de conexión |
 | `PGADMIN_DEFAULT_EMAIL` / `PGADMIN_DEFAULT_PASSWORD` | Tu email y el valor generado arriba |
 | `AUTH_SECRET` | El generado arriba. Si cambia, todas las sesiones se cierran |
-| `AUTH_URL` | La URL pública **exacta**: `https://lifeos.tudominio.es` |
+| `AUTH_URL` | La URL pública **exacta**: `https://lifeos.tudominio.es`. Con `https://` se activa además `upgrade-insecure-requests` en la CSP |
+| `ALLOW_REGISTRATION` | `false`: nadie puede crear cuentas desde `/register` salvo el primer usuario de una instalación vacía. Las demás cuentas, con `npm run user -- create` (§ 8) |
+| `SCHEDULER_ENABLED` | `true`: cobra suscripciones a diario y genera el informe semanal del coach (solo a quien activó la IA) |
+| `UPLOAD_QUOTA_MB` | Espacio de apuntes por usuario (por defecto 200) |
 | `WEB_BIND` / `WEB_PORT` | `127.0.0.1` / `3000` (detrás de Caddy) |
 | `GEMINI_API_KEY` | Tu clave (opcional) |
 | `GEMINI_CHAT_MODEL` | Modelo de chat disponible en tu cuenta de Google AI |
@@ -132,8 +135,8 @@ dc ps                      # espera a que db esté "healthy"
 #    trigger de partida doble y catálogo de ejercicios). Idempotente.
 dc --profile tools run --rm --build migrate
 
-# 3. Aplicación y pgAdmin (la primera vez compila la imagen: unos minutos)
-dc up -d --build web pgadmin
+# 3. Aplicación (la primera vez compila la imagen: unos minutos)
+dc up -d --build web
 
 # 4. Comprobar
 dc ps
@@ -174,19 +177,23 @@ sudo ufw enable
 
 > **Importante:** Docker inserta sus propias reglas de iptables, y **un puerto publicado como `0.0.0.0:3000` queda abierto aunque ufw lo bloquee**. Por eso `docker-compose.yml` publica `web`, `db` y `pgadmin` solo en `127.0.0.1`. Si cambias `WEB_BIND` a `0.0.0.0`, protégelo con un firewall externo (el del proveedor).
 
-Comprueba `https://lifeos.tudominio.es`, crea tu cuenta y, desde el móvil, usa **"Añadir a pantalla de inicio" / "Instalar app"**.
+Comprueba `https://lifeos.tudominio.es`, crea tu cuenta (la primera; después el registro se cierra solo si `ALLOW_REGISTRATION=false`) y, desde el móvil, usa **"Añadir a pantalla de inicio" / "Instalar app"**.
 
-**Alternativa con nginx** (si ya lo usas): `proxy_pass http://127.0.0.1:3000;` con `client_max_body_size 20m;` y `proxy_set_header Host $host; X-Forwarded-Proto $scheme;`, y certificado con `certbot --nginx`.
+**Alternativa con nginx** (si ya lo usas): `proxy_pass http://127.0.0.1:3000;` con `client_max_body_size 20m;` y `proxy_set_header Host $host; X-Forwarded-Proto $scheme; X-Forwarded-For $proxy_add_x_forwarded_for;`, y certificado con `certbot --nginx`. Nginx Proxy Manager y Caddy ya envían `X-Forwarded-For`.
+
+> **Límite de intentos por IP:** la app toma la IP del cliente de la **última** entrada de `X-Forwarded-For` (la que añade tu proxy). Por eso la app **no** debe ser accesible sin pasar por el proxy: deja `WEB_BIND=127.0.0.1` (o, con Nginx Proxy Manager en Docker, sin publicar el puerto).
 
 ---
 
-## 7. pgAdmin
+## 7. pgAdmin (bajo demanda)
 
-Está ligado a `127.0.0.1:5050`. Accede desde tu ordenador con un túnel SSH:
+No arranca con `dc up`: es una puerta de entrada a todos los datos y casi nunca hace falta (para usuarios y contraseñas usa `npm run user`, § 8). Arráncalo solo cuando lo necesites:
 
 ```bash
-ssh -L 5050:127.0.0.1:5050 usuario@tu-servidor
-# y abre http://localhost:5050 en tu navegador
+dc --profile pgadmin up -d pgadmin
+ssh -L 5050:127.0.0.1:5050 usuario@tu-servidor   # desde tu ordenador
+# abre http://localhost:5050 … y al terminar:
+dc --profile pgadmin stop pgadmin
 ```
 
 Para registrar el servidor en pgAdmin:
@@ -216,6 +223,20 @@ dc up -d                       # arrancar de nuevo
 dc exec db psql -U lifeos -d lifeos     # consola SQL
 ```
 
+### Usuarios (sin SQL)
+
+Las contraseñas se generan aleatoriamente y se muestran una sola vez (nunca se escriben en la línea de comandos, para que no queden en el historial):
+
+```bash
+dc --profile tools run --rm migrate npm run user -- list
+dc --profile tools run --rm migrate npm run user -- create ana@correo.es --name "Ana" --role ATHLETE
+dc --profile tools run --rm migrate npm run user -- reset-password ana@correo.es   # además cierra sus sesiones
+dc --profile tools run --rm migrate npm run user -- unlock ana@correo.es           # tras 5 intentos fallidos
+dc --profile tools run --rm migrate npm run user -- set-role ana@correo.es COACH
+```
+
+Cada usuario puede cambiar su contraseña y su email, cerrar sesión en todos sus dispositivos, descargar sus datos y borrar su cuenta en **Ajustes**.
+
 ### Actualizar a una nueva versión
 
 ```bash
@@ -226,38 +247,70 @@ dc up -d --build web
 docker image prune -f                         # limpia imágenes antiguas
 ```
 
-### Copias de seguridad
+#### De v1.0 a v1.1 (seguridad y privacidad)
 
-Con la base de datos y los apuntes subidos basta (los volúmenes se llaman `lifeos_pgdata`, `lifeos_uploads` y `lifeos_pgadmin`):
+La migración `v1_1_security_privacy` solo **añade** columnas a `User` con valores por defecto: no borra ni modifica datos y las sesiones abiertas siguen valiendo.
+
+1. Copia de seguridad antes de nada (ver abajo).
+2. Añade a `.env.production` (si no están, se usan estos valores por defecto):
+   ```bash
+   ALLOW_REGISTRATION=false
+   SCHEDULER_ENABLED=true
+   UPLOAD_QUOTA_MB=200
+   ```
+3. Actualiza como siempre (`git pull` → `migrate` → `up -d --build web`).
+4. pgAdmin ya no arranca con `up`. Si estaba en marcha, páralo: `dc --profile pgadmin stop pgadmin`.
+5. **Astras AI queda desactivado** para todos hasta que cada usuario lo autorice en *Ajustes → Privacidad e IA*.
+
+### Copias de seguridad (cifradas)
+
+La base de datos contiene datos de salud (VFC, FC, sueño), finanzas y apuntes: **las copias se cifran** con [`age`](https://github.com/FiloSottile/age) usando una clave pública. El servidor solo tiene la pública, así que quien robe las copias (o el servidor) no puede leerlas. La clave privada se queda en tu ordenador o en un gestor de contraseñas.
+
+Una sola vez, **en tu ordenador** (no en el servidor):
 
 ```bash
-sudo mkdir -p /var/backups/lifeos && sudo chown "$USER": /var/backups/lifeos
+sudo apt-get install -y age          # o: brew install age / winget install FiloSottile.age
+age-keygen -o lifeos-backup.key      # imprime "Public key: age1…"
+```
+
+Guarda `lifeos-backup.key` en lugar seguro (sin ella las copias no se pueden restaurar). En el servidor:
+
+```bash
+sudo apt-get install -y age
+sudo mkdir -p /var/backups/lifeos && sudo chown "$USER": /var/backups/lifeos && chmod 700 /var/backups/lifeos
+echo "age1…tu-clave-pública…" > /opt/lifeos/backup.pub
 cd /opt/lifeos
 
-# Base de datos (formato custom, comprimido)
-dc exec -T db pg_dump -U lifeos -d lifeos -Fc > /var/backups/lifeos/db-$(date +%F).dump
+# Base de datos (formato custom) → cifrada
+dc exec -T db pg_dump -U lifeos -d lifeos -Fc | age -R backup.pub > /var/backups/lifeos/db-$(date +%F).dump.age
 
-# Apuntes subidos
-docker run --rm -v lifeos_uploads:/data:ro -v /var/backups/lifeos:/backup alpine \
-  tar czf /backup/uploads-$(date +%F).tgz -C /data .
+# Apuntes subidos → cifrados
+docker run --rm -v lifeos_uploads:/data:ro alpine tar czf - -C /data . \
+  | age -R backup.pub > /var/backups/lifeos/uploads-$(date +%F).tgz.age
 ```
 
 Copia diaria automática a las 03:30, conservando 14 días (`crontab -e`):
 
 ```cron
-30 3 * * * cd /opt/lifeos && docker compose --env-file .env.production exec -T db pg_dump -U lifeos -d lifeos -Fc > /var/backups/lifeos/db-$(date +\%F).dump && find /var/backups/lifeos -name 'db-*.dump' -mtime +14 -delete
+30 3 * * * cd /opt/lifeos && docker compose --env-file .env.production exec -T db pg_dump -U lifeos -d lifeos -Fc | age -R backup.pub > /var/backups/lifeos/db-$(date +\%F).dump.age && find /var/backups/lifeos -name 'db-*.dump.age' -mtime +14 -delete
 ```
 
-Guarda también una copia **fuera del servidor** (`rclone`, `rsync` a otra máquina…), además de `.env.production`. Sin `AUTH_SECRET` las sesiones se invalidan; sin `POSTGRES_PASSWORD` no podrás conectar con el volumen existente.
+Guarda también una copia **fuera del servidor** (`rclone`, `rsync` a otra máquina…): al estar cifradas, puedes subirlas a cualquier nube. Guarda aparte `.env.production` (también cifrado: `age -R backup.pub .env.production > env.age`). Sin `AUTH_SECRET` las sesiones se invalidan; sin `POSTGRES_PASSWORD` no podrás conectar con el volumen existente.
+
+> Las copias antiguas en claro (`db-*.dump` sin `.age`) bórralas cuando tengas la primera cifrada: `rm /var/backups/lifeos/*.dump`.
 
 ### Restaurar
 
+Copia al servidor tu clave privada **solo durante la restauración**:
+
 ```bash
 dc stop web
-dc exec -T db pg_restore -U lifeos -d lifeos --clean --if-exists < /var/backups/lifeos/db-AAAA-MM-DD.dump
-docker run --rm -v lifeos_uploads:/data -v /var/backups/lifeos:/backup alpine \
-  sh -c "cd /data && tar xzf /backup/uploads-AAAA-MM-DD.tgz"
+age -d -i lifeos-backup.key /var/backups/lifeos/db-AAAA-MM-DD.dump.age \
+  | dc exec -T db pg_restore -U lifeos -d lifeos --clean --if-exists
+age -d -i lifeos-backup.key /var/backups/lifeos/uploads-AAAA-MM-DD.tgz.age \
+  | docker run --rm -i -v lifeos_uploads:/data alpine sh -c "cd /data && tar xzf -"
 dc up -d web
+shred -u lifeos-backup.key            # no dejes la clave privada en el servidor
 ```
 
 ---
@@ -271,6 +324,9 @@ dc up -d web
 | Tras iniciar sesión redirige a `localhost` u otro dominio | `AUTH_URL` no coincide con la URL pública | Corrígelo y ejecuta `dc up -d web` |
 | `password authentication failed` tras cambiar `POSTGRES_PASSWORD` | El volumen guarda la contraseña de la primera inicialización | Vuelve a la anterior o cámbiala dentro: `dc exec db psql -U lifeos -c "ALTER USER lifeos PASSWORD '…'"` |
 | Astras AI: "no está configurado" | Falta `GEMINI_API_KEY` | Añádela y ejecuta `dc up -d web` |
+| Astras AI: "Activa el consentimiento de IA" | El usuario no ha autorizado el envío a Gemini | *Ajustes → Privacidad e IA* |
+| Login: "Demasiados intentos" | 5 fallos seguidos en la cuenta (bloqueo de 15 min) o 10 intentos desde la misma IP en 15 min | Espera, o `npm run user -- unlock <email>` (§ 8). Si **todos** los usuarios ven el aviso a la vez, tu proxy no envía `X-Forwarded-For` y todos comparten IP |
+| `/register` dice "Registro cerrado" | `ALLOW_REGISTRATION=false` y ya existe algún usuario | Crea la cuenta con `npm run user -- create` |
 | Gemini responde con error de modelo | `GEMINI_CHAT_MODEL` no está disponible en tu cuenta | Cambia a un modelo listado en Google AI Studio |
 | Buscador de alimentos: "resultados de tu caché local" | OpenFoodFacts no responde o devuelve 429 (~10 búsquedas/min) | Espera un minuto. Los productos ya consultados siguen disponibles |
 | El escáner no abre la cámara | Sin HTTPS, permiso denegado o navegador sin Barcode Detection API (Firefox, Safari sin flag) | Usa HTTPS o introduce el EAN a mano |

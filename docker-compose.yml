@@ -3,6 +3,7 @@
 #   cp .env.example .env.production   # y rellena los valores
 #   docker compose --env-file .env.production up -d --build
 #   docker compose --env-file .env.production --profile tools run --rm migrate
+#   docker compose --env-file .env.production --profile tools run --rm migrate npm run user -- list
 # Guía completa: manual_docker_debian.md
 
 name: lifeos
@@ -45,7 +46,10 @@ services:
       db:
         condition: service_healthy
 
+  # Bajo demanda (no arranca con `up`): docker compose --profile pgadmin up -d pgadmin
+  # y al terminar: docker compose --profile pgadmin stop pgadmin
   pgadmin:
+    profiles: ["pgadmin"]
     image: dpage/pgadmin4:latest
     restart: unless-stopped
     environment:

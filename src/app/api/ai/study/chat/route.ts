@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { askStudyQuestion } from "@/lib/ai/rag";
-import { parseBody, route } from "@/lib/api";
+import { enforceRateLimit, parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 
 const schema = z.object({
@@ -14,5 +14,6 @@ const schema = z.object({
 /** Pregunta sobre los apuntes (RAG). Devuelve la respuesta con citas [n]. */
 export const POST = route(async (req) => {
   const user = await requireUser();
+  enforceRateLimit("aiChat", user.id);
   return askStudyQuestion(user.id, await parseBody(req, schema));
 });

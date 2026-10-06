@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { PageHeader } from "@/components/page-header";
 import { CoachPanel, type CoachReportView } from "@/components/study/coach-panel";
 import { DocumentsPanel } from "@/components/study/documents-panel";
@@ -14,9 +16,10 @@ export const metadata = { title: "Astras AI · LifeOS" };
 export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   const user = await pageUser();
   const { tab } = await searchParams;
-  const aiEnabled = Boolean(env().GEMINI_API_KEY);
+  const aiConfigured = Boolean(env().GEMINI_API_KEY);
   const now = new Date();
-  const [docs, threads, decks, due, reports] = await Promise.all([
+  const [me, docs, threads, decks, due, reports] = await Promise.all([
+    prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { aiConsentAt: true } }),
     prisma.studyDocument.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: "desc" },
@@ -27,14 +30,24 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
     prisma.flashcard.groupBy({ by: ["deckId"], where: { deck: { userId: user.id }, dueAt: { lte: now } }, _count: { _all: true } }),
     prisma.coachReport.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 8 }),
   ]);
+  const aiConsent = me.aiConsentAt != null;
+  const aiEnabled = aiConfigured && aiConsent;
   const defaultTab = ["docs", "chat", "cards", "coach"].includes(String(tab)) ? String(tab) : "docs";
 
   return (
     <>
       <PageHeader title="Astras AI" description="Estudio con tus apuntes y coach de rendimiento (Gemini)" />
-      {!aiEnabled ? (
+      {!aiConfigured ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
           La IA no está configurada: añade <code>GEMINI_API_KEY</code> a tu fichero de entorno y reinicia. Puedes seguir repasando flashcards existentes.
+        </p>
+      ) : !aiConsent ? (
+        <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+          Astras AI está desactivado: tus apuntes y tu resumen semanal solo se envían a Google Gemini si lo autorizas en{" "}
+          <Link href="/settings" className="font-medium text-foreground underline underline-offset-4">
+            Ajustes → Privacidad e IA
+          </Link>
+          . Puedes seguir repasando flashcards existentes.
         </p>
       ) : null}
       <Tabs defaultValue={defaultTab}>

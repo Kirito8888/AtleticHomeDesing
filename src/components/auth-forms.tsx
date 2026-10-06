@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { MIN_PASSWORD_LENGTH } from "@/lib/auth/constants";
 
 function ErrorText({ state }: { state: FormState }) {
   return state.error ? (
@@ -18,7 +19,7 @@ function ErrorText({ state }: { state: FormState }) {
   ) : null;
 }
 
-export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
+export function LoginForm({ callbackUrl, canRegister = false }: { callbackUrl?: string; canRegister?: boolean }) {
   const [state, action, pending] = useActionState(loginAction, {});
   return (
     <Card>
@@ -41,12 +42,14 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
           <Button type="submit" size="lg" disabled={pending}>
             {pending ? "Entrando…" : "Entrar"}
           </Button>
-          <p className="text-center text-sm text-muted-foreground">
-            ¿Sin cuenta?{" "}
-            <Link href="/register" className="font-medium text-foreground underline underline-offset-4">
-              Regístrate
-            </Link>
-          </p>
+          {canRegister && (
+            <p className="text-center text-sm text-muted-foreground">
+              ¿Sin cuenta?{" "}
+              <Link href="/register" className="font-medium text-foreground underline underline-offset-4">
+                Regístrate
+              </Link>
+            </p>
+          )}
         </form>
       </CardContent>
     </Card>
@@ -73,8 +76,8 @@ export function RegisterForm() {
           </div>
           <div className="grid gap-2">
             <Label htmlFor="password">Contraseña</Label>
-            <Input id="password" name="password" type="password" autoComplete="new-password" minLength={10} required />
-            <p className="text-xs text-muted-foreground">Mínimo 10 caracteres.</p>
+            <Input id="password" name="password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD_LENGTH} required />
+            <p className="text-xs text-muted-foreground">Mínimo {MIN_PASSWORD_LENGTH} caracteres.</p>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="role">Soy</Label>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { ingestDocument } from "@/lib/ai/rag";
-import { ApiError, route } from "@/lib/api";
+import { ApiError, enforceRateLimit, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 
@@ -27,6 +27,7 @@ export const GET = route(async () => {
 /** multipart/form-data: file (PDF/TXT/MD), title?, subject? */
 export const POST = route(async (req) => {
   const user = await requireUser();
+  enforceRateLimit("aiUpload", user.id);
   const form = await req.formData().catch(() => {
     throw new ApiError(400, "Se esperaba multipart/form-data");
   });
