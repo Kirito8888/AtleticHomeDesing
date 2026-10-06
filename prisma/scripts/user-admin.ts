@@ -5,6 +5,7 @@
 //   npm run user -- reset-password <email>
 //   npm run user -- unlock <email>
 //   npm run user -- set-role <email> <ATHLETE|COACH|ADMIN>
+//   npm run user -- disable-2fa <email>     (si se pierde el móvil y los códigos de recuperación)
 //
 // En Docker:  docker compose --profile tools run --rm migrate npm run user -- list
 //
@@ -28,7 +29,8 @@ function usage(): never {
   npm run user -- create <email> [--name "Nombre"] [--role ATHLETE|COACH|ADMIN]
   npm run user -- reset-password <email>
   npm run user -- unlock <email>
-  npm run user -- set-role <email> <ATHLETE|COACH|ADMIN>`);
+  npm run user -- set-role <email> <ATHLETE|COACH|ADMIN>
+  npm run user -- disable-2fa <email>`);
   process.exit(2);
 }
 
@@ -60,7 +62,7 @@ async function main() {
       case "list": {
         const users = await prisma.user.findMany({
           orderBy: { createdAt: "asc" },
-          select: { email: true, name: true, role: true, lockedUntil: true, aiConsentAt: true, createdAt: true },
+          select: { email: true, name: true, role: true, lockedUntil: true, aiConsentAt: true, totpEnabledAt: true, createdAt: true },
         });
         console.table(
           users.map((u) => ({
@@ -69,6 +71,7 @@ async function main() {
             rol: u.role,
             bloqueado: u.lockedUntil && u.lockedUntil > new Date() ? `hasta ${u.lockedUntil.toISOString()}` : "no",
             ia: u.aiConsentAt ? "sí" : "no",
+            "2fa": u.totpEnabledAt ? "sí" : "no",
             alta: u.createdAt.toISOString().slice(0, 10),
           })),
         );
@@ -113,6 +116,21 @@ async function main() {
         const r = role(args[1], "ATHLETE");
         await prisma.user.update({ where: { email }, data: { role: r } });
         console.log(`Rol de ${email}: ${r}.`);
+        break;
+      }
+      case "disable-2fa": {
+        if (!email) usage();
+        const u = await prisma.user.findUniqueOrThrow({ where: { email }, select: { id: true } });
+        await prisma.$transaction([
+          prisma.recoveryCode.deleteMany({ where: { userId: u.id } }),
+          // sessionVersion++: si alguien tenía la sesión abierta con el 2FA antiguo, queda fuera.
+          prisma.user.update({
+            where: { id: u.id },
+            data: { totpSecret: null, totpEnabledAt: null, totpLastStep: null, sessionVersion: { increment: 1 } },
+          }),
+          prisma.securityEvent.create({ data: { userId: u.id, type: "TOTP_DISABLED", detail: "desde la terminal del servidor" } }),
+        ]);
+        console.log(`Verificación en dos pasos desactivada para ${email}. Que la vuelva a activar en Ajustes.`);
         break;
       }
       default:

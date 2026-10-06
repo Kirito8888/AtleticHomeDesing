@@ -6,6 +6,7 @@ import { ApiError, enforceRateLimit } from "@/lib/api";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { type AuditContext, recordEvent } from "@/lib/security/audit";
 
 /** Re-autenticación para operaciones sensibles. Limitada para no servir de oráculo de fuerza bruta. */
 export async function verifyCurrentPassword(userId: string, password: string): Promise<void> {
@@ -17,32 +18,37 @@ export async function verifyCurrentPassword(userId: string, password: string): P
 }
 
 /** Cambia la contraseña e invalida todas las sesiones abiertas (incluida la actual). */
-export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
+export async function changePassword(userId: string, currentPassword: string, newPassword: string, ctx: AuditContext = {}) {
   await verifyCurrentPassword(userId, currentPassword);
   await prisma.user.update({
     where: { id: userId },
     data: { passwordHash: await hashPassword(newPassword), sessionVersion: { increment: 1 }, failedLogins: 0, lockedUntil: null },
   });
+  await recordEvent(userId, "PASSWORD_CHANGED", ctx);
 }
 
-export async function changeEmail(userId: string, currentPassword: string, email: string) {
+export async function changeEmail(userId: string, currentPassword: string, email: string, ctx: AuditContext = {}) {
   await verifyCurrentPassword(userId, currentPassword);
   const taken = await prisma.user.findFirst({ where: { email, NOT: { id: userId } }, select: { id: true } });
   if (taken) throw new ApiError(409, "Ese email no está disponible");
+  const before = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { email: true } });
   await prisma.user.update({ where: { id: userId }, data: { email, sessionVersion: { increment: 1 } } });
+  await recordEvent(userId, "EMAIL_CHANGED", ctx, `${before.email} → ${email}`);
 }
 
 /** "Cerrar sesión en todos los dispositivos": los JWT emitidos dejan de valer. */
-export async function revokeAllSessions(userId: string) {
+export async function revokeAllSessions(userId: string, ctx: AuditContext = {}) {
   await prisma.user.update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } });
+  await recordEvent(userId, "SESSIONS_REVOKED", ctx);
 }
 
-export async function setAiConsent(userId: string, enabled: boolean) {
+export async function setAiConsent(userId: string, enabled: boolean, ctx: AuditContext = {}) {
   const { aiConsentAt } = await prisma.user.update({
     where: { id: userId },
     data: { aiConsentAt: enabled ? new Date() : null },
     select: { aiConsentAt: true },
   });
+  await recordEvent(userId, "AI_CONSENT_CHANGED", ctx, enabled ? "activado" : "desactivado");
   return { enabled: aiConsentAt != null, aiConsentAt };
 }
 
@@ -114,6 +120,7 @@ export async function exportAccount(userId: string) {
       include: { coach: { select: { name: true, email: true } }, athlete: { select: { name: true, email: true } } },
     }),
   ]);
+  const securityEvents = await prisma.securityEvent.findMany({ where, orderBy: { createdAt: "desc" }, omit: { userId: true } });
   return {
     exportedAt: new Date().toISOString(),
     format: "lifeos-export/1",
@@ -125,6 +132,7 @@ export async function exportAccount(userId: string) {
     nutrition: { entries: macros, goals: nutritionGoals },
     study: { documents: studyDocuments, chatThreads, flashcardDecks },
     coach: { reports: coachReports, links: coachLinks },
+    security: { events: securityEvents },
   };
 }
 

@@ -6,11 +6,15 @@ import type { UserRole } from "@/generated/prisma/enums";
 import { verifyAgainstDummy, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 import { clientIp, LIMITS, rateLimit } from "@/lib/rate-limit";
+import { auditContext, recordEvent } from "@/lib/security/audit";
 import { authFailureLine, type AuthFailReason } from "@/lib/security/auth-log";
+import { verifySecondFactor } from "@/lib/security/totp";
 
 const credentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1).max(200),
+  // Segundo factor (opcional): TOTP de 6 dígitos o código de recuperación.
+  code: z.string().trim().max(32).optional(),
 });
 
 /** Intentos fallidos seguidos antes de bloquear la cuenta. */
@@ -20,6 +24,25 @@ export const LOCK_MINUTES = 15;
 /** Demasiados intentos (por IP o cuenta bloqueada). Mismo mensaje en ambos casos para no revelar cuentas. */
 class TooManyAttempts extends CredentialsSignin {
   code = "rate_limited";
+}
+/** Contraseña correcta, falta el código de la app de autenticación. */
+class TotpRequired extends CredentialsSignin {
+  code = "totp_required";
+}
+/** Contraseña correcta, código de 2FA incorrecto. */
+class TotpInvalid extends CredentialsSignin {
+  code = "totp_invalid";
+}
+
+/** Suma un fallo a la cuenta; al llegar a MAX_FAILED_LOGINS la bloquea. Devuelve si quedó bloqueada. */
+async function registerFailure(user: { id: string; failedLogins: number }): Promise<boolean> {
+  const failed = user.failedLogins + 1;
+  const lock = failed >= MAX_FAILED_LOGINS;
+  await prisma.user.update({
+    where: { id: user.id },
+    data: lock ? { failedLogins: 0, lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) } : { failedLogins: failed },
+  });
+  return lock;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -37,9 +60,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   providers: [
     Credentials({
-      credentials: { email: { type: "email" }, password: { type: "password" } },
+      credentials: { email: { type: "email" }, password: { type: "password" }, code: { type: "text" } },
       async authorize(raw, request) {
         const ip = clientIp(request.headers);
+        const ctx = auditContext(request.headers);
         const fail = (reason: AuthFailReason, err: CredentialsSignin = new CredentialsSignin()) => {
           console.warn(authFailureLine(ip, reason));
           return err;
@@ -58,20 +82,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (user.lockedUntil && user.lockedUntil > new Date()) throw fail("locked", new TooManyAttempts());
 
         if (!(await verifyPassword(parsed.data.password, user.passwordHash))) {
-          const failed = user.failedLogins + 1;
-          const lock = failed >= MAX_FAILED_LOGINS;
-          await prisma.user.update({
-            where: { id: user.id },
-            data: lock
-              ? { failedLogins: 0, lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) }
-              : { failedLogins: failed },
-          });
-          throw lock ? fail("locked", new TooManyAttempts()) : fail("credentials");
+          const locked = await registerFailure(user);
+          await recordEvent(user.id, locked ? "ACCOUNT_LOCKED" : "LOGIN_FAILED", ctx, "contraseña incorrecta");
+          throw locked ? fail("locked", new TooManyAttempts()) : fail("credentials");
+        }
+
+        // Verificación en dos pasos. Pedir el código solo revela que la contraseña es
+        // correcta a quien ya la tiene; los códigos erróneos cuentan para el bloqueo.
+        if (user.totpEnabledAt) {
+          if (!parsed.data.code) throw new TotpRequired();
+          const used = await verifySecondFactor(user, parsed.data.code);
+          if (!used) {
+            const locked = await registerFailure(user);
+            await recordEvent(user.id, locked ? "ACCOUNT_LOCKED" : "LOGIN_FAILED", ctx, "código de verificación incorrecto");
+            throw locked ? fail("locked", new TooManyAttempts()) : fail("totp", new TotpInvalid());
+          }
+          if (used === "recovery") await recordEvent(user.id, "RECOVERY_CODE_USED", ctx);
         }
 
         if (user.failedLogins || user.lockedUntil) {
           await prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null } });
         }
+        await recordEvent(user.id, "LOGIN_SUCCESS", ctx);
         return {
           id: user.id,
           email: user.email,

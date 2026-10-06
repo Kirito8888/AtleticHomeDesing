@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useTransition } from "react";
 
 import { loginAction, registerAction, type FormState } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
@@ -21,28 +21,55 @@ function ErrorText({ state }: { state: FormState }) {
 
 export function LoginForm({ callbackUrl, canRegister = false }: { callbackUrl?: string; canRegister?: boolean }) {
   const [state, action, pending] = useActionState(loginAction, {});
+  const [, startTransition] = useTransition();
+  // Envío manual (sin <form action>): React reiniciaría los campos tras cada envío
+  // y, en el paso del código 2FA, se perderían el email y la contraseña.
+  const submit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const data = new FormData(e.currentTarget);
+    startTransition(() => action(data));
+  };
+  const needCode = Boolean(state.needCode);
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Entrar</CardTitle>
-        <CardDescription>Accede a tu panel de rendimiento.</CardDescription>
+        <CardTitle>{needCode ? "Verificación en dos pasos" : "Entrar"}</CardTitle>
+        <CardDescription>
+          {needCode ? "Escribe el código de 6 dígitos de tu app de autenticación o un código de recuperación." : "Accede a tu panel de rendimiento."}
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        <form action={action} className="grid gap-4">
+        <form onSubmit={submit} className="grid gap-4">
           <input type="hidden" name="callbackUrl" value={callbackUrl ?? "/"} />
-          <div className="grid gap-2">
+          <div className={needCode ? "hidden" : "grid gap-2"}>
             <Label htmlFor="email">Email</Label>
             <Input id="email" name="email" type="email" autoComplete="email" required />
           </div>
-          <div className="grid gap-2">
+          <div className={needCode ? "hidden" : "grid gap-2"}>
             <Label htmlFor="password">Contraseña</Label>
             <Input id="password" name="password" type="password" autoComplete="current-password" required />
           </div>
+          {needCode ? (
+            <div className="grid gap-2">
+              <Label htmlFor="code">Código</Label>
+              <Input
+                id="code"
+                name="code"
+                inputMode="text"
+                autoComplete="one-time-code"
+                autoFocus
+                required
+                maxLength={20}
+                placeholder="123456"
+                className="text-center text-lg tracking-widest"
+              />
+            </div>
+          ) : null}
           <ErrorText state={state} />
           <Button type="submit" size="lg" disabled={pending}>
-            {pending ? "Entrando…" : "Entrar"}
+            {pending ? "Comprobando…" : needCode ? "Verificar" : "Entrar"}
           </Button>
-          {canRegister && (
+          {canRegister && !needCode && (
             <p className="text-center text-sm text-muted-foreground">
               ¿Sin cuenta?{" "}
               <Link href="/register" className="font-medium text-foreground underline underline-offset-4">
