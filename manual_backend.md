@@ -282,26 +282,32 @@ Reglas:
 
 ## 5. Astras AI (Gemini, `@google/genai`)
 
-**Consentimiento.** Nada sale hacia Google sin permiso explícito del dueño de los datos: `User.aiConsentAt` (interruptor en *Ajustes → Privacidad e IA*, `PUT /api/account/ai-consent`). `assertAiAllowed(userId)` (`src/lib/ai/guard.ts`) se ejecuta al principio de `ingestDocument`, `askStudyQuestion`, `generateFlashcards` y `generateWeeklyCoachReport`. En el coach cuenta el consentimiento del **atleta**, aunque el informe lo pida su entrenador.
+**Consentimiento.** Nada sale hacia Google sin permiso explícito del dueño de los datos: `User.aiConsentAt` (interruptor en *Ajustes → Privacidad e IA*, `PUT /api/account/ai-consent`). `assertAiAllowed(userId)` (`src/lib/ai/guard.ts`) se ejecuta al principio de la subida y del proceso de apuntes, `askStudyQuestion`, `generateFlashcards` y `generateWeeklyCoachReport`. En el coach cuenta el consentimiento del **atleta**, aunque el informe lo pida su entrenador.
 
-**Tareas programadas** (`src/instrumentation.ts` → `src/lib/scheduler.ts`, `SCHEDULER_ENABLED`): al arrancar y cada hora, cobra las suscripciones vencidas de todos los usuarios y genera el informe del coach de la semana anterior a quien tenga consentimiento, haya entrenado y aún no lo tenga. Ambas tareas son idempotentes: si el contenedor estuvo apagado, se ponen al día al arrancar. El cobro de suscripciones reserva la fecha con un `UPDATE … WHERE nextChargeDate = <leída>` para no cobrar dos veces si coincide con el botón manual.
+**Tareas programadas** (`src/instrumentation.ts` → `src/lib/scheduler.ts`, `SCHEDULER_ENABLED`): al arrancar y cada hora, cobra las suscripciones vencidas de todos los usuarios, envía el resumen diario por push (desde las 7:00), genera el informe del coach de la semana anterior a quien tenga consentimiento, haya entrenado y aún no lo tenga, y borra la auditoría de más de 180 días. Ambas tareas son idempotentes: si el contenedor estuvo apagado, se ponen al día al arrancar. El cobro de suscripciones reserva la fecha con un `UPDATE … WHERE nextChargeDate = <leída>` para no cobrar dos veces si coincide con el botón manual.
 
 ### 5.1 RAG sobre apuntes
 
 ```
-POST /api/ai/documents (multipart: file, subject?)
+POST /api/ai/documents (multipart: file, subject?)            → 202 + documento en PENDING
   ├─ assertAiAllowed(): sin GEMINI_API_KEY → 503; sin consentimiento → 403 (antes de tocar disco)
   ├─ valida: PDF / TXT / MD, ≤ 15 MB, contenido real (PDF empieza por %PDF-, texto = UTF-8 sin NUL)
   │          y cuota por usuario (UPLOAD_QUOTA_MB, 200 MB por defecto)
   ├─ guarda el fichero en UPLOAD_DIR/<userId>/<docId>.<ext>
+  └─ encola el trabajo (pg-boss, cola "ingest-document")
+
+trabajador (src/lib/jobs/queue.ts, arrancado en instrumentation.ts) → processDocument()
+  ├─ vuelve a comprobar el consentimiento (pudo retirarse entre subida y proceso)
   ├─ extrae texto: unpdf (pdf.js), por página
   ├─ trocea: chunkText() ≈1200 caracteres, 200 de solape,
   │          corte en párrafo > frase > palabra; conserva la página de origen
   ├─ embedContent(gemini-embedding-001, taskType=RETRIEVAL_DOCUMENT,
   │               outputDimensionality=768), lotes de 100
   ├─ normalización L2: Google solo normaliza la salida de 3072 dimensiones
-  └─ INSERT DocumentChunk + UPDATE embedding = '[…]'::vector (SQL parametrizado)
+  └─ borra fragmentos previos + INSERT DocumentChunk + UPDATE embedding = '[…]'::vector (idempotente)
 ```
+
+- **Cola:** pg-boss guarda los trabajos en el esquema `pgboss` del mismo PostgreSQL (sin Redis). Un trabajo a la vez; 2 reintentos con espera creciente; caduca a los 15 min. Si falla, el documento queda en `FAILED` con el motivo y se puede reintentar (`POST /api/ai/documents/[id]/retry`). La UI refresca la lista cada 3 s mientras haya documentos en curso.
 
 - **Consulta:**
   1. `embed(pregunta, RETRIEVAL_QUERY)`.
@@ -394,7 +400,18 @@ Todas las rutas requieren sesión, salvo `/api/auth/*`. Los cuerpos son JSON y s
 | `/api/finance/cashflow` | GET | `?months=1…36` |
 | `/api/finance/spending` | GET | Gasto por categoría (por defecto, el mes actual) |
 | `/api/finance/subscriptions` (`/run`) | GET, POST | `run` contabiliza los cobros vencidos (idempotente) |
-| `/api/ai/documents` (`/[id]`) | GET, POST, DELETE | Subida multipart |
+| `/api/ai/documents` (`/[id]`, `/[id]/retry`) | GET, POST, DELETE, POST | Subida multipart → 202; el proceso sigue en segundo plano |
+| `/api/account/2fa` | GET, POST, PUT, DELETE | Estado · `{password}` → QR · `{code}` → activa y devuelve 10 códigos de recuperación · `{password, code}` → desactiva |
+| `/api/account/2fa/recovery-codes` | POST | `{password}` → 10 códigos nuevos (los anteriores dejan de valer) |
+| `/api/account/activity` | GET | Últimos 50 eventos de seguridad |
+| `/api/push` · `/api/push/subscription` · `/api/push/test` | GET · POST, DELETE · POST | Clave VAPID pública · alta/baja de un navegador · prueba |
+| `/api/training/templates` (`/[id]`) | GET, POST, DELETE | `{name, payload}` (cuerpo de sesión sin fecha, validado como una sesión) |
+| `/api/training/import` | POST | multipart `file` (.fit/.gpx/.tcx); `?save=1` crea la sesión. 409 si ya estaba importada |
+| `/api/recovery/injuries` (`/[id]`) | GET, POST, PATCH, DELETE | Lesiones; el coach las lee con el permiso `RECOVERY` |
+| `/api/nutrition/meals/copy` | POST | `{fromDate, toDate, mealType}` repetir una comida |
+| `/api/nutrition/meal-templates` (`/[id]`, `/[id]/apply`) | GET, POST, DELETE, POST | Comidas favoritas |
+| `/api/finance/import` (`/profiles`) | POST · GET, POST, DELETE | multipart `file`, `accountId`, `mapping`; `?commit=1` importa · formatos guardados |
+| `/api/health` | GET | Healthcheck público (`SELECT 1`), sin datos |
 | `/api/ai/study/chat` | POST | `{question, threadId?, documentIds?}` |
 | `/api/ai/study/threads` (`/[id]`) | GET, DELETE | Historial |
 | `/api/ai/flashcards/generate` | POST | `{documentId, count 3–40}` |
@@ -407,16 +424,20 @@ Todas las rutas requieren sesión, salvo `/api/auth/*`. Los cuerpos son JSON y s
 
 ```bash
 npm test             # tests unitarios (motor de carga, contabilidad, OFF, troceado, SM-2, formatos,
-                     #   limitador, scrypt, CSP, CSV, validación de subidas, formulario de sesión)
+                     #   limitador, scrypt, CSP, CSV, subidas, 2FA, cifrado, push RFC 8291, FIT/GPX/TCX,
+                     #   CSV bancario y Norma 43, temporizador, agenda, lesiones, e1RM…)
+                     # Con DATABASE_URL además los de integración (*.int.test.ts): ingesta con pg-boss y
+                     #   pgvector, push contra la BD e importación de extractos sin duplicados
 npm run typecheck    # next typegen + tsc
 npm run lint
 npm run e2e          # recorrido de la UI en Chromium (app con ALLOW_REGISTRATION=true; BASE_URL)
-npm run e2e:security # registro cerrado, límites por IP, bloqueo de cuenta, revocación de sesiones,
+npm run e2e:security # registro cerrado, límites por IP, bloqueo de cuenta, revocación de sesiones y caché,
+                     #   2FA (erróneos, reutilizados, recuperación), auditoría, permisos del coach,
                      #   consentimiento IA, editar sesión, exportación y borrado de cuenta
-                     #   (app con ALLOW_REGISTRATION=false y DATABASE_URL en el entorno)
+                     #   (servidor recién arrancado con ALLOW_REGISTRATION=false y DATABASE_URL)
 ```
 
-La CI (`.github/workflows/ci.yml`) ejecuta lint, tipos, tests y build en cada PR; después ambos E2E contra PostgreSQL + pgvector y el build de la imagen Docker. Los E2E fallan ante cualquier error de consola, lo que incluye violaciones de la CSP.
+La CI (`.github/workflows/ci.yml`) ejecuta `npm audit` (producción), lint, tipos, tests y build; Semgrep (reglas propias de `.semgrep.yml`, bloqueantes); tests de integración y ambos E2E contra PostgreSQL + pgvector; y el **stack Docker real**: healthcheck, copia cifrada con restauración comprobada y `scripts/update.sh` con vuelta atrás forzada. Un test (`src/test/api-auth.test.ts`) falla si alguna ruta `/api` nueva no llama a `requireUser()`. Los E2E fallan ante cualquier error de consola, lo que incluye violaciones de la CSP.
 
 **Sin probar contra los servicios reales:**
 
@@ -427,7 +448,9 @@ La CI (`.github/workflows/ci.yml`) ejecuta lint, tipos, tests y build en cada PR
 
 ## 8. Limitaciones conocidas y próximos pasos
 
-- **Ingesta RAG síncrona:** cabe en una petición para apuntes normales (≤ 15 MB). Para libros enteros, moverla a una cola (pg-boss o BullMQ) y procesar en segundo plano.
+- **Importar del reloj:** los tests usan ficheros FIT generados con el codificador oficial de Garmin imitando a cada marca, y GPX/TCX escritos según cada formato; **no** ficheros exportados de relojes físicos. Si un reloj concreto escribe algo inesperado, la vista previa lo muestra antes de guardar.
+- **Notificaciones en iPhone:** solo con la PWA instalada en la pantalla de inicio (iOS 16.4+). La vibración del temporizador no existe en Safari.
+- **Commits de la v1.2 no del todo independientes:** comparten una migración y algún módulo (p. ej. la auditoría se usa en los permisos del coach); revertir uno puede exigir revertir otro.
 - **PDFs escaneados sin capa de texto:** devuelven 422. Haría falta OCR.
 - **Limitador en memoria:** vale para un único contenedor `web`. Con varias réplicas habría que moverlo a PostgreSQL o Redis; lo mismo para el planificador (se ejecutaría en cada réplica).
 - **Editar una sesión** desde la UI reescribe solo los campos que muestra el formulario: los que se hubieran enviado por API (p. ej. `rir`, `tempo` o `velocityMs` de una serie) se pierden al guardar.
