@@ -9,7 +9,7 @@ type Ctx = RouteContext<"/api/training/sessions/[id]">;
 export const GET = route(async (req, ctx: Ctx) => {
   const user = await requireUser();
   const { id } = await ctx.params;
-  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"));
+  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "SESSIONS");
   const session = await prisma.trainingSession.findFirst({
     where: { id, userId },
     include: {
@@ -29,14 +29,14 @@ export const GET = route(async (req, ctx: Ctx) => {
 export const PATCH = route(async (req, ctx: Ctx) => {
   const user = await requireUser();
   const { id } = await ctx.params;
-  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "write");
+  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "SESSIONS", "write");
   return updateTrainingSession(userId, id, await parseBody(req, createSessionSchema));
 });
 
 export const DELETE = route(async (req, ctx: Ctx) => {
   const user = await requireUser();
   const { id } = await ctx.params;
-  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "write");
+  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "SESSIONS", "write");
   await deleteTrainingSession(userId, id);
   return { ok: true };
 });

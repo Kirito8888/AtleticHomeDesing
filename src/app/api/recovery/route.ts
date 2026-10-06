@@ -16,7 +16,7 @@ const query = z.object({
 export const GET = route(async (req) => {
   const user = await requireUser();
   const q = parseQuery(req, query);
-  const userId = await resolveAthleteId(user, q.athleteId);
+  const userId = await resolveAthleteId(user, q.athleteId, "RECOVERY");
   const to = q.to ? dateOnly(q.to) : today();
   const from = q.from ? dateOnly(q.from) : addDays(to, -29);
   return prisma.recoveryMetrics.findMany({

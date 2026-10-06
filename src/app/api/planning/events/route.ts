@@ -12,7 +12,7 @@ const query = z.object({ athleteId: z.string().optional(), from: isoDate.optiona
 export const GET = route(async (req) => {
   const user = await requireUser();
   const q = parseQuery(req, query);
-  const userId = await resolveAthleteId(user, q.athleteId);
+  const userId = await resolveAthleteId(user, q.athleteId, "PLANNING");
   return prisma.calendarEvent.findMany({
     where: {
       userId,
@@ -24,7 +24,7 @@ export const GET = route(async (req) => {
 
 export const POST = route(async (req) => {
   const user = await requireUser();
-  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "write");
+  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "PLANNING", "write");
   const data = await parseBody(req, eventSchema);
   if (data.endAt && data.endAt < data.startAt) throw new ApiError(400, "La fecha de fin debe ser posterior al inicio");
   if (data.cycleId) await prisma.trainingCycle.findFirstOrThrow({ where: { id: data.cycleId, userId } });
