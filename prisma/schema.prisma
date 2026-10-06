@@ -31,16 +31,22 @@ enum UserRole {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  passwordHash  String? // solo para login con credenciales
-  role          UserRole  @default(ATHLETE)
-  timezone      String    @default("Europe/Madrid")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  passwordHash   String? // solo para login con credenciales
+  role           UserRole  @default(ATHLETE)
+  timezone       String    @default("Europe/Madrid")
+  // Seguridad (v1.1): bloqueo tras intentos fallidos y revocación de sesiones JWT
+  failedLogins   Int       @default(0)
+  lockedUntil    DateTime?
+  sessionVersion Int       @default(1)
+  // Privacidad (v1.1): fecha en que el usuario autorizó enviar datos a Gemini (null = no)
+  aiConsentAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   accounts Account[]
   sessions Session[]

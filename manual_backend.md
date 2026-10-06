@@ -47,7 +47,22 @@ Navegador (PWA, Next.js App Router)
 ## 2. Autenticación y permisos
 
 - **Auth.js v5** (`src/auth.ts`) con proveedor de credenciales y sesiones **JWT** (Auth.js no persiste sesiones de credenciales).
-- **Contraseñas** con `scrypt` nativo de Node (`N=2^15, r=8, p=1`) y sal aleatoria; se comparan con `timingSafeEqual`.
+- **Contraseñas** con `scrypt` nativo de Node (`N=2^15, r=8, p=1`) y sal aleatoria; se comparan con `timingSafeEqual` (`src/lib/auth/scrypt.ts`, compartido con el script `npm run user`). Si el email no existe se verifica contra un hash ficticio, para que el tiempo de respuesta no revele qué cuentas existen.
+- **Registro cerrado por defecto** (`ALLOW_REGISTRATION=false`): `registrationOpen()` (`src/lib/auth/users.ts`) solo deja registrarse al primer usuario de una instalación vacía. El resto se crean con `npm run user -- create` (`prisma/scripts/user-admin.ts`).
+- **Límites de intentos** (`src/lib/rate-limit.ts`, ventana deslizante en memoria):
+
+  | Qué | Límite | Clave |
+  |---|---|---|
+  | Login | 10 / 15 min | IP (última entrada de `X-Forwarded-For`, la que añade el proxy) |
+  | Login por cuenta | 5 fallos seguidos → bloqueo 15 min (`User.failedLogins`, `lockedUntil`) | cuenta |
+  | Registro | 5 / h | IP |
+  | Re-autenticación (cambiar contraseña/email, borrar cuenta) | 5 / 15 min | usuario |
+  | IA: chat · subida · flashcards/coach | 60 · 10 · 10 / h | usuario |
+  | Exportaciones | 5 / h | usuario |
+
+  Al superarlos: 429 con `Retry-After` (API) o "Demasiados intentos" (login, mismo mensaje para IP y cuenta bloqueada).
+- **Sesiones JWT de 7 días con revocación.** El token lleva `sv` (= `User.sessionVersion`). El callback `jwt` lo compara con la BD en cada petición: cambiar la contraseña o el email, "cerrar sesión en todos los dispositivos" o `npm run user -- reset-password` incrementan `sessionVersion` e invalidan todos los tokens emitidos. Un usuario borrado también pierde la sesión al instante.
+- **Cabeceras** (`src/proxy.ts`, `src/lib/security/csp.ts`, `next.config.ts`): CSP con *nonce* por petición (`script-src 'self' 'nonce-…' 'strict-dynamic'`, `connect-src 'self'`, `frame-ancestors 'none'`), HSTS, `X-Frame-Options`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` y `Cross-Origin-Opener-Policy`. `style-src` permite `'unsafe-inline'` porque Recharts y sonner usan atributos `style` (un nonce no los cubre).
 - **Roles:** `ATHLETE`, `COACH` y `ADMIN`.
 - **`requireUser()`** (API) devuelve 401 en JSON. **`pageUser()`** (páginas) redirige a `/login`.
 - **Vínculo coach → atleta** (`CoachAthlete`):
@@ -62,6 +77,9 @@ Navegador (PWA, Next.js App Router)
      | `ADMIN` | Acceso a cualquier atleta |
      | `COACH` | Solo con vínculo `ACTIVE`; para escribir además necesita `canPlan` |
 - **Privacidad.** Finanzas, nutrición y estudio **nunca** aceptan `athleteId`: son datos privados de cada usuario.
+- **Derechos sobre los datos** (`src/lib/account/service.ts`):
+  - **Exportar:** `GET /api/account/export` devuelve un JSON con todas las tablas del usuario (sin hash de contraseña ni rutas internas). `GET /api/export/training|finance` → CSV para Excel (`;`, coma decimal, BOM, fórmulas neutralizadas).
+  - **Borrar:** `DELETE /api/account` con contraseña y `confirm: "ELIMINAR"`. Borra en orden por las FK `RESTRICT` (movimientos → suscripciones → sesiones → usuario) y elimina `UPLOAD_DIR/<userId>`. Los ejercicios propios que usen sesiones de otros atletas (planificadas por un coach) pasan al catálogo global para no romper datos ajenos.
 
 ---
 
@@ -83,7 +101,10 @@ POST /api/training/sessions
 - **Una sola cabecera.** `TrainingSession` guarda fecha, tipo, duración, RPE de sesión, `tss` y `tssMethod`. El detalle va en `TrackSession` / `TechnicalSession` / `StrengthSession`. CTL/ATL salen de una única serie, sin `UNION`.
 - **Sesiones planificadas.** Con `status=PLANNED` no suman carga ni generan marcas personales.
 - **Umbrales versionados.** `ThresholdHistory` guarda FCmáx, FC de reposo, LTHR, ritmo umbral y CSS, cada uno con `effectiveFrom`. Cada sesión usa los umbrales de su fecha, así que actualizar el LTHR no reescribe el histórico.
-- **Al borrar una sesión** se recalcula la PMC desde su fecha.
+- **Al borrar una sesión** se borran sus marcas personales y se recalcula la PMC desde su fecha.
+- **Editar** (`PATCH /api/training/sessions/[id]`, página `/training/[id]/edit`): mismo cuerpo que el POST. `updateTrainingSession()` sustituye la sesión **conservando el id** dentro de una transacción (borra sus marcas, la sesión y el detalle y los recrea), redetecta marcas y recalcula la PMC desde la fecha más antigua entre la original y la nueva. Las sesiones `MIXED` no tienen formulario y no se editan.
+- **Repetir la última sesión de fuerza:** `/training/new?repeat=strength` precarga ejercicios, series y pesos con fecha de hoy (`sessionToFormInitial()`, `src/lib/training/form-initial.ts`).
+- **Recalcular TSS** (`POST /api/training/recompute`, botón en Ajustes): recalcula el TSS de las sesiones completadas con los umbrales vigentes en el día de cada una (respeta el TSS manual) y rehace la PMC.
 
 ### 3.2 Recuperación
 
@@ -261,11 +282,17 @@ Reglas:
 
 ## 5. Astras AI (Gemini, `@google/genai`)
 
+**Consentimiento.** Nada sale hacia Google sin permiso explícito del dueño de los datos: `User.aiConsentAt` (interruptor en *Ajustes → Privacidad e IA*, `PUT /api/account/ai-consent`). `assertAiAllowed(userId)` (`src/lib/ai/guard.ts`) se ejecuta al principio de `ingestDocument`, `askStudyQuestion`, `generateFlashcards` y `generateWeeklyCoachReport`. En el coach cuenta el consentimiento del **atleta**, aunque el informe lo pida su entrenador.
+
+**Tareas programadas** (`src/instrumentation.ts` → `src/lib/scheduler.ts`, `SCHEDULER_ENABLED`): al arrancar y cada hora, cobra las suscripciones vencidas de todos los usuarios y genera el informe del coach de la semana anterior a quien tenga consentimiento, haya entrenado y aún no lo tenga. Ambas tareas son idempotentes: si el contenedor estuvo apagado, se ponen al día al arrancar. El cobro de suscripciones reserva la fecha con un `UPDATE … WHERE nextChargeDate = <leída>` para no cobrar dos veces si coincide con el botón manual.
+
 ### 5.1 RAG sobre apuntes
 
 ```
 POST /api/ai/documents (multipart: file, subject?)
-  ├─ valida: PDF / TXT / MD, ≤ 15 MB; sin GEMINI_API_KEY → 503 antes de tocar disco
+  ├─ assertAiAllowed(): sin GEMINI_API_KEY → 503; sin consentimiento → 403 (antes de tocar disco)
+  ├─ valida: PDF / TXT / MD, ≤ 15 MB, contenido real (PDF empieza por %PDF-, texto = UTF-8 sin NUL)
+  │          y cuota por usuario (UPLOAD_QUOTA_MB, 200 MB por defecto)
   ├─ guarda el fichero en UPLOAD_DIR/<userId>/<docId>.<ext>
   ├─ extrae texto: unpdf (pdf.js), por página
   ├─ trocea: chunkText() ≈1200 caracteres, 200 de solape,
@@ -333,13 +360,21 @@ Todas las rutas requieren sesión, salvo `/api/auth/*`. Los cuerpos son JSON y s
 
 | Ruta | Métodos | Notas |
 |---|---|---|
-| `/api/auth/register` | POST | `{name, email, password≥10, role}` |
+| `/api/auth/register` | POST | `{name, email, password≥10, role}`. 403 si el registro está cerrado |
+| `/api/account` | DELETE | `{password, confirm: "ELIMINAR"}` → borra la cuenta y sus datos |
+| `/api/account/password` | POST | `{currentPassword, newPassword}`; cierra todas las sesiones |
+| `/api/account/email` | POST | `{currentPassword, email}`; cierra todas las sesiones |
+| `/api/account/sessions` | DELETE | Cerrar sesión en todos los dispositivos |
+| `/api/account/ai-consent` | GET, PUT | `{enabled}` |
+| `/api/account/export` | GET | JSON con todos los datos del usuario |
+| `/api/export/training` · `/api/export/finance` | GET | CSV |
 | `/api/auth/[...nextauth]` | GET, POST | Auth.js (csrf, callback/credentials, session, signout) |
 | `/api/profile` | GET, PATCH | Perfil del atleta; cambiar CTL/ATL recalcula la PMC |
 | `/api/coach/links` | GET, POST | El coach invita por email |
 | `/api/coach/links/[id]` | PATCH | El atleta acepta, concede `canPlan` o revoca |
 | `/api/training/sessions` | GET, POST | Filtros `from`, `to`, `type`, `status`, `athleteId`; POST con unión discriminada por `type` |
-| `/api/training/sessions/[id]` | GET, DELETE | El DELETE recalcula la PMC |
+| `/api/training/sessions/[id]` | GET, PATCH, DELETE | PATCH = mismo cuerpo que el POST; ambos recalculan marcas y PMC |
+| `/api/training/recompute` | POST | `{from?, athleteId?}` → recalcula TSS y PMC con los umbrales de cada fecha |
 | `/api/training/pmc` | GET | `?days=7…730` → `series[]` (un punto por día) + `current` |
 | `/api/training/thresholds` | GET, POST | Umbrales con `effectiveFrom` |
 | `/api/training/exercises` | GET, POST | Catálogo global + ejercicios propios; `?q=` |
@@ -371,11 +406,17 @@ Todas las rutas requieren sesión, salvo `/api/auth/*`. Los cuerpos son JSON y s
 ## 7. Pruebas
 
 ```bash
-npm test             # 65 tests unitarios (motor de carga, contabilidad, OFF, troceado, SM-2, formatos)
+npm test             # tests unitarios (motor de carga, contabilidad, OFF, troceado, SM-2, formatos,
+                     #   limitador, scrypt, CSP, CSV, validación de subidas, formulario de sesión)
 npm run typecheck    # next typegen + tsc
 npm run lint
-npm run e2e          # recorrido de la UI en Chromium (necesita la app arrancada; BASE_URL)
+npm run e2e          # recorrido de la UI en Chromium (app con ALLOW_REGISTRATION=true; BASE_URL)
+npm run e2e:security # registro cerrado, límites por IP, bloqueo de cuenta, revocación de sesiones,
+                     #   consentimiento IA, editar sesión, exportación y borrado de cuenta
+                     #   (app con ALLOW_REGISTRATION=false y DATABASE_URL en el entorno)
 ```
+
+La CI (`.github/workflows/ci.yml`) ejecuta lint, tipos, tests y build en cada PR; después ambos E2E contra PostgreSQL + pgvector y el build de la imagen Docker. Los E2E fallan ante cualquier error de consola, lo que incluye violaciones de la CSP.
 
 **Sin probar contra los servicios reales:**
 
@@ -388,6 +429,8 @@ npm run e2e          # recorrido de la UI en Chromium (necesita la app arrancada
 
 - **Ingesta RAG síncrona:** cabe en una petición para apuntes normales (≤ 15 MB). Para libros enteros, moverla a una cola (pg-boss o BullMQ) y procesar en segundo plano.
 - **PDFs escaneados sin capa de texto:** devuelven 422. Haría falta OCR.
-- **TSS ya guardado:** si cambian los umbrales o la calibración, no se recalcula. Falta un endpoint de "recalcular TSS" por rango de fechas.
+- **Limitador en memoria:** vale para un único contenedor `web`. Con varias réplicas habría que moverlo a PostgreSQL o Redis; lo mismo para el planificador (se ejecutaría en cada réplica).
+- **Editar una sesión** desde la UI reescribe solo los campos que muestra el formulario: los que se hubieran enviado por API (p. ej. `rir`, `tempo` o `velocityMs` de una serie) se pierden al guardar.
+- **Marcas personales al editar:** se recalculan las de la sesión editada; las de sesiones posteriores que se compararon con ella no se reevalúan.
 - **`Exercise @@unique([userId, name])`:** PostgreSQL trata los `NULL` como distintos, así que no impide duplicados en el catálogo global. El seed es idempotente con `findFirst`; si se crean ejercicios globales a mano, conviene un índice parcial único.
 - **Calibraciones heurísticas:** `TSS_PER_HARD_SET = 5`, `TSS_PER_TECHNICAL_ATTEMPT = 1,5` y los pesos del readiness son puntos de partida razonables, no valores validados. Conviene ajustarlos a cada atleta con su propio histórico.

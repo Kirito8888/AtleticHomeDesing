@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { generateFlashcards } from "@/lib/ai/flashcards";
-import { parseBody, route } from "@/lib/api";
+import { enforceRateLimit, parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 
 const schema = z.object({
@@ -13,6 +13,7 @@ const schema = z.object({
 
 export const POST = route(async (req) => {
   const user = await requireUser();
+  enforceRateLimit("aiGenerate", user.id);
   const deck = await generateFlashcards(user.id, await parseBody(req, schema));
   return NextResponse.json(deck, { status: 201 });
 });

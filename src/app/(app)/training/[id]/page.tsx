@@ -1,13 +1,17 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Pencil } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { Stat } from "@/components/stat";
 import { DeleteSessionButton } from "@/components/training/delete-session-button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { formatDate, formatDuration, formatNum, formatPace, SESSION_TYPE_LABEL, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { isEditableType } from "@/lib/training/form-initial";
 
 const METHOD_LABEL: Record<string, string> = {
   HR_TSS: "hrTSS (FC)",
@@ -44,7 +48,18 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
       <PageHeader
         title={s.title ?? SESSION_TYPE_LABEL[s.type]}
         description={formatDate(s.date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-        action={<DeleteSessionButton id={s.id} />}
+        action={
+          <div className="flex gap-2">
+            {isEditableType(s.type) ? (
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/training/${s.id}/edit`}>
+                  <Pencil /> Editar
+                </Link>
+              </Button>
+            ) : null}
+            <DeleteSessionButton id={s.id} />
+          </div>
+        }
       />
       <Card className="mb-4 py-4">
         <CardContent className="grid grid-cols-3 gap-3 px-4">

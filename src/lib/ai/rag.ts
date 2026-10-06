@@ -7,7 +7,8 @@ import { extractText } from "unpdf";
 
 import { Prisma } from "@/generated/prisma/client";
 import { chunkDocument } from "@/lib/ai/chunking";
-import { embedTexts, gemini, generateText, toVectorLiteral } from "@/lib/ai/gemini";
+import { embedTexts, generateText, toVectorLiteral } from "@/lib/ai/gemini";
+import { assertAiAllowed } from "@/lib/ai/guard";
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
@@ -28,6 +29,29 @@ function mimeOf(file: File): string | null {
   return null;
 }
 
+/**
+ * Valida el contenido real, no solo la extensión: un PDF empieza por "%PDF-"
+ * y un TXT/MD debe ser UTF-8 válido sin bytes nulos (descarta binarios renombrados).
+ */
+export function contentMatches(buf: Buffer, mime: string): boolean {
+  if (mime === "application/pdf") return buf.subarray(0, 1024).includes("%PDF-");
+  if (buf.includes(0)) return false;
+  try {
+    new TextDecoder("utf-8", { fatal: true }).decode(buf);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function assertQuota(userId: string, incoming: number) {
+  const { _sum } = await prisma.studyDocument.aggregate({ where: { userId }, _sum: { sizeBytes: true } });
+  const quota = env().UPLOAD_QUOTA_MB * 1024 * 1024;
+  if ((_sum.sizeBytes ?? 0) + incoming > quota) {
+    throw new ApiError(413, `Superarías tu cuota de ${env().UPLOAD_QUOTA_MB} MB de apuntes. Borra documentos antiguos.`);
+  }
+}
+
 async function extractPages(buf: Buffer, mime: string): Promise<string[]> {
   if (mime === "application/pdf") {
     const { text } = await extractText(new Uint8Array(buf), { mergePages: false });
@@ -45,9 +69,11 @@ export async function ingestDocument(userId: string, file: File, meta: { title?:
   const mime = mimeOf(file);
   if (!mime) throw new ApiError(415, "Formato no soportado (PDF, TXT o Markdown)");
   if (file.size > MAX_UPLOAD_BYTES) throw new ApiError(413, "El fichero supera 15 MB");
-  gemini(); // sin clave, fallar antes de escribir en disco o en BD
+  await assertAiAllowed(userId); // sin clave o sin consentimiento, fallar antes de escribir en disco o en BD
 
   const buf = Buffer.from(await file.arrayBuffer());
+  if (!contentMatches(buf, mime)) throw new ApiError(415, "El contenido del fichero no corresponde a un PDF o texto UTF-8");
+  await assertQuota(userId, buf.length);
   const doc = await prisma.studyDocument.create({
     data: {
       userId,
@@ -55,7 +81,7 @@ export async function ingestDocument(userId: string, file: File, meta: { title?:
       subject: meta.subject?.trim() || null,
       mimeType: mime,
       storagePath: "",
-      sizeBytes: file.size,
+      sizeBytes: buf.length,
       status: "PROCESSING",
     },
   });
@@ -145,6 +171,7 @@ export async function askStudyQuestion(
   userId: string,
   params: { question: string; threadId?: string; documentIds?: string[] },
 ) {
+  await assertAiAllowed(userId);
   const thread = params.threadId
     ? await prisma.chatThread.findFirst({ where: { id: params.threadId, userId, kind: "STUDY" } })
     : await prisma.chatThread.create({ data: { userId, kind: "STUDY", title: params.question.slice(0, 80) } });

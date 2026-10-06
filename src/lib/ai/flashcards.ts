@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 
 import { generateJson } from "@/lib/ai/gemini";
+import { assertAiAllowed } from "@/lib/ai/guard";
 import { sm2 } from "@/lib/ai/sm2";
 import { ApiError } from "@/lib/api";
 import { addDays } from "@/lib/dates";
@@ -39,6 +40,7 @@ function sampleChunks<T extends { content: string }>(chunks: T[]): T[] {
 }
 
 export async function generateFlashcards(userId: string, params: { documentId: string; count: number; deckName?: string }) {
+  await assertAiAllowed(userId);
   const doc = await prisma.studyDocument.findFirst({
     where: { id: params.documentId, userId },
     include: { chunks: { orderBy: { chunkIndex: "asc" }, select: { content: true } } },

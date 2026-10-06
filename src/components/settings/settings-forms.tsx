@@ -387,3 +387,30 @@ export function CoachLinks({ isCoach, asCoach, asAthlete }: { isCoach: boolean; 
     </div>
   );
 }
+
+export function RecomputeTssButton() {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="mt-3 w-full"
+      disabled={busy}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          const r = await api<{ sessions: number; changed: number }>("/api/training/recompute", { method: "POST", body: {} });
+          toast.success(`TSS recalculado: ${r.changed} de ${r.sessions} sesiones cambiaron`);
+          router.refresh();
+        } catch (e) {
+          toast.error((e as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      {busy ? "Recalculando…" : "Recalcular TSS del historial con estos umbrales"}
+    </Button>
+  );
+}

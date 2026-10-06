@@ -14,6 +14,10 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           // Cámara solo para el propio origen (escáner de códigos de barras).
           { key: "Permissions-Policy", value: "camera=(self), microphone=(), geolocation=()" },
+          // HTTPS obligatorio durante 1 año (solo lo respetan los navegadores si llega por HTTPS).
+          // Sin includeSubDomains: el dominio DuckDNS no es nuestro.
+          { key: "Strict-Transport-Security", value: "max-age=31536000" },
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
         ],
       },
       {
