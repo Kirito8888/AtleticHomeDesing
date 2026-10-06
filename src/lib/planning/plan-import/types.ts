@@ -24,6 +24,10 @@ export type PlanRow = {
   how: string;
   /** Fila «↳ Rampa (no cuenta)»: series de aproximación. */
   ramp: boolean;
+  /** Planes con IA: material que usa, alternativas y ejercicio original si se cambió. */
+  equipment?: string[];
+  alternatives?: Array<{ name: string; equipment: string[] }>;
+  original?: string;
 };
 
 export type PlanBlock =

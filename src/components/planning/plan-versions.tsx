@@ -20,6 +20,8 @@ export type PlanMesoItem = {
   variant: string | null;
   anchorDate: string | null;
   variants: Array<{ code: string; label: string; needsAnchor: boolean }>;
+  source?: string;
+  status?: string;
 };
 export type VariantDay = { id: string; meso: string; variant: string; date: string | null; relDay: number | null; title: string };
 
@@ -140,6 +142,7 @@ export function PlanVersions({ mesos, days }: { mesos: PlanMesoItem[]; days: Var
                 </Link>
                 <span className="ml-1 text-xs text-muted-foreground">
                   {m.days} días{m.version ? ` · v${m.version}` : ""}
+                  {m.source === "AI" ? ` · IA${m.status === "DRAFT" ? " · borrador" : ""}` : ""}
                 </span>
               </span>
               <DeleteMeso code={m.code} />

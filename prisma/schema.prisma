@@ -91,6 +91,9 @@ model User {
   bankProfiles      BankImportProfile[]
   planMesos         PlanMeso[]
   planDays          PlanDay[]
+  planFeedback      PlanFeedback[]
+  cycleProfile      CycleProfile?
+  cycleLogs         CycleLog[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -1251,11 +1254,15 @@ model PlanMeso {
   variant    String? // opción activa
   anchorDate DateTime? @db.Date // día de la competición para los días relativos (D−5…D)
   cycleId    String? // mesociclo en TrainingCycle
+  source     String    @default("IMPORT") // IMPORT (PDF) | AI (generado con Gemini)
+  status     String    @default("ACTIVE") // ACTIVE | DRAFT (generado, aún sin pasar a entrenamientos)
+  meta       Json? // plan con IA: cuestionario (sin datos del ciclo), modelo y avisos de validación
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  days PlanDay[]
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  days     PlanDay[]
+  feedback PlanFeedback[]
 
   @@unique([userId, code])
 }
@@ -1282,6 +1289,8 @@ model PlanDay {
   content     Json // bloques: texto, tablas de ejercicios y «Por qué»
   sessionId   String?
   eventId     String? // competición creada en el calendario
+  light       Json? // versión suave del día { durationMin, blocks } (planes con IA)
+  mode        String? // null = normal · LIGHT = usar la versión suave
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -1292,6 +1301,44 @@ model PlanDay {
   @@index([userId, date])
   @@index([sessionId])
   @@index([mesoId])
+}
+
+/// Cómo fue una semana de un plan con IA: ajusta la carga de la siguiente.
+model PlanFeedback {
+  id        String   @id @default(cuid())
+  userId    String
+  mesoId    String
+  week      Int
+  rating    String // EASY | OK | HARD
+  pain      Int? // 0-10
+  createdAt DateTime @default(now())
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meso PlanMeso @relation(fields: [mesoId], references: [id], onDelete: Cascade)
+
+  @@unique([mesoId, week])
+}
+
+/// Ciclo menstrual (opcional). Dato de salud de categoría especial: `data` va
+/// cifrado (AES-256-GCM), nunca se envía a la IA y el coach no lo ve.
+model CycleProfile {
+  userId    String   @id
+  data      String // cifrado: { avgLength, periodDays, lastStart, hormonal, symptoms, symptomParts }
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CycleLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  data      String // cifrado: { period, symptoms }
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
 }
 
 /// Molestia o lesión. Dato de salud: no se envía a la IA; el coach solo la ve

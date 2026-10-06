@@ -67,6 +67,12 @@ export default async function DashboardPage() {
         </Link>
       ) : null}
 
+      {d.lightSuggestion ? (
+        <Link href={`/training/${d.lightSuggestion.sessionId}`} role="status" className="mb-4 block rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+          💡 {d.lightSuggestion.reason}: hoy tienes disponible la versión suave de tu sesión. Tócala para elegirla.
+        </Link>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Widget title="Readiness" icon={HeartPulse} href="/recovery">
           {readiness != null && rStatus ? (

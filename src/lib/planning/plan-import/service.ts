@@ -188,7 +188,7 @@ async function detach(tx: Tx, userId: string, d: { sessionId: string | null; eve
  * versión elegida: crea las que faltan, actualiza las planificadas y retira las
  * de versiones no activas. Las sesiones hechas u omitidas nunca se tocan.
  */
-async function materialize(tx: Tx, userId: string, mesoId: string) {
+export async function materialize(tx: Tx, userId: string, mesoId: string) {
   const meso = await tx.planMeso.findUniqueOrThrow({ where: { id: mesoId }, include: { days: { orderBy: { key: "asc" } } } });
   const r = { sessionsCreated: 0, sessionsUpdated: 0, sessionsRemoved: 0, keptDone: 0, events: 0 };
 
@@ -196,10 +196,12 @@ async function materialize(tx: Tx, userId: string, mesoId: string) {
   const micro = new Map<string, string>();
   // El usuario pudo borrar el mesociclo a mano: entonces las sesiones quedan sin ciclo.
   const mesoCycleId = meso.cycleId && (await tx.trainingCycle.count({ where: { id: meso.cycleId, userId } })) ? meso.cycleId : null;
+  // Un borrador (plan con IA aún no activado) no crea nada en los entrenamientos.
+  const draft = meso.status !== "ACTIVE";
   if (mesoCycleId) {
     await tx.trainingCycle.deleteMany({ where: { userId, parentId: mesoCycleId, level: "MICRO" } });
     for (const w of meso.weeks as ParsedWeek[]) {
-      if (!isActiveVariant(w.variant, meso.variant) || w.number == null || !w.start || !w.end) continue;
+      if (draft || !isActiveVariant(w.variant, meso.variant) || w.number == null || !w.start || !w.end) continue;
       const c = await tx.trainingCycle.create({
         data: {
           userId,
@@ -222,7 +224,7 @@ async function materialize(tx: Tx, userId: string, mesoId: string) {
   const events = new Set((await tx.calendarEvent.findMany({ where: { userId, id: { in: eventIds } }, select: { id: true } })).map((e) => e.id));
 
   for (const d of meso.days) {
-    const active = isActiveVariant(d.variant, meso.variant);
+    const active = !draft && isActiveVariant(d.variant, meso.variant);
     const date = d.date ?? (d.relDay != null && meso.anchorDate ? addDays(meso.anchorDate, d.relDay) : null);
     const status = d.sessionId ? sessions.get(d.sessionId) : undefined;
     let sessionId = status ? d.sessionId : null;
@@ -230,7 +232,10 @@ async function materialize(tx: Tx, userId: string, mesoId: string) {
     const cycleId = (d.week != null ? (micro.get(`${d.variant ?? "-"}|${d.week}`) ?? micro.get(`${d.variant?.split("-")[0] ?? "-"}|${d.week}`)) : undefined) ?? mesoCycleId;
 
     if (active && date) {
-      const data = { date, title: d.title, type: d.type, durationSec: d.durationMin ? d.durationMin * 60 : null, cycleId };
+      // Versión suave elegida: la sesión lo indica en el título y dura lo de esa versión.
+      const light = d.mode === "LIGHT" ? (d.light as { durationMin?: number } | null) : null;
+      const minutes = light?.durationMin ?? d.durationMin;
+      const data = { date, title: light ? `${d.title} (versión suave)` : d.title, type: d.type, durationSec: minutes ? minutes * 60 : null, cycleId };
       if (!status) {
         sessionId = (await tx.trainingSession.create({ data: { userId, status: "PLANNED", ...data }, select: { id: true } })).id;
         r.sessionsCreated++;
@@ -305,7 +310,7 @@ export async function planOverview(userId: string) {
   const mesos = await prisma.planMeso.findMany({
     where: { userId },
     orderBy: { startDate: "asc" },
-    select: { id: true, code: true, name: true, startDate: true, endDate: true, version: true, variants: true, variant: true, anchorDate: true, _count: { select: { days: true } } },
+    select: { id: true, code: true, name: true, startDate: true, endDate: true, version: true, variants: true, variant: true, anchorDate: true, source: true, status: true, _count: { select: { days: true } } },
   });
   // Versiones con días relativos a la competición (D−5…D): piden la fecha al elegirlas.
   const relative = await prisma.planDay.groupBy({ by: ["mesoId", "variant"], where: { userId, relDay: { not: null } } });
@@ -314,6 +319,8 @@ export async function planOverview(userId: string) {
     return {
       code: m.code,
       name: m.name,
+      source: m.source,
+      status: m.status,
       start: toIsoDay(m.startDate),
       end: toIsoDay(m.endDate),
       version: m.version,

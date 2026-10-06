@@ -161,7 +161,13 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
         })}
       </div>
 
-      <p className="mt-2 text-xs text-muted-foreground">✓ sesión hecha · ○ planificada · □ tarea que vence. Toca un día para ver su detalle.</p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        ✓ sesión hecha · ○ planificada · □ tarea que vence. Toca un día para ver su detalle. ¿Sin plan?{" "}
+        <Link href="/study/plan" className="font-medium text-foreground underline underline-offset-2">
+          Créalo con IA
+        </Link>
+        .
+      </p>
 
       {agenda ? (
         <Card id="dia" className="mt-4 scroll-mt-4 gap-3 py-4">
