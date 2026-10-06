@@ -6,6 +6,7 @@ import { Activity, Dumbbell, Target } from "lucide-react";
 import { toast } from "sonner";
 
 import { Chips, Field } from "@/components/form/chips";
+import { RestTimer } from "@/components/training/rest-timer";
 import { blocksToSets, StrengthLogger, type ExerciseBlock, type ExerciseOption } from "@/components/training/strength-logger";
 import { initialTechnical, TechnicalLogger, technicalPayload, type TechnicalState } from "@/components/training/technical-logger";
 import { initialTrack, TrackLogger, trackPayload, type TrackState } from "@/components/training/track-logger";
@@ -55,9 +56,12 @@ export function SessionForm({
   const [technical, setTechnical] = useState<TechnicalState>(initial?.technical ?? initialTechnical);
   const [track, setTrack] = useState<TrackState>(initial?.track ?? initialTrack);
   const [saving, setSaving] = useState(false);
+  const [restSignal, setRestSignal] = useState(0);
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  const [templateName, setTemplateName] = useState("");
+
+  /** Cuerpo de la API a partir del formulario, o un mensaje si falta algo. */
+  function buildBody(): Record<string, unknown> | string {
     const durationMin = Number(minutes.replace(",", "."));
     const common = {
       date,
@@ -67,17 +71,37 @@ export function SessionForm({
       sessionRpe: rpe,
       notes: notes || null,
     };
-    let body: Record<string, unknown>;
     if (type === "STRENGTH") {
       const sets = blocksToSets(blocks);
-      if (!sets.length && !planned) return toast.error("Añade al menos una serie");
-      body = { ...common, type, discipline: "STRENGTH", strength: { bodyWeightKg, sets } };
-    } else if (type === "TECHNICAL") {
-      if (!technical.attempts.length && !planned) return toast.error("Añade al menos un intento");
-      body = { ...common, type, discipline: technical.event.includes("JUMP") || technical.event === "POLE_VAULT" ? "JUMPS" : "THROWS", technical: technicalPayload(technical) };
-    } else {
-      body = { ...common, type, track: trackPayload(track) };
+      if (!sets.length && !planned) return "Añade al menos una serie";
+      return { ...common, type, discipline: "STRENGTH", strength: { bodyWeightKg, sets } };
     }
+    if (type === "TECHNICAL") {
+      if (!technical.attempts.length && !planned) return "Añade al menos un intento";
+      return { ...common, type, discipline: technical.event.includes("JUMP") || technical.event === "POLE_VAULT" ? "JUMPS" : "THROWS", technical: technicalPayload(technical) };
+    }
+    return { ...common, type, track: trackPayload(track) };
+  }
+
+  async function saveTemplate() {
+    const body = buildBody();
+    if (typeof body === "string") return toast.error(body);
+    if (!templateName.trim()) return toast.error("Ponle un nombre a la plantilla");
+    try {
+      const { date: _date, ...payload } = body;
+      void _date;
+      await api("/api/training/templates", { body: { name: templateName.trim(), payload } });
+      toast.success(`Plantilla «${templateName.trim()}» guardada`);
+      setTemplateName("");
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const body = buildBody();
+    if (typeof body === "string") return toast.error(body);
 
     setSaving(true);
     try {
@@ -124,7 +148,16 @@ export function SessionForm({
         </div>
 
         <TabsContent value="STRENGTH">
-          <StrengthLogger exercises={exercises} blocks={blocks} onChange={setBlocks} bodyWeightKg={bodyWeightKg} />
+          <div className="sticky top-[calc(3.5rem+env(safe-area-inset-top)+0.5rem)] z-20 mb-3 md:top-2">
+            <RestTimer autoStart={restSignal} />
+          </div>
+          <StrengthLogger
+            exercises={exercises}
+            blocks={blocks}
+            onChange={setBlocks}
+            bodyWeightKg={bodyWeightKg}
+            onSetCompleted={() => setRestSignal((n) => n + 1)}
+          />
         </TabsContent>
         <TabsContent value="TECHNICAL">
           <TechnicalLogger value={technical} onChange={setTechnical} />
@@ -146,6 +179,22 @@ export function SessionForm({
         <input type="checkbox" className="size-4" checked={planned} onChange={(e) => setPlanned(e.target.checked)} />
         Guardar como planificada (no suma carga)
       </label>
+
+      <details className="rounded-md border p-3 text-sm">
+        <summary className="cursor-pointer font-medium">Guardar como plantilla</summary>
+        <div className="mt-3 flex gap-2">
+          <Input
+            aria-label="Nombre de la plantilla"
+            placeholder="p.ej. Fuerza A"
+            value={templateName}
+            maxLength={80}
+            onChange={(e) => setTemplateName(e.target.value)}
+          />
+          <Button type="button" variant="outline" onClick={saveTemplate}>
+            Guardar plantilla
+          </Button>
+        </div>
+      </details>
 
       <div className="sticky bottom-20 z-10 md:bottom-4">
         <Button type="submit" size="lg" className="h-12 w-full text-base shadow-lg" disabled={saving}>

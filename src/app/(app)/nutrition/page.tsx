@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { AddFoodSheet } from "@/components/nutrition/add-food-sheet";
 import { DeleteEntry } from "@/components/nutrition/delete-entry";
+import { MealShortcuts, SaveMealFavorite } from "@/components/nutrition/meal-shortcuts";
 import { MEAL_LABEL } from "@/components/nutrition/meals";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
 import { capitalizeFirst, formatDate, formatNum } from "@/lib/format";
+import { listMealTemplates, mealsOfPreviousDay } from "@/lib/nutrition/meal-templates";
 import { getDay } from "@/lib/nutrition/service";
 
 export const metadata = { title: "Nutrición · LifeOS" };
@@ -19,7 +21,11 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
   const user = await pageUser();
   const { date: raw } = await searchParams;
   const date = typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : toIsoDay(today());
-  const day = await getDay(user.id, date);
+  const [day, yesterday, favorites] = await Promise.all([
+    getDay(user.id, date),
+    mealsOfPreviousDay(user.id, date),
+    listMealTemplates(user.id),
+  ]);
   const totals = day.totals as Record<"kcal" | "proteinG" | "carbsG" | "fatG", number>;
   const prev = toIsoDay(addDays(dateOnly(date), -1));
   const next = toIsoDay(addDays(dateOnly(date), 1));
@@ -72,6 +78,8 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
         </CardContent>
       </Card>
 
+      <MealShortcuts date={date} yesterday={yesterday} favorites={favorites} />
+
       <div className="grid gap-3">
         {meals
           .filter((m) => day.entries.some((e) => e.mealType === m))
@@ -82,7 +90,10 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
               <Card key={m} className="gap-2 py-3">
                 <CardHeader className="flex flex-row items-center justify-between px-4">
                   <CardTitle className="text-sm">{MEAL_LABEL[m]}</CardTitle>
-                  <span className="text-xs text-muted-foreground tabular-nums">{Math.round(kcal)} kcal</span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
+                    {Math.round(kcal)} kcal
+                    <SaveMealFavorite date={date} mealType={m} />
+                  </span>
                 </CardHeader>
                 <CardContent className="px-4">
                   <ul className="grid gap-1">

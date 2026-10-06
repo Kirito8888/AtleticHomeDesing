@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 /** Marcas personales, de la más reciente a la más antigua. */
 export const GET = route(async (req) => {
   const user = await requireUser();
-  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"));
+  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "LOAD");
   return prisma.personalRecord.findMany({
     where: { userId },
     orderBy: { achievedOn: "desc" },

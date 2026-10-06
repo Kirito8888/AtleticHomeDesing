@@ -35,6 +35,11 @@ export function today(timeZone = "Europe/Madrid"): Date {
   return dateOnly(parts);
 }
 
+/** Día de calendario ("YYYY-MM-DD") de un instante en la zona indicada (por defecto Madrid). */
+export function localDay(d: Date, timeZone = "Europe/Madrid"): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+}
+
 /** Lunes de la semana ISO que contiene `d`. */
 export function startOfIsoWeek(d: Date): Date {
   const day = dateOnly(d);

@@ -4,6 +4,7 @@ import type { ExerciseBlock } from "@/components/training/strength-logger";
 import type { TechnicalState } from "@/components/training/technical-logger";
 import type { TrackState } from "@/components/training/track-logger";
 import { formatDuration } from "@/lib/format";
+import { createSessionSchema } from "@/lib/training/schemas";
 
 export type FormKind = "STRENGTH" | "TECHNICAL" | "TRACK";
 
@@ -125,4 +126,60 @@ export function sessionToFormInitial(s: StoredSession, overrides: Partial<Sessio
     };
   }
   return { ...base, ...overrides };
+}
+
+/**
+ * Plantilla guardada (cuerpo de la API sin fecha) → estado inicial del formulario
+ * para una fecha dada. Se valida con el mismo esquema que crear una sesión.
+ */
+export function templateToFormInitial(payload: unknown, date: string): SessionFormInitial {
+  const p = createSessionSchema.parse({ ...(payload as object), date });
+  const strength = "strength" in p ? p.strength : null;
+  const technical = "technical" in p ? p.technical : null;
+  const track = "track" in p ? p.track : null;
+  return sessionToFormInitial(
+    {
+      type: p.type,
+      date: new Date(`${date}T00:00:00Z`),
+      title: p.title ?? null,
+      durationSec: p.durationSec ?? null,
+      sessionRpe: p.sessionRpe ?? null,
+      notes: p.notes ?? null,
+      status: p.status,
+      strength: strength
+        ? { sets: strength.sets.map((x) => ({ exerciseId: x.exerciseId, reps: x.reps, weightKg: x.weightKg, rpe: x.rpe ?? null, isWarmup: x.isWarmup })) }
+        : null,
+      technical: technical
+        ? {
+            event: technical.event,
+            implementWeightG: technical.implementWeightG ?? null,
+            approachType: technical.approachType ?? null,
+            approachSteps: technical.approachSteps ?? null,
+            isCompetition: technical.isCompetition,
+            focus: technical.focus ?? null,
+            attempts: technical.attempts.map((a) => ({
+              markM: a.markM ?? null,
+              isFoul: a.isFoul,
+              rating: a.rating ?? null,
+              windMs: a.windMs ?? null,
+              runUpNotes: a.runUpNotes ?? null,
+              blockNotes: a.blockNotes ?? null,
+              releaseNotes: a.releaseNotes ?? null,
+            })),
+          }
+        : null,
+      track: track
+        ? {
+            modality: track.modality,
+            surface: track.surface ?? null,
+            distanceM: track.distanceM ?? null,
+            movingTimeSec: track.movingTimeSec ?? null,
+            hrAvg: track.hrAvg ?? null,
+            hrMax: track.hrMax ?? null,
+            intervals: track.intervals.map((iv) => ({ distanceM: iv.distanceM ?? null, timeSec: iv.timeSec ?? null, recoverySec: iv.recoverySec ?? null })),
+          }
+        : null,
+    },
+    { date },
+  );
 }

@@ -20,7 +20,7 @@ const listQuery = z.object({
 export const GET = route(async (req) => {
   const user = await requireUser();
   const q = parseQuery(req, listQuery);
-  const userId = await resolveAthleteId(user, q.athleteId);
+  const userId = await resolveAthleteId(user, q.athleteId, "SESSIONS");
   return prisma.trainingSession.findMany({
     where: {
       userId,
@@ -42,7 +42,7 @@ export const GET = route(async (req) => {
 export const POST = route(async (req) => {
   const user = await requireUser();
   const athleteId = req.nextUrl.searchParams.get("athleteId");
-  const userId = await resolveAthleteId(user, athleteId, "write");
+  const userId = await resolveAthleteId(user, athleteId, "SESSIONS", "write");
   const input = await parseBody(req, createSessionSchema);
   const session = await createTrainingSession(userId, userId === user.id ? null : user.id, input);
   return NextResponse.json(session, { status: 201 });

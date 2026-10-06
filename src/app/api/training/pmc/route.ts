@@ -13,6 +13,6 @@ const query = z.object({
 export const GET = route(async (req) => {
   const user = await requireUser();
   const q = parseQuery(req, query);
-  const userId = await resolveAthleteId(user, q.athleteId);
+  const userId = await resolveAthleteId(user, q.athleteId, "LOAD");
   return getPerformanceSeries(userId, q.days);
 });

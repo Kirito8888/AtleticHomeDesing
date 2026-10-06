@@ -28,6 +28,8 @@ services:
       retries: 10
 
   web:
+    # Nombre fijo: scripts/update.sh lo etiqueta como :previous para poder volver atrás.
+    image: lifeos-web:latest
     build:
       context: .
       target: runner
@@ -45,6 +47,17 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # La imagen no trae curl: el healthcheck usa el fetch de Node contra /api/health (SELECT 1).
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    # journald permite a fail2ban leer los intentos fallidos (deploy/fail2ban). En
+    # Docker Desktop (Windows/macOS) no existe: deja el valor por defecto json-file.
+    logging:
+      driver: ${WEB_LOG_DRIVER:-json-file}
 
   # Bajo demanda (no arranca con `up`): docker compose --profile pgadmin up -d pgadmin
   # y al terminar: docker compose --profile pgadmin stop pgadmin
@@ -72,6 +85,29 @@ services:
     env_file: ${APP_ENV_FILE:-.env.production}
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Copias cifradas diarias con restauración de prueba (deploy/backup). Opcional:
+  #   docker compose --profile backup up -d --build backup
+  # Necesita BACKUP_AGE_RECIPIENT (clave pública age, manual § 8).
+  backup:
+    profiles: ["backup"]
+    build: ./deploy/backup
+    restart: unless-stopped
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB}
+      BACKUP_AGE_RECIPIENT: ${BACKUP_AGE_RECIPIENT:-}
+      BACKUP_TIME: ${BACKUP_TIME:-03:30}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_ON_START: ${BACKUP_ON_START:-true}
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
+      - uploads:/uploads:ro
     depends_on:
       db:
         condition: service_healthy

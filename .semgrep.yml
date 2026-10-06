@@ -1,0 +1,51 @@
+# Reglas de seguridad propias de LifeOS (bloquean la CI). Se ejecutan con:
+#   semgrep scan --config .semgrep.yml --error --metrics=off
+rules:
+  - id: lifeos-no-raw-unsafe
+    languages: [typescript]
+    severity: ERROR
+    message: "$queryRawUnsafe/$executeRawUnsafe permiten inyección SQL. Usa la plantilla etiquetada $queryRaw`...` o Prisma.sql."
+    pattern-either:
+      - pattern: $DB.$queryRawUnsafe(...)
+      - pattern: $DB.$executeRawUnsafe(...)
+
+  - id: lifeos-no-dangerous-html
+    languages: [typescript]
+    severity: ERROR
+    message: "dangerouslySetInnerHTML salta el escape de React (XSS). Renderiza texto o sanea antes."
+    pattern: <$EL dangerouslySetInnerHTML={...} />
+
+  - id: lifeos-no-eval
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: "eval/new Function ejecutan código arbitrario y la CSP de producción los bloquea."
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+
+  - id: lifeos-no-math-random-security
+    languages: [typescript]
+    severity: ERROR
+    message: "Math.random no es criptográfico. Usa crypto.randomInt/randomBytes/randomUUID."
+    paths:
+      include: [src/lib/auth/, src/lib/security/, src/lib/account/, prisma/scripts/]
+    pattern: Math.random()
+
+  - id: lifeos-no-log-secrets
+    languages: [typescript]
+    severity: ERROR
+    message: "No escribas contraseñas, secretos ni tokens en los logs."
+    pattern-either:
+      - pattern: console.$LOG(..., <... $X.password ...>, ...)
+      - pattern: console.$LOG(..., <... $X.passwordHash ...>, ...)
+      - pattern: console.$LOG(..., <... $X.totpSecret ...>, ...)
+
+  - id: lifeos-no-timing-unsafe-compare
+    languages: [typescript]
+    severity: WARNING
+    message: "Compara hashes/tokens con timingSafeEqual, no con ===."
+    paths:
+      include: [src/lib/auth/, src/lib/security/]
+    pattern-either:
+      - pattern: $A.digest(...) === $B
+      - pattern: $A === $B.digest(...)

@@ -21,6 +21,18 @@ const schema = z.object({
     .enum(["true", "false"])
     .default("true")
     .transform((v) => v === "true"),
+  // Clave para cifrar los secretos de 2FA en la BD (32 bytes en base64: openssl rand -base64 32).
+  // Sin ella no se puede activar la verificación en dos pasos.
+  TOTP_ENCRYPTION_KEY: z
+    .string()
+    .refine((v) => Buffer.from(v, "base64").length === 32, "TOTP_ENCRYPTION_KEY debe ser 32 bytes en base64 (openssl rand -base64 32)")
+    .optional(),
+  // Notificaciones push (Web Push / VAPID). Generar con: npx web-push generate-vapid-keys
+  // Sin ellas la app funciona igual, solo sin notificaciones.
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  // Contacto para el servicio de push: mailto:tu@email o https://tu-dominio
+  VAPID_SUBJECT: z.string().regex(/^(mailto:|https:\/\/)/, "VAPID_SUBJECT debe empezar por mailto: o https://").optional(),
   // Cuota de almacenamiento de apuntes por usuario.
   UPLOAD_QUOTA_MB: z.coerce.number().int().positive().default(200),
   GEMINI_API_KEY: z.string().optional(),

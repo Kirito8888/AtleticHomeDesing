@@ -5,11 +5,17 @@ import { z } from "zod";
 import type { UserRole } from "@/generated/prisma/enums";
 import { verifyAgainstDummy, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
+import { sendToUser } from "@/lib/push/service";
 import { clientIp, LIMITS, rateLimit } from "@/lib/rate-limit";
+import { auditContext, recordEvent } from "@/lib/security/audit";
+import { authFailureLine, type AuthFailReason } from "@/lib/security/auth-log";
+import { verifySecondFactor } from "@/lib/security/totp";
 
 const credentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1).max(200),
+  // Segundo factor (opcional): TOTP de 6 dígitos o código de recuperación.
+  code: z.string().trim().max(32).optional(),
 });
 
 /** Intentos fallidos seguidos antes de bloquear la cuenta. */
@@ -20,6 +26,25 @@ export const LOCK_MINUTES = 15;
 class TooManyAttempts extends CredentialsSignin {
   code = "rate_limited";
 }
+/** Contraseña correcta, falta el código de la app de autenticación. */
+class TotpRequired extends CredentialsSignin {
+  code = "totp_required";
+}
+/** Contraseña correcta, código de 2FA incorrecto. */
+class TotpInvalid extends CredentialsSignin {
+  code = "totp_invalid";
+}
+
+/** Suma un fallo a la cuenta; al llegar a MAX_FAILED_LOGINS la bloquea. Devuelve si quedó bloqueada. */
+async function registerFailure(user: { id: string; failedLogins: number }): Promise<boolean> {
+  const failed = user.failedLogins + 1;
+  const lock = failed >= MAX_FAILED_LOGINS;
+  await prisma.user.update({
+    where: { id: user.id },
+    data: lock ? { failedLogins: 0, lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) } : { failedLogins: failed },
+  });
+  return lock;
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   // Credenciales → las sesiones deben ser JWT (Auth.js no persiste sesiones de credenciales).
@@ -27,45 +52,66 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
   pages: { signIn: "/login" },
   trustHost: true,
-  // Un login fallido no es un error del servidor: una línea (útil para auditar), sin traza.
+  // Un login fallido no es un error del servidor: authorize() ya escribe una línea con la IP
+  // (la que lee fail2ban); aquí se silencia la traza que Auth.js añadiría.
   logger: {
     error(error) {
-      if (error instanceof CredentialsSignin) console.warn(`[auth] inicio de sesión rechazado (${error.code})`);
-      else console.error("[auth]", error);
+      if (!(error instanceof CredentialsSignin)) console.error("[auth]", error);
     },
   },
   providers: [
     Credentials({
-      credentials: { email: { type: "email" }, password: { type: "password" } },
+      credentials: { email: { type: "email" }, password: { type: "password" }, code: { type: "text" } },
       async authorize(raw, request) {
-        if (!rateLimit(`login:${clientIp(request.headers)}`, LIMITS.login.limit, LIMITS.login.windowMs).ok) {
-          throw new TooManyAttempts();
+        const ip = clientIp(request.headers);
+        const ctx = auditContext(request.headers);
+        const fail = (reason: AuthFailReason, err: CredentialsSignin = new CredentialsSignin()) => {
+          console.warn(authFailureLine(ip, reason));
+          return err;
+        };
+        if (!rateLimit(`login:${ip}`, LIMITS.login.limit, LIMITS.login.windowMs).ok) {
+          throw fail("rate_limited", new TooManyAttempts());
         }
         const parsed = credentialsSchema.safeParse(raw);
-        if (!parsed.success) throw new CredentialsSignin();
+        if (!parsed.success) throw fail("credentials");
 
         const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
         if (!user?.passwordHash) {
           await verifyAgainstDummy(parsed.data.password); // mismo tiempo exista o no el email
-          throw new CredentialsSignin();
+          throw fail("credentials");
         }
-        if (user.lockedUntil && user.lockedUntil > new Date()) throw new TooManyAttempts();
+        if (user.lockedUntil && user.lockedUntil > new Date()) throw fail("locked", new TooManyAttempts());
 
         if (!(await verifyPassword(parsed.data.password, user.passwordHash))) {
-          const failed = user.failedLogins + 1;
-          const lock = failed >= MAX_FAILED_LOGINS;
-          await prisma.user.update({
-            where: { id: user.id },
-            data: lock
-              ? { failedLogins: 0, lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) }
-              : { failedLogins: failed },
-          });
-          throw lock ? new TooManyAttempts() : new CredentialsSignin();
+          const locked = await registerFailure(user);
+          await recordEvent(user.id, locked ? "ACCOUNT_LOCKED" : "LOGIN_FAILED", ctx, "contraseña incorrecta");
+          throw locked ? fail("locked", new TooManyAttempts()) : fail("credentials");
+        }
+
+        // Verificación en dos pasos. Pedir el código solo revela que la contraseña es
+        // correcta a quien ya la tiene; los códigos erróneos cuentan para el bloqueo.
+        if (user.totpEnabledAt) {
+          if (!parsed.data.code) throw new TotpRequired();
+          const used = await verifySecondFactor(user, parsed.data.code);
+          if (!used) {
+            const locked = await registerFailure(user);
+            await recordEvent(user.id, locked ? "ACCOUNT_LOCKED" : "LOGIN_FAILED", ctx, "código de verificación incorrecto");
+            throw locked ? fail("locked", new TooManyAttempts()) : fail("totp", new TotpInvalid());
+          }
+          if (used === "recovery") await recordEvent(user.id, "RECOVERY_CODE_USED", ctx);
         }
 
         if (user.failedLogins || user.lockedUntil) {
           await prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null } });
         }
+        await recordEvent(user.id, "LOGIN_SUCCESS", ctx);
+        // Aviso de nuevo inicio de sesión a sus dispositivos (sin esperar: no retrasa el login).
+        void sendToUser(user.id, {
+          title: "Nuevo inicio de sesión en LifeOS",
+          body: `Desde ${ctx.ip && ctx.ip !== "unknown" ? `la IP ${ctx.ip}` : "un dispositivo"}. Si no has sido tú, cambia la contraseña.`,
+          url: "/settings",
+          tag: "login",
+        });
         return {
           id: user.id,
           email: user.email,

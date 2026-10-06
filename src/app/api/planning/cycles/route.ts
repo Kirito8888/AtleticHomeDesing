@@ -13,7 +13,7 @@ const query = z.object({ athleteId: z.string().optional(), from: isoDate.optiona
 export const GET = route(async (req) => {
   const user = await requireUser();
   const q = parseQuery(req, query);
-  const userId = await resolveAthleteId(user, q.athleteId);
+  const userId = await resolveAthleteId(user, q.athleteId, "PLANNING");
   return prisma.trainingCycle.findMany({
     where: {
       userId,
@@ -26,7 +26,7 @@ export const GET = route(async (req) => {
 
 export const POST = route(async (req) => {
   const user = await requireUser();
-  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "write");
+  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "PLANNING", "write");
   const data = await parseBody(req, cycleSchema);
   if (data.parentId) {
     const parent = await prisma.trainingCycle.findFirst({ where: { id: data.parentId, userId } });
