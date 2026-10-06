@@ -8,7 +8,7 @@ import { thresholdSchema } from "@/lib/training/schemas";
 
 export const GET = route(async (req) => {
   const user = await requireUser();
-  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"));
+  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "LOAD");
   return prisma.thresholdHistory.findMany({ where: { userId }, orderBy: { effectiveFrom: "desc" } });
 });
 
@@ -18,7 +18,7 @@ export const GET = route(async (req) => {
  */
 export const POST = route(async (req) => {
   const user = await requireUser();
-  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "write");
+  const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "LOAD", "write");
   const { effectiveFrom, ...data } = await parseBody(req, thresholdSchema);
   const date = dateOnly(effectiveFrom);
   const row = await prisma.thresholdHistory.upsert({

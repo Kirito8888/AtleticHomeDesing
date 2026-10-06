@@ -9,6 +9,6 @@ import { recomputeSessionsTss } from "@/lib/training/service";
 export const POST = route(async (req) => {
   const user = await requireUser();
   const body = await parseBody(req, z.object({ athleteId: z.string().optional(), from: isoDate.optional() }));
-  const userId = await resolveAthleteId(user, body.athleteId, "write");
+  const userId = await resolveAthleteId(user, body.athleteId, "LOAD", "write");
   return recomputeSessionsTss(userId, body.from ? dateOnly(body.from) : undefined);
 });
