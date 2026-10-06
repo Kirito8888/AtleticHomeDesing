@@ -3,11 +3,13 @@ import { z } from "zod";
 
 import { ApiError, parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
+import { isAllowedPushEndpoint } from "@/lib/push/send";
 import { pushConfigured, removeSubscription, saveSubscription } from "@/lib/push/service";
 
-// Formato de PushSubscription.toJSON() del navegador. Solo servicios de push con https.
+// Formato de PushSubscription.toJSON() del navegador. Solo servicios de push reales
+// (Google, Mozilla, Apple, Microsoft): el servidor enviará peticiones a ese endpoint.
 const subscriptionSchema = z.object({
-  endpoint: z.string().url().max(1000).startsWith("https://"),
+  endpoint: z.string().max(1000).refine(isAllowedPushEndpoint, "Servicio de notificaciones no reconocido"),
   keys: z.object({ p256dh: z.string().min(40).max(200), auth: z.string().min(16).max(50) }),
 });
 
