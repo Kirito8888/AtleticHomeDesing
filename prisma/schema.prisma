@@ -83,6 +83,9 @@ model User {
   coachReports      CoachReport[]
   recoveryCodes     RecoveryCode[]
   securityEvents    SecurityEvent[]
+  sessionTemplates  SessionTemplate[]
+  mealTemplates     MealTemplate[]
+  injuries          Injury[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -939,7 +942,8 @@ model FoodProduct {
   raw            Json? // respuesta original para reprocesar
   fetchedAt      DateTime @default(now())
 
-  entries Macros[]
+  entries       Macros[]
+  templateItems MealTemplateItem[]
 
   @@index([name])
   @@index([brand])
@@ -1140,4 +1144,103 @@ model CoachReport {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, weekStart])
+}
+
+// =============================================================================
+// v1.2 — Uso diario: plantillas de sesión, comidas favoritas y lesiones
+// =============================================================================
+
+/// Plantilla de sesión ("Fuerza A", "Series 6×400"). `payload` es el cuerpo de
+/// POST /api/training/sessions sin fecha, validado con createSessionSchema al usarla.
+model SessionTemplate {
+  id        String      @id @default(cuid())
+  userId    String
+  name      String
+  type      SessionType
+  payload   Json
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+}
+
+/// Comida favorita: un conjunto de alimentos con cantidades que se registra de una vez.
+model MealTemplate {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  mealType  MealType?
+  createdAt DateTime  @default(now())
+
+  user  User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items MealTemplateItem[]
+
+  @@unique([userId, name])
+}
+
+model MealTemplateItem {
+  id            String  @id @default(cuid())
+  templateId    String
+  foodProductId String?
+  customName    String?
+  quantityG     Float
+  kcal          Float
+  proteinG      Float
+  carbsG        Float
+  fatG          Float
+  fiberG        Float?
+
+  template    MealTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  foodProduct FoodProduct? @relation(fields: [foodProductId], references: [id], onDelete: SetNull)
+
+  @@index([templateId])
+}
+
+enum BodyArea {
+  HEAD_NECK
+  SHOULDER
+  ELBOW
+  WRIST_HAND
+  CHEST
+  UPPER_BACK
+  LOWER_BACK
+  ABDOMEN
+  HIP_GROIN
+  GLUTE
+  HAMSTRING
+  QUADRICEPS
+  KNEE
+  CALF
+  ACHILLES
+  ANKLE
+  FOOT
+  OTHER
+}
+
+enum BodySide {
+  LEFT
+  RIGHT
+  BOTH
+}
+
+/// Molestia o lesión. Dato de salud: no se envía a la IA; el coach solo la ve
+/// con el permiso RECOVERY. Activa mientras resolvedOn sea null.
+model Injury {
+  id             String    @id @default(cuid())
+  userId         String
+  area           BodyArea
+  side           BodySide?
+  pain           Int // 0–10
+  limitsTraining Boolean   @default(false)
+  startedOn      DateTime  @db.Date
+  resolvedOn     DateTime? @db.Date
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedOn])
 }

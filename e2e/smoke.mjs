@@ -51,6 +51,16 @@ await page.getByLabel("Buscar ejercicio").fill("sentadilla tr");
 await page.getByRole("button", { name: /Sentadilla trasera/ }).click();
 // Serie 1 es calentamiento (20 kg x5). Repetir → serie 2 efectiva; subir peso a 100 con el input.
 await page.getByRole("button", { name: "Repetir serie" }).click();
+// "Repetir serie" = serie terminada → arranca el descanso
+const timer = page.getByRole("timer", { name: "Descanso" });
+await timer.getByRole("button", { name: "Pausar descanso" }).waitFor();
+const t0 = await timer.getByTestId("rest-remaining").innerText();
+await page.waitForTimeout(1500);
+const t1 = await timer.getByTestId("rest-remaining").innerText();
+if (t0 === t1) errors.push(`el temporizador de descanso no corre (${t0} → ${t1})`);
+await timer.getByRole("button", { name: "Pausar descanso" }).click();
+await timer.getByRole("button", { name: "Reanudar descanso" }).waitFor();
+await timer.getByRole("button", { name: "Terminar descanso" }).click();
 await page.getByRole("textbox", { name: "Peso serie 2", exact: true }).fill("100");
 await page.getByRole("button", { name: "Sumar 2,5 a Peso serie 2" }).click(); // 102,5
 await page.getByRole("radiogroup", { name: "RPE serie 2" }).getByRole("radio", { name: "8", exact: true }).click();
@@ -59,11 +69,20 @@ await page.getByRole("radiogroup", { name: "RPE serie 3" }).getByRole("radio", {
 await page.fill("#minutes", "60");
 await page.getByRole("radiogroup", { name: "RPE de la sesión" }).getByRole("radio", { name: "7", exact: true }).click();
 await shot("02-strength-form");
+await page.getByText("Guardar como plantilla").click();
+await page.getByLabel("Nombre de la plantilla").fill("Fuerza A");
+await page.getByRole("button", { name: "Guardar plantilla" }).click();
+await toast("Plantilla «Fuerza A» guardada");
 await Promise.all([page.waitForURL(/\/training\/c/), page.getByRole("button", { name: "Guardar sesión" }).click()]);
 await page.getByText("sRPE (Foster)").waitFor();
 await shot("03-strength-detail");
 const tss = await page.locator("text=TSS").first().locator("..").innerText();
-log("fuerza guardada:", tss.replace(/\s+/g, " "));
+log("fuerza guardada:", tss.replace(/\s+/g, " "), "· temporizador de descanso y plantilla");
+await go(B + "/training/new");
+await page.getByRole("navigation", { name: "Plantillas" }).getByRole("link", { name: "Fuerza A" }).click();
+await page.getByText("Desde la plantilla «Fuerza A»").waitFor();
+await page.getByRole("region", { name: "Sentadilla trasera" }).waitFor();
+log("plantilla «Fuerza A» precarga el formulario");
 
 // 4. Sesión técnica (jabalina 600 g)
 await go(B + "/training/new?type=TECHNICAL");
@@ -93,6 +112,14 @@ await toast(/Readiness: \d+/);
 await page.waitForTimeout(800);
 await shot("05-recovery");
 log("recuperación →", await page.getByText(/Readiness: \d+/).first().innerText());
+await page.getByRole("button", { name: "Añadir", exact: true }).click();
+await page.selectOption("#inj-area", "KNEE");
+await page.selectOption("#inj-side", "LEFT");
+await page.getByRole("radiogroup", { name: "Dolor" }).getByRole("radio", { name: "7", exact: true }).click();
+await page.getByRole("button", { name: "Guardar", exact: true }).click();
+await toast("Molestia registrada");
+await page.getByRole("list", { name: "Molestias activas" }).getByText("Rodilla (izquierda)").waitFor();
+log("molestia registrada (rodilla, dolor 7)");
 
 // 6. Nutrición manual
 await go(B + "/nutrition");
@@ -105,6 +132,24 @@ await toast("Añadido");
 await page.getByText("Arroz con pollo").waitFor();
 await shot("06-nutrition");
 log("comida manual registrada");
+// Favorita: ★ en la comida → se registra de un toque
+page.once("dialog", (d) => d.accept("Comida de prueba"));
+await page.getByRole("button", { name: /como favorita/ }).first().click();
+await toast("«Comida de prueba» guardada en favoritas");
+await page.getByRole("region", { name: "Comidas favoritas" }).getByRole("button", { name: /^Comida de prueba ·/ }).click();
+await toast("«Comida de prueba» añadida");
+await page.waitForFunction(() => document.body.innerText.split("Arroz con pollo").length - 1 >= 2);
+// Repetir de ayer
+const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+const r = await page.request.post(B + "/api/nutrition/entries", {
+  data: { date: yesterday, mealType: "BREAKFAST", customName: "Avena con leche", quantityG: 250, kcal: 380, proteinG: 15, carbsG: 60, fatG: 8 },
+});
+if (!r.ok()) errors.push(`no se pudo crear la comida de ayer: ${r.status()}`);
+await go(B + "/nutrition");
+await page.getByRole("region", { name: "Repetir de ayer" }).getByRole("button", { name: /Desayuno/ }).click();
+await toast("Desayuno de ayer añadido");
+await page.getByText("Avena con leche").waitFor();
+log("comida favorita y «repetir desayuno de ayer»");
 
 // 7. Finanzas
 await go(B + "/finance");
@@ -132,10 +177,17 @@ await page.getByRole("button", { name: /Añadir tarea|Añadir$/ }).last().click(
 await page.getByText("Revisar vídeo del bloqueo").waitFor();
 await shot("08-planning");
 log("competición y tarea creadas");
+const todayIso = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Madrid" });
+await page.locator(`a[href*="day=${todayIso}"]`).click();
+const agenda = page.locator("#dia");
+await agenda.getByRole("list", { name: "Eventos del día" }).getByText("Campeonato de España").waitFor();
+await agenda.getByRole("list", { name: "Sesiones del día" }).locator("a").first().waitFor();
+log("calendario: el día muestra competición y sesiones");
 
 // 9. Dashboard y Astras AI
 await go(B + "/");
 await page.getByText("Campeonato de España").waitFor();
+await page.getByRole("status").filter({ hasText: "Molestia activa en Rodilla (izquierda)" }).waitFor();
 await shot("09-dashboard");
 await go(B + "/study");
 await page.getByText(/La IA no está configurada/).waitFor();
@@ -145,6 +197,16 @@ log("dashboard con competición; estudio avisa de falta de clave");
 // 10. Rendimiento y tema oscuro
 await go(B + "/training/performance?days=30");
 await page.getByText("Carga: fitness, fatiga y forma").waitFor();
+// e1RM: con dos días de sentadilla aparece la gráfica
+const exList = await (await page.request.get(B + "/api/training/exercises?q=Sentadilla trasera")).json();
+const prevDay = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+const s2 = await page.request.post(B + "/api/training/sessions", {
+  data: { date: prevDay, type: "STRENGTH", strength: { sets: [{ exerciseId: exList[0].id, reps: 5, weightKg: 95 }] } },
+});
+if (!s2.ok()) errors.push(`no se pudo crear la sesión previa de fuerza: ${s2.status()}`);
+await go(B + "/training/performance?days=30");
+await page.getByRole("figure", { name: "1RM estimado de Sentadilla trasera" }).waitFor();
+log("gráfica de e1RM por ejercicio");
 await page.emulateMedia({ colorScheme: "dark" });
 await page.waitForTimeout(600);
 await shot("11-performance-dark");
