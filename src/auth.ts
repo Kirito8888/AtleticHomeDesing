@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { UserRole } from "@/generated/prisma/enums";
 import { verifyAgainstDummy, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
+import { sendToUser } from "@/lib/push/service";
 import { clientIp, LIMITS, rateLimit } from "@/lib/rate-limit";
 import { auditContext, recordEvent } from "@/lib/security/audit";
 import { authFailureLine, type AuthFailReason } from "@/lib/security/auth-log";
@@ -104,6 +105,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           await prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null } });
         }
         await recordEvent(user.id, "LOGIN_SUCCESS", ctx);
+        // Aviso de nuevo inicio de sesión a sus dispositivos (sin esperar: no retrasa el login).
+        void sendToUser(user.id, {
+          title: "Nuevo inicio de sesión en LifeOS",
+          body: `Desde ${ctx.ip && ctx.ip !== "unknown" ? `la IP ${ctx.ip}` : "un dispositivo"}. Si no has sido tú, cambia la contraseña.`,
+          url: "/settings",
+          tag: "login",
+        });
         return {
           id: user.id,
           email: user.email,

@@ -14,6 +14,7 @@ import {
   ThresholdForm,
 } from "@/components/settings/settings-forms";
 import { PageHeader } from "@/components/page-header";
+import { PushSettings } from "@/components/settings/push-settings";
 import { TwoFactorSettings } from "@/components/settings/two-factor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,7 @@ import { today, toIsoDay } from "@/lib/dates";
 import { env } from "@/lib/env";
 import { formatDate, formatDuration } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { vapidKeys } from "@/lib/push/service";
 import { recentEvents } from "@/lib/security/audit";
 import { totpStatus } from "@/lib/security/totp";
 
@@ -66,7 +68,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const user = await pageUser();
   const { welcome } = await searchParams;
   const todayIso = toIsoDay(today());
-  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events] = await Promise.all([
+  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { athleteProfile: true } }),
     prisma.thresholdHistory.findMany({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" }, take: 5 }),
     prisma.nutritionGoal.findFirst({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" } }),
@@ -75,7 +77,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     prisma.exercise.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     totpStatus(user.id),
     recentEvents(user.id, 15),
+    prisma.pushSubscription.count({ where: { userId: user.id } }),
   ]);
+  const vapid = vapidKeys();
   const p = me.athleteProfile;
 
   return (
@@ -161,6 +165,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         </Section>
         <Section title="Verificación en dos pasos" description="Un código de tu móvil además de la contraseña.">
           <TwoFactorSettings initial={{ ...twoFactor, enabledAt: twoFactor.enabledAt?.toISOString() ?? null }} />
+        </Section>
+        <Section title="Notificaciones" description="Avisos en el móvil aunque la app esté cerrada.">
+          <PushSettings configured={vapid != null} publicKey={vapid?.publicKey ?? null} devices={pushDevices} />
         </Section>
         <Section title="Actividad reciente" description="Si ves algo que no reconoces, cambia la contraseña y cierra las sesiones.">
           {events.length ? (
