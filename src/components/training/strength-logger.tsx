@@ -86,11 +86,14 @@ export function StrengthLogger({
   blocks,
   onChange,
   bodyWeightKg,
+  onSetCompleted,
 }: {
   exercises: ExerciseOption[];
   blocks: ExerciseBlock[];
   onChange: (b: ExerciseBlock[]) => void;
   bodyWeightKg: number | null;
+  /** Se llama al pulsar "Repetir serie" (= serie terminada): arranca el descanso. */
+  onSetCompleted?: () => void;
 }) {
   const byId = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
 
@@ -187,12 +190,13 @@ export function StrengthLogger({
             <Button
               type="button"
               variant="outline"
-              onClick={() =>
+              onClick={() => {
                 update(block.key, (b) => {
                   const last = b.sets.at(-1);
                   return { ...b, sets: [...b.sets, last ? { ...last, isWarmup: false } : { reps: 5, weightKg: 20, rpe: null, isWarmup: false }] };
-                })
-              }
+                });
+                onSetCompleted?.();
+              }}
             >
               <Copy /> Repetir serie
             </Button>
