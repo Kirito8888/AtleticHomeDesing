@@ -105,6 +105,12 @@ for (const p of [a, b]) {
   await login(p, email, password);
   await p.waitForURL((u) => !u.pathname.startsWith("/login"));
 }
+// El service worker guarda el HTML de las páginas visitadas (también las privadas).
+const cachedPage = (p, path) =>
+  p.evaluate(async (path) => Boolean(await caches.match(path)), path);
+await b.evaluate(() => navigator.serviceWorker.ready.then(() => true));
+await go(b, "/finance");
+await b.waitForFunction(async () => Boolean(await caches.match("/finance")), null, { timeout: 10000 });
 {
   await go(a, "/settings");
   await a.fill("#pw-current", password);
@@ -115,9 +121,12 @@ for (const p of [a, b]) {
   await a.waitForURL(/\/login/);
   await go(b, "/training");
   if (!/\/login/.test(b.url())) fail("la otra sesión sigue abierta tras cambiar la contraseña");
+  await b.waitForFunction(async () => !(await caches.match("/finance")), null, { timeout: 10000 }).catch(() => {});
+  if (await cachedPage(b, "/finance")) fail("la caché del service worker conserva /finance tras revocar la sesión");
+  if (!(await cachedPage(b, "/offline"))) fail("se borró también la página /offline");
   await login(a, email, password);
   await a.waitForURL((u) => !u.pathname.startsWith("/login"));
-  log("cambio de contraseña cierra todas las sesiones");
+  log("cambio de contraseña cierra todas las sesiones y vacía la caché de páginas privadas");
 }
 
 // 5. Consentimiento IA (sin consentimiento → 403 antes de llamar a Gemini)
