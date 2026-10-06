@@ -1,5 +1,5 @@
 import "server-only";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { Content } from "@google/genai";
@@ -61,11 +61,12 @@ async function extractPages(buf: Buffer, mime: string): Promise<string[]> {
 }
 
 /**
- * Ingesta síncrona: guarda el fichero, extrae texto, trocea, vectoriza y
- * persiste. Para apuntes de tamaño normal (< 15 MB) cabe en una petición;
- * si se necesitan libros enteros, mover a una cola (ver manual_backend.md).
+ * Paso 1 (en la petición): valida, guarda el fichero y crea el documento en
+ * PENDING. El trabajo pesado (extraer, trocear, vectorizar) lo hace
+ * processDocument() en segundo plano (src/lib/jobs/queue.ts), así que libros
+ * enteros no agotan el tiempo de la petición.
  */
-export async function ingestDocument(userId: string, file: File, meta: { title?: string; subject?: string }) {
+export async function createDocumentFromUpload(userId: string, file: File, meta: { title?: string; subject?: string }) {
   const mime = mimeOf(file);
   if (!mime) throw new ApiError(415, "Formato no soportado (PDF, TXT o Markdown)");
   if (file.size > MAX_UPLOAD_BYTES) throw new ApiError(413, "El fichero supera 15 MB");
@@ -82,28 +83,58 @@ export async function ingestDocument(userId: string, file: File, meta: { title?:
       mimeType: mime,
       storagePath: "",
       sizeBytes: buf.length,
-      status: "PROCESSING",
+      status: "PENDING",
     },
   });
-
   try {
     const dir = path.resolve(env().UPLOAD_DIR, userId);
     await mkdir(dir, { recursive: true });
     const storagePath = path.join(dir, `${doc.id}${ALLOWED[mime]}`);
     await writeFile(storagePath, buf);
+    return prisma.studyDocument.update({ where: { id: doc.id }, data: { storagePath } });
+  } catch (err) {
+    await prisma.studyDocument.delete({ where: { id: doc.id } }).catch(() => {});
+    throw err;
+  }
+}
 
-    const chunks = chunkDocument(await extractPages(buf, mime));
+export interface ProcessDeps {
+  embed: (texts: string[]) => Promise<number[][]>;
+  /** Comprueba clave y consentimiento justo antes de enviar nada a Gemini. */
+  assertAllowed: (userId: string) => Promise<void>;
+  embedModel: () => string;
+}
+
+const defaultDeps: ProcessDeps = {
+  embed: (texts) => embedTexts(texts, "RETRIEVAL_DOCUMENT"),
+  assertAllowed: assertAiAllowed,
+  embedModel: () => `${env().GEMINI_EMBEDDING_MODEL}@${env().GEMINI_EMBEDDING_DIM}`,
+};
+
+/**
+ * Paso 2 (en segundo plano): extrae texto, trocea, vectoriza y guarda. Idempotente:
+ * borra los fragmentos previos, así que un reintento no duplica nada.
+ * Si falla deja el documento en FAILED con el motivo y relanza el error (pg-boss reintenta).
+ */
+export async function processDocument(documentId: string, deps: ProcessDeps = defaultDeps) {
+  const doc = await prisma.studyDocument.findUnique({ where: { id: documentId } });
+  if (!doc || doc.status === "EMBEDDED") return doc; // borrado entretanto o ya procesado
+  await prisma.studyDocument.update({ where: { id: doc.id }, data: { status: "PROCESSING", error: null } });
+  try {
+    // El consentimiento pudo retirarse entre la subida y el proceso.
+    await deps.assertAllowed(doc.userId);
+    const buf = await readFile(doc.storagePath);
+    const chunks = chunkDocument(await extractPages(buf, doc.mimeType));
     if (!chunks.length) throw new ApiError(422, "No se pudo extraer texto (¿PDF escaneado sin OCR?)");
-    const vectors = await embedTexts(
-      chunks.map((c) => c.content),
-      "RETRIEVAL_DOCUMENT",
-    );
+    const vectors = await deps.embed(chunks.map((c) => c.content));
+    if (vectors.length !== chunks.length) throw new ApiError(502, "Respuesta de embeddings incompleta");
 
     await prisma.$transaction(async (tx) => {
+      await tx.documentChunk.deleteMany({ where: { documentId: doc.id } });
       await tx.documentChunk.createMany({
         data: chunks.map((c) => ({
           documentId: doc.id,
-          userId,
+          userId: doc.userId,
           chunkIndex: c.index,
           content: c.content,
           page: c.page,
@@ -116,19 +147,17 @@ export async function ingestDocument(userId: string, file: File, meta: { title?:
           UPDATE "DocumentChunk" SET embedding = ${toVectorLiteral(vectors[i])}::vector
           WHERE "documentId" = ${doc.id} AND "chunkIndex" = ${chunks[i].index}`;
       }
-    });
+    }, { timeout: 120_000 });
 
-    const { GEMINI_EMBEDDING_MODEL, GEMINI_EMBEDDING_DIM } = env();
     return prisma.studyDocument.update({
       where: { id: doc.id },
-      data: { status: "EMBEDDED", storagePath, embedModel: `${GEMINI_EMBEDDING_MODEL}@${GEMINI_EMBEDDING_DIM}`, error: null },
+      data: { status: "EMBEDDED", embedModel: deps.embedModel(), error: null },
       include: { _count: { select: { chunks: true } } },
     });
   } catch (err) {
-    await prisma.studyDocument.update({
-      where: { id: doc.id },
-      data: { status: "FAILED", error: err instanceof Error ? err.message.slice(0, 500) : "Error desconocido" },
-    });
+    await prisma.studyDocument
+      .update({ where: { id: doc.id }, data: { status: "FAILED", error: err instanceof Error ? err.message.slice(0, 500) : "Error desconocido" } })
+      .catch(() => {}); // el documento pudo borrarse mientras tanto
     throw err;
   }
 }
