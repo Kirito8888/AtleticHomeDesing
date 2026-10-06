@@ -54,10 +54,10 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
         description={formatDate(s.date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         action={
           <div className="flex gap-2">
-            {isEditableType(s.type) ? (
+            {isEditableType(s.type) || s.status === "PLANNED" ? (
               <Button asChild variant="outline" size="sm">
                 <Link href={`/training/${s.id}/edit`}>
-                  <Pencil /> Editar
+                  <Pencil /> {s.status === "PLANNED" ? "Registrar" : "Editar"}
                 </Link>
               </Button>
             ) : null}

@@ -102,6 +102,16 @@ await shot("03-day");
 await noOverflow("plan del día");
 log("plan del día legible en 390 px");
 
+// Una sesión planificada (también MIXED) se puede registrar como hecha
+const dayUrl = page.url();
+await page.getByRole("link", { name: "Registrar" }).click();
+await page.waitForURL(/\/edit$/);
+await page.getByRole("heading", { name: "Registrar sesión" }).waitFor();
+if (!(await page.getByLabel("Guardar como planificada (no suma carga)").isChecked())) errors.push("el formulario de registrar no viene como planificada");
+if (!realZip && (await page.locator("#title").inputValue()) !== "Snatch ligero + JABALINA") errors.push("el formulario no precarga el título del plan");
+log("registrar como hecha: formulario precargado");
+await go(dayUrl);
+
 // 6. Un día de otra versión (no activa) se puede consultar
 if (!realZip) {
   await go(B + "/planning");

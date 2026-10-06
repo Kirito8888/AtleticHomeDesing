@@ -162,8 +162,19 @@ describe.skipIf(!HAS_DB)("plan importado (BD real)", () => {
   });
 
   it("versión nueva del PDF: actualiza lo planificado, respeta lo hecho y retira lo que sobra", async () => {
+    // Registrar como hecha con el mismo camino que la UI (PATCH = sustituir conservando el id).
     const [mon] = await planned({ title: "Sentadilla" });
-    await prisma.trainingSession.update({ where: { id: mon.id }, data: { status: "COMPLETED", title: "Sentadilla (hecha)" } });
+    expect(mon.cycleId).not.toBeNull();
+    const training = await import("@/lib/training/service");
+    const { createSessionSchema } = await import("@/lib/training/schemas");
+    await training.updateTrainingSession(
+      userId,
+      mon.id,
+      createSessionSchema.parse({ type: "MIXED", date: "2026-10-26", status: "COMPLETED", title: "Sentadilla (hecha)", durationSec: 5400, sessionRpe: 7 }),
+    );
+    // Conserva el microciclo y el enlace con el día del plan.
+    expect(await prisma.trainingSession.findUnique({ where: { id: mon.id }, select: { status: true, cycleId: true } })).toEqual({ status: "COMPLETED", cycleId: mon.cycleId });
+    expect((await svc.planDayForSession(userId, mon.id))?.title).toBe("Sentadilla");
 
     const v2 = m5(["Sentadilla pesada", "Press inclinado", ""]);
     const preview = await svc.previewPlanImport(userId, upload(v2));
