@@ -120,11 +120,12 @@ export async function exportAccount(userId: string) {
       include: { coach: { select: { name: true, email: true } }, athlete: { select: { name: true, email: true } } },
     }),
   ]);
-  const [securityEvents, injuries, sessionTemplates, mealTemplates] = await Promise.all([
+  const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos] = await Promise.all([
     prisma.securityEvent.findMany({ where, orderBy: { createdAt: "desc" }, omit: { userId: true } }),
     prisma.injury.findMany({ where, orderBy: { startedOn: "asc" } }),
     prisma.sessionTemplate.findMany({ where }),
     prisma.mealTemplate.findMany({ where, include: { items: true } }),
+    prisma.planMeso.findMany({ where, orderBy: { startDate: "asc" }, include: { days: { orderBy: { key: "asc" } } } }),
   ]);
   return {
     exportedAt: new Date().toISOString(),
@@ -132,7 +133,7 @@ export async function exportAccount(userId: string) {
     user,
     training: { thresholds, sessions: trainingSessions, personalRecords, dailyLoads, customExercises, cycles: trainingCycles, templates: sessionTemplates },
     recovery: { metrics: recoveryMetrics, injuries },
-    planning: { calendarEvents, tasks },
+    planning: { calendarEvents, tasks, importedPlan: planMesos },
     finance: { accounts: financialAccounts, categories: financialCategories, transactions, budgets, subscriptions },
     nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates },
     study: { documents: studyDocuments, chatThreads, flashcardDecks },

@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { LineChart, Plus, Trophy } from "lucide-react";
+import { CalendarClock, LineChart, Plus, Trophy } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
+import { addDays, today } from "@/lib/dates";
 import { formatDate, formatDuration, formatNum, formatPace, SESSION_TYPE_LABEL, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -13,9 +14,11 @@ export const metadata = { title: "Entrenamiento · LifeOS" };
 
 export default async function TrainingPage() {
   const user = await pageUser();
-  const [sessions, records] = await Promise.all([
+  const now = today();
+  const [sessions, records, upcoming] = await Promise.all([
+    // Historial: hasta hoy. Lo planificado a futuro va aparte (el plan importado son cientos de días).
     prisma.trainingSession.findMany({
-      where: { userId: user.id },
+      where: { userId: user.id, date: { lte: now } },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       take: 40,
       include: {
@@ -29,6 +32,11 @@ export default async function TrainingPage() {
       orderBy: { achievedOn: "desc" },
       take: 6,
       include: { exercise: { select: { name: true } } },
+    }),
+    prisma.trainingSession.findMany({
+      where: { userId: user.id, status: "PLANNED", date: { gt: now, lte: addDays(now, 7) } },
+      orderBy: [{ date: "asc" }, { createdAt: "asc" }],
+      select: { id: true, date: true, title: true, type: true, durationSec: true },
     }),
   ]);
 
@@ -51,6 +59,29 @@ export default async function TrainingPage() {
           </div>
         }
       />
+
+      {upcoming.length ? (
+        <Card className="mb-4 gap-3 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <CalendarClock className="size-4 text-muted-foreground" /> Próximos 7 días
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <ul className="grid gap-1.5">
+              {upcoming.map((s) => (
+                <li key={s.id}>
+                  <Link href={`/training/${s.id}`} className="flex items-center gap-3 rounded-md px-1 py-1 text-sm hover:bg-accent">
+                    <span className="w-16 shrink-0 text-xs text-muted-foreground capitalize">{formatDate(s.date, { weekday: "short", day: "numeric" })}</span>
+                    <span className="min-w-0 flex-1 truncate">{s.title ?? SESSION_TYPE_LABEL[s.type]}</span>
+                    {s.durationSec ? <span className="shrink-0 text-xs text-muted-foreground tabular-nums">~{Math.round(s.durationSec / 60)} min</span> : null}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {records.length ? (
         <Card className="mb-4 gap-3 py-4">

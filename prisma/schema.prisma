@@ -89,6 +89,8 @@ model User {
   pushSubscriptions PushSubscription[]
   notificationLogs  NotificationLog[]
   bankProfiles      BankImportProfile[]
+  planMesos         PlanMeso[]
+  planDays          PlanDay[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -1230,6 +1232,66 @@ enum BodySide {
   LEFT
   RIGHT
   BOTH
+}
+
+/// Mesociclo importado de un PDF «día a día» (Planificación → Importar).
+/// Guarda la introducción, las semanas y las versiones elegibles; los días van en PlanDay.
+model PlanMeso {
+  id         String    @id @default(cuid())
+  userId     String
+  code       String // "M5"
+  name       String
+  startDate  DateTime  @db.Date
+  endDate    DateTime  @db.Date
+  version    String? // versión del PDF («versión 12»)
+  intro      Json // [{ title, text }]
+  annexes    Json      @default("[]") // anexos del PDF: tabla de RM, cálculos, referencias…
+  weeks      Json // [{ variant, number, title, start, end, text }]
+  variants   Json // opciones elegibles [{ code, label }]; [] si el bloque no tiene versiones
+  variant    String? // opción activa
+  anchorDate DateTime? @db.Date // día de la competición para los días relativos (D−5…D)
+  cycleId    String? // mesociclo en TrainingCycle
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  days PlanDay[]
+
+  @@unique([userId, code])
+}
+
+/// Día del plan importado. Solo los de la versión activa se convierten en una
+/// TrainingSession PLANNED (sessionId); los demás quedan aquí para consultarlos y
+/// para cambiar de versión sin volver a subir el plan. sessionId no es FK a
+/// propósito: editar una sesión la recrea con el mismo id.
+model PlanDay {
+  id          String      @id @default(cuid())
+  userId      String
+  mesoId      String
+  key         String // meso|variante|fecha o D-n|orden (estable entre importaciones)
+  variant     String?
+  week        Int?
+  code        String // «S1», «A·S2-V», «C·D−5»
+  date        DateTime?   @db.Date
+  relDay      Int?
+  title       String
+  durationMin Int?
+  competition Boolean     @default(false)
+  type        SessionType
+  weekTitle   String?
+  content     Json // bloques: texto, tablas de ejercicios y «Por qué»
+  sessionId   String?
+  eventId     String? // competición creada en el calendario
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meso PlanMeso @relation(fields: [mesoId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId, date])
+  @@index([sessionId])
+  @@index([mesoId])
 }
 
 /// Molestia o lesión. Dato de salud: no se envía a la IA; el coach solo la ve

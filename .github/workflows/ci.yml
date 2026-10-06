@@ -78,7 +78,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma migrate deploy && npx prisma db seed
-      # Con DATABASE_URL se ejecutan también los tests de integración (*.int.test.ts: ingesta + pg-boss + pgvector)
+      # Con DATABASE_URL se ejecutan también los tests de integración (*.int.test.ts: ingesta, pg-boss, push, extractos y plan importado)
       - run: npm test
       - run: npm run build
       - name: Preparar el servidor standalone
@@ -89,6 +89,8 @@ jobs:
           SERVER=$!
           for i in $(seq 60); do curl -sf -o /dev/null http://localhost:3000/login && break; sleep 1; done
           npm run e2e
+          # Importar la planificación con PDF sintéticos (sin datos reales)
+          npm run e2e:plan
           kill $SERVER
       # El smoke ya creó un usuario: con ALLOW_REGISTRATION=false el registro queda cerrado.
       - name: Seguridad (registro cerrado)
