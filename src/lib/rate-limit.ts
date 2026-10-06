@@ -44,6 +44,7 @@ export const LIMITS = {
   aiUpload: { limit: 10, windowMs: 60 * 60_000 },
   aiGenerate: { limit: 10, windowMs: 60 * 60_000 },
   export: { limit: 5, windowMs: 60 * 60_000 },
+  import: { limit: 30, windowMs: 60 * 60_000 },
 } as const;
 
 /**

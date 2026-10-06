@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Repeat } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
+import { ImportActivity } from "@/components/training/import-activity";
 import { SessionForm } from "@/components/training/session-form";
 import { TemplateChips } from "@/components/training/template-chips";
 import { Button } from "@/components/ui/button";
@@ -65,6 +66,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
           ) : undefined
         }
       />
+      {!initial ? <ImportActivity /> : null}
       <TemplateChips templates={templates.map((t) => ({ id: t.id, name: t.name }))} activeId={chosen?.id} />
       <SessionForm
         key={chosen ? `tpl-${chosen.id}` : initial ? "repeat" : "new"}
