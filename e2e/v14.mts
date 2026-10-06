@@ -3,7 +3,10 @@
 //   BASE_URL=http://localhost:3000 npm run e2e:v14
 import { mkdirSync } from "node:fs";
 
+import { zipSync } from "fflate";
 import { chromium } from "playwright-core";
+
+import { mesoPdf } from "../src/test/plan-fixtures";
 
 const out = process.env.SHOTS_DIR ?? "e2e/screenshots";
 mkdirSync(out, { recursive: true });
@@ -118,6 +121,50 @@ await page.getByText(/Hoy has marcado síntomas/).first().waitFor();
 await shot("04-cycle");
 await noOverflow("recuperación");
 log("ciclo: síntomas → propuesta de versión suave");
+
+// 5. Bloque A: tabla de RM → kg en el plan → registrar desde el plan (sesión mixta)
+await go(B + "/planning");
+await page.getByRole("button", { name: "Importar plan" }).click();
+await page.locator("#plan-file").setInputFiles({ name: "plan.zip", mimeType: "application/zip", buffer: Buffer.from(zipSync({ "M5.pdf": mesoPdf() })) });
+await page.getByLabel("Vista previa del plan").getByRole("button", { name: /^Importar \d+ días$/ }).click();
+await toast(/Plan importado/);
+await go(B + "/training/rm");
+await page.fill("#rm-name", "Sentadilla frontal");
+await page.fill("#rm-kg", "100");
+await page.getByRole("button", { name: "Añadir" }).click();
+await toast(/RM guardada/);
+await page.getByLabel("RM vigentes").getByText("100 kg").waitFor();
+// Serie de test: 85 kg × 6 → 102 kg (+2 %): no cambia; 90 × 8 → 114 kg (+14 %): sí
+await page.fill("#t-kg", "85");
+await radio("Repeticiones de la serie de test", "6").click();
+await page.getByRole("button", { name: "Calcular" }).click();
+await page.getByRole("status").getByText(/Diferencia pequeña/).waitFor();
+await page.fill("#t-kg", "90");
+await radio("Repeticiones de la serie de test", "8").click();
+await page.getByRole("button", { name: "Calcular" }).click();
+await page.getByRole("button", { name: "Guardar nueva RM" }).click();
+await toast(/RM actualizada/);
+await radio("Protocolo APRE", "APRE 6").click();
+await radio("Repeticiones serie 3", "9").click();
+await page.getByText(/sube 2,5-5 kg/).waitFor();
+await shot("05-rm");
+await noOverflow("mis RM");
+log("tabla de RM, serie de test y APRE");
+
+await go(`${B}/planning?month=2026-10&day=2026-10-27#dia`);
+await page.getByRole("list", { name: "Sesiones del día" }).getByRole("link").first().click();
+await page.waitForURL(/\/training\/c/);
+await page.getByText("83 % · 95 kg").first().waitFor(); // 83 % de 114 = 94,6 → 95 (escalón 2,5)
+await page.getByRole("link", { name: "Registrar" }).click();
+await page.waitForURL(/\/edit$/);
+const w1 = await page.getByRole("textbox", { name: "Peso serie 1", exact: true }).inputValue();
+if (w1 !== "95") errors.push(`registrar desde el plan: peso precargado ${w1} (esperado 95)`);
+await page.getByText(/Sesión mixta/).click();
+await page.getByLabel("Guardar como planificada (no suma carga)").uncheck();
+await Promise.all([page.waitForURL(/\/training\/c[^/]*$/), page.getByRole("button", { name: /^Guardar (cambios|sesión)$/ }).click()]);
+await page.getByText("Sentadilla frontal").first().waitFor();
+await shot("06-registered");
+log("registrar desde el plan con kg precargados, como sesión mixta");
 
 await browser.close();
 if (errors.length) {

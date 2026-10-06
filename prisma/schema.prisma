@@ -94,6 +94,10 @@ model User {
   planFeedback      PlanFeedback[]
   cycleProfile      CycleProfile?
   cycleLogs         CycleLog[]
+  oneRepMaxes       OneRepMax[]
+  exerciseAliases   ExerciseAlias[]
+  calendarFeeds     CalendarFeed[]
+  sharedReports     SharedReport[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -253,6 +257,8 @@ model AthleteProfile {
   // Constantes del modelo de Banister (configurables por atleta)
   ctlTimeConstant   Int          @default(42)
   atlTimeConstant   Int          @default(7)
+  // «Mis reglas» (umbrales de avisos, redondeo de kg, recordatorios…). Valores por defecto en src/lib/rules/prefs.ts.
+  prefs             Json?
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
@@ -325,6 +331,8 @@ model TrainingSession {
   tssMethod     TssMethod?
   tssComputedAt DateTime?
   notes         String?
+  // Sensaciones al cerrar la sesión: [{ area, side?, pain 0-10 }] (alimentan los avisos)
+  feelings      Json?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -446,6 +454,10 @@ model TechnicalSession {
   isCompetition    Boolean        @default(false)
   focus            String? // objetivo técnico de la sesión
   bestMarkM        Float? // desnormalizado del mejor intento válido
+  // Vídeo contado: de N lanzamientos revisados, cuántos con el codo estirado y con la cabeza estable
+  videoTotal       Int?
+  videoElbowOk     Int?
+  videoHeadOk      Int?
 
   session  TrainingSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   attempts TechnicalAttempt[]
@@ -644,6 +656,12 @@ model RecoveryMetrics {
   stress         Int? // 1-5
   mood           Int? // 1-5
   bodyWeightKg   Float?
+  bodyFatPct     Float? // % de grasa de la báscula (solo como tendencia)
+  // Control rápido (p. ej. el del lunes): dolor 0-10 en el test squeeze y en el talón, salto en cm
+  squeezePain    Int?
+  heelPain       Int?
+  jumpCm         Float?
+  elbowSymptoms  Boolean? // hormigueo o dolor en el codo al lanzar
   // Resultado del algoritmo de Readiness (Fase 2) + desglose para auditar
   readinessScore Float? // 0-100
   readinessParts Json? // { tsb, hrv, sleep, rhr, doms }
@@ -844,6 +862,9 @@ model FinancialTransaction {
   // reimportar el mismo extracto no duplica movimientos.
   importHash     String?
   reconciled     Boolean         @default(false)
+  // Gasto deportivo (material, viajes de competición, licencias) y competición asociada
+  sport          Boolean         @default(false)
+  eventId        String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -1339,6 +1360,62 @@ model CycleLog {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
+}
+
+/// Tabla de RM: una fila por valor con su fecha (el vigente es el último). Por nombre
+/// normalizado para poder enlazar con los ejercicios del plan importado.
+model OneRepMax {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String
+  nameKey       String // nombre normalizado (minúsculas, sin tildes ni paréntesis)
+  kg            Float
+  perHand       Boolean  @default(false) // mancuernas: el valor es por mano
+  source        String   @default("MANUAL") // MANUAL | PLAN (anexo del plan) | TEST (serie de test) | APRE
+  effectiveFrom DateTime @db.Date
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, nameKey, effectiveFrom])
+}
+
+/// Cómo se llama en el plan un ejercicio del catálogo o de la tabla de RM (se aprende al elegirlo).
+model ExerciseAlias {
+  id         String  @id @default(cuid())
+  userId     String
+  key        String // nombre del plan normalizado
+  rmKey      String? // fila de la tabla de RM
+  exerciseId String? // ejercicio del catálogo para registrar las series
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+}
+
+/// Enlace secreto de solo lectura al calendario (.ics). Se guarda el hash del token.
+model CalendarFeed {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Informe de solo lectura para la entrenadora (enlace con caducidad). Se guarda el hash del token.
+model SharedReport {
+  id              String   @id @default(cuid())
+  userId          String
+  tokenHash       String   @unique
+  from            DateTime @db.Date
+  to              DateTime @db.Date
+  includeInjuries Boolean  @default(false)
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 /// Molestia o lesión. Dato de salud: no se envía a la IA; el coach solo la ve
