@@ -28,6 +28,8 @@ export type PlanRow = {
   equipment?: string[];
   alternatives?: Array<{ name: string; equipment: string[] }>;
   original?: string;
+  /** Calculado al mostrar (no se guarda): kg desde %RM con la tabla de RM. */
+  kg?: string;
 };
 
 export type PlanBlock =

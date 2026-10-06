@@ -52,6 +52,7 @@ export function SessionForm({
   const [rpe, setRpe] = useState<number | null>(initial?.rpe ?? null);
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [planned, setPlanned] = useState(initial?.planned ?? false);
+  const [mixed, setMixed] = useState(initial?.mixed ?? false);
   const [blocks, setBlocks] = useState<ExerciseBlock[]>(initial?.blocks ?? []);
   const [technical, setTechnical] = useState<TechnicalState>(initial?.technical ?? initialTechnical);
   const [track, setTrack] = useState<TrackState>(initial?.track ?? initialTrack);
@@ -71,6 +72,20 @@ export function SessionForm({
       sessionRpe: rpe,
       notes: notes || null,
     };
+    if (mixed) {
+      // Sesión mixta: cada parte con datos va en la misma sesión.
+      const sets = blocksToSets(blocks);
+      const t = trackPayload(track);
+      const hasTrack = t.distanceM != null || t.movingTimeSec != null || t.intervals.length > 0;
+      if (!sets.length && !technical.attempts.length && !hasTrack && !planned) return "Añade algo de fuerza, técnica o pista";
+      return {
+        ...common,
+        type: "MIXED",
+        strength: sets.length ? { bodyWeightKg, sets } : null,
+        technical: technical.attempts.length ? technicalPayload(technical) : null,
+        track: hasTrack ? t : null,
+      };
+    }
     if (type === "STRENGTH") {
       const sets = blocksToSets(blocks);
       if (!sets.length && !planned) return "Añade al menos una serie";
@@ -174,6 +189,11 @@ export function SessionForm({
       <Field label="Notas" htmlFor="notes">
         <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Sensaciones, molestias, condiciones…" />
       </Field>
+
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" className="size-4" checked={mixed} onChange={(e) => setMixed(e.target.checked)} />
+        Sesión mixta: guardar a la vez fuerza, técnica y pista (rellena cada pestaña)
+      </label>
 
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" className="size-4" checked={planned} onChange={(e) => setPlanned(e.target.checked)} />

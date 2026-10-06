@@ -16,6 +16,8 @@ export interface SessionFormInitial {
   rpe: number | null;
   notes: string;
   planned: boolean;
+  /** Sesión mixta: se guardan a la vez las partes de fuerza, técnica y pista que tengan datos. */
+  mixed?: boolean;
   blocks?: ExerciseBlock[];
   technical?: TechnicalState;
   track?: TrackState;
@@ -58,14 +60,16 @@ interface StoredSession {
   } | null;
 }
 
-/** Las sesiones MIXED no tienen formulario propio: solo se pueden borrar y recrear. */
-export const isEditableType = (type: string): type is FormKind => type === "STRENGTH" || type === "TECHNICAL" || type === "TRACK";
+/** Tipos con formulario (MIXED se edita con el interruptor «sesión mixta»). */
+export const isEditableType = (type: string): boolean => type === "STRENGTH" || type === "TECHNICAL" || type === "TRACK" || type === "MIXED";
+const isFormKind = (type: string): type is FormKind => type === "STRENGTH" || type === "TECHNICAL" || type === "TRACK";
 
 /** "4:05" para tiempos enteros; "11.45" si hay décimas (sprints), que formatDuration redondearía. */
 const dur = (sec: number | null) => (sec == null ? "" : Number.isInteger(sec) ? formatDuration(sec) : String(sec));
 
 export function sessionToFormInitial(s: StoredSession, overrides: Partial<SessionFormInitial> = {}): SessionFormInitial {
-  const type: FormKind = isEditableType(s.type) ? s.type : "STRENGTH";
+  // MIXED: la pestaña inicial es la primera parte con datos.
+  const type: FormKind = isFormKind(s.type) ? s.type : s.strength ? "STRENGTH" : s.technical ? "TECHNICAL" : s.track ? "TRACK" : "STRENGTH";
   const base: SessionFormInitial = {
     type,
     date: s.date.toISOString().slice(0, 10),
@@ -74,6 +78,7 @@ export function sessionToFormInitial(s: StoredSession, overrides: Partial<Sessio
     rpe: s.sessionRpe,
     notes: s.notes ?? "",
     planned: s.status === "PLANNED",
+    mixed: s.type === "MIXED",
   };
 
   if (s.strength) {

@@ -13,6 +13,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { formatDate, formatDuration, formatNum, formatPace, SESSION_TYPE_LABEL, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { dayView } from "@/lib/ai-plan/day-view";
+import { annotateKg } from "@/lib/training/plan-to-form";
+import { rmContext } from "@/lib/training/rm-service";
 import { toIsoDay } from "@/lib/dates";
 import { cycleToday } from "@/lib/health/cycle-service";
 import type { VariantOption } from "@/lib/planning/plan-import/types";
@@ -44,6 +46,7 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
   if (!s) notFound();
   const plan = await planDayForSession(user.id, s.id);
   const view = plan ? dayView(plan) : null;
+  const rmCtx = view ? await rmContext(user.id) : null;
   const cycle = view?.hasLight && s.status === "PLANNED" ? await cycleToday(user.id, toIsoDay(s.date)) : null;
 
   const byExercise = new Map<string, NonNullable<typeof s.strength>["sets"]>();
@@ -84,7 +87,7 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
       ) : null}
       {plan && view ? (
         <PlanDayView
-          blocks={view.blocks}
+          blocks={rmCtx ? annotateKg(view.blocks, rmCtx.rms, rmCtx.aliases, rmCtx.step) : view.blocks}
           heading={
             <>
               <Link href={`/planning/meso/${plan.meso.code}`} className="underline-offset-2 hover:underline">
