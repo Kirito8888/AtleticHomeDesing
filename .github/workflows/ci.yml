@@ -66,6 +66,10 @@ jobs:
       SCHEDULER_ENABLED: "false"
       # Clave solo para la CI (32 bytes en base64), no es un secreto real
       TOTP_ENCRYPTION_KEY: Y2ktb25seS0zMi1ieXRlcy1rZXktZm9yLXRvdHAhISE=
+      # Claves VAPID solo para la CI (generadas para esto, sin valor fuera de los tests)
+      VAPID_PUBLIC_KEY: BJ12Ybt-28O9IW2mu3X0U_6wCoqBaUTzVASwoOk8wWidqzWk5PnUV3Mi8lekFvqhStgSUNLj1X882CARKCPFPJg
+      VAPID_PRIVATE_KEY: WR6TKd8X0HhDbnzMaiYLa1-Ye5SPRYYjarLHcVna1Is
+      VAPID_SUBJECT: mailto:ci@example.com
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -74,6 +78,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma migrate deploy && npx prisma db seed
+      # Con DATABASE_URL se ejecutan también los tests de integración (*.int.test.ts: ingesta + pg-boss + pgvector)
+      - run: npm test
       - run: npm run build
       - name: Preparar el servidor standalone
         run: cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/

@@ -3,6 +3,8 @@
 // DATABASE_URL en el entorno (crea usuarios con `npm run user`).
 //   BASE_URL=http://localhost:3000 npm run e2e:security
 // Cada contexto del navegador simula una IP distinta con X-Forwarded-For.
+// Necesita un servidor recién arrancado: los límites por IP viven en memoria y
+// una segunda pasada contra el mismo proceso los encontraría ya gastados.
 import { execFileSync } from "node:child_process";
 import { generate } from "otplib";
 import { chromium } from "playwright-core";
@@ -79,7 +81,7 @@ const alertText = (page) => page.locator("p[role=alert]").first().textContent({ 
   const page = await newPage();
   for (let i = 0; i < 10; i++) {
     await login(page, `nadie${i}-${run}@test.dev`, "x");
-    if (!/incorrectos/.test(await alertText(page))) fail(`intento ${i + 1}: mensaje inesperado`);
+    { const t = await alertText(page); if (!/incorrectos/.test(t)) fail(`intento ${i + 1}: mensaje inesperado: ${t}`); }
   }
   await login(page, `nadie-${run}@test.dev`, "x");
   if (!/Demasiados intentos/.test(await alertText(page))) fail("el intento 11 desde la misma IP no se limitó");

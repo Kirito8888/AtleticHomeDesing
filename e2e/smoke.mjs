@@ -3,6 +3,7 @@
 //   BASE_URL=http://localhost:3000 npm run e2e
 // Variables: BASE_URL, CHROMIUM_PATH (opcional), SHOTS_DIR (capturas, opcional).
 import { mkdirSync } from "node:fs";
+import { Encoder, Profile } from "@garmin/fitsdk";
 import { chromium } from "playwright-core";
 
 const out = process.env.SHOTS_DIR ?? "e2e/screenshots";
@@ -83,6 +84,29 @@ await page.getByRole("navigation", { name: "Plantillas" }).getByRole("link", { n
 await page.getByText("Desde la plantilla «Fuerza A»").waitFor();
 await page.getByRole("region", { name: "Sentadilla trasera" }).waitFor();
 log("plantilla «Fuerza A» precarga el formulario");
+
+// Importar del reloj: FIT generado con el codificador oficial de Garmin (2,4 km en 10 min)
+const fitStart = new Date(Date.now() - 2 * 3600_000);
+const enc = new Encoder();
+enc.onMesg(Profile.MesgNum.FILE_ID, { type: "activity", manufacturer: "garmin", product: 1, timeCreated: fitStart, serialNumber: 9 });
+for (let i = 0; i <= 600; i++) {
+  enc.onMesg(Profile.MesgNum.RECORD, { timestamp: new Date(fitStart.getTime() + i * 1000), distance: i * 4, enhancedSpeed: 4, heartRate: 150 });
+}
+enc.onMesg(Profile.MesgNum.SESSION, { timestamp: new Date(fitStart.getTime() + 600_000), startTime: fitStart, sport: "running", totalTimerTime: 600, totalElapsedTime: 600, totalDistance: 2400, avgHeartRate: 150, maxHeartRate: 150 });
+const fitFile = { name: "carrera.fit", mimeType: "application/octet-stream", buffer: Buffer.from(enc.close()) };
+await go(B + "/training/new");
+await page.getByText("Importar del reloj").click();
+await page.getByLabel("Fichero de actividad").setInputFiles(fitFile);
+const prev = page.getByLabel("Vista previa de la actividad");
+await prev.getByText("Carrera 2,4 km").waitFor();
+await prev.getByText("4:10 /km").waitFor();
+await Promise.all([page.waitForURL(/\/training\/c/), prev.getByRole("button", { name: "Guardar como sesión" }).click()]);
+await page.getByText(/hrTSS|por ritmo|sRPE/).first().waitFor();
+await go(B + "/training/new");
+await page.getByText("Importar del reloj").click();
+await page.getByLabel("Fichero de actividad").setInputFiles(fitFile);
+await page.getByText("Esta actividad ya está importada.").waitFor();
+log("actividad FIT importada (2,4 km, 4:10 /km) y reimportación detectada");
 
 // 4. Sesión técnica (jabalina 600 g)
 await go(B + "/training/new?type=TECHNICAL");
@@ -165,6 +189,30 @@ await page.getByText("1476,55").first().waitFor();
 await shot("07-finance");
 log("cuenta 1500 € − gasto 23,45 € = 1476,55 €");
 
+// Importar extracto CSV (estilo banca española, con títulos arriba); la segunda vez no duplica
+const d0 = new Date();
+const dd = (n) => { const x = new Date(d0.getTime() - n * 86_400_000); return `${String(x.getDate()).padStart(2, "0")}/${String(x.getMonth() + 1).padStart(2, "0")}/${x.getFullYear()}`; };
+const csv = { name: "extracto.csv", mimeType: "text/csv", buffer: Buffer.from(`Titular: BEA\nFecha;Concepto;Importe;Saldo\n${dd(3)};LICENCIA FEDERATIVA;-95,00;0\n${dd(2)};CAFETERIA;-1,50;0\n${dd(2)};CAFETERIA;-1,50;0\n`) };
+for (const round of [1, 2]) {
+  await go(B + "/finance");
+  await page.getByRole("button", { name: "Importar" }).click();
+  await page.locator("#imp-file").setInputFiles(csv);
+  await page.getByRole("table", { name: "Primeras líneas del extracto" }).waitFor();
+  await page.getByRole("button", { name: "Vista previa" }).click();
+  const pv = page.getByLabel("Vista previa del extracto");
+  if (round === 1) {
+    await pv.getByText(/^3 nuevos · 0 ya importados/).waitFor();
+    await pv.getByRole("button", { name: "Importar 3 movimientos" }).click();
+    await toast("3 movimientos importados");
+  } else {
+    await pv.getByText(/^0 nuevos · 3 ya importados/).waitFor();
+    if (await pv.getByRole("button", { name: /Importar 0/ }).isEnabled()) errors.push("se podía reimportar un extracto ya importado");
+  }
+}
+await go(B + "/finance");
+await page.getByText("1378,55").first().waitFor(); // 1476,55 − 95 − 1,50 − 1,50
+log("extracto CSV importado (3 movimientos) y reimportación sin duplicados");
+
 // 8. Planificación
 await go(B + "/planning");
 await page.getByRole("button", { name: "Añadir" }).first().click();
@@ -191,6 +239,8 @@ await page.getByRole("status").filter({ hasText: "Molestia activa en Rodilla (iz
 await shot("09-dashboard");
 await go(B + "/study");
 await page.getByText(/La IA no está configurada/).waitFor();
+await go(B + "/settings");
+await page.getByRole("button", { name: "Activar notificaciones en este dispositivo" }).waitFor();
 await shot("10-study");
 log("dashboard con competición; estudio avisa de falta de clave");
 
