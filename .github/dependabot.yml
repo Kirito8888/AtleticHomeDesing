@@ -10,6 +10,16 @@ updates:
       # Parches y menores juntos para no inundar de PRs; las mayores, una a una.
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # Mayores que exigen migración del código (rompen la CI) o que no encajan con el runtime:
+      # se hacen a mano en una versión propia. TypeScript 7 y ESLint 10 cambian la configuración;
+      # @types/node debe seguir a la versión de Node de la imagen (22).
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      - dependency-name: eslint
+        update-types: [version-update:semver-major]
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly, day: monday }

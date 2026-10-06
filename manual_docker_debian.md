@@ -284,6 +284,19 @@ dc up -d --build web
 docker image prune -f
 ```
 
+#### De v1.2 a v1.3 (importar la planificación)
+
+La migración `v1_3_plan_import` solo **crea** dos tablas (`PlanMeso`, `PlanDay`): no toca datos existentes. Probada sobre una copia de una BD v1.2 con datos. No hay variables nuevas.
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh          # copia previa → pull → migrate → build → healthcheck (vuelta atrás si falla)
+```
+
+Después, en la app: **Planificación → icono de subir (Importar plan)** → elige el `.zip` del plan (o sus PDF «día a día») → revisa la vista previa → **Importar**. Los PDF no se guardan en el servidor; solo el plan ya ordenado por días. Detalles en [`docs/guia-usuario.md`](docs/guia-usuario.md#importar-tu-planificación).
+
+> **Si tu servidor sigue en v1.1:** haz primero el paso 1 de «De v1.1 a v1.2» (variables nuevas en `.env.production`) y actualiza **a mano** una vez (`update.sh` aún no existe en v1.1): `git pull`, `dc --profile tools run --rm --build migrate`, `dc up -d --build web`. Las migraciones de v1.2 y v1.3 se aplican juntas. A partir de ahí, `./scripts/update.sh`.
+
 #### De v1.1 a v1.2 (20 mejoras)
 
 La migración `v1_2_features` solo **crea** tipos, columnas, tablas e índices. Los vínculos coach–atleta existentes reciben todos los permisos (nada cambia para ellos hasta que el atleta los ajuste). Probada sobre una BD v1.1 con datos.
