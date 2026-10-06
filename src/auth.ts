@@ -6,6 +6,7 @@ import type { UserRole } from "@/generated/prisma/enums";
 import { verifyAgainstDummy, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 import { clientIp, LIMITS, rateLimit } from "@/lib/rate-limit";
+import { authFailureLine, type AuthFailReason } from "@/lib/security/auth-log";
 
 const credentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -27,29 +28,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
   pages: { signIn: "/login" },
   trustHost: true,
-  // Un login fallido no es un error del servidor: una línea (útil para auditar), sin traza.
+  // Un login fallido no es un error del servidor: authorize() ya escribe una línea con la IP
+  // (la que lee fail2ban); aquí se silencia la traza que Auth.js añadiría.
   logger: {
     error(error) {
-      if (error instanceof CredentialsSignin) console.warn(`[auth] inicio de sesión rechazado (${error.code})`);
-      else console.error("[auth]", error);
+      if (!(error instanceof CredentialsSignin)) console.error("[auth]", error);
     },
   },
   providers: [
     Credentials({
       credentials: { email: { type: "email" }, password: { type: "password" } },
       async authorize(raw, request) {
-        if (!rateLimit(`login:${clientIp(request.headers)}`, LIMITS.login.limit, LIMITS.login.windowMs).ok) {
-          throw new TooManyAttempts();
+        const ip = clientIp(request.headers);
+        const fail = (reason: AuthFailReason, err: CredentialsSignin = new CredentialsSignin()) => {
+          console.warn(authFailureLine(ip, reason));
+          return err;
+        };
+        if (!rateLimit(`login:${ip}`, LIMITS.login.limit, LIMITS.login.windowMs).ok) {
+          throw fail("rate_limited", new TooManyAttempts());
         }
         const parsed = credentialsSchema.safeParse(raw);
-        if (!parsed.success) throw new CredentialsSignin();
+        if (!parsed.success) throw fail("credentials");
 
         const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
         if (!user?.passwordHash) {
           await verifyAgainstDummy(parsed.data.password); // mismo tiempo exista o no el email
-          throw new CredentialsSignin();
+          throw fail("credentials");
         }
-        if (user.lockedUntil && user.lockedUntil > new Date()) throw new TooManyAttempts();
+        if (user.lockedUntil && user.lockedUntil > new Date()) throw fail("locked", new TooManyAttempts());
 
         if (!(await verifyPassword(parsed.data.password, user.passwordHash))) {
           const failed = user.failedLogins + 1;
@@ -60,7 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               ? { failedLogins: 0, lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) }
               : { failedLogins: failed },
           });
-          throw lock ? new TooManyAttempts() : new CredentialsSignin();
+          throw lock ? fail("locked", new TooManyAttempts()) : fail("credentials");
         }
 
         if (user.failedLogins || user.lockedUntil) {
