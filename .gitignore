@@ -47,3 +47,7 @@ next-env.d.ts
 /src/generated/
 /uploads/
 /e2e/screenshots/
+
+# Copias de seguridad locales (servicio backup)
+/backups/
+/backups-pre-update/
