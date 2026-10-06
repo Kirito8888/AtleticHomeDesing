@@ -120,16 +120,21 @@ export async function exportAccount(userId: string) {
       include: { coach: { select: { name: true, email: true } }, athlete: { select: { name: true, email: true } } },
     }),
   ]);
-  const securityEvents = await prisma.securityEvent.findMany({ where, orderBy: { createdAt: "desc" }, omit: { userId: true } });
+  const [securityEvents, injuries, sessionTemplates, mealTemplates] = await Promise.all([
+    prisma.securityEvent.findMany({ where, orderBy: { createdAt: "desc" }, omit: { userId: true } }),
+    prisma.injury.findMany({ where, orderBy: { startedOn: "asc" } }),
+    prisma.sessionTemplate.findMany({ where }),
+    prisma.mealTemplate.findMany({ where, include: { items: true } }),
+  ]);
   return {
     exportedAt: new Date().toISOString(),
-    format: "lifeos-export/1",
+    format: "lifeos-export/2",
     user,
-    training: { thresholds, sessions: trainingSessions, personalRecords, dailyLoads, customExercises, cycles: trainingCycles },
-    recovery: recoveryMetrics,
+    training: { thresholds, sessions: trainingSessions, personalRecords, dailyLoads, customExercises, cycles: trainingCycles, templates: sessionTemplates },
+    recovery: { metrics: recoveryMetrics, injuries },
     planning: { calendarEvents, tasks },
     finance: { accounts: financialAccounts, categories: financialCategories, transactions, budgets, subscriptions },
-    nutrition: { entries: macros, goals: nutritionGoals },
+    nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates },
     study: { documents: studyDocuments, chatThreads, flashcardDecks },
     coach: { reports: coachReports, links: coachLinks },
     security: { events: securityEvents },

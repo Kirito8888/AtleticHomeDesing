@@ -53,6 +53,20 @@ export default async function DashboardPage() {
         }
       />
 
+      {d.injuryAlert ? (
+        <Link
+          href="/recovery"
+          role="status"
+          className={
+            d.injuryAlert.level === "warn"
+              ? "mb-4 block rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm"
+              : "mb-4 block rounded-md border p-3 text-sm text-muted-foreground"
+          }
+        >
+          🩹 {d.injuryAlert.message}
+        </Link>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Widget title="Readiness" icon={HeartPulse} href="/recovery">
           {readiness != null && rStatus ? (
