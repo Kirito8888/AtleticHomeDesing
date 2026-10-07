@@ -20,7 +20,8 @@
     "e2e": "node e2e/smoke.mjs",
     "e2e:security": "node e2e/security.mjs",
     "e2e:plan": "tsx e2e/plan-import.mts",
-    "e2e:v14": "tsx e2e/v14.mts"
+    "e2e:v14": "tsx e2e/v14.mts",
+    "e2e:v15": "tsx e2e/v15.mts"
   },
   "dependencies": {
     "@garmin/fitsdk": "21.217.0",

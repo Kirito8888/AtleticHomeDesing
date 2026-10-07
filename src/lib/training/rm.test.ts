@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { compliance } from "@/lib/planning/compliance";
-import { readPrefs } from "@/lib/rules/prefs";
+import { pickPatch, prefsUpdateSchema, readPrefs } from "@/lib/rules/prefs";
 
 import { parseSetsReps, planToBlocks } from "./plan-to-form";
 import { apreAdjust, epley, findRm, loadToKg, nameKey, parseAnnexRms, parsePercents, type RmEntry, testDecision } from "./rm";
@@ -127,5 +127,10 @@ describe("mis reglas", () => {
     expect(readPrefs(null)).toMatchObject({ kgStep: 2.5, squeezeMax: 3, throwCapRatio: 1.3, weightMinKg: null });
     expect(readPrefs({ kgStep: 1.25, squeezeMax: 4 })).toMatchObject({ kgStep: 1.25, squeezeMax: 4 });
     expect(readPrefs({ kgStep: 3 }).kgStep).toBe(2.5); // inválido → por defecto
+  });
+
+  it("un cambio parcial no pisa el resto (zod 4 aplica los defaults en partial)", () => {
+    expect(pickPatch(prefsUpdateSchema, { checklist: ["Clavos"] })).toEqual({ checklist: ["Clavos"] });
+    expect(() => pickPatch(prefsUpdateSchema, { squeezeMax: 99 })).toThrow();
   });
 });

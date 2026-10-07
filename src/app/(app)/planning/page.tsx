@@ -16,6 +16,9 @@ import { agendaForDay, tasksDuePerDay } from "@/lib/planning/agenda";
 import { planOverview } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
+import { getCycle } from "@/lib/health/cycle-service";
+import { predictedDays } from "@/lib/health/women";
+import { dataKeyConfigured } from "@/lib/security/data-key";
 
 export const metadata = { title: "Planificación · LifeOS" };
 
@@ -64,6 +67,9 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
     title: d.title,
   }));
 
+  // Días previstos de regla o síntomas (solo para ella; cálculo local, nunca sale de aquí).
+  const cycleData = dataKeyConfigured() ? await getCycle(user.id, 200) : null;
+  const predicted = new Map(predictedDays(cycleData?.settings ?? null, cycleData?.logs ?? [], toIsoDay(gridStart), toIsoDay(gridEnd)).map((p) => [p.date, p]));
   const dueByDay = tasksDuePerDay(tasks);
   const selectedDay = typeof rawDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : null;
   const agenda = selectedDay ? agendaForDay(selectedDay, { sessions, events, tasks, cycles }) : null;
@@ -155,6 +161,11 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                 {done ? <span className="ml-auto text-[10px] text-muted-foreground" title="Sesiones completadas">✓{done > 1 ? done : ""}</span> : null}
                 {planned ? <span className="text-[10px] text-muted-foreground" title="Sesiones planificadas">○{planned > 1 ? planned : ""}</span> : null}
                 {due ? <span className="text-[10px] text-muted-foreground" title="Tareas que vencen">□{due > 1 ? due : ""}</span> : null}
+                {predicted.get(iso) ? (
+                  <span className="text-[10px] text-rose-600 dark:text-rose-400" title={predicted.get(iso)!.period ? "Regla prevista" : "Síntomas previstos"}>
+                    {predicted.get(iso)!.period ? "●" : "◦"}
+                  </span>
+                ) : null}
               </div>
             </Link>
           );
@@ -162,7 +173,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
       </div>
 
       <p className="mt-2 text-xs text-muted-foreground">
-        ✓ sesión hecha · ○ planificada · □ tarea que vence. Toca un día para ver su detalle. ¿Sin plan?{" "}
+        ✓ sesión hecha · ○ planificada · □ tarea que vence{predicted.size ? " · ● regla prevista · ◦ síntomas previstos (solo tú lo ves)" : ""}. Toca un día para ver su detalle. ¿Sin plan?{" "}
         <Link href="/study/plan" className="font-medium text-foreground underline underline-offset-2">
           Créalo con IA
         </Link>
