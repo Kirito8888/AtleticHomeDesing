@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, LogOut, Menu } from "lucide-react";
+import { Activity, LogOut, Menu, Search } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
 import { NAV_ITEMS } from "@/components/layout/nav-items";
@@ -56,6 +56,9 @@ export function AppNav({ userName }: { userName: string | null }) {
         <Link href="/" className="mb-4 flex items-center gap-2 px-3 py-2 text-lg font-bold tracking-tight">
           <Activity className="size-5" /> LifeOS
         </Link>
+        <form role="search" action="/search" className="mb-3 px-1">
+          <input name="q" type="search" aria-label="Buscar" placeholder="Buscar…" className="h-9 w-full rounded-md border bg-transparent px-3 text-sm" />
+        </form>
         <NavLinks pathname={pathname} />
         <div className="mt-auto grid gap-1 border-t pt-3">
           <div className="flex items-center justify-between px-3">
@@ -71,6 +74,11 @@ export function AppNav({ userName }: { userName: string | null }) {
           <Activity className="size-5" /> LifeOS
         </Link>
         <div className="flex items-center gap-1">
+          <Button asChild variant="ghost" size="icon">
+            <Link href="/search" aria-label="Buscar">
+              <Search />
+            </Link>
+          </Button>
           <ThemeToggle />
           <Sheet>
             <SheetTrigger asChild>

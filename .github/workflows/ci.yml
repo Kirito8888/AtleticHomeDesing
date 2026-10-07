@@ -85,12 +85,15 @@ jobs:
         run: cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/
       - name: Smoke de la UI (registro abierto)
         run: |
-          ALLOW_REGISTRATION=true PORT=3000 node .next/standalone/server.js > server-open.log 2>&1 &
+          # LIFEOS_FAKE_AI=1: planes con IA simulados (la CI no tiene clave de Gemini)
+          LIFEOS_FAKE_AI=1 ALLOW_REGISTRATION=true PORT=3000 node .next/standalone/server.js > server-open.log 2>&1 &
           SERVER=$!
           for i in $(seq 60); do curl -sf -o /dev/null http://localhost:3000/login && break; sleep 1; done
           npm run e2e
           # Importar la planificación con PDF sintéticos (sin datos reales)
           npm run e2e:plan
+          # v1.4: crear plan con IA, ciclo, ajustes del día y bloques A-E
+          npm run e2e:v14
           kill $SERVER
       # El smoke ya creó un usuario: con ALLOW_REGISTRATION=false el registro queda cerrado.
       - name: Seguridad (registro cerrado)

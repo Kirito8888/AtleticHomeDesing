@@ -14,16 +14,24 @@ import {
   ThresholdForm,
 } from "@/components/settings/settings-forms";
 import { PageHeader } from "@/components/page-header";
+import { CalendarFeedSettings } from "@/components/settings/calendar-feed";
+import { CarbsByDayForm } from "@/components/settings/carbs-form";
+import { CoachReport } from "@/components/settings/coach-report";
 import { PushSettings } from "@/components/settings/push-settings";
+import { ReminderSettings } from "@/components/settings/reminder-settings";
+import { RulesForm } from "@/components/settings/rules-form";
 import { TwoFactorSettings } from "@/components/settings/two-factor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
-import { today, toIsoDay } from "@/lib/dates";
+import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { env } from "@/lib/env";
 import { formatDate, formatDuration } from "@/lib/format";
+import { feedStatus } from "@/lib/planning/feed-service";
+import { listReports } from "@/lib/report/service";
 import { prisma } from "@/lib/prisma";
 import { vapidKeys } from "@/lib/push/service";
+import { readPrefs } from "@/lib/rules/prefs";
 import { recentEvents } from "@/lib/security/audit";
 import { totpStatus } from "@/lib/security/totp";
 
@@ -52,9 +60,9 @@ function device(ua: string | null): string {
   return [browser, os].filter(Boolean).join(" · ");
 }
 
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+function Section({ id, title, description, children }: { id?: string; title: string; description?: string; children: React.ReactNode }) {
   return (
-    <Card className="gap-4 py-4">
+    <Card id={id} className="scroll-mt-20 gap-4 py-4">
       <CardHeader className="px-4">
         <CardTitle className="text-base">{title}</CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
@@ -68,7 +76,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const user = await pageUser();
   const { welcome } = await searchParams;
   const todayIso = toIsoDay(today());
-  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices] = await Promise.all([
+  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed, reports] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { athleteProfile: true } }),
     prisma.thresholdHistory.findMany({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" }, take: 5 }),
     prisma.nutritionGoal.findFirst({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" } }),
@@ -78,9 +86,18 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     totpStatus(user.id),
     recentEvents(user.id, 15),
     prisma.pushSubscription.count({ where: { userId: user.id } }),
+    feedStatus(user.id),
+    listReports(user.id),
   ]);
+  const monday = startOfIsoWeek(today());
+  const reportPeriods = [
+    { key: "week", label: "Esta semana", from: toIsoDay(monday), to: toIsoDay(addDays(monday, 6)) },
+    { key: "last", label: "Semana pasada", from: toIsoDay(addDays(monday, -7)), to: toIsoDay(addDays(monday, -1)) },
+    { key: "4w", label: "Últimas 4 semanas", from: toIsoDay(addDays(monday, -21)), to: toIsoDay(addDays(monday, 6)) },
+  ];
   const vapid = vapidKeys();
   const p = me.athleteProfile;
+  const prefs = readPrefs(p?.prefs);
 
   return (
     <>
@@ -134,14 +151,42 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           ) : null}
           <RecomputeTssButton />
         </Section>
+        <Section id="mis-reglas" title="Mis reglas" description="Umbrales de los avisos (squeeze, talón, peso, VFC, lanzamientos, vídeo) y redondeo de los kg. Son pautas de prudencia, no diagnósticos.">
+          <RulesForm
+            initial={{
+              kgStep: prefs.kgStep,
+              rmTestThreshold: prefs.rmTestThreshold,
+              squeezeMax: prefs.squeezeMax,
+              heelMax: prefs.heelMax,
+              feelingPainMax: prefs.feelingPainMax,
+              weightGainWeekKg: prefs.weightGainWeekKg,
+              weightBlockKg: prefs.weightBlockKg,
+              weightMinKg: prefs.weightMinKg,
+              bodyFatBlockPts: prefs.bodyFatBlockPts,
+              throwCapRatio: prefs.throwCapRatio,
+              throwMinHours: prefs.throwMinHours,
+              hrvDropPct: prefs.hrvDropPct,
+              videoMinPct: prefs.videoMinPct,
+            }}
+          />
+        </Section>
         <Section title="Objetivo nutricional diario">
-          <NutritionGoalForm today={todayIso} initial={goal} />
+          <div className="grid gap-6">
+            <NutritionGoalForm today={todayIso} initial={goal} />
+            <CarbsByDayForm initial={{ carbsThrowDayG: prefs.carbsThrowDayG, carbsHeavyDayG: prefs.carbsHeavyDayG, carbsRestDayG: prefs.carbsRestDayG }} />
+          </div>
         </Section>
         <Section title="Entrenador / atletas" description="El entrenador solo ve datos deportivos; nunca finanzas, nutrición ni estudio.">
           <CoachLinks
             isCoach={user.role === "COACH" || user.role === "ADMIN"}
             asCoach={asCoach.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, scopes: l.scopes, other: l.athlete }))}
             asAthlete={asAthlete.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, scopes: l.scopes, other: l.coach }))}
+          />
+        </Section>
+        <Section id="informe" title="Informe para la entrenadora" description="Un enlace de solo lectura para quien no usa LifeOS.">
+          <CoachReport
+            periods={reportPeriods}
+            active={reports.map((r) => ({ id: r.id, from: toIsoDay(r.from), to: toIsoDay(r.to), includeInjuries: r.includeInjuries, expiresAt: toIsoDay(r.expiresAt) }))}
           />
         </Section>
         <Section title="Mis ejercicios" description="Se suman al catálogo global en el registro de fuerza.">
@@ -167,7 +212,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <TwoFactorSettings initial={{ ...twoFactor, enabledAt: twoFactor.enabledAt?.toISOString() ?? null }} />
         </Section>
         <Section title="Notificaciones" description="Avisos en el móvil aunque la app esté cerrada.">
-          <PushSettings configured={vapid != null} publicKey={vapid?.publicKey ?? null} devices={pushDevices} />
+          <div className="grid gap-6">
+            <PushSettings configured={vapid != null} publicKey={vapid?.publicKey ?? null} devices={pushDevices} />
+            {vapid ? <ReminderSettings initial={{ remindTomorrowHour: prefs.remindTomorrowHour, remindMondayCheck: prefs.remindMondayCheck, remindWeigh: prefs.remindWeigh }} /> : null}
+          </div>
+        </Section>
+        <Section id="calendario" title="Calendario en el móvil" description="Suscríbete a tus entrenos y competiciones (.ics de solo lectura).">
+          <CalendarFeedSettings active={feed.active} lastUsedAt={feed.lastUsedAt} />
         </Section>
         <Section title="Actividad reciente" description="Si ves algo que no reconoces, cambia la contraseña y cierra las sesiones.">
           {events.length ? (

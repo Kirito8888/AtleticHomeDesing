@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/page-header";
+import { CycleCard } from "@/components/recovery/cycle-card";
 import { InjuriesPanel } from "@/components/recovery/injuries-panel";
 import { RecoveryForm } from "@/components/recovery/recovery-form";
 import { readinessStatus, StatusLabel } from "@/components/status";
@@ -7,7 +8,10 @@ import { Progress } from "@/components/ui/progress";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, today, toIsoDay } from "@/lib/dates";
 import { formatDate, formatNum, READINESS_LABEL } from "@/lib/format";
+import { cyclePhase, suggestLight } from "@/lib/health/cycle";
+import { getCycle } from "@/lib/health/cycle-service";
 import { prisma } from "@/lib/prisma";
+import { dataKeyConfigured } from "@/lib/security/data-key";
 import { listInjuries } from "@/lib/recovery/injuries";
 import { READINESS_WEIGHTS, type ReadinessComponent } from "@/lib/training/readiness";
 
@@ -28,11 +32,16 @@ export default async function RecoveryPage() {
   const [todayRow, recent, profile, injuries] = await Promise.all([
     prisma.recoveryMetrics.findUnique({ where: { userId_date: { userId: user.id, date: now } } }),
     prisma.recoveryMetrics.findMany({ where: { userId: user.id, date: { gte: addDays(now, -13) } }, orderBy: { date: "desc" } }),
-    prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { bodyWeightKg: true } }),
+    prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { bodyWeightKg: true, sex: true } }),
     listInjuries(user.id),
   ]);
   const parts = (todayRow?.readinessParts ?? {}) as Partial<Record<ReadinessComponent, number>> & { label?: keyof typeof READINESS_LABEL; usedWeight?: number };
   const status = readinessStatus(todayRow?.readinessScore);
+  // «Mi ciclo»: solo si el perfil es de mujer o ya hay datos, y si el servidor puede cifrarlos.
+  const day = toIsoDay(now);
+  const cycle = dataKeyConfigured() ? await getCycle(user.id, 200) : null;
+  const showCycle = Boolean(cycle) && (profile?.sex === "FEMALE" || Boolean(cycle?.settings) || Boolean(cycle?.logs.length));
+  const todayLog = cycle?.logs.find((l) => l.date === day) ?? null;
 
   return (
     <>
@@ -50,9 +59,23 @@ export default async function RecoveryPage() {
             stress: todayRow?.stress ?? null,
             mood: todayRow?.mood ?? null,
             bodyWeightKg: todayRow?.bodyWeightKg ?? profile?.bodyWeightKg ?? null,
+            bodyFatPct: todayRow?.bodyFatPct ?? null,
+            squeezePain: todayRow?.squeezePain ?? null,
+            heelPain: todayRow?.heelPain ?? null,
+            jumpCm: todayRow?.jumpCm ?? null,
+            elbowSymptoms: todayRow?.elbowSymptoms ?? null,
           }}
         />
         <div className="grid content-start gap-4">
+          {showCycle && cycle ? (
+            <CycleCard
+              today={day}
+              settings={cycle.settings}
+              todayLog={todayLog ? { period: todayLog.period, symptoms: todayLog.symptoms } : null}
+              phase={cycle.settings ? cyclePhase(day, cycle.settings, cycle.logs) : null}
+              suggestion={suggestLight(day, cycle.settings, cycle.logs)}
+            />
+          ) : null}
           <InjuriesPanel
             today={toIsoDay(now)}
             injuries={injuries.map((i) => ({

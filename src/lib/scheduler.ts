@@ -6,7 +6,9 @@ import { formatEur } from "@/lib/format";
 import { env } from "@/lib/env";
 import { runDueSubscriptions } from "@/lib/finance/service";
 import { prisma } from "@/lib/prisma";
+import { dueReminders, publicTitle } from "@/lib/push/reminders";
 import { notifyOnce } from "@/lib/push/service";
+import { readPrefs } from "@/lib/rules/prefs";
 import { AUDIT_RETENTION_DAYS } from "@/lib/security/audit";
 
 const HOUR_MS = 60 * 60_000;
@@ -70,6 +72,8 @@ export async function pruneAuditJob(): Promise<number> {
     where: { createdAt: { lt: new Date(Date.now() - AUDIT_RETENTION_DAYS * 24 * 60 * 60_000) } },
   });
   await prisma.notificationLog.deleteMany({ where: { sentAt: { lt: new Date(Date.now() - 60 * 24 * 60 * 60_000) } } });
+  // Enlaces del informe para la entrenadora ya caducados
+  await prisma.sharedReport.deleteMany({ where: { expiresAt: { lt: new Date() } } });
   return count;
 }
 
@@ -115,10 +119,57 @@ export async function runDailyDigestJob(hour = madridHour()): Promise<number> {
   return sent;
 }
 
+/** Día de la semana en Madrid: 0 = lunes … 6 = domingo. */
+const madridWeekday = () => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", weekday: "short" }).format(new Date()));
+
+/**
+ * Recordatorios de «Mis reglas» (cada hora, una vez al día cada uno):
+ * «mañana toca…», control rápido del lunes y pesarse L-X-V.
+ */
+export async function runRemindersJob(hour = madridHour(), weekday = madridWeekday()): Promise<number> {
+  const day = today();
+  const key = toIsoDay(day);
+  const users = await prisma.user.findMany({
+    where: { pushSubscriptions: { some: {} } },
+    select: {
+      id: true,
+      athleteProfile: { select: { prefs: true } },
+      trainingSessions: { where: { date: addDays(day, 1), status: "PLANNED" }, select: { title: true, type: true } },
+      recoveryMetrics: { where: { date: day }, select: { squeezePain: true, heelPain: true, jumpCm: true, bodyWeightKg: true } },
+    },
+  });
+  let sent = 0;
+  for (const u of users) {
+    const prefs = readPrefs(u.athleteProfile?.prefs);
+    const m = u.recoveryMetrics[0];
+    const due = dueReminders(prefs, { hour, weekday }, {
+      plannedTomorrow: u.trainingSessions.length,
+      checkedToday: Boolean(m && (m.squeezePain != null || m.heelPain != null || m.jumpCm != null)),
+      weighedToday: m?.bodyWeightKg != null,
+    });
+    for (const kind of due) {
+      const msg =
+        kind === "tomorrow"
+          ? {
+              title: "Mañana toca",
+              body: u.trainingSessions.map((s) => publicTitle(s.title ?? "Entreno")).join(" · "),
+              url: "/training",
+              tag: "tomorrow",
+            }
+          : kind === "monday-check"
+            ? { title: "Control rápido del lunes", body: "Squeeze, talón y salto: 1 minuto en Recuperación.", url: "/recovery", tag: "monday-check" }
+            : { title: "Pesarse", body: "En ayunas, después del baño. Apúntalo en Recuperación.", url: "/recovery", tag: "weigh" };
+      if (await notifyOnce(u.id, `${kind}:${key}`, msg)) sent++;
+    }
+  }
+  return sent;
+}
+
 async function tick() {
   try {
     await pruneAuditJob();
     await runDailyDigestJob();
+    await runRemindersJob();
     const posted = await runSubscriptionsJob();
     const reports = await runWeeklyCoachJob();
     if (posted || reports) console.info(`[scheduler] ${posted} cobro(s) de suscripciones, ${reports} informe(s) del coach`);

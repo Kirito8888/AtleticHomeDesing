@@ -52,6 +52,27 @@ self.addEventListener("fetch", (event) => {
   }
 });
 
+// Plan del día sin conexión: la app pide guardar las páginas de las sesiones de
+// hoy y mañana (para la pista sin cobertura). Van a la misma caché de páginas,
+// que se vacía al cerrar sesión (PurgePrivateCache).
+const PRECACHE_PATH = /^\/(training\/[A-Za-z0-9_-]{1,40}|planning\/plan\/[A-Za-z0-9_-]{1,40})$/;
+self.addEventListener("message", (event) => {
+  const data = event.data;
+  if (!data || data.type !== "precache" || !Array.isArray(data.paths)) return;
+  const paths = data.paths.filter((p) => typeof p === "string" && PRECACHE_PATH.test(p)).slice(0, 8);
+  event.waitUntil(
+    caches.open(PAGES).then((cache) =>
+      Promise.all(
+        paths.map((p) =>
+          fetch(p, { credentials: "same-origin" })
+            .then((res) => (res.ok && !res.redirected ? cache.put(new Request(new URL(p, self.location.origin).href), res) : undefined))
+            .catch(() => undefined),
+        ),
+      ),
+    ),
+  );
+});
+
 // Notificaciones push (src/lib/push). El servidor envía {title, body, url, tag}.
 self.addEventListener("push", (event) => {
   let msg = { title: "LifeOS", body: "" };

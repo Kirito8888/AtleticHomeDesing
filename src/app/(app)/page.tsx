@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Activity, Apple, Brain, CalendarDays, ChevronRight, HeartPulse, ListTodo, Plus, Trophy, Wallet } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
+import { OfflineDayCache } from "@/components/offline-day-cache";
+import { RuleAlerts } from "@/components/rules/rule-alerts";
 import { Stat } from "@/components/stat";
 import { readinessStatus, StatusLabel, tsbStatus } from "@/components/status";
 import { Button } from "@/components/ui/button";
@@ -67,6 +69,15 @@ export default async function DashboardPage() {
         </Link>
       ) : null}
 
+      <OfflineDayCache paths={d.offlinePaths} />
+      <RuleAlerts alerts={d.ruleAlerts} />
+
+      {d.lightSuggestion ? (
+        <Link href={`/training/${d.lightSuggestion.sessionId}`} role="status" className="mb-4 block rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+          💡 {d.lightSuggestion.reason}: hoy tienes disponible la versión suave de tu sesión. Tócala para elegirla.
+        </Link>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Widget title="Readiness" icon={HeartPulse} href="/recovery">
           {readiness != null && rStatus ? (
@@ -122,7 +133,9 @@ export default async function DashboardPage() {
           {d.nextCompetition && daysToComp != null ? (
             <p className="mt-3 flex items-center gap-2 border-t pt-3 text-sm">
               <Trophy className="size-4 text-muted-foreground" />
-              <span className="min-w-0 truncate">{d.nextCompetition.title}</span>
+              <Link href={`/planning/competition/${d.nextCompetition.id}`} className="min-w-0 truncate underline-offset-2 hover:underline">
+                {d.nextCompetition.title}
+              </Link>
               <span className="ml-auto shrink-0 font-medium tabular-nums">{daysToComp === 0 ? "¡Hoy!" : `en ${daysToComp} d`}</span>
             </p>
           ) : null}

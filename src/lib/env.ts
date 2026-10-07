@@ -27,6 +27,12 @@ const schema = z.object({
     .string()
     .refine((v) => Buffer.from(v, "base64").length === 32, "TOTP_ENCRYPTION_KEY debe ser 32 bytes en base64 (openssl rand -base64 32)")
     .optional(),
+  // Clave para cifrar datos de salud especialmente sensibles (ciclo menstrual). Opcional:
+  // si no está, se usa TOTP_ENCRYPTION_KEY. Mismo formato (openssl rand -base64 32).
+  DATA_ENCRYPTION_KEY: z
+    .string()
+    .refine((v) => Buffer.from(v, "base64").length === 32, "DATA_ENCRYPTION_KEY debe ser 32 bytes en base64 (openssl rand -base64 32)")
+    .optional(),
   // Notificaciones push (Web Push / VAPID). Generar con: npx web-push generate-vapid-keys
   // Sin ellas la app funciona igual, solo sin notificaciones.
   VAPID_PUBLIC_KEY: z.string().optional(),

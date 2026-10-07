@@ -31,15 +31,20 @@ export interface TechnicalState {
   isCompetition: boolean;
   focus: string;
   attempts: Attempt[];
+  /** Vídeo contado: de N lanzamientos revisados, cuántos con el codo estirado y con la cabeza estable. */
+  videoTotal?: number | null;
+  videoElbowOk?: number | null;
+  videoHeadOk?: number | null;
 }
 
 /** Pesos oficiales habituales por prueba (gramos). */
-const IMPLEMENTS: Record<string, number[]> = {
+export const IMPLEMENTS: Record<string, number[]> = {
   JAVELIN: [400, 500, 600, 700, 800],
   SHOT_PUT: [3000, 4000, 5000, 6000, 7260],
   DISCUS: [750, 1000, 1500, 1750, 2000],
   HAMMER: [3000, 4000, 5000, 6000, 7260],
   WEIGHT_THROW: [9080, 11340, 15880],
+  OTHER: [150, 300, 500, 700, 900, 1000],
 };
 
 const JUMPS = new Set(["LONG_JUMP", "TRIPLE_JUMP", "HIGH_JUMP", "POLE_VAULT"]);
@@ -56,6 +61,9 @@ export const initialTechnical = (): TechnicalState => ({
   isCompetition: false,
   focus: "",
   attempts: [],
+  videoTotal: null,
+  videoElbowOk: null,
+  videoHeadOk: null,
 });
 
 export function technicalPayload(t: TechnicalState) {
@@ -66,6 +74,9 @@ export function technicalPayload(t: TechnicalState) {
     approachSteps: t.approachSteps,
     isCompetition: t.isCompetition,
     focus: t.focus || null,
+    videoTotal: t.videoTotal || null,
+    videoElbowOk: t.videoTotal ? Math.min(t.videoElbowOk ?? 0, t.videoTotal) : null,
+    videoHeadOk: t.videoTotal ? Math.min(t.videoHeadOk ?? 0, t.videoTotal) : null,
     attempts: t.attempts.map((a) => ({
       markM: a.isFoul ? null : a.markM,
       isFoul: a.isFoul,
@@ -160,6 +171,26 @@ export function TechnicalLogger({ value, onChange }: { value: TechnicalState; on
       <Field label="Objetivo técnico" htmlFor="focus">
         <Input id="focus" value={value.focus} onChange={(e) => set({ focus: e.target.value })} placeholder="p.ej. bloqueo de la pierna izquierda" />
       </Field>
+
+      {!isJump ? (
+        <details className="rounded-lg border p-3" open={Boolean(value.videoTotal)}>
+          <summary className="cursor-pointer text-sm font-medium">Vídeo contado</summary>
+          <p className="mt-1 text-xs text-muted-foreground">De los lanzamientos que revisaste en vídeo, cuántos salieron bien.</p>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {(
+              [
+                ["videoTotal", "Revisados"],
+                ["videoElbowOk", "Codo estirado"],
+                ["videoHeadOk", "Cabeza estable"],
+              ] as const
+            ).map(([k, label]) => (
+              <Field key={k} label={label} htmlFor={k}>
+                <Input id={k} inputMode="numeric" value={value[k] ?? ""} onChange={(e) => set({ [k]: parseNum(e.target.value) })} />
+              </Field>
+            ))}
+          </div>
+        </details>
+      ) : null}
 
       <div className="flex items-center justify-between">
         <h3 className="font-semibold">Intentos ({value.attempts.length})</h3>

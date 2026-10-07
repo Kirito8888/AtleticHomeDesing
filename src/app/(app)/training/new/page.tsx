@@ -42,7 +42,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
   const initial =
     fromTemplate ??
     (repeat === "strength" && lastStrength
-      ? sessionToFormInitial(lastStrength, { date: todayIso, planned: false, rpe: null, notes: "" })
+      ? sessionToFormInitial(lastStrength, { date: todayIso, planned: false, rpe: null, notes: "", feelings: [] })
       : undefined);
   const initialType = type === "TECHNICAL" || type === "TRACK" ? type : "STRENGTH";
   return (

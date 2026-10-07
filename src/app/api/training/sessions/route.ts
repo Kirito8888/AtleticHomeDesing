@@ -30,6 +30,8 @@ export const GET = route(async (req) => {
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     take: q.limit,
+    // Las sensaciones (molestias) son datos de salud: solo para su dueño.
+    omit: { feelings: userId !== user.id },
     include: {
       track: { select: { modality: true, distanceM: true, movingTimeSec: true, avgPaceSecPerKm: true, hrAvg: true } },
       technical: { select: { event: true, implementWeightG: true, bestMarkM: true, _count: { select: { attempts: true } } } },

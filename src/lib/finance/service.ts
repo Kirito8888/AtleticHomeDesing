@@ -14,6 +14,7 @@ import {
   type PostingInput,
 } from "@/lib/finance/ledger";
 import { prisma } from "@/lib/prisma";
+import { sportReport } from "@/lib/finance/sport";
 
 const DEFAULT_ACCOUNTS: Array<{ name: string; type: FinancialAccountType }> = [
   { name: "Gastos", type: "EXPENSE" },
@@ -48,6 +49,15 @@ export async function listAccounts(userId: string) {
 
 const cents = z.number().int().positive().max(1_000_000_000);
 
+/** Gasto deportivo (material, viajes de competición, licencias) y competición asociada. */
+const sportFields = { sport: z.boolean().optional(), eventId: z.string().max(40).nullish() };
+export const sportTagSchema = z.object(sportFields);
+
+/** La competición debe ser del usuario. */
+export async function assertOwnEvent(userId: string, eventId: string | null | undefined) {
+  if (eventId && !(await prisma.calendarEvent.count({ where: { id: eventId, userId } }))) throw new ApiError(400, "La competición no existe o no es tuya");
+}
+
 export const createTransactionSchema = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("simple"),
@@ -60,6 +70,7 @@ export const createTransactionSchema = z.discriminatedUnion("mode", [
     /** Opcional en gastos/ingresos (por defecto "Gastos"/"Ingresos"); obligatoria en transferencias. */
     counterAccountId: z.string().optional(),
     categoryId: z.string().nullish(),
+    ...sportFields,
   }),
   z.object({
     mode: z.literal("split"),
@@ -78,6 +89,7 @@ export const createTransactionSchema = z.discriminatedUnion("mode", [
       )
       .min(2)
       .max(50),
+    ...sportFields,
   }),
 ]);
 
@@ -124,6 +136,7 @@ export async function createTransaction(
     throw err;
   }
   await assertOwnership(userId, postings);
+  await assertOwnEvent(userId, input.eventId);
 
   return prisma.financialTransaction.create({
     data: {
@@ -132,6 +145,8 @@ export async function createTransaction(
       kind: input.kind,
       description: input.description,
       payee: input.payee ?? null,
+      sport: Boolean(input.sport) || Boolean(input.eventId),
+      eventId: input.eventId ?? null,
       subscriptionId: extra.subscriptionId ?? null,
       importHash: extra.importHash ?? null,
       postings: {
@@ -298,4 +313,24 @@ export async function subscriptionsOverview(userId: string) {
     yearlyCents: monthlyCents * 12,
     upcoming: active.filter((s) => s.nextChargeDate <= horizon),
   };
+}
+
+/** Gastos marcados como deportivos → informe por temporada y competición. */
+export async function sportExpenses(userId: string) {
+  const txs = await prisma.financialTransaction.findMany({
+    where: { userId, sport: true, kind: "EXPENSE" },
+    select: { date: true, eventId: true, postings: { select: { amountCents: true, account: { select: { type: true } } } } },
+  });
+  const eventIds = [...new Set(txs.flatMap((t) => (t.eventId ? [t.eventId] : [])))];
+  const events = eventIds.length ? await prisma.calendarEvent.findMany({ where: { userId, id: { in: eventIds } }, select: { id: true, title: true } }) : [];
+  const title = new Map(events.map((e) => [e.id, e.title]));
+  return sportReport(
+    txs.map((t) => ({
+      date: toIsoDay(t.date),
+      // Importe del gasto: lo que sale de la cuenta de dinero
+      amountCents: Math.abs(t.postings.filter((p) => p.account.type === "ASSET" || p.account.type === "LIABILITY").reduce((a, p) => a + p.amountCents, 0)),
+      eventId: t.eventId && title.has(t.eventId) ? t.eventId : null,
+      eventTitle: t.eventId ? (title.get(t.eventId) ?? null) : null,
+    })),
+  );
 }
