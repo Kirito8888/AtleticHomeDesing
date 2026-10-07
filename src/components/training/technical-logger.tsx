@@ -38,7 +38,7 @@ export interface TechnicalState {
 }
 
 /** Pesos oficiales habituales por prueba (gramos). */
-const IMPLEMENTS: Record<string, number[]> = {
+export const IMPLEMENTS: Record<string, number[]> = {
   JAVELIN: [400, 500, 600, 700, 800],
   SHOT_PUT: [3000, 4000, 5000, 6000, 7260],
   DISCUS: [750, 1000, 1500, 1750, 2000],

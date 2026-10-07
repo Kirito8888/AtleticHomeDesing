@@ -5,6 +5,7 @@ import { Stat } from "@/components/stat";
 import { StatusLabel, tsbStatus } from "@/components/status";
 import { E1rmChart } from "@/components/training/e1rm-chart";
 import { MarksChart } from "@/components/training/marks-chart";
+import { SeasonGoals } from "@/components/training/season-goals";
 import { PmcCharts, type PmcPoint } from "@/components/training/pmc-charts";
 import { Card, CardContent } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
@@ -13,6 +14,7 @@ import { formatDate, formatNum } from "@/lib/format";
 import { implementBestsFor } from "@/lib/training/implement-bests-query";
 import { e1rmChange, e1rmSeries, exercisesWithData } from "@/lib/training/strength-progress";
 import { strengthRows } from "@/lib/training/strength-progress-query";
+import { getPrefs } from "@/lib/rules/prefs-service";
 import { getPerformanceSeries } from "@/lib/training/service";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +26,7 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
   const user = await pageUser();
   const { days: raw, ex, imp } = await searchParams;
   const days = RANGES.find((r) => String(r) === raw) ?? 90;
-  const [perf, rows, bests] = await Promise.all([getPerformanceSeries(user.id, days), strengthRows(user.id, addDays(today(), -days)), implementBestsFor(user.id)]);
+  const [perf, rows, bests, prefs] = await Promise.all([getPerformanceSeries(user.id, days), strengthRows(user.id, addDays(today(), -days)), implementBestsFor(user.id), getPrefs(user.id)]);
   const implement = bests.find((b) => b.key === imp) ?? bests[0];
   const cur = perf.current;
   const exercises = exercisesWithData(rows);
@@ -108,6 +110,18 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
         ) : (
           <p className="text-sm text-muted-foreground">Sin marcas de lanzamiento todavía.</p>
         )}
+      </section>
+
+      <section aria-labelledby="season-title" className="mt-8 grid gap-3">
+        <h2 id="season-title" className="text-base font-semibold">
+          Temporada: marcas en competición{implement ? ` · ${implement.label}` : ""}
+        </h2>
+        {implement && implement.competitions.length ? (
+          <MarksChart data={implement.competitions} name={`competiciones, ${implement.label}`} goals={prefs.seasonGoals} />
+        ) : (
+          <p className="text-sm text-muted-foreground">Aún no hay competiciones con este implemento. Regístralas desde Planificación → la competición → Hoja de intentos.</p>
+        )}
+        <SeasonGoals goals={prefs.seasonGoals} />
       </section>
 
       <section aria-labelledby="e1rm-title" className="mt-8 grid gap-3">

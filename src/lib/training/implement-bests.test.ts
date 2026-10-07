@@ -24,6 +24,7 @@ describe("los 3 mejores por implemento", () => {
       { date: "2026-10-03", markM: 41, isCompetition: false },
     ]);
     expect(r[0].series.map((s) => s.markM)).toEqual([42.5, 41, 44, 39]);
+    expect(r[0].competitions).toEqual([{ date: "2026-10-05", markM: 44 }]);
   });
 
   it("sin marcas, nada", () => {

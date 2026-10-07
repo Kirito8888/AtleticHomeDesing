@@ -8,6 +8,8 @@ export type ImplementBests = {
   top: Array<{ markM: number; date: string; isCompetition: boolean }>;
   /** Mejor marca de cada día (para la gráfica). */
   series: Array<{ date: string; markM: number }>;
+  /** Solo competiciones (progresión de la temporada). */
+  competitions: Array<{ date: string; markM: number }>;
 };
 
 const grams = (g: number) => (g >= 1000 ? `${String(g / 1000).replace(".", ",")} kg` : `${g} g`);
@@ -43,6 +45,7 @@ export function implementBests(rows: MarkRow[]): ImplementBests[] {
         label: implementLabel(e.event, e.g),
         top: [...days].sort((a, b) => b.markM - a.markM || (a.date < b.date ? -1 : 1)).slice(0, 3),
         series: days.sort((a, b) => (a.date < b.date ? -1 : 1)).map(({ date, markM }) => ({ date, markM })),
+        competitions: days.filter((d) => d.isCompetition).map(({ date, markM }) => ({ date, markM })),
       };
     })
     .sort((a, b) => b.series.length - a.series.length || (a.label < b.label ? -1 : 1));
