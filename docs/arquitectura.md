@@ -99,18 +99,25 @@ Reimportar respeta lo ya hecho. Detalle en `manual_backend.md` § 3.1b.
 | **Plan importado en tablas propias**, no como sesiones ocultas | Las versiones no elegidas no deben contar como día de entreno en nutrición, en el coach IA ni en los listados. |
 | **Migraciones solo aditivas** | `update.sh` puede volver a la imagen anterior sin tocar la BD: la versión anterior funciona con el esquema nuevo. |
 | **Copias cifradas con clave pública** (age) | El servidor no puede leer sus propias copias: si lo roban, las copias no sirven. |
+| **Datos del ciclo cifrados y fuera de la IA** | Dato de salud de categoría especial: AES-256-GCM en la BD, la IA solo genera una «versión suave» genérica y la app decide en local cuándo proponerla. |
+| **Enlaces públicos con token, no cuentas para terceros** | El .ics y el informe para la entrenadora funcionan sin cuenta: token de 32 bytes con hash en la BD, caducidad o revocación, límite por IP y contenido mínimo. |
+| **Umbrales en «Mis reglas», no en el código** | El repositorio es público: ningún dato personal (peso, RM) se fija en el código; vienen valores genéricos editables. |
 | **Repositorio público sin datos personales** | Tests con datos sintéticos (PDF y FIT generados en el propio test); los datos reales solo entran por la app. Ver [`SECURITY.md`](../SECURITY.md). |
 
 ## Dónde está cada cosa
 
 | Ruta | Contenido |
 |---|---|
-| `src/lib/training/` | Motor de carga, importar del reloj, plantillas, temporizador |
-| `src/lib/planning/` | Agenda del calendario y `plan-import/` (lector de PDF, versiones, servicio) |
+| `src/lib/training/` | Motor de carga, importar del reloj, plantillas, temporizador, tabla de RM y %RM → kg, registrar desde el plan, 3 mejores por implemento |
+| `src/lib/planning/` | Agenda del calendario, `plan-import/` (lector de PDF, versiones, servicio), cumplimiento, competición y calendario .ics |
+| `src/lib/ai-plan/` | Crear planificación con IA: cuestionario, prompt, validación, expansión a días, ajustes y seguimiento |
+| `src/lib/rules/` | «Mis reglas»: preferencias y motor de avisos (control rápido, peso, VFC, lanzamientos, vídeo, sensaciones) |
+| `src/lib/health/` | Ciclo menstrual (cifrado, cálculo local de fase y síntomas) |
+| `src/lib/report/` | Informe de solo lectura para la entrenadora |
 | `src/lib/finance/` | Contabilidad, presupuestos, importar extractos |
 | `src/lib/ai/` | Gemini, RAG, flashcards, coach semanal |
 | `src/lib/security/` · `src/lib/auth/` | 2FA, auditoría, cifrado, CSP · sesión y permisos del coach |
 | `src/lib/push/` · `src/lib/jobs/` · `src/lib/scheduler.ts` | Notificaciones · cola · tareas programadas |
 | `prisma/` | Esquema, migraciones, seed y `scripts/user-admin.ts` |
 | `deploy/` · `scripts/update.sh` | Copias, fail2ban · actualizar con vuelta atrás |
-| `e2e/` | Recorridos en Chromium: uso diario, seguridad e importar el plan |
+| `e2e/` | Recorridos en Chromium: uso diario, seguridad, importar el plan y v1.4 |

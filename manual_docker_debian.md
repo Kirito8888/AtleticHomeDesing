@@ -137,7 +137,7 @@ cd /opt/lifeos
 dc up -d db
 dc ps                      # espera a que db esté "healthy"
 
-# 2. Migraciones + seed (extensión vector, 37 tablas, índice HNSW,
+# 2. Migraciones + seed (extensión vector, todas las tablas, índice HNSW,
 #    trigger de partida doble y catálogo de ejercicios). Idempotente.
 dc --profile tools run --rm --build migrate
 
@@ -283,6 +283,25 @@ dc --profile tools run --rm --build migrate
 dc up -d --build web
 docker image prune -f
 ```
+
+#### De v1.3 a v1.4 (crear plan con IA, reglas, competición…)
+
+La migración `v1_4_features` solo **crea** tablas (`PlanFeedback`, `CycleProfile`, `CycleLog`, `OneRepMax`, `ExerciseAlias`, `CalendarFeed`, `SharedReport`) y **añade columnas opcionales** (preferencias, control rápido, vídeo contado, sensaciones, gasto deportivo, origen y estado del plan). No borra ni cambia datos. Probada sobre una copia de una BD v1.3 con datos y plan importado.
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh          # copia previa → pull → migrate → build → healthcheck (vuelta atrás si falla)
+```
+
+**Variables:** ninguna obligatoria.
+
+- `DATA_ENCRYPTION_KEY` (opcional): clave propia para los datos del ciclo menstrual. Si no está, se usa `TOTP_ENCRYPTION_KEY`, que ya tienes. **Si decides ponerla, hazlo antes de usar «Mi ciclo»**: lo cifrado con una clave no se puede leer con otra.
+- `LIFEOS_FAKE_AI`: **no la pongas en producción** (solo sirve para la CI).
+- «Crear plan con IA» usa la `GEMINI_API_KEY` que ya tengas y el consentimiento de IA de cada usuario.
+
+Después, en la app: **Ajustes → Mis reglas** (umbrales de los avisos) y, si quieres, **Ajustes → Notificaciones → recordatorios**, **Calendario en el móvil** e **Informe para la entrenadora**. Detalles en [`docs/guia-usuario.md`](docs/guia-usuario.md).
+
+> **Desde v1.2 o v1.1:** las migraciones son acumulativas y aditivas: `update.sh` (o el procedimiento a mano de v1.1) aplica v1.3 y v1.4 juntas.
 
 #### De v1.2 a v1.3 (importar la planificación)
 

@@ -6,7 +6,7 @@ PWA personal para un atleta (pista, saltos y lanzamientos) que junta en una sola
 
 Pensada para el móvil y autoalojada en tu propio servidor.
 
-**Versión actual: v1.3**: importa tu planificación en PDF y la ves día a día en tus entrenamientos. Ver [`CHANGELOG.md`](CHANGELOG.md).
+**Versión actual: v1.4**: crea tu planificación con IA (sin escribir, donde entrenes y con tu material, y adaptada al ciclo si quieres), kg desde tu tabla de RM, avisos de «Mis reglas», modo competición, calendario .ics e informe para tu entrenadora. Ver [`CHANGELOG.md`](CHANGELOG.md).
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · PostgreSQL 17 + pgvector · Prisma 7 · pg-boss · Docker Compose · Google Gemini (opcional).
 
@@ -14,14 +14,14 @@ Pensada para el móvil y autoalojada en tu propio servidor.
 
 | Módulo | Lo principal |
 |---|---|
-| **Inicio** | Readiness, forma (CTL/ATL/TSB, ACWR), «Hoy toca», próxima competición, nutrición, finanzas y tareas |
-| **Entreno** | Fuerza con temporizador de descanso y plantillas, técnica intento a intento, pista, importar del reloj (FIT/GPX/TCX), 1RM estimado, marcas personales |
-| **Planificación** | Calendario con ciclos, eventos y tareas; **importar el plan en PDF** con versiones (A/B, día de competición, «Si me clasifico»), plan del día legible en el móvil |
-| **Recuperación** | Sueño, VFC y FC en reposo → readiness; molestias y lesiones con aviso de carga |
-| **Nutrición** | OpenFoodFacts y escáner de códigos de barras, comidas favoritas, objetivo ajustado al día de entreno |
-| **Finanzas** | Partida doble, presupuestos, suscripciones, importar extractos (CSV/Norma 43) sin duplicados |
-| **Astras AI** | Chat sobre tus apuntes (RAG), flashcards con repaso espaciado, coach semanal. Solo con tu consentimiento |
-| **Ajustes** | 2FA, notificaciones push, actividad reciente, permisos del entrenador, exportar y borrar tus datos |
+| **Inicio** | Readiness, forma (CTL/ATL/TSB, ACWR), «Hoy toca», **avisos de «Mis reglas»**, próxima competición, nutrición, finanzas y tareas |
+| **Entreno** | Fuerza con temporizador y plantillas, técnica intento a intento (con vídeo contado), pista, **sesiones mixtas**, importar del reloj, **tabla de RM, serie de test y APRE**, semana L–D con tope de lanzamientos, 3 mejores por implemento, marcas personales |
+| **Planificación** | Calendario con ciclos, eventos y tareas; **importar el plan en PDF** con versiones; plan del día con **kg desde tu RM** y registrar desde el plan; **modo competición** (checklist y hoja de intentos); calendario .ics |
+| **Recuperación** | Sueño, VFC y FC en reposo → readiness; **control rápido** (squeeze, talón, salto); molestias y lesiones; **Mi ciclo** (opcional, cifrado) |
+| **Nutrición** | OpenFoodFacts y escáner de códigos de barras, comidas favoritas, **hidratos según el día del plan** |
+| **Finanzas** | Partida doble, presupuestos, suscripciones, importar extractos sin duplicados, **gastos deportivos por temporada** |
+| **Astras AI** | **Crear tu planificación** con un cuestionario sin escribir; chat sobre tus apuntes (RAG), flashcards, coach semanal. Solo con tu consentimiento |
+| **Ajustes** | Mis reglas, 2FA, notificaciones y recordatorios, informe para la entrenadora, permisos del entrenador, exportar y borrar tus datos |
 
 ## Documentación
 
@@ -67,6 +67,8 @@ Los tests usan datos sintéticos; tu plan, tus métricas y tus extractos solo en
 - **Copias:** se cifran con tu clave pública.
 - **IA:** desactivada hasta que la autorizas.
 - **Plan en PDF:** los ficheros no se guardan tras importarlos.
+- **Ciclo menstrual:** cifrado en la BD, nunca se envía a la IA ni lo ve la entrenadora.
+- **Enlaces compartidos** (.ics, informe): secretos, revocables y sin datos de salud.
 
 ## Archivos clave
 
