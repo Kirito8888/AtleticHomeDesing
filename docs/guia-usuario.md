@@ -2,7 +2,7 @@
 
 Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servidor, ver [`manual_docker_debian.md`](../manual_docker_debian.md); para saber cómo funciona por dentro, [`arquitectura.md`](arquitectura.md) y [`manual_backend.md`](../manual_backend.md).
 
-**Navegación.** En el móvil, la barra inferior tiene **Inicio · Entreno · Plan · Nutrición · Astras AI**. **Recuperación, Finanzas y Ajustes** están en el menú ☰ de arriba a la derecha. En el ordenador, todo está en la barra lateral.
+**Navegación.** En el móvil, la barra inferior tiene **Inicio · Entreno · Plan · Nutrición · Astras AI**. **Recuperación, Finanzas y Ajustes** están en el menú ☰ de arriba a la derecha, y la lupa 🔍 abre la **búsqueda** (sesiones, ejercicios, días del plan, tareas y apuntes). En el ordenador, todo está en la barra lateral.
 
 **Instalarla como app.** Ábrela por HTTPS, abre el menú del navegador y elige «Añadir a pantalla de inicio» (Safari: Compartir → Añadir a pantalla de inicio). Las notificaciones en iPhone solo funcionan así.
 
@@ -14,7 +14,8 @@ Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servid
 2. **Ajustes → Umbrales fisiológicos:** FC máxima, FC de reposo, LTHR y ritmo umbral, cada uno con su fecha de inicio. Cada sesión se calcula con los umbrales vigentes ese día, así que actualizarlos no reescribe el pasado.
 3. **Ajustes → Objetivo nutricional diario:** kcal y macros.
 4. **Ajustes → Verificación en dos pasos:** actívala y guarda los 10 códigos de recuperación en tu gestor de contraseñas.
-5. Si quieres, **Planificación → Importar plan** (ver abajo).
+5. Si quieres, **Planificación → Importar plan** (ver abajo), o **Astras AI → Crear plan** si no tienes uno.
+6. **Ajustes → Mis reglas:** revisa los umbrales de los avisos (vienen con valores genéricos).
 
 ## Inicio
 
@@ -24,17 +25,24 @@ Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servid
 - **Próxima competición:** días que faltan.
 - **Nutrición, finanzas y tareas:** resumen del día.
 - **Aviso de lesión:** aparece si tienes una molestia activa y la carga sube.
+- **Avisos de «Mis reglas»** (en ámbar): squeeze o talón por encima del umbral, codo, peso, VFC, tope de lanzamientos, vídeo contado y molestias anotadas al terminar una sesión. Son **pautas de prudencia, no diagnósticos**; «Ajustar mis reglas» lleva a los umbrales.
+- **Versión suave:** si usas «Mi ciclo» y hoy marcaste síntomas (o es un día previsto con síntomas), te propone la versión suave de la sesión.
+- La próxima competición enlaza al **modo competición**.
 
 ## Entreno
 
 - **Registrar una sesión** (botón **+ Sesión**):
   - **Fuerza:** busca el ejercicio, «Repetir serie» copia la anterior y arranca el **temporizador de descanso** (vibra y suena al terminar; la pantalla no se apaga mientras corre).
-  - **Técnica:** cada intento con su marca, nulo y notas de carrera, bloqueo y suelta.
+  - **Técnica:** cada intento con su marca, nulo y notas de carrera, bloqueo y suelta. En lanzamientos, **Vídeo contado**: de los revisados, cuántos con el codo estirado y con la cabeza estable.
   - **Pista:** distancia, tiempo, FC e intervalos.
+- **Sesión mixta:** activa «Sesión mixta» y rellena cada pestaña (fuerza, técnica, pista): se guarda todo en una sesión.
+- **Sensaciones al terminar:** «+ Añadir una molestia» → zona, lado y dolor (1–10). Si pasa de tu umbral, avisa en Inicio. La entrenadora no las ve.
 - **Plantillas:** «Guardar como plantilla» en el formulario y, en una sesión nueva, toca la plantilla para precargarla.
 - **Importar del reloj:** sube un `.fit`, `.gpx` o `.tcx` (Garmin, Coros, Polar, Suunto, Strava…). Verás una vista previa antes de guardar; si ya estaba importada, te avisa.
+- **Semana L–D** (arriba): ✓ hecho · • pendiente · ! sin registrar · – saltado, y los lanzamientos de la semana frente a tu tope.
 - **Próximos 7 días:** las sesiones planificadas que vienen. Debajo, el historial hasta hoy.
-- **Rendimiento:** PMC, marcas personales y la gráfica de **1RM estimado** por ejercicio.
+- **Mis RM:** tu tabla de RM con historial. «Importar del plan» lee el anexo de RM del plan importado. La **serie de test** calcula la RM nueva (carga × (1 + reps/30)) y solo propone cambiarla si varía más que tu umbral (5 % por defecto). **APRE** (3/6/10) te dice cuánto subir o bajar según las repeticiones de la serie 3.
+- **Rendimiento:** PMC, **los 3 mejores por implemento** con su evolución, **marcas en competición con tus objetivos de temporada** (añádelos ahí mismo: «Mínima 55 m»…) y el **1RM estimado** por ejercicio.
 - **Editar o borrar** desde el detalle de cada sesión. Al guardar, se recalculan las marcas y la carga.
 
 ## Planificación
@@ -82,20 +90,37 @@ El nombre del bloque enlaza a **su página**: objetivos, reglas del bloque, sema
 2. Elige la pestaña (fuerza, técnica o pista) y anota lo que hiciste.
 3. Desmarca «Guardar como planificada» y guarda.
 
-El plan del día y el microciclo siguen enlazados a la sesión. En los días mixtos (gimnasio + jabalina), anota la parte principal y pon el resto en notas: de momento el formulario registra un tipo por sesión.
+El formulario llega **precargado desde el plan**: series, reps y kg calculados desde el %RM con tu tabla de RM. Si un ejercicio del plan no está en el catálogo, te avisa: elígelo una vez y se recuerda. En los días mixtos (gimnasio + jabalina), activa **Sesión mixta**.
+
+**Los kg en el plan.** Con tu tabla de RM, cada carga en %RM muestra los kg (p. ej. «83 % · 95 kg»), redondeados al escalón de Mis reglas (2,5 kg por defecto) y «por mano» en mancuernas. La página del bloque muestra el **cumplimiento** por semana.
+
+### Modo competición
+
+En el calendario o en Inicio, toca una competición:
+
+- **Cuenta atrás** (D−3, Día D…).
+- **La bolsa:** checklist (la lista se edita y vale para todas las competiciones; lo marcado se queda en ese móvil).
+- **Hoja de intentos** (el día de la competición): marca, nulo y viento de los 6 intentos. «Guardar la competición» la registra como sesión técnica de competición, con su mejor marca.
+
+### Calendario en el móvil (.ics)
+
+**Ajustes → Calendario en el móvil → Crear enlace.** Pégalo en Google Calendar (en el ordenador: Otros calendarios → + → Desde URL) o ábrelo en el iPhone. Solo lleva títulos y fechas de tus sesiones y eventos: ni notas, ni marcas, ni datos de salud. Quien tenga el enlace ve esos títulos, así que no lo compartas; «Revocar» lo apaga y «Crear un enlace nuevo» invalida el anterior.
 
 **Privacidad:** los PDF no se guardan en el servidor; se leen y se descartan, y solo se queda el plan ordenado. Entra en «Descargar mis datos» y se borra con la cuenta. **No subas tus PDF al repositorio de GitHub** (es público).
 
 ## Recuperación
 
 - **Registro diario:** horas y calidad de sueño, VFC (rMSSD), FC en reposo, dolor muscular, estrés y ánimo. Con eso se calcula el **readiness** (0–100).
+- **Control rápido** (desplegable): test squeeze y talón (0–10), salto en la pared (cm), % de grasa de la báscula y si notas el codo al lanzar. Hazlo el lunes (o el día que te toque): alimenta los avisos.
 - **Molestias y lesiones:** zona, lado, intensidad y fecha. Mientras haya una activa, el panel avisa si la carga sube.
+- **Mi ciclo** (solo si tu perfil es de mujer, y opcional): marca la regla y los síntomas del día con un toque, y en «Configurar» (luego «Mis ajustes del ciclo») la duración media, los días de regla y si usas anticonceptivo hormonal (entonces no se estiman fases, solo cuentan los síntomas). Con eso la app propone la **versión suave** los días con síntomas. Los datos se guardan **cifrados**, **no se envían a la IA** y **tu entrenadora no los ve**; «Borrar mis datos del ciclo» los elimina.
 
 ## Nutrición
 
 - **Buscar alimentos** (OpenFoodFacts) o **escanear el código de barras** con la cámara.
 - **Comidas favoritas** y **repetir una comida de ayer** con un toque.
 - El objetivo del día se ajusta si es día de entreno (también cuenta una sesión planificada).
+- **Hidratos según el día:** en **Ajustes → Objetivo nutricional**, pon los gramos de hidratos para día de lanzamientos, de gimnasio y sin entreno (los de tu plantilla). El día muestra cuál aplica.
 
 ## Finanzas
 
@@ -104,6 +129,27 @@ El plan del día y el microciclo siguen enlazados a la sesión. En los días mix
 - **Suscripciones:** cobros periódicos que se contabilizan solos.
 - **Importar extractos:** CSV de tu banco (eliges columnas una vez y guardas el formato) o Norma 43. Si reimportas un extracto solapado, no se duplican movimientos.
 - **Flujo de caja** y gasto por categoría.
+- **Gastos deportivos:** al crear un gasto, activa «Gasto deportivo» y, si quieres, elige la competición; o toca 🏅 en un movimiento ya guardado. La tarjeta los suma por temporada y por competición.
+
+## Astras AI: crear tu planificación
+
+**Astras AI → Crear plan.** Requiere la IA activada (Ajustes → Privacidad e IA) y la clave de Gemini en el servidor.
+
+1. **Cuestionario sin escribir:** objetivo, disciplina, nivel, edad, qué días y cuántos minutos, duración (4–12 semanas) y fecha de inicio, **dónde entrenas cada día** y **con qué material**, molestias y ejercicios que prefieres evitar, intensidad y estilo.
+2. **Seguridad:** si marcas dolor en el pecho, mareos, una condición cardíaca, embarazo o posparto reciente, o una cirugía en los últimos 6 meses, **no se genera el plan**: consulta antes con un profesional sanitario.
+3. **Mi ciclo** (si tu perfil es de mujer): opcional, se puede saltar. Ver Recuperación.
+4. **Genera** → queda como **borrador**: revisa semanas, días y ejercicios. Si se solapa con tu plan importado, te avisa.
+5. **Activar en mis entrenamientos** crea las sesiones planificadas. Hasta entonces no toca tu calendario.
+
+En cada día del plan:
+
+- **Versión suave:** menos volumen y sin impactos, con un toque.
+- **Ajustar este día:** «hoy entreno en casa / en el parque…» cambia los ejercicios por otros que encajan con el material de ese sitio.
+- **Cambiar un ejercicio** (dentro de «Ajustar este día»): eliges entre alternativas.
+
+Al terminar cada semana, **«¿Cómo fue?»** (fácil / bien / duro + dolor) ajusta la semana siguiente (±1 serie, ±1 RIR) sin volver a llamar a la IA.
+
+Lo que se envía a Gemini: solo tus respuestas del cuestionario (incluidas las zonas con molestias que marques; las lesiones activas vienen marcadas y puedes quitarlas). Nunca tu ciclo, tus registros de recuperación, tus notas ni tu nombre.
 
 ## Astras AI (estudio)
 
@@ -122,7 +168,10 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
 - **Verificación en dos pasos:**
   - app de autenticación + 10 códigos de recuperación de un solo uso;
   - si pierdes el móvil y los códigos, el administrador puede desactivarla desde el servidor.
-- **Notificaciones:** resumen diario, informe semanal del coach y **aviso de inicio de sesión nuevo**.
+- **Mis reglas:** redondeo de kg, umbral de la serie de test y de los avisos (squeeze, talón, molestias, peso, % de grasa, tope de lanzamientos, horas entre sesiones de lanzamiento, VFC y vídeo). Vienen con valores genéricos: ponlos según tu plan.
+- **Notificaciones:** resumen diario, informe semanal del coach, **aviso de inicio de sesión nuevo** y **recordatorios**: «mañana toca…» (a la hora que elijas), control del lunes y pesarse L-X-V. No llegan si ya lo has apuntado.
+- **Calendario en el móvil:** ver Planificación.
+- **Informe para la entrenadora:** elige el periodo (esta semana, la pasada o las últimas 4) y, si quieres, incluye tus molestias. Crea un enlace de solo lectura que **caduca a los 7 días** y se puede revocar: planificado frente a hecho, lanzamientos, mejores marcas y controles. Nunca incluye el ciclo, el peso, la VFC, las notas ni la nutrición.
 - **Actividad reciente:** inicios de sesión, cambios de contraseña, 2FA… (se guarda 180 días).
 - **Entrenador / atletas:** invita a tu entrenador y elige qué puede ver (carga, sesiones, recuperación, planificación, informes) y si puede planificarte.
 - **Tus datos:** descargar todo en JSON, CSV de entrenos y finanzas, y **borrar la cuenta** (definitivo).
