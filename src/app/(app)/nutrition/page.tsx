@@ -14,6 +14,7 @@ import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
 import { capitalizeFirst, formatDate, formatNum } from "@/lib/format";
 import { listMealTemplates, mealsOfPreviousDay } from "@/lib/nutrition/meal-templates";
 import { getDay } from "@/lib/nutrition/service";
+import { CARB_DAY_LABEL } from "@/lib/nutrition/carbs";
 
 export const metadata = { title: "Nutrición · LifeOS" };
 
@@ -42,7 +43,11 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
         </Button>
         <div className="text-center">
           <div className="font-semibold">{capitalizeFirst(formatDate(date, { weekday: "long", day: "numeric", month: "long" }))}</div>
-          {day.isTrainingDay ? <div className="text-xs text-muted-foreground">Día de entreno</div> : null}
+          {day.carbsAdjusted ? (
+            <div className="text-xs text-muted-foreground">Hidratos de {CARB_DAY_LABEL[day.carbDay]}</div>
+          ) : day.isTrainingDay ? (
+            <div className="text-xs text-muted-foreground">Día de entreno</div>
+          ) : null}
         </div>
         <Button asChild variant="ghost" size="icon" aria-label="Día siguiente">
           <Link href={`?date=${next}`}>

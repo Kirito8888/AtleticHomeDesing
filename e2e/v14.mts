@@ -261,6 +261,48 @@ if (!(await page.getByText("Fuerza para la pista").count())) errors.push("sin co
 await ctx.setOffline(false);
 log("plan de mañana disponible sin conexión");
 
+// 9. Bloque E: hidratos según el día, gastos deportivos e informe para la entrenadora
+await page.request.post(B + "/api/nutrition/goals", { data: { effectiveFrom: "2026-01-01", kcal: 2800, proteinG: 150, carbsG: 330, fatG: 80 } });
+await go(B + "/settings");
+await page.getByRole("textbox", { name: "Día de lanzamientos", exact: true }).fill("400");
+await page.getByRole("button", { name: "Guardar hidratos por día" }).click();
+await toast(/Hidratos por día guardados/);
+await go(B + "/nutrition");
+await page.getByText("Hidratos de día de lanzamientos").waitFor(); // hoy hay competición de jabalina
+await page.getByText(/\/ 400 g/).waitFor();
+log("hidratos según el día");
+
+await page.request.post(B + "/api/finance/accounts", { data: { name: "Banco", type: "ASSET", openingBalanceCents: 100000 } });
+await go(B + "/finance");
+await page.getByRole("button", { name: "Movimiento" }).click();
+await page.fill("#t-amount", "35");
+await page.fill("#t-desc", "Gasolina viaje");
+await page.getByRole("switch", { name: "Gasto deportivo" }).click();
+await page.locator("#t-event").selectOption((await page.locator("#t-event option", { hasText: "Control de otoño" }).getAttribute("value"))!);
+await page.getByRole("button", { name: "Guardar", exact: true }).click();
+await toast(/Movimiento guardado/);
+await page.getByLabel("Gastos deportivos").getByText("Control de otoño").waitFor();
+await noOverflow("finanzas con gastos deportivos");
+log("gasto deportivo por temporada y competición");
+
+await go(B + "/settings#informe");
+await radio("Periodo del informe", "Esta semana").click();
+await page.getByRole("button", { name: "Crear enlace del informe" }).click();
+const reportUrl = (await page.getByRole("textbox", { name: "Enlace del informe" }).inputValue()).replace(/^https?:\/\/[^/]+/, B);
+const reportPage = await ctx.newPage();
+const res = await reportPage.goto(reportUrl);
+if (res?.status() !== 200) errors.push(`informe: HTTP ${res?.status()}`);
+await reportPage.getByRole("heading", { name: "Planificado frente a hecho" }).waitFor();
+const reportText = await reportPage.textContent("body");
+if (/Molestias|Rodilla|versión suave|ciclo/i.test(reportText ?? "")) errors.push("informe: contiene datos que no debe");
+await reportPage.screenshot({ path: `${out}/v14-09-report.png`, fullPage: true });
+await reportPage.close();
+await go(B + "/settings#informe");
+await page.getByLabel("Enlaces activos").getByRole("button", { name: "Revocar" }).first().click();
+await toast(/Enlace revocado/);
+if ((await page.request.get(reportUrl)).status() !== 404) errors.push("informe: el enlace revocado sigue respondiendo");
+log("informe para la entrenadora: crear, ver sin datos sensibles y revocar");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));

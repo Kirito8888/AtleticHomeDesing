@@ -1,15 +1,15 @@
 import { BankImport, type ImportProfile } from "@/components/finance/bank-import";
 import { CashflowChart } from "@/components/finance/cashflow-chart";
-import { DeleteTransaction, ManageFinance, QuickTransaction, RunSubscriptionsButton } from "@/components/finance/finance-forms";
+import { DeleteTransaction, ManageFinance, QuickTransaction, RunSubscriptionsButton, SportToggle } from "@/components/finance/finance-forms";
 import { PageHeader } from "@/components/page-header";
 import { Stat } from "@/components/stat";
 import { StatusLabel } from "@/components/status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { pageUser } from "@/lib/auth/page";
-import { today, toIsoDay } from "@/lib/dates";
+import { addDays, today, toIsoDay } from "@/lib/dates";
 import { periodWindow } from "@/lib/finance/ledger";
-import { budgetsStatus, cashflow, listAccounts, spendingByCategory, subscriptionsOverview } from "@/lib/finance/service";
+import { budgetsStatus, cashflow, listAccounts, spendingByCategory, sportExpenses, subscriptionsOverview } from "@/lib/finance/service";
 import { formatDate, formatEur } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -21,7 +21,7 @@ export default async function FinancePage() {
   const user = await pageUser();
   const now = today();
   const month = periodWindow("MONTHLY", now);
-  const [accounts, categories, budgets, flow, spending, subs, recent, importProfiles] = await Promise.all([
+  const [accounts, categories, budgets, flow, spending, subs, recent, importProfiles, sportSeasons, competitions] = await Promise.all([
     listAccounts(user.id),
     prisma.financialCategory.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true, kind: true } }),
     budgetsStatus(user.id, now),
@@ -35,6 +35,12 @@ export default async function FinancePage() {
       include: { postings: { include: { account: { select: { name: true, type: true } }, category: { select: { name: true } } } } },
     }),
     prisma.bankImportProfile.findMany({ where: { userId: user.id }, orderBy: { name: "asc" } }),
+    sportExpenses(user.id),
+    prisma.calendarEvent.findMany({
+      where: { userId: user.id, type: "COMPETITION", startAt: { gte: addDays(now, -120), lte: addDays(now, 240) } },
+      orderBy: { startAt: "asc" },
+      select: { id: true, title: true, startAt: true },
+    }),
   ]);
   const money = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
   const netWorth = money.reduce((a, x) => a + x.balanceCents, 0);
@@ -55,7 +61,7 @@ export default async function FinancePage() {
               />
             ) : null}
             <ManageFinance accounts={accounts} categories={categories} today={todayIso} />
-            <QuickTransaction accounts={accounts} categories={categories} today={todayIso} />
+            <QuickTransaction accounts={accounts} categories={categories} today={todayIso} competitions={competitions.map((c) => ({ id: c.id, title: c.title, date: toIsoDay(c.startAt) }))} />
           </div>
         }
       />
@@ -191,6 +197,36 @@ export default async function FinancePage() {
 
         <Card className="gap-3 py-4 lg:col-span-2">
           <CardHeader className="px-4">
+            <CardTitle className="text-sm">Gastos deportivos por temporada</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            {sportSeasons.length ? (
+              <div className="grid gap-4 sm:grid-cols-2" aria-label="Gastos deportivos">
+                {sportSeasons.slice(0, 4).map((s) => (
+                  <section key={s.season} className="grid gap-1 text-sm">
+                    <div className="flex items-baseline justify-between font-medium">
+                      <span>Temporada {s.season}</span>
+                      <span className="tabular-nums">{formatEur(-s.totalCents)}</span>
+                    </div>
+                    <ul className="grid gap-0.5 text-xs text-muted-foreground">
+                      {s.byEvent.map((e) => (
+                        <li key={e.eventId ?? "none"} className="flex justify-between gap-2">
+                          <span className="truncate">{e.title}</span>
+                          <span className="shrink-0 tabular-nums">{formatEur(-e.totalCents)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Marca un gasto con 🏅 (o al crearlo) para verlo aquí por temporada y competición.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="gap-3 py-4 lg:col-span-2">
+          <CardHeader className="px-4">
             <CardTitle className="text-sm">Últimos movimientos</CardTitle>
           </CardHeader>
           <CardContent className="px-4">
@@ -220,6 +256,7 @@ export default async function FinancePage() {
                         {t.kind === "TRANSFER" ? "⇄ " : amount > 0 ? "+" : ""}
                         {formatEur(amount)}
                       </span>
+                      {t.kind === "EXPENSE" ? <SportToggle id={t.id} sport={t.sport} /> : null}
                       <DeleteTransaction id={t.id} />
                     </li>
                   );

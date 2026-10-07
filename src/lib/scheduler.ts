@@ -72,6 +72,8 @@ export async function pruneAuditJob(): Promise<number> {
     where: { createdAt: { lt: new Date(Date.now() - AUDIT_RETENTION_DAYS * 24 * 60 * 60_000) } },
   });
   await prisma.notificationLog.deleteMany({ where: { sentAt: { lt: new Date(Date.now() - 60 * 24 * 60 * 60_000) } } });
+  // Enlaces del informe para la entrenadora ya caducados
+  await prisma.sharedReport.deleteMany({ where: { expiresAt: { lt: new Date() } } });
   return count;
 }
 
