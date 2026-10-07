@@ -71,6 +71,7 @@ export default async function DashboardPage() {
 
       <OfflineDayCache paths={d.offlinePaths} />
       <RuleAlerts alerts={d.ruleAlerts} />
+      <RuleAlerts alerts={d.womenAlerts} label="Avisos de salud" link={{ href: "/recovery/women", text: "Salud de la mujer" }} />
 
       {d.lightSuggestion ? (
         <Link href={`/training/${d.lightSuggestion.sessionId}`} role="status" className="mb-4 block rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">

@@ -8,6 +8,7 @@ import { today, toIsoDay } from "@/lib/dates";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { activeInjuries } from "@/lib/recovery/injuries";
+import { womenMode } from "@/lib/health/women-service";
 
 export const metadata = { title: "Crear mi planificación · LifeOS" };
 
@@ -21,13 +22,14 @@ function ageBand(birth: Date | null | undefined): keyof typeof AGE_BANDS | null 
 export default async function CreatePlanPage() {
   const user = await pageUser();
   const now = today();
-  const [me, profile, injuries, events, cycle, drafts] = await Promise.all([
+  const [me, profile, injuries, events, cycle, drafts, mode] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { aiConsentAt: true } }),
     prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { sex: true, birthDate: true } }),
     activeInjuries(user.id),
     prisma.calendarEvent.findMany({ where: { userId: user.id, type: "COMPETITION", startAt: { gte: now } }, orderBy: { startAt: "asc" }, take: 30, select: { id: true, title: true, startAt: true } }),
     prisma.cycleProfile.count({ where: { userId: user.id } }),
     prisma.planMeso.findMany({ where: { userId: user.id, source: "AI" }, orderBy: { createdAt: "desc" }, select: { code: true, name: true, status: true } }),
+    womenMode(user.id),
   ]);
   const fake = process.env.LIFEOS_FAKE_AI === "1";
   const configured = fake || Boolean(env().GEMINI_API_KEY);
@@ -36,7 +38,15 @@ export default async function CreatePlanPage() {
   return (
     <>
       <PageHeader title="Crear mi planificación" description="Responde con unos toques; la IA (Gemini) prepara un plan a tu medida que revisas antes de activarlo." />
-      {!configured ? (
+      {mode !== "NONE" ? (
+        <p role="status" className="mb-4 rounded-md border border-amber-500/50 bg-amber-500/5 p-3 text-sm">
+          Tienes activo el modo {mode === "PREGNANT" ? "embarazo" : "posparto"}: aquí no se generan planes con IA. Sigue las pautas de tu médica o matrona y la guía por fases de{" "}
+          <Link href="/recovery/women" className="font-medium underline underline-offset-4">
+            Salud de la mujer
+          </Link>
+          .
+        </p>
+      ) : !configured ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
           La IA no está configurada en el servidor: añade <code>GEMINI_API_KEY</code> al fichero de entorno y reinicia.
         </p>

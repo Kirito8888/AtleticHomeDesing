@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { CycleCard } from "@/components/recovery/cycle-card";
 import { InjuriesPanel } from "@/components/recovery/injuries-panel";
+import { Button } from "@/components/ui/button";
 import { RecoveryForm } from "@/components/recovery/recovery-form";
 import { readinessStatus, StatusLabel } from "@/components/status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +16,7 @@ import { prisma } from "@/lib/prisma";
 import { dataKeyConfigured } from "@/lib/security/data-key";
 import { listInjuries } from "@/lib/recovery/injuries";
 import { READINESS_WEIGHTS, type ReadinessComponent } from "@/lib/training/readiness";
+import { womenEnabled } from "@/lib/health/women-service";
 
 export const metadata = { title: "Recuperación · LifeOS" };
 
@@ -41,11 +44,22 @@ export default async function RecoveryPage() {
   const day = toIsoDay(now);
   const cycle = dataKeyConfigured() ? await getCycle(user.id, 200) : null;
   const showCycle = Boolean(cycle) && (profile?.sex === "FEMALE" || Boolean(cycle?.settings) || Boolean(cycle?.logs.length));
+  const showWomen = await womenEnabled(user.id);
   const todayLog = cycle?.logs.find((l) => l.date === day) ?? null;
 
   return (
     <>
-      <PageHeader title="Recuperación" description="Registro diario: 1 minuto al despertar." />
+      <PageHeader
+        title="Recuperación"
+        description="Registro diario: 1 minuto al despertar."
+        action={
+          showWomen ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/recovery/women">Salud de la mujer</Link>
+            </Button>
+          ) : undefined
+        }
+      />
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <RecoveryForm
           initial={{

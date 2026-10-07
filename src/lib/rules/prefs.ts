@@ -50,3 +50,15 @@ export function readPrefs(raw: unknown): Prefs {
 
 /** Actualización parcial validada. */
 export const prefsUpdateSchema = prefsSchema.partial();
+
+/**
+ * Valida un cambio parcial y devuelve SOLO las claves que vienen en él.
+ * Ojo: en zod 4, `.partial()` sigue aplicando los `.default()`, así que
+ * `partial().parse({ a: 1 })` devuelve también el resto con su valor por
+ * defecto y pisaría lo guardado.
+ */
+export function pickPatch<T extends Record<string, unknown>>(schema: { parse: (v: unknown) => T }, raw: unknown): Partial<T> {
+  const parsed = schema.parse(raw ?? {});
+  const keys = raw && typeof raw === "object" ? Object.keys(raw) : [];
+  return Object.fromEntries(Object.entries(parsed).filter(([k]) => keys.includes(k))) as Partial<T>;
+}
