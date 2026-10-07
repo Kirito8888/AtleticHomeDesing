@@ -15,7 +15,7 @@ import {
 } from "@/components/settings/settings-forms";
 import { PageHeader } from "@/components/page-header";
 import { CalendarFeedSettings } from "@/components/settings/calendar-feed";
-import { CarbsByDayForm } from "@/components/settings/carbs-form";
+import { CarbsByDayForm, HydrationForm, TrackForm } from "@/components/settings/carbs-form";
 import { CoachReport } from "@/components/settings/coach-report";
 import { PushSettings } from "@/components/settings/push-settings";
 import { ReminderSettings } from "@/components/settings/reminder-settings";
@@ -167,6 +167,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               throwMinHours: prefs.throwMinHours,
               hrvDropPct: prefs.hrvDropPct,
               videoMinPct: prefs.videoMinPct,
+              monotonyMax: prefs.monotonyMax,
+              sleepTargetH: prefs.sleepTargetH,
+              sleepDebtMaxH: prefs.sleepDebtMaxH,
             }}
           />
         </Section>
@@ -174,6 +177,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <div className="grid gap-6">
             <NutritionGoalForm today={todayIso} initial={goal} />
             <CarbsByDayForm initial={{ carbsThrowDayG: prefs.carbsThrowDayG, carbsHeavyDayG: prefs.carbsHeavyDayG, carbsRestDayG: prefs.carbsRestDayG }} />
+            <HydrationForm initial={{ waterMlPerKg: prefs.waterMlPerKg, waterSessionExtraMl: prefs.waterSessionExtraMl, waterHotExtraMl: prefs.waterHotExtraMl, hotTempC: prefs.hotTempC }} />
           </div>
         </Section>
         <Section title="Entrenador / atletas" description="El entrenador solo ve datos deportivos; nunca finanzas, nutrición ni estudio.">
@@ -216,6 +220,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             <PushSettings configured={vapid != null} publicKey={vapid?.publicKey ?? null} devices={pushDevices} />
             {vapid ? <ReminderSettings initial={{ remindTomorrowHour: prefs.remindTomorrowHour, remindMondayCheck: prefs.remindMondayCheck, remindWeigh: prefs.remindWeigh }} /> : null}
           </div>
+        </Section>
+        <Section id="pista" title="Mi pista" description="Para guardar el tiempo (temperatura, viento, lluvia) de tus sesiones técnicas y el calor del día. Solo se envían las coordenadas a Open-Meteo.">
+          <TrackForm initial={prefs.track} />
         </Section>
         <Section id="calendario" title="Calendario en el móvil" description="Suscríbete a tus entrenos y competiciones (.ics de solo lectura).">
           <CalendarFeedSettings active={feed.active} lastUsedAt={feed.lastUsedAt} />

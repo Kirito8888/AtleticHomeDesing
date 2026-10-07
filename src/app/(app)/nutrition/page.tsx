@@ -15,6 +15,8 @@ import { capitalizeFirst, formatDate, formatNum } from "@/lib/format";
 import { listMealTemplates, mealsOfPreviousDay } from "@/lib/nutrition/meal-templates";
 import { getDay } from "@/lib/nutrition/service";
 import { CARB_DAY_LABEL } from "@/lib/nutrition/carbs";
+import { WaterCard } from "@/components/nutrition/water-card";
+import { hydrationDay } from "@/lib/nutrition/hydration-service";
 
 export const metadata = { title: "Nutrición · LifeOS" };
 
@@ -22,10 +24,11 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
   const user = await pageUser();
   const { date: raw } = await searchParams;
   const date = typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : toIsoDay(today());
-  const [day, yesterday, favorites] = await Promise.all([
+  const [day, yesterday, favorites, water] = await Promise.all([
     getDay(user.id, date),
     mealsOfPreviousDay(user.id, date),
     listMealTemplates(user.id),
+    hydrationDay(user.id, date),
   ]);
   const totals = day.totals as Record<"kcal" | "proteinG" | "carbsG" | "fatG", number>;
   const prev = toIsoDay(addDays(dateOnly(date), -1));
@@ -83,6 +86,9 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
         </CardContent>
       </Card>
 
+      <div className="mb-4">
+        <WaterCard date={date} ml={water.ml} target={water.target} hot={water.hot} hasSession={water.hasSession} maxTemp={water.maxTemp} />
+      </div>
       <MealShortcuts date={date} yesterday={yesterday} favorites={favorites} />
 
       <div className="grid gap-3">

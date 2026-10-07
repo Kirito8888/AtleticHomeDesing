@@ -205,8 +205,16 @@ export function WomenSettingsForm({ initial }: { initial: WomenSettings }) {
 /** Posparto: fase actual y criterios con casillas. */
 export function PostpartumCard({ settings, status }: { settings: WomenSettings; status: { weeks: number; phase: number; title: string; advice: string; next: Array<{ key: string; text: string; done: boolean }>; blockedBy: "time" | "criteria" | null } }) {
   const { busy, call } = useCall();
+  // Estado local: varios toques seguidos no deben pisarse con datos aún sin refrescar.
+  const [ppDone, setPpDone] = useState(settings.ppDone);
   const toggle = (key: string, done: boolean) => {
-    const body = key === "cleared" ? { cleared: done } : { ppDone: done ? [...settings.ppDone, key] : settings.ppDone.filter((k) => k !== key) };
+    let body: Partial<WomenSettings>;
+    if (key === "cleared") body = { cleared: done };
+    else {
+      const next = done ? [...ppDone, key] : ppDone.filter((k) => k !== key);
+      setPpDone(next);
+      body = { ppDone: next };
+    }
     void call("/api/health/women", { method: "PUT", body }, "Guardado");
   };
   const next = PP_PHASES[status.phase + 1];

@@ -114,6 +114,56 @@ const report = await (await page.request.get(reportUrl)).text();
 if (/ferritina|suelo pélvico|posparto|RED-S|regla/i.test(report)) errors.push("informe: contiene datos de salud de la mujer");
 log("el informe compartido no lleva datos de salud de la mujer");
 
+// 3. Bloques G y H: consistencia, calentamiento, carga y bienestar, CSV de VFC, vuelta por fases y agua
+const tech = (await api("post", "/api/training/sessions", {
+  date: madrid,
+  type: "TECHNICAL",
+  discipline: "THROWS",
+  status: "COMPLETED",
+  durationSec: 3600,
+  sessionRpe: 7,
+  technical: { event: "JAVELIN", implementWeightG: 600, isCompetition: false, attempts: [40, 42, null, 41].map((m) => ({ markM: m, isFoul: m == null, isMeasured: m != null })) },
+})) as { id: string };
+await go(`${B}/training/${tech.id}`);
+await page.getByLabel("Consistencia").getByText("25 %").waitFor(); // 1 nulo de 4
+await go(B + "/training/performance");
+await page.getByRole("figure", { name: /Intentos: Jabalina · 600 g/ }).count(); // con un solo día no hay gráfica: basta con que no falle
+
+const ev = (await api("post", "/api/planning/events", { type: "COMPETITION", title: "Control de prueba", startAt: madrid })) as { id: string };
+await go(`${B}/planning/competition/${ev.id}`);
+const inAnHour = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(Date.now() + 3 * 3600e3));
+await page.fill("#ev-time", inAnHour);
+await page.getByRole("timer").getByText(/Empieza a calentar a las/).waitFor();
+log("consistencia técnica y calentamiento cronometrado");
+
+await go(B + "/recovery");
+await page.getByLabel("Carga y bienestar").waitFor();
+await page.getByLabel("CSV de VFC y sueño").setInputFiles({ name: "hrv.csv", mimeType: "text/csv", buffer: Buffer.from(`date,rmssd,sleep\n${plusDays(madrid, -2)},85,7.5\n${plusDays(madrid, -1)},88,8\n`) });
+await page.getByRole("button", { name: "Vista previa" }).click();
+await page.getByRole("button", { name: "Importar 2 días" }).click();
+await toast(/2 días importados/);
+log("carga y bienestar, e importar VFC desde CSV");
+
+await api("post", "/api/recovery/injuries", { area: "ELBOW", pain: 2, startedOn: madrid, limitsTraining: true });
+await go(B + "/recovery");
+await page.getByRole("button", { name: "Vuelta por fases" }).click();
+await toast(/Vuelta por fases creada/);
+const proto = page.getByLabel("Vuelta por fases");
+await proto.getByText(/Fase 1\/5: 1 · Calmar/).waitFor();
+for (const label of ["Sin dolor en reposo ni en el día a día", "Movilidad completa sin dolor"]) {
+  await proto.getByLabel(label).click();
+  await toast(/Guardado/);
+}
+await proto.getByText(/Fase 2\/5/).waitFor();
+await shot("03-recovery");
+await noOverflow("recuperación");
+log("vuelta tras lesión por fases");
+
+await go(B + "/nutrition");
+await page.getByRole("button", { name: "+250 ml" }).click();
+await page.getByLabel("Agua").getByText(/0,25 \//).waitFor();
+log("agua del día");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));

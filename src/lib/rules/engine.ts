@@ -1,3 +1,6 @@
+import { sleepDebt } from "@/lib/recovery/wellness";
+import { fosterWeek } from "@/lib/training/load-metrics";
+
 import type { Prefs } from "./prefs";
 
 /**
@@ -13,6 +16,7 @@ export type DayCheck = {
   bodyWeightKg: number | null;
   bodyFatPct: number | null;
   hrvRmssdMs: number | null;
+  sleepHours?: number | null;
 };
 export type ThrowSession = { date: string; throws: number; videoTotal: number | null; videoElbowOk: number | null; videoHeadOk: number | null };
 /** Molestia anotada al cerrar una sesión. */
@@ -69,7 +73,17 @@ export function throwCap(weeks: Array<{ throws: number }>, ratio: number): numbe
   return m > 0 ? Math.round(m * ratio) : null;
 }
 
-export function evaluateRules(input: { today: string; prefs: Prefs; checks: DayCheck[]; throws: ThrowSession[]; feelings?: FeelingCheck[] }): Alert[] {
+export function evaluateRules(input: {
+  today: string;
+  prefs: Prefs;
+  checks: DayCheck[];
+  throws: ThrowSession[];
+  feelings?: FeelingCheck[];
+  /** Carga sRPE de los últimos 7 días (para la monotonía de Foster). */
+  loads?: number[];
+  /** Hay una vuelta tras lesión por fases activa: manda ella, no la rampa genérica. */
+  returnProtocol?: { phase: string } | null;
+}): Alert[] {
   const { today, prefs, checks } = input;
   const alerts: Alert[] = [];
   const recent = (d: number) => checks.filter((c) => days(today, c.date) >= 0 && days(today, c.date) < d);
@@ -175,12 +189,31 @@ export function evaluateRules(input: { today: string; prefs: Prefs; checks: DayC
   const now = wt.at(-1)!;
   if (cap != null && now.throws > cap) {
     alerts.push({ id: "throw-cap", level: "warn", title: `Lanzamientos: ${now.throws} esta semana (tope ${cap})`, message: `Superas ${prefs.throwCapRatio} × la media de las 4 semanas anteriores. Corta aquí la semana.` });
-  } else if (wt.slice(-3, -1).every((w) => w.throws === 0) && wt.slice(0, -1).some((w) => w.throws > 0)) {
+  } else if (!input.returnProtocol && wt.slice(-3, -1).every((w) => w.throws === 0) && wt.slice(0, -1).some((w) => w.throws > 0)) {
     alerts.push({ id: "throw-return", level: "info", title: "Vuelta a lanzar", message: "Tras 2 semanas o más sin lanzar, el tope no sirve: empieza con unos 12 lanzamientos submáximos y sube unos 7 por semana." });
   }
   const throwDays = [...new Set(input.throws.filter((s) => s.throws > 0 && days(today, s.date) >= 0).map((s) => s.date))].sort().reverse();
   if (throwDays.length >= 2 && days(throwDays[0], throwDays[1]) * 24 < prefs.throwMinHours) {
     alerts.push({ id: "throw-48h", level: "warn", title: `Dos sesiones de lanzamiento con menos de ${prefs.throwMinHours} h`, message: `${throwDays[1]} y ${throwDays[0]}. Deja al menos ${prefs.throwMinHours} h entre sesiones de lanzamiento.` });
+  }
+
+  // Vuelta tras lesión por fases
+  if (input.returnProtocol) {
+    alerts.push({ id: "return", level: "info", title: `Vuelta tras lesión: ${input.returnProtocol.phase}`, message: "Entrena dentro de lo que permite esta fase y marca sus criterios en Recuperación → Molestias para pasar a la siguiente." });
+  }
+
+  // Monotonía de Foster (7 días)
+  if (input.loads?.length) {
+    const f = fosterWeek(input.loads);
+    if (f.monotony != null && f.monotony > prefs.monotonyMax) {
+      alerts.push({ id: "monotony", level: "info", title: `Monotonía ${f.monotony} esta semana`, message: `Carga muy igual todos los días (strain ${f.strain}). Alterna días duros y suaves y mete al menos un día de descanso de verdad.` });
+    }
+  }
+
+  // Deuda de sueño (7 días)
+  const sd = sleepDebt(checks.map((c) => ({ date: c.date, sleepHours: c.sleepHours ?? null })), today, prefs.sleepTargetH);
+  if (sd.nights >= 3 && sd.debtH >= prefs.sleepDebtMaxH) {
+    alerts.push({ id: "sleep-debt", level: "info", title: `Deuda de sueño: ${sd.debtH} h en 7 días`, message: `Por debajo de tus ${prefs.sleepTargetH} h en las noches registradas. Adelanta la hora de acostarte unos días antes de la próxima sesión dura.` });
   }
 
   // Vídeo contado: dos semanas seguidas por debajo del mínimo
