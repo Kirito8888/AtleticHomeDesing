@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Chips, Field } from "@/components/form/chips";
 import { RestTimer } from "@/components/training/rest-timer";
 import { blocksToSets, StrengthLogger, type ExerciseBlock, type ExerciseOption } from "@/components/training/strength-logger";
+import { type FeelingValue, FeelingsPicker } from "@/components/training/feelings-picker";
 import { initialTechnical, TechnicalLogger, technicalPayload, type TechnicalState } from "@/components/training/technical-logger";
 import { initialTrack, TrackLogger, trackPayload, type TrackState } from "@/components/training/track-logger";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ export function SessionForm({
   const [minutes, setMinutes] = useState(initial?.minutes ?? "");
   const [rpe, setRpe] = useState<number | null>(initial?.rpe ?? null);
   const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [feelings, setFeelings] = useState<FeelingValue[]>(initial?.feelings ?? []);
   const [planned, setPlanned] = useState(initial?.planned ?? false);
   const [mixed, setMixed] = useState(initial?.mixed ?? false);
   const [blocks, setBlocks] = useState<ExerciseBlock[]>(initial?.blocks ?? []);
@@ -71,6 +73,7 @@ export function SessionForm({
       durationSec: minutes && !Number.isNaN(durationMin) ? Math.round(durationMin * 60) : null,
       sessionRpe: rpe,
       notes: notes || null,
+      feelings: planned || !feelings.length ? null : feelings,
     };
     if (mixed) {
       // Sesión mixta: cada parte con datos va en la misma sesión.
@@ -185,6 +188,12 @@ export function SessionForm({
       <Field label="RPE de la sesión" hint="Esfuerzo global (Foster, 1–10). Con la duración, es el método de carga más fiable para fuerza y técnica.">
         <Chips label="RPE de la sesión" options={RPE} value={rpe} onChange={setRpe} allowDeselect />
       </Field>
+
+      {!planned ? (
+        <Field label="Sensaciones al terminar" hint="¿Alguna molestia? Toca la zona y marca el dolor. Avisa en Inicio si hace falta.">
+          <FeelingsPicker value={feelings} onChange={setFeelings} />
+        </Field>
+      ) : null}
 
       <Field label="Notas" htmlFor="notes">
         <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Sensaciones, molestias, condiciones…" />

@@ -225,6 +225,42 @@ await toast(/Enlace revocado/);
 if ((await page.request.get(icsUrl.replace(/^https?:\/\/[^/]+/, B))).status() !== 404) errors.push("ics: el enlace revocado sigue respondiendo");
 log("calendario .ics: crear, leer sin datos de salud y revocar");
 
+// 8. Bloque D: semana L–D, sensaciones → aviso, búsqueda, recordatorios y plan sin conexión
+await go(B + "/training");
+await page.getByRole("region", { name: "Esta semana" }).waitFor();
+if ((await page.getByRole("region", { name: "Esta semana" }).getByRole("link").count()) !== 7) errors.push("semana: no hay 7 días");
+await go(B + "/training/new?type=TRACK");
+await page.getByLabel("Añadir molestia").selectOption("KNEE");
+await radio("Dolor Rodilla", "6").click();
+await page.getByRole("button", { name: /^Guardar sesión$/ }).click();
+await page.waitForURL(/\/training\/c[^/]*$/);
+await go(B + "/");
+await page.getByLabel("Avisos de mis reglas").getByText("Molestia en rodilla (6/10)").waitFor();
+log("vista semanal y sensaciones al cerrar → aviso");
+
+await go(B + "/search?q=otoño");
+await page.getByRole("region", { name: /Sesiones/ }).getByText("Control de otoño").first().waitFor();
+await noOverflow("búsqueda");
+await go(B + "/settings");
+if (await page.locator("#r-hour").count()) {
+  await page.locator("#r-hour").selectOption("21");
+  await toast(/Recordatorios guardados/);
+}
+log("búsqueda global y recordatorios");
+
+const tomorrow = new Date(Date.parse(`${madrid}T00:00:00Z`) + 864e5).toISOString().slice(0, 10);
+const planned = (await (
+  await page.request.post(B + "/api/training/sessions", { data: { date: tomorrow, type: "STRENGTH", status: "PLANNED", title: "Fuerza para la pista", strength: { sets: [] } } })
+).json()) as { id: string };
+await go(B + "/");
+const cached = await page.waitForFunction(async (p) => Boolean(await caches.match(p)), `/training/${planned.id}`, { timeout: 15_000 }).then(() => true).catch(() => false);
+if (!cached) errors.push("sin conexión: la sesión de mañana no se guardó en la caché");
+await ctx.setOffline(true);
+await page.goto(`${B}/training/${planned.id}`).catch(() => undefined);
+if (!(await page.getByText("Fuerza para la pista").count())) errors.push("sin conexión: no se ve la sesión de mañana");
+await ctx.setOffline(false);
+log("plan de mañana disponible sin conexión");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));

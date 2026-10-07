@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isoDate } from "@/lib/dates";
+import { BODY_AREA_LABEL, type BodyAreaName } from "@/lib/recovery/injury-rules";
 
 const optInt = (min: number, max: number) => z.number().int().min(min).max(max).nullish();
 const optNum = (min: number, max: number) => z.number().min(min).max(max).nullish();
@@ -110,6 +111,14 @@ export const strengthDetailSchema = z.object({
   sets: z.array(strengthSetSchema).max(300).default([]),
 });
 
+/** Sensaciones al cerrar la sesión: molestias por zona (alimentan los avisos). */
+export const feelingSchema = z.object({
+  area: z.enum(Object.keys(BODY_AREA_LABEL) as [BodyAreaName, ...BodyAreaName[]]),
+  side: z.enum(["LEFT", "RIGHT", "BOTH"]).nullish(),
+  pain: z.number().int().min(1).max(10),
+});
+export type Feeling = z.infer<typeof feelingSchema>;
+
 const common = {
   date: isoDate,
   startedAt: z.iso.datetime({ offset: true }).nullish(),
@@ -121,6 +130,7 @@ const common = {
   manualTss: optNum(0, 2000),
   cycleId: z.string().nullish(),
   notes: z.string().max(5000).nullish(),
+  feelings: z.array(feelingSchema).max(8).nullish(),
 };
 
 export const createSessionSchema = z.discriminatedUnion("type", [

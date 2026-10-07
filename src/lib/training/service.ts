@@ -2,7 +2,7 @@ import "server-only";
 
 import type { z } from "zod";
 
-import type { Prisma, TechnicalEvent, TssMethod } from "@/generated/prisma/client";
+import { Prisma, type TechnicalEvent, type TssMethod } from "@/generated/prisma/client";
 import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
@@ -124,6 +124,7 @@ export async function createTrainingSession(
         durationSec: input.durationSec ?? null,
         sessionRpe: input.sessionRpe ?? null,
         notes: input.notes ?? null,
+        feelings: input.feelings?.length ? input.feelings : Prisma.DbNull,
         tss: counts ? tssResult.tss : null,
         tssMethod: counts ? (tssResult.method as TssMethod | null) : null,
         tssComputedAt: counts && tssResult.tss != null ? new Date() : null,

@@ -16,6 +16,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { CalendarFeedSettings } from "@/components/settings/calendar-feed";
 import { PushSettings } from "@/components/settings/push-settings";
+import { ReminderSettings } from "@/components/settings/reminder-settings";
 import { RulesForm } from "@/components/settings/rules-form";
 import { TwoFactorSettings } from "@/components/settings/two-factor";
 import { Button } from "@/components/ui/button";
@@ -147,6 +148,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               rmTestThreshold: prefs.rmTestThreshold,
               squeezeMax: prefs.squeezeMax,
               heelMax: prefs.heelMax,
+              feelingPainMax: prefs.feelingPainMax,
               weightGainWeekKg: prefs.weightGainWeekKg,
               weightBlockKg: prefs.weightBlockKg,
               weightMinKg: prefs.weightMinKg,
@@ -191,7 +193,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <TwoFactorSettings initial={{ ...twoFactor, enabledAt: twoFactor.enabledAt?.toISOString() ?? null }} />
         </Section>
         <Section title="Notificaciones" description="Avisos en el móvil aunque la app esté cerrada.">
-          <PushSettings configured={vapid != null} publicKey={vapid?.publicKey ?? null} devices={pushDevices} />
+          <div className="grid gap-6">
+            <PushSettings configured={vapid != null} publicKey={vapid?.publicKey ?? null} devices={pushDevices} />
+            {vapid ? <ReminderSettings initial={{ remindTomorrowHour: prefs.remindTomorrowHour, remindMondayCheck: prefs.remindMondayCheck, remindWeigh: prefs.remindWeigh }} /> : null}
+          </div>
         </Section>
         <Section id="calendario" title="Calendario en el móvil" description="Suscríbete a tus entrenos y competiciones (.ics de solo lectura).">
           <CalendarFeedSettings active={feed.active} lastUsedAt={feed.lastUsedAt} />

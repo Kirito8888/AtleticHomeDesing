@@ -66,6 +66,12 @@ describe("motor de reglas", () => {
     expect(ids(evaluateRules({ today: TODAY, prefs, checks: [], throws: [t("2026-10-13", 20), t("2026-10-20", 20)] }))).toEqual(["throw-return"]);
   });
 
+  it("sensaciones: dolor por encima del umbral en los últimos 3 días, la peor por zona", () => {
+    const f = (date: string, area: string, pain: number) => ({ date, area, label: area === "KNEE" ? "Rodilla" : "Codo", pain });
+    const a = evaluateRules({ today: TODAY, prefs, checks: [], throws: [], feelings: [f("2026-11-10", "KNEE", 5), f("2026-11-11", "KNEE", 6), f("2026-11-11", "ELBOW", 4), f("2026-11-07", "ELBOW", 9)] });
+    expect(a.map((x) => x.title)).toEqual(["Molestia en rodilla (6/10)"]);
+  });
+
   it("vídeo contado: dos semanas por debajo del mínimo", () => {
     const a = evaluateRules({ today: TODAY, prefs, checks: [], throws: [t("2026-11-04", 8, [8, 3, 6]), t("2026-11-11", 8, [8, 2, 7])] });
     expect(ids(a)).toEqual(["video-e"]);

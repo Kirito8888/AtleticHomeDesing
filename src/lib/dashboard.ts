@@ -15,7 +15,7 @@ import { getPerformanceSeries } from "@/lib/training/service";
 export async function getDashboard(userId: string) {
   const now = today();
   const day = toIsoDay(now);
-  const [perf, recovery, sessions, nutrition, budgets, dueCards, tasks, nextCompetition, injuries, ruleAlerts] = await Promise.all([
+  const [perf, recovery, sessions, nutrition, budgets, dueCards, tasks, nextCompetition, injuries, ruleAlerts, tomorrow] = await Promise.all([
     getPerformanceSeries(userId, 14),
     prisma.recoveryMetrics.findUnique({ where: { userId_date: { userId, date: now } } }),
     prisma.trainingSession.findMany({
@@ -37,6 +37,7 @@ export async function getDashboard(userId: string) {
     }),
     activeInjuries(userId),
     rulesToday(userId, day),
+    prisma.trainingSession.findMany({ where: { userId, date: addDays(now, 1), status: "PLANNED" }, select: { id: true } }),
   ]);
   const rank = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 } as const;
   // Versión suave sugerida para la sesión planificada de hoy (síntomas o ciclo; cálculo local).
@@ -57,6 +58,8 @@ export async function getDashboard(userId: string) {
     nextCompetition,
     injuryAlert: injuryAlert(injuries, perf.current?.acwr ?? null),
     ruleAlerts,
+    /** Sesiones planificadas de hoy y mañana: se guardan para verlas sin conexión. */
+    offlinePaths: [...sessions.filter((s) => s.status === "PLANNED"), ...tomorrow].map((s) => `/training/${s.id}`),
     lightSuggestion: lightDay && lightReason ? { sessionId: lightDay.sessionId!, reason: lightReason } : null,
   };
 }
