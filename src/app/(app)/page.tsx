@@ -131,7 +131,9 @@ export default async function DashboardPage() {
           {d.nextCompetition && daysToComp != null ? (
             <p className="mt-3 flex items-center gap-2 border-t pt-3 text-sm">
               <Trophy className="size-4 text-muted-foreground" />
-              <span className="min-w-0 truncate">{d.nextCompetition.title}</span>
+              <Link href={`/planning/competition/${d.nextCompetition.id}`} className="min-w-0 truncate underline-offset-2 hover:underline">
+                {d.nextCompetition.title}
+              </Link>
               <span className="ml-auto shrink-0 font-medium tabular-nums">{daysToComp === 0 ? "¡Hoy!" : `en ${daysToComp} d`}</span>
             </p>
           ) : null}

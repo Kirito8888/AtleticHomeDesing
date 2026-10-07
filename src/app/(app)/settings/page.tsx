@@ -14,6 +14,7 @@ import {
   ThresholdForm,
 } from "@/components/settings/settings-forms";
 import { PageHeader } from "@/components/page-header";
+import { CalendarFeedSettings } from "@/components/settings/calendar-feed";
 import { PushSettings } from "@/components/settings/push-settings";
 import { RulesForm } from "@/components/settings/rules-form";
 import { TwoFactorSettings } from "@/components/settings/two-factor";
@@ -23,6 +24,7 @@ import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
 import { env } from "@/lib/env";
 import { formatDate, formatDuration } from "@/lib/format";
+import { feedStatus } from "@/lib/planning/feed-service";
 import { prisma } from "@/lib/prisma";
 import { vapidKeys } from "@/lib/push/service";
 import { readPrefs } from "@/lib/rules/prefs";
@@ -70,7 +72,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const user = await pageUser();
   const { welcome } = await searchParams;
   const todayIso = toIsoDay(today());
-  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices] = await Promise.all([
+  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { athleteProfile: true } }),
     prisma.thresholdHistory.findMany({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" }, take: 5 }),
     prisma.nutritionGoal.findFirst({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" } }),
@@ -80,6 +82,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     totpStatus(user.id),
     recentEvents(user.id, 15),
     prisma.pushSubscription.count({ where: { userId: user.id } }),
+    feedStatus(user.id),
   ]);
   const vapid = vapidKeys();
   const p = me.athleteProfile;
@@ -189,6 +192,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         </Section>
         <Section title="Notificaciones" description="Avisos en el móvil aunque la app esté cerrada.">
           <PushSettings configured={vapid != null} publicKey={vapid?.publicKey ?? null} devices={pushDevices} />
+        </Section>
+        <Section id="calendario" title="Calendario en el móvil" description="Suscríbete a tus entrenos y competiciones (.ics de solo lectura).">
+          <CalendarFeedSettings active={feed.active} lastUsedAt={feed.lastUsedAt} />
         </Section>
         <Section title="Actividad reciente" description="Si ves algo que no reconoces, cambia la contraseña y cierra las sesiones.">
           {events.length ? (

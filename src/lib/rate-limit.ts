@@ -46,6 +46,9 @@ export const LIMITS = {
   export: { limit: 5, windowMs: 60 * 60_000 },
   import: { limit: 30, windowMs: 60 * 60_000 },
   planImport: { limit: 20, windowMs: 60 * 60_000 },
+  /** Enlaces públicos con token (.ics, informe para la entrenadora), por IP. */
+  calendarFeed: { limit: 60, windowMs: 60 * 60_000 },
+  sharedReport: { limit: 60, windowMs: 60 * 60_000 },
 } as const;
 
 /**

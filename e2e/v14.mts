@@ -188,6 +188,43 @@ await page.getByRole("heading", { name: /los 3 mejores por implemento/ }).waitFo
 await noOverflow("rendimiento");
 log("control rápido, aviso, mis reglas y rendimiento");
 
+// 7. Bloque C: modo competición (checklist + hoja de intentos), temporada y calendario .ics
+const madrid = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
+const evRes = await page.request.post(B + "/api/planning/events", { data: { type: "COMPETITION", title: "Control de otoño", startAt: madrid, location: "Pista" } });
+const ev = (await evRes.json()) as { id: string };
+await go(`${B}/planning/competition/${ev.id}`);
+await page.getByLabel("Cuenta atrás").getByText("Día D").waitFor();
+await page.getByLabel("Checklist de la bolsa").getByText("Dorsal e imperdibles").click();
+await page.getByText(/^1 de \d+ en la bolsa$/).waitFor();
+await page.getByLabel("Marca intento 1").fill("48,5");
+await page.getByLabel("Nulo intento 2").check();
+await page.getByLabel("Marca intento 3").fill("51,2");
+await page.getByLabel("Viento intento 3").fill("1,2");
+await shot("08-competition");
+await noOverflow("modo competición");
+await Promise.all([page.waitForURL(/\/training\/c[^/]*$/), page.getByRole("button", { name: "Guardar la competición" }).click()]);
+await page.getByText("51,2").first().waitFor();
+await go(B + "/training/performance");
+await page.getByLabel("Nombre del objetivo").fill("Mínima");
+await page.getByLabel("Marca objetivo (m)").fill("55");
+await page.getByRole("button", { name: "Añadir objetivo" }).click();
+await page.getByLabel("Objetivos de la temporada").getByText("Mínima").waitFor();
+await page.getByRole("figure", { name: /Evolución de marcas: competiciones/ }).waitFor();
+log("modo competición, hoja de intentos y objetivos de temporada");
+
+await go(B + "/settings#calendario");
+await page.getByRole("button", { name: "Crear enlace del calendario" }).click();
+const icsUrl = await page.locator("#ics-url").inputValue();
+const ics = await page.request.get(icsUrl.replace(/^https?:\/\/[^/]+/, B), { headers: { cookie: "" } });
+const icsText = await ics.text();
+if (!ics.ok() || !/text\/calendar/.test(ics.headers()["content-type"] ?? "") || !icsText.includes("SUMMARY:Control de otoño")) errors.push(`ics: ${ics.status()} ${icsText.slice(0, 120)}`);
+if (/squeeze|versión suave/i.test(icsText)) errors.push("ics: contiene datos que no debe");
+page.once("dialog", (d) => d.accept());
+await page.getByRole("button", { name: "Revocar" }).click();
+await toast(/Enlace revocado/);
+if ((await page.request.get(icsUrl.replace(/^https?:\/\/[^/]+/, B))).status() !== 404) errors.push("ics: el enlace revocado sigue respondiendo");
+log("calendario .ics: crear, leer sin datos de salud y revocar");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));
