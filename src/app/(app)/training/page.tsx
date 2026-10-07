@@ -6,7 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
-import { addDays, today } from "@/lib/dates";
+import { WeekStrip } from "@/components/training/week-strip";
+import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
+import { throwWeeks } from "@/lib/rules/rules-service";
+import { weekGrid } from "@/lib/training/week";
 import { formatDate, formatDuration, formatNum, formatPace, SESSION_TYPE_LABEL, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -15,7 +18,8 @@ export const metadata = { title: "Entrenamiento · LifeOS" };
 export default async function TrainingPage() {
   const user = await pageUser();
   const now = today();
-  const [sessions, records, upcoming] = await Promise.all([
+  const monday = startOfIsoWeek(now);
+  const [sessions, records, upcoming, weekSessions, throwsInfo] = await Promise.all([
     // Historial: hasta hoy. Lo planificado a futuro va aparte (el plan importado son cientos de días).
     prisma.trainingSession.findMany({
       where: { userId: user.id, date: { lte: now } },
@@ -38,7 +42,14 @@ export default async function TrainingPage() {
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
       select: { id: true, date: true, title: true, type: true, durationSec: true },
     }),
+    prisma.trainingSession.findMany({ where: { userId: user.id, date: { gte: monday, lte: addDays(monday, 6) } }, select: { date: true, status: true } }),
+    throwWeeks(user.id, toIsoDay(now)),
   ]);
+  const week = weekGrid(
+    weekSessions.map((s) => ({ date: toIsoDay(s.date), status: s.status })),
+    toIsoDay(monday),
+    toIsoDay(now),
+  );
 
   return (
     <>
@@ -64,6 +75,8 @@ export default async function TrainingPage() {
           </div>
         }
       />
+
+      <WeekStrip days={week} today={toIsoDay(now)} throws={throwsInfo.weeks.at(-1)?.throws ?? 0} cap={throwsInfo.cap} />
 
       {upcoming.length ? (
         <Card className="mb-4 gap-3 py-4">

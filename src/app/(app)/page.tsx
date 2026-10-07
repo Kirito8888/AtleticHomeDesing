@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Activity, Apple, Brain, CalendarDays, ChevronRight, HeartPulse, ListTodo, Plus, Trophy, Wallet } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
+import { OfflineDayCache } from "@/components/offline-day-cache";
 import { RuleAlerts } from "@/components/rules/rule-alerts";
 import { Stat } from "@/components/stat";
 import { readinessStatus, StatusLabel, tsbStatus } from "@/components/status";
@@ -68,6 +69,7 @@ export default async function DashboardPage() {
         </Link>
       ) : null}
 
+      <OfflineDayCache paths={d.offlinePaths} />
       <RuleAlerts alerts={d.ruleAlerts} />
 
       {d.lightSuggestion ? (

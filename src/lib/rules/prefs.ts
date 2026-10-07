@@ -12,6 +12,8 @@ export const prefsSchema = z.object({
   /** Dolor (0-10) a partir del cual saltan los avisos. */
   squeezeMax: z.number().int().min(0).max(10).default(3),
   heelMax: z.number().int().min(0).max(10).default(3),
+  /** Sensaciones al cerrar la sesión: avisar por encima de este dolor. */
+  feelingPainMax: z.number().int().min(0).max(10).default(4),
   /** Peso: aviso si sube ≥ X kg dos semanas seguidas, si cambia ≥ Y kg en el bloque o si baja de un mínimo (opcional). */
   weightGainWeekKg: z.number().min(0).max(5).default(0.5),
   weightBlockKg: z.number().min(0).max(10).default(1),

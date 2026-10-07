@@ -15,6 +15,7 @@ type RuleKeys =
   | "rmTestThreshold"
   | "squeezeMax"
   | "heelMax"
+  | "feelingPainMax"
   | "weightGainWeekKg"
   | "weightBlockKg"
   | "weightMinKg"
@@ -71,6 +72,7 @@ export function RulesForm({ initial }: { initial: RuleValues }) {
       <div className="grid grid-cols-2 gap-3">
         {num("squeezeMax", "Squeeze: avisar por encima de", { max: 10, suffix: "/10" })}
         {num("heelMax", "Talón: avisar por encima de", { max: 10, suffix: "/10" })}
+        {num("feelingPainMax", "Molestias al terminar: avisar por encima de", { max: 10, suffix: "/10" })}
         {num("weightGainWeekKg", "Peso: subida semanal", { step: 0.1, decimals: 1, max: 5, suffix: "kg" }, "Dos semanas seguidas")}
         {num("weightBlockKg", "Peso: cambio en un mes", { step: 0.5, decimals: 1, max: 10, suffix: "kg" })}
         <Field label="Peso mínimo" hint="Vacío = sin aviso">

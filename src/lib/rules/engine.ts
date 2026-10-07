@@ -15,6 +15,8 @@ export type DayCheck = {
   hrvRmssdMs: number | null;
 };
 export type ThrowSession = { date: string; throws: number; videoTotal: number | null; videoElbowOk: number | null; videoHeadOk: number | null };
+/** Molestia anotada al cerrar una sesión. */
+export type FeelingCheck = { date: string; area: string; label: string; pain: number };
 export type Alert = { id: string; level: "warn" | "info"; title: string; message: string };
 
 const DAY = 864e5;
@@ -67,7 +69,7 @@ export function throwCap(weeks: Array<{ throws: number }>, ratio: number): numbe
   return m > 0 ? Math.round(m * ratio) : null;
 }
 
-export function evaluateRules(input: { today: string; prefs: Prefs; checks: DayCheck[]; throws: ThrowSession[] }): Alert[] {
+export function evaluateRules(input: { today: string; prefs: Prefs; checks: DayCheck[]; throws: ThrowSession[]; feelings?: FeelingCheck[] }): Alert[] {
   const { today, prefs, checks } = input;
   const alerts: Alert[] = [];
   const recent = (d: number) => checks.filter((c) => days(today, c.date) >= 0 && days(today, c.date) < d);
@@ -103,6 +105,23 @@ export function evaluateRules(input: { today: string; prefs: Prefs; checks: DayC
       level: "warn",
       title: "Síntomas en el codo",
       message: "Si aparecen al lanzar, para ese día. La siguiente sesión, solo desde parado, con implemento ligero y la mitad de lanzamientos; si vuelven, sin lanzar hasta que te valoren.",
+    });
+  }
+
+  // Sensaciones al cerrar la sesión (últimos 3 días): la más alta por zona
+  const worst = new Map<string, FeelingCheck>();
+  for (const f of input.feelings ?? []) {
+    const d = days(today, f.date);
+    if (d < 0 || d >= 3 || f.pain <= prefs.feelingPainMax) continue;
+    const cur = worst.get(f.area);
+    if (!cur || f.pain > cur.pain || (f.pain === cur.pain && f.date > cur.date)) worst.set(f.area, f);
+  }
+  for (const f of worst.values()) {
+    alerts.push({
+      id: `feeling-${f.area}`,
+      level: "warn",
+      title: `Molestia en ${f.label.toLowerCase()} (${f.pain}/10)`,
+      message: "La anotaste al terminar una sesión. Si sigue hoy, regístrala en Recuperación → Molestias y quita de la sesión lo que la provoque.",
     });
   }
 
