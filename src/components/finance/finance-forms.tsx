@@ -63,9 +63,20 @@ function cents(f: FormData, k: string): number | null {
   }
 }
 
-export function QuickTransaction({ accounts, categories, today }: { accounts: AccountOpt[]; categories: CategoryOpt[]; today: string }) {
+export function QuickTransaction({
+  accounts,
+  categories,
+  today,
+  competitions = [],
+}: {
+  accounts: AccountOpt[];
+  categories: CategoryOpt[];
+  today: string;
+  competitions?: Array<{ id: string; title: string; date: string }>;
+}) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<Kind>("EXPENSE");
+  const [sport, setSport] = useState(false);
   const { busy, run } = useSubmit(() => setOpen(false));
   const money = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
   const cats = categories.filter((c) => c.kind === (kind === "INCOME" ? "INCOME" : "EXPENSE"));
@@ -101,6 +112,8 @@ export function QuickTransaction({ accounts, categories, today }: { accounts: Ac
                   moneyAccountId: str(f, "account"),
                   counterAccountId: kind === "TRANSFER" ? str(f, "to") : undefined,
                   categoryId: kind === "TRANSFER" ? null : str(f, "category"),
+                  sport: kind === "EXPENSE" && sport,
+                  eventId: kind === "EXPENSE" && sport ? str(f, "event") || null : null,
                 },
                 "Movimiento guardado",
               );
@@ -158,6 +171,26 @@ export function QuickTransaction({ accounts, categories, today }: { accounts: Ac
             <Field label="Fecha" htmlFor="t-date">
               <Input id="t-date" name="date" type="date" defaultValue={today} required />
             </Field>
+            {kind === "EXPENSE" ? (
+              <div className="grid gap-2">
+                <label className="flex items-center justify-between gap-3 text-sm">
+                  <span>Gasto deportivo (material, viajes, licencias)</span>
+                  <Switch checked={sport} onCheckedChange={setSport} aria-label="Gasto deportivo" />
+                </label>
+                {sport && competitions.length ? (
+                  <Field label="Competición (opcional)" htmlFor="t-event">
+                    <Select id="t-event" name="event" defaultValue="">
+                      <option value="">Ninguna</option>
+                      {competitions.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.title} · {c.date}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                ) : null}
+              </div>
+            ) : null}
             <Button type="submit" size="lg" disabled={busy}>
               Guardar
             </Button>
@@ -436,5 +469,35 @@ export function DeleteTransaction({ id }: { id: string }) {
     >
       Borrar
     </button>
+  );
+}
+
+/** Marca o desmarca un gasto como deportivo. */
+export function SportToggle({ id, sport }: { id: string; sport: boolean }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      disabled={busy}
+      aria-pressed={sport}
+      aria-label={sport ? "Quitar de gastos deportivos" : "Marcar como gasto deportivo"}
+      className={sport ? "" : "opacity-40"}
+      onClick={async () => {
+        setBusy(true);
+        try {
+          await api(`/api/finance/transactions/${id}`, { method: "PATCH", body: { sport: !sport, eventId: null } });
+          router.refresh();
+        } catch (err) {
+          toast.error((err as Error).message);
+        } finally {
+          setBusy(false);
+        }
+      }}
+    >
+      🏅
+    </Button>
   );
 }

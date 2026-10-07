@@ -15,6 +15,8 @@ import {
 } from "@/components/settings/settings-forms";
 import { PageHeader } from "@/components/page-header";
 import { CalendarFeedSettings } from "@/components/settings/calendar-feed";
+import { CarbsByDayForm } from "@/components/settings/carbs-form";
+import { CoachReport } from "@/components/settings/coach-report";
 import { PushSettings } from "@/components/settings/push-settings";
 import { ReminderSettings } from "@/components/settings/reminder-settings";
 import { RulesForm } from "@/components/settings/rules-form";
@@ -22,10 +24,11 @@ import { TwoFactorSettings } from "@/components/settings/two-factor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
-import { today, toIsoDay } from "@/lib/dates";
+import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { env } from "@/lib/env";
 import { formatDate, formatDuration } from "@/lib/format";
 import { feedStatus } from "@/lib/planning/feed-service";
+import { listReports } from "@/lib/report/service";
 import { prisma } from "@/lib/prisma";
 import { vapidKeys } from "@/lib/push/service";
 import { readPrefs } from "@/lib/rules/prefs";
@@ -73,7 +76,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const user = await pageUser();
   const { welcome } = await searchParams;
   const todayIso = toIsoDay(today());
-  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed] = await Promise.all([
+  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed, reports] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { athleteProfile: true } }),
     prisma.thresholdHistory.findMany({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" }, take: 5 }),
     prisma.nutritionGoal.findFirst({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" } }),
@@ -84,7 +87,14 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     recentEvents(user.id, 15),
     prisma.pushSubscription.count({ where: { userId: user.id } }),
     feedStatus(user.id),
+    listReports(user.id),
   ]);
+  const monday = startOfIsoWeek(today());
+  const reportPeriods = [
+    { key: "week", label: "Esta semana", from: toIsoDay(monday), to: toIsoDay(addDays(monday, 6)) },
+    { key: "last", label: "Semana pasada", from: toIsoDay(addDays(monday, -7)), to: toIsoDay(addDays(monday, -1)) },
+    { key: "4w", label: "Últimas 4 semanas", from: toIsoDay(addDays(monday, -21)), to: toIsoDay(addDays(monday, 6)) },
+  ];
   const vapid = vapidKeys();
   const p = me.athleteProfile;
   const prefs = readPrefs(p?.prefs);
@@ -161,13 +171,22 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           />
         </Section>
         <Section title="Objetivo nutricional diario">
-          <NutritionGoalForm today={todayIso} initial={goal} />
+          <div className="grid gap-6">
+            <NutritionGoalForm today={todayIso} initial={goal} />
+            <CarbsByDayForm initial={{ carbsThrowDayG: prefs.carbsThrowDayG, carbsHeavyDayG: prefs.carbsHeavyDayG, carbsRestDayG: prefs.carbsRestDayG }} />
+          </div>
         </Section>
         <Section title="Entrenador / atletas" description="El entrenador solo ve datos deportivos; nunca finanzas, nutrición ni estudio.">
           <CoachLinks
             isCoach={user.role === "COACH" || user.role === "ADMIN"}
             asCoach={asCoach.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, scopes: l.scopes, other: l.athlete }))}
             asAthlete={asAthlete.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, scopes: l.scopes, other: l.coach }))}
+          />
+        </Section>
+        <Section id="informe" title="Informe para la entrenadora" description="Un enlace de solo lectura para quien no usa LifeOS.">
+          <CoachReport
+            periods={reportPeriods}
+            active={reports.map((r) => ({ id: r.id, from: toIsoDay(r.from), to: toIsoDay(r.to), includeInjuries: r.includeInjuries, expiresAt: toIsoDay(r.expiresAt) }))}
           />
         </Section>
         <Section title="Mis ejercicios" description="Se suman al catálogo global en el registro de fuerza.">
