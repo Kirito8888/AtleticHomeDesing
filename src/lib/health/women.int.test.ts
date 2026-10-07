@@ -22,7 +22,7 @@ describe.skipIf(!HAS_DB)("salud de la mujer (BD real)", () => {
     await svc.addHealthLog(userId, { kind: "LAB", date: "2026-10-01", values: { ferritin: 18 } });
     await svc.addHealthLog(userId, { kind: "PELVIC", date: "2026-10-06", symptoms: ["leakJump"] });
     const raw = await prisma.healthLog.findMany({ where: { userId } });
-    expect(raw.map((r) => r.data).join(" ")).not.toMatch(/LAB|PELVIC|ferritin|leakJump|18/);
+    expect(raw.map((r) => r.data).join(" ")).not.toMatch(/"kind"|"values"|ferritin|leakJump|PELVIC/);
     const o = await svc.womenOverview(userId, "2026-10-07");
     expect(o.alerts.map((a) => a.id)).toEqual(expect.arrayContaining(["ferritin", "pelvic", "screen-due"]));
     expect(o.ea.ok).toBe(false);

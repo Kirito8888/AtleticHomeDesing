@@ -11,6 +11,7 @@ import { computeReadiness } from "@/lib/training/readiness";
 import type { CreateSessionInput, RecoveryInput, strengthSetSchema, trackDetailSchema } from "@/lib/training/schemas";
 import { estimateOneRm, repsInReserve, tonnageKg } from "@/lib/training/strength";
 import { computeSessionTss, type Thresholds } from "@/lib/training/tss";
+import { attachConditions } from "@/lib/training/conditions-service";
 
 const SWIM = "SWIM";
 
@@ -208,6 +209,8 @@ export async function createTrainingSession(
   // Al editar, la carga cambia desde la fecha más antigua (la sesión pudo cambiar de día o de estado).
   if (opts.replace) await recomputeDailyLoads(userId, opts.replace.date < date ? opts.replace.date : date);
   else if (counts) await recomputeDailyLoads(userId, date);
+  // Condiciones de la pista (Open-Meteo) en segundo plano: no retrasa el guardado.
+  if (technical && counts) void attachConditions(userId, session.id, date, input.startedAt);
   return { ...session, tssCandidates: tssResult.candidates };
 }
 

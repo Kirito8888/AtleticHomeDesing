@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { Stat } from "@/components/stat";
 import { StatusLabel, tsbStatus } from "@/components/status";
 import { E1rmChart } from "@/components/training/e1rm-chart";
+import { AttemptsScatter } from "@/components/training/attempts-scatter";
 import { MarksChart } from "@/components/training/marks-chart";
 import { SeasonGoals } from "@/components/training/season-goals";
 import { PmcCharts, type PmcPoint } from "@/components/training/pmc-charts";
@@ -102,7 +103,11 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
               ))}
             </ol>
             {implement.series.length > 1 ? (
-              <MarksChart data={implement.series} name={implement.label} />
+              <>
+                <MarksChart data={implement.series} name={implement.label} />
+                <p className="text-xs text-muted-foreground">Cada intento válido (cuanto más agrupados, más consistente):</p>
+                <AttemptsScatter data={implement.attempts} name={implement.label} />
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">Registra marcas con este implemento en al menos dos días para ver su evolución.</p>
             )}

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { AttemptSheet } from "@/components/competition/attempt-sheet";
 import { CompetitionChecklist } from "@/components/competition/checklist";
+import { WarmupTimer } from "@/components/competition/warmup-timer";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
@@ -42,6 +43,14 @@ export default async function CompetitionPage({ params }: PageProps<"/planning/c
           </CardHeader>
           <CardContent className="px-4">
             <CompetitionChecklist eventId={ev.id} items={prefs.checklist} />
+          </CardContent>
+        </Card>
+        <Card className="gap-3 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base">Calentamiento</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <WarmupTimer blocks={prefs.warmupBlocks} />
           </CardContent>
         </Card>
         <Card className="gap-3 py-4">

@@ -23,6 +23,7 @@ import type { VariantOption } from "@/lib/planning/plan-import/types";
 import { planDayForSession } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { isEditableType } from "@/lib/training/form-initial";
+import { consistency } from "@/lib/training/consistency";
 
 const METHOD_LABEL: Record<string, string> = {
   HR_TSS: "hrTSS (FC)",
@@ -163,6 +164,42 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-2 px-4">
+            {(() => {
+              const c = consistency(s.technical.attempts);
+              const w = s.technical.conditions as { tempC: number | null; windMs: number | null; rainMm: number | null } | null;
+              return (
+                <>
+                  {c.valid ? (
+                    <dl className="grid grid-cols-4 gap-2 rounded-md bg-muted/50 p-2 text-xs" aria-label="Consistencia">
+                      <div>
+                        <dt className="text-muted-foreground">Media</dt>
+                        <dd className="font-semibold tabular-nums">{formatNum(c.mean!, 2)} m</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">CV</dt>
+                        <dd className="font-semibold tabular-nums">{c.cvPct != null ? `${formatNum(c.cvPct, 1)} %` : "—"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">Nulos</dt>
+                        <dd className="font-semibold tabular-nums">{c.foulPct} %</dd>
+                      </div>
+                      <div>
+                        <dt className="text-muted-foreground">Válidos</dt>
+                        <dd className="font-semibold tabular-nums">
+                          {c.valid}/{c.attempts}
+                        </dd>
+                      </div>
+                    </dl>
+                  ) : null}
+                  {w ? (
+                    <p className="text-xs text-muted-foreground" aria-label="Condiciones">
+                      🌡 {w.tempC != null ? `${formatNum(w.tempC, 1)} °C` : "—"} · 💨 {w.windMs != null ? `${formatNum(w.windMs, 1)} m/s` : "—"}
+                      {w.rainMm ? ` · 🌧 ${formatNum(w.rainMm, 1)} mm` : ""} <span className="opacity-70">(Open-Meteo)</span>
+                    </p>
+                  ) : null}
+                </>
+              );
+            })()}
             {s.technical.attempts.map((a) => (
               <div key={a.id} className="rounded-md border p-2 text-sm">
                 <div className="flex justify-between">

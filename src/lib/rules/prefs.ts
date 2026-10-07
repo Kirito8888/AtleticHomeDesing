@@ -38,6 +38,43 @@ export const prefsSchema = z.object({
   checklist: z.array(z.string().min(1).max(60)).max(40).default(["Licencia / DNI", "Dorsal e imperdibles", "Clavos y llave", "Jabalinas / implementos", "Ropa de calentamiento", "Agua y comida", "Cinta métrica"]),
   /** Objetivos de la temporada (líneas en la gráfica de marcas). */
   seasonGoals: z.array(z.object({ label: z.string().min(1).max(40), markM: z.number().min(0).max(120) })).max(6).default([]),
+  // --- v1.5 ---
+  /** Monotonía de Foster (media / desviación de la carga diaria de 7 días): aviso por encima. */
+  monotonyMax: z.number().min(1).max(5).default(2),
+  /** Sueño: horas objetivo y deuda de 7 días a partir de la que se avisa. */
+  sleepTargetH: z.number().min(5).max(12).default(8),
+  sleepDebtMaxH: z.number().min(1).max(30).default(5),
+  /** Hidratación: ml por kg de peso, extra en días con sesión y en días de calor (≥ hotTempC). */
+  waterMlPerKg: z.number().int().min(20).max(60).default(35),
+  waterSessionExtraMl: z.number().int().min(0).max(3000).default(500),
+  waterHotExtraMl: z.number().int().min(0).max(3000).default(500),
+  hotTempC: z.number().min(15).max(45).default(28),
+  /** Pista habitual (para las condiciones de Open-Meteo). Solo coordenadas: nada personal. */
+  track: z.object({ name: z.string().min(1).max(60), lat: z.number().min(-90).max(90), lon: z.number().min(-180).max(180) }).nullable().default(null),
+  /** Calentamiento de competición por bloques (minutos). */
+  warmupBlocks: z
+    .array(z.object({ name: z.string().min(1).max(40), minutes: z.number().int().min(1).max(60) }))
+    .min(1)
+    .max(12)
+    .default([
+      { name: "Movilidad y activación", minutes: 10 },
+      { name: "Carrera y técnica de carrera", minutes: 10 },
+      { name: "Lanzamientos de calentamiento", minutes: 15 },
+      { name: "Activación final y concentración", minutes: 5 },
+    ]),
+  /** Mapeo del CSV de VFC y sueño (se recuerda para la próxima importación). */
+  hrvCsvMapping: z
+    .object({
+      delimiter: z.enum([";", ",", "\t"]),
+      dateCol: z.number().int().min(0),
+      dateFormat: z.enum(["YYYY-MM-DD", "DD/MM/YYYY", "MM/DD/YYYY", "DD-MM-YYYY"]),
+      hrvCol: z.number().int().min(0).nullable(),
+      rhrCol: z.number().int().min(0).nullable(),
+      sleepCol: z.number().int().min(0).nullable(),
+      sleepUnit: z.enum(["h", "min"]),
+    })
+    .nullable()
+    .default(null),
 });
 
 export type Prefs = z.infer<typeof prefsSchema>;
