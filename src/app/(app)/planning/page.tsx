@@ -161,7 +161,13 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
         })}
       </div>
 
-      <p className="mt-2 text-xs text-muted-foreground">✓ sesión hecha · ○ planificada · □ tarea que vence. Toca un día para ver su detalle.</p>
+      <p className="mt-2 text-xs text-muted-foreground">
+        ✓ sesión hecha · ○ planificada · □ tarea que vence. Toca un día para ver su detalle. ¿Sin plan?{" "}
+        <Link href="/study/plan" className="font-medium text-foreground underline underline-offset-2">
+          Créalo con IA
+        </Link>
+        .
+      </p>
 
       {agenda ? (
         <Card id="dia" className="mt-4 scroll-mt-4 gap-3 py-4">
@@ -198,7 +204,14 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                   const meta = EVENT_META[e.type as EventType];
                   return (
                     <li key={e.id} className="flex items-center gap-2">
-                      <meta.icon className="size-4 shrink-0 text-muted-foreground" /> {e.title}
+                      <meta.icon className="size-4 shrink-0 text-muted-foreground" />{" "}
+                      {e.type === "COMPETITION" ? (
+                        <Link href={`/planning/competition/${e.id}`} className="underline underline-offset-2">
+                          {e.title}
+                        </Link>
+                      ) : (
+                        e.title
+                      )}
                       <span className="text-xs text-muted-foreground">· {meta.label}</span>
                     </li>
                   );
@@ -234,7 +247,13 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                       <meta.icon className="size-4 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">
-                          {e.title}
+                          {e.type === "COMPETITION" ? (
+                            <Link href={`/planning/competition/${e.id}`} className="underline-offset-2 hover:underline">
+                              {e.title}
+                            </Link>
+                          ) : (
+                            e.title
+                          )}
                           {e.priority ? <span className="ml-1 text-xs text-muted-foreground">({e.priority})</span> : null}
                         </div>
                         <div className="text-xs text-muted-foreground">

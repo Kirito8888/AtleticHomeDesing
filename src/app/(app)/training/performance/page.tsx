@@ -4,13 +4,17 @@ import { PageHeader } from "@/components/page-header";
 import { Stat } from "@/components/stat";
 import { StatusLabel, tsbStatus } from "@/components/status";
 import { E1rmChart } from "@/components/training/e1rm-chart";
+import { MarksChart } from "@/components/training/marks-chart";
+import { SeasonGoals } from "@/components/training/season-goals";
 import { PmcCharts, type PmcPoint } from "@/components/training/pmc-charts";
 import { Card, CardContent } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, today } from "@/lib/dates";
-import { formatNum } from "@/lib/format";
+import { formatDate, formatNum } from "@/lib/format";
+import { implementBestsFor } from "@/lib/training/implement-bests-query";
 import { e1rmChange, e1rmSeries, exercisesWithData } from "@/lib/training/strength-progress";
 import { strengthRows } from "@/lib/training/strength-progress-query";
+import { getPrefs } from "@/lib/rules/prefs-service";
 import { getPerformanceSeries } from "@/lib/training/service";
 import { cn } from "@/lib/utils";
 
@@ -20,9 +24,10 @@ const RANGES = [30, 90, 365] as const;
 
 export default async function PerformancePage({ searchParams }: PageProps<"/training/performance">) {
   const user = await pageUser();
-  const { days: raw, ex } = await searchParams;
+  const { days: raw, ex, imp } = await searchParams;
   const days = RANGES.find((r) => String(r) === raw) ?? 90;
-  const [perf, rows] = await Promise.all([getPerformanceSeries(user.id, days), strengthRows(user.id, addDays(today(), -days))]);
+  const [perf, rows, bests, prefs] = await Promise.all([getPerformanceSeries(user.id, days), strengthRows(user.id, addDays(today(), -days)), implementBestsFor(user.id), getPrefs(user.id)]);
+  const implement = bests.find((b) => b.key === imp) ?? bests[0];
   const cur = perf.current;
   const exercises = exercisesWithData(rows);
   const selected = exercises.find((e) => e.id === ex) ?? exercises[0];
@@ -63,6 +68,61 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
       ) : (
         <p className="text-sm text-muted-foreground">Sin datos todavía.</p>
       )}
+
+      <section aria-labelledby="bests-title" className="mt-8 grid gap-3">
+        <h2 id="bests-title" className="text-base font-semibold">
+          Lanzamientos: los 3 mejores por implemento
+        </h2>
+        {implement ? (
+          <>
+            <nav aria-label="Implemento" className="flex gap-1.5 overflow-x-auto pb-1">
+              {bests.map((b) => (
+                <Link
+                  key={b.key}
+                  href={`?days=${days}&imp=${encodeURIComponent(b.key)}`}
+                  aria-current={b.key === implement.key ? "page" : undefined}
+                  className={cn(
+                    "shrink-0 rounded-full border px-3 py-1 text-xs",
+                    b.key === implement.key ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground",
+                  )}
+                >
+                  {b.label}
+                </Link>
+              ))}
+            </nav>
+            <ol className="grid gap-1.5 sm:grid-cols-3" aria-label={`Mejores marcas: ${implement.label}`}>
+              {implement.top.map((t, i) => (
+                <li key={t.date} className="flex items-baseline justify-between rounded-md border px-3 py-2 text-sm">
+                  <span>
+                    {["🥇", "🥈", "🥉"][i]} <span className="font-semibold tabular-nums">{formatNum(t.markM, 2)} m</span>
+                    {t.isCompetition ? <span className="ml-1 text-xs text-muted-foreground">(competición)</span> : null}
+                  </span>
+                  <span className="text-xs text-muted-foreground">{formatDate(t.date, { day: "numeric", month: "short", year: "2-digit" })}</span>
+                </li>
+              ))}
+            </ol>
+            {implement.series.length > 1 ? (
+              <MarksChart data={implement.series} name={implement.label} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Registra marcas con este implemento en al menos dos días para ver su evolución.</p>
+            )}
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">Sin marcas de lanzamiento todavía.</p>
+        )}
+      </section>
+
+      <section aria-labelledby="season-title" className="mt-8 grid gap-3">
+        <h2 id="season-title" className="text-base font-semibold">
+          Temporada: marcas en competición{implement ? ` · ${implement.label}` : ""}
+        </h2>
+        {implement && implement.competitions.length ? (
+          <MarksChart data={implement.competitions} name={`competiciones, ${implement.label}`} goals={prefs.seasonGoals} />
+        ) : (
+          <p className="text-sm text-muted-foreground">Aún no hay competiciones con este implemento. Regístralas desde Planificación → la competición → Hoja de intentos.</p>
+        )}
+        <SeasonGoals goals={prefs.seasonGoals} />
+      </section>
 
       <section aria-labelledby="e1rm-title" className="mt-8 grid gap-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

@@ -164,7 +164,9 @@ await page.getByRole("region", { name: "Comidas favoritas" }).getByRole("button"
 await toast("«Comida de prueba» añadida");
 await page.waitForFunction(() => document.body.innerText.split("Arroz con pollo").length - 1 >= 2);
 // Repetir de ayer
-const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+// «Ayer» en la zona de la app (Europe/Madrid): en UTC fallaría entre las 22:00 y las 24:00.
+const madridToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
+const yesterday = new Date(Date.parse(`${madridToday}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10);
 const r = await page.request.post(B + "/api/nutrition/entries", {
   data: { date: yesterday, mealType: "BREAKFAST", customName: "Avena con leche", quantityG: 250, kcal: 380, proteinG: 15, carbsG: 60, fatG: 8 },
 });

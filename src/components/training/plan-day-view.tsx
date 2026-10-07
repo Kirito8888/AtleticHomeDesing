@@ -12,13 +12,14 @@ function Exercise({ row }: { row: PlanRow }) {
       <li className="rounded-md border border-dashed px-3 py-1.5 text-xs text-muted-foreground">
         ↳ Rampa · {row.sets}
         {empty(row.load) ? "" : ` · ${row.load}`}
+        {row.kg ? ` (${row.kg})` : ""}
         {empty(row.rest) ? "" : ` · desc. ${row.rest}`}
       </li>
     );
   }
   const facts: Array<[string, string]> = [
     ["Series", row.sets],
-    ["Carga", row.load],
+    ["Carga", row.kg ? `${row.load} · ${row.kg}` : row.load],
     ["RIR", row.rir],
     ["Desc.", row.rest],
   ];

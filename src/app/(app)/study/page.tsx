@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { Sparkles } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { CoachPanel, type CoachReportView } from "@/components/study/coach-panel";
 import { DocumentsPanel } from "@/components/study/documents-panel";
 import { FlashcardReview } from "@/components/study/flashcard-review";
 import { StudyChat } from "@/components/study/study-chat";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { pageUser } from "@/lib/auth/page";
 import { toIsoDay } from "@/lib/dates";
@@ -36,7 +38,17 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
 
   return (
     <>
-      <PageHeader title="Astras AI" description="Estudio con tus apuntes y coach de rendimiento (Gemini)" />
+      <PageHeader
+        title="Astras AI"
+        description="Estudio con tus apuntes, coach de rendimiento y planes de entrenamiento (Gemini)"
+        action={
+          <Button asChild size="sm">
+            <Link href="/study/plan">
+              <Sparkles /> Crear plan
+            </Link>
+          </Button>
+        }
+      />
       {!aiConfigured ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
           La IA no está configurada: añade <code>GEMINI_API_KEY</code> a tu fichero de entorno y reinicia. Puedes seguir repasando flashcards existentes.

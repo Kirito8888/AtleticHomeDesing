@@ -12,6 +12,8 @@ export const GET = route(async (req, ctx: Ctx) => {
   const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "SESSIONS");
   const session = await prisma.trainingSession.findFirst({
     where: { id, userId },
+    // Las sensaciones (molestias) son datos de salud: solo para su dueño.
+    omit: { feelings: userId !== user.id },
     include: {
       track: { include: { intervals: { orderBy: { order: "asc" } } } },
       technical: { include: { attempts: { orderBy: { order: "asc" } } } },

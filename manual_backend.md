@@ -102,7 +102,7 @@ POST /api/training/sessions
 - **Sesiones planificadas.** Con `status=PLANNED` no suman carga ni generan marcas personales.
 - **Umbrales versionados.** `ThresholdHistory` guarda FCmáx, FC de reposo, LTHR, ritmo umbral y CSS, cada uno con `effectiveFrom`. Cada sesión usa los umbrales de su fecha, así que actualizar el LTHR no reescribe el histórico.
 - **Al borrar una sesión** se borran sus marcas personales y se recalcula la PMC desde su fecha.
-- **Editar** (`PATCH /api/training/sessions/[id]`, página `/training/[id]/edit`): mismo cuerpo que el POST. `updateTrainingSession()` sustituye la sesión **conservando el id** dentro de una transacción (borra sus marcas, la sesión y el detalle y los recrea), redetecta marcas y recalcula la PMC desde la fecha más antigua entre la original y la nueva. Las sesiones `MIXED` no tienen formulario y no se editan.
+- **Editar** (`PATCH /api/training/sessions/[id]`, página `/training/[id]/edit`): mismo cuerpo que el POST. `updateTrainingSession()` sustituye la sesión **conservando el id** dentro de una transacción (borra sus marcas, la sesión y el detalle y los recrea), redetecta marcas y recalcula la PMC desde la fecha más antigua entre la original y la nueva. Desde la v1.4 las sesiones `MIXED` (fuerza + técnica + pista) también se crean y editan desde el formulario («Sesión mixta»).
 - **Repetir la última sesión de fuerza:** `/training/new?repeat=strength` precarga ejercicios, series y pesos con fecha de hoy (`sessionToFormInitial()`, `src/lib/training/form-initial.ts`).
 - **Recalcular TSS** (`POST /api/training/recompute`, botón en Ajustes): recalcula el TSS de las sesiones completadas con los umbrales vigentes en el día de cada una (respeta el TSS manual) y rehace la PMC.
 
@@ -127,6 +127,43 @@ POST /api/planning/import (multipart: zip o PDF)          src/app/api/planning/i
 - **Reimportar** (versión nueva del PDF): la clave `meso|variante|fecha|orden` es estable. Los días cambiados actualizan su sesión si sigue `PLANNED`; las sesiones hechas u omitidas nunca se tocan (siguen enlazadas al día para ver el plan). Los días que desaparecen retiran su sesión planificada.
 - **`PlanDay.sessionId` sin clave foránea**, a propósito: editar una sesión la borra y la recrea con el mismo id dentro de una transacción.
 - **Privacidad.** Los PDF no se guardan: se leen en memoria. El plan entra en la exportación de datos (`planning.importedPlan`) y se borra con la cuenta (cascada).
+
+### 3.1c Del plan al entreno (v1.4)
+
+- **Tabla de RM** (`OneRepMax`: `name`, `nameKey` normalizado, `kg`, `perHand`, `source` MANUAL|PLAN|TEST|APRE, `effectiveFrom`): la vigente es la última por `nameKey`. `rmsFromPlan()` lee el anexo «Mi tabla de RM» del plan importado (`parseAnnexRms`, `src/lib/training/rm.ts`).
+- **%RM → kg:** `loadToKg()` solo convierte cargas que son %RM (`isRmLoad`: excluye «≥95 % de esfuerzo», «40 % de 88 %», velocidades) y redondea al `kgStep` de Mis reglas. `annotateKg()` añade `row.kg` a las filas del día al pintarlo (no se guarda: si cambia la RM, cambian los kg).
+- **Enlace plan → catálogo:** por nombre normalizado; si no hay coincidencia, el usuario elige una vez y queda en `ExerciseAlias` (`key` → `exerciseId` o `rmKey`).
+- **Registrar desde el plan:** `planToBlocks()` (`plan-to-form.ts`) convierte la tabla del día en bloques del formulario (series × reps, kg, rampas como calentamiento); lo que no se puede leer se avisa, no se inventa.
+- **Serie de test:** Epley `kg × (1 + reps/30)`; `testDecision()` propone actualizar solo si cambia ≥ `rmTestThreshold`. **APRE** 3/6/10 (`apreAdjust`).
+- **Cumplimiento:** `compliance()` (`src/lib/planning/compliance.ts`) por semana sobre los días que ya tocaban.
+
+### 3.1d Motor de reglas: «Mis reglas» (v1.4)
+
+```
+rulesToday(userId, día)                                      src/lib/rules/rules-service.ts
+  ├─ getPrefs()           AthleteProfile.prefs → readPrefs() (valores por defecto genéricos)   prefs.ts
+  ├─ loadRuleInputs()     63 días de RecoveryMetrics (control rápido, peso, grasa, VFC),
+  │                       sesiones técnicas de lanzamiento (intentos; competición sin intentos = 6; vídeo)
+  │                       y sensaciones de las sesiones de los últimos 7 días
+  └─ evaluateRules()      puro y con tests                                                    engine.ts
+```
+
+- **Semanas ISO** (lunes). Tope de lanzamientos = `throwCapRatio` × media de las 4 semanas anteriores, solo si al menos 3 de ellas tienen lanzamientos (si no, es una «vuelta a lanzar» y el tope no tiene base).
+- **VFC:** media de la semana (≥ 3 mañanas) frente a la media de las semanas anteriores; aviso fuerte solo si además baja el salto o el squeeze supera el umbral, si no, nota informativa.
+- **Peso y grasa:** medias semanales; dos semanas subiendo ≥ `weightGainWeekKg`, cambio ≥ `weightBlockKg` en ~4 semanas y mínimo personal opcional.
+- **Vídeo contado:** % de lanzamientos revisados con el codo estirado / la cabeza estable, dos semanas seguidas por debajo de `videoMinPct`.
+- Los avisos se muestran en Inicio, en la sesión planificada de hoy y en el día del plan de hoy. Son pautas de prudencia, no diagnósticos.
+
+### 3.1e Enlaces públicos con token (v1.4)
+
+`/api/calendar/ics/[token]` (calendario) y `/api/report/[token]` (informe para la entrenadora) no exigen sesión, a propósito:
+
+- token de 32 bytes aleatorios (`src/lib/security/share-token.ts`); en la BD solo su SHA-256 (`CalendarFeed.tokenHash`, `SharedReport.tokenHash`);
+- formato validado antes de consultar, 404 si no existe, caducó (informe: 7 días) o se revocó;
+- límite por IP (`calendarFeed`, `sharedReport`: 60/hora);
+- **contenido mínimo:** el .ics lleva títulos, fechas y lugar (sin «(versión suave)», que podría delatar síntomas); el informe, planificado/hecho, lanzamientos, marcas y controles deportivos. Nunca ciclo, peso, VFC, notas ni nutrición; molestias solo con `includeInjuries`;
+- el informe es HTML sin JavaScript con `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'`;
+- `src/test/api-auth.test.ts` lista estas rutas y comprueba que limitan peticiones.
 
 ### 3.2 Recuperación
 
@@ -382,9 +419,28 @@ trabajador (src/lib/jobs/queue.ts, arrancado en instrumentation.ts) → processD
 
 ---
 
+### 5.4 Crear planificación con IA (v1.4)
+
+```
+POST /api/ai-plan  {cuestionario}                              src/app/api/ai-plan/route.ts
+  └─ generateAiPlan()                                          src/lib/ai-plan/service.ts
+       ├─ PAR-Q: cualquier respuesta de seguridad marcada → 422 (no se genera)
+       ├─ buildPlanPrompt()   solo el cuestionario: sin fechas, sin nombre, sin ciclo     prompt.ts
+       ├─ generateJson(aiPlanSchema)  semanas tipo por fase (+ versión suave por sesión)   schema.ts
+       ├─ validateAiPlan()    material del sitio, zonas excluidas, minutos +15 %, progresión ≤ 10 %,
+       │                      calentamiento, descarga cada ≤ 4 semanas; si falla, 1 reintento con los errores
+       └─ expandAiPlan()      fases → días con fecha (PlanMeso source=AI, status=DRAFT + PlanDay)  expand.ts
+POST /api/ai-plan/[code]/activate    → MESO en el calendario + materialize() (sesiones PLANNED)
+POST /api/ai-plan/[code]/feedback    → ajusta la semana siguiente con reglas locales (adjust.ts), sin IA
+PATCH /api/planning/plan/day/[id]    → versión suave · cambiar de sitio (alternativas; si no, petición pequeña) · alternativa
+```
+
+- **Ciclo menstrual** (`CycleProfile`, `CycleLog`): JSON cifrado con AES-256-GCM (`sealJson`/`openJson`, clave `DATA_ENCRYPTION_KEY` o, si no está, `TOTP_ENCRYPTION_KEY`). La fase se calcula en local (`src/lib/health/cycle.ts`); con anticonceptivo hormonal no se estiman fases. La IA nunca recibe estos datos: genera una «versión suave» genérica de cada sesión y la app la propone según los síntomas. El coach no tiene ruta para leerlos.
+- **Sin clave de Gemini** la sección lo explica; en la CI y los E2E, `LIFEOS_FAKE_AI=1` sustituye a Gemini por un generador determinista (`fake.ts`). **No usar en producción.**
+
 ## 6. Referencia de la API
 
-Todas las rutas requieren sesión, salvo `/api/auth/*`. Los cuerpos son JSON y se validan con zod. Las fechas usan el formato `YYYY-MM-DD`.
+Todas las rutas requieren sesión, salvo `/api/auth/*`, `/api/health` y las dos rutas públicas con token (§ 3.1e). Los cuerpos son JSON y se validan con zod. Las fechas usan el formato `YYYY-MM-DD`.
 
 | Ruta | Métodos | Notas |
 |---|---|---|
@@ -443,6 +499,18 @@ Todas las rutas requieren sesión, salvo `/api/auth/*`. Los cuerpos son JSON y s
 | `/api/ai/flashcards/generate` | POST | `{documentId, count 3–40}` |
 | `/api/ai/flashcards/decks` · `/due` · `/[id]/review` | GET, GET, POST | Repaso SM-2 (`grade` 0–5) |
 | `/api/ai/coach/weekly` | GET, POST | `?preview=1` devuelve solo el snapshot |
+| `/api/ai-plan` | POST | Cuestionario → borrador (`aiGenerate`: 10/hora). 422 si la seguridad previa lo desaconseja |
+| `/api/ai-plan/[code]/activate` · `/regenerate` · `/feedback` | POST | Activar el borrador · regenerar · `{week, rating EASY\|OK\|HARD, pain}` |
+| `/api/planning/plan/day/[id]` | PATCH | `{mode}` versión suave · `{swap: lugar}` · `{alternative}` |
+| `/api/health/cycle` (`/log`) | GET, PUT, DELETE · POST | Ajustes del ciclo (cifrados) y registro diario. Solo la dueña |
+| `/api/training/rm` (`/[id]`, `/import`, `/test`) | GET, POST, DELETE | Tabla de RM, importar del anexo del plan, serie de test (Epley) |
+| `/api/training/aliases` | POST | Enlazar un ejercicio del plan con el catálogo o la RM |
+| `/api/settings/prefs` | GET, PATCH | «Mis reglas»: umbrales, redondeo, recordatorios, hidratos por día, checklist, objetivos de temporada |
+| `/api/calendar/feed` | GET, POST, DELETE | Estado · crear enlace .ics (sustituye al anterior; la URL solo se devuelve aquí) · revocar |
+| `/api/calendar/ics/[token]` | GET | **Público con token.** `text/calendar`, 60/hora por IP |
+| `/api/reports` (`/[id]`) | GET, POST · DELETE | Enlaces del informe para la entrenadora `{from, to, includeInjuries}` (≤ 120 días, ≤ 10 activos) |
+| `/api/report/[token]` | GET | **Público con token**, caduca a los 7 días. HTML sin JS |
+| `/api/finance/transactions/[id]` | PATCH | `{sport, eventId?}` marcar como gasto deportivo |
 
 ---
 
@@ -460,6 +528,9 @@ npm run lint
 npm run e2e          # recorrido de la UI en Chromium (app con ALLOW_REGISTRATION=true; BASE_URL)
 npm run e2e:plan     # importar un plan sintético en 390 px: vista previa, versiones, plan del día y anexos
                      #   (PLAN_ZIP=ruta prueba tu propio zip en local; nunca lo subas al repositorio)
+npm run e2e:v14      # v1.4 en 390 px (con LIFEOS_FAKE_AI=1): crear plan con IA, ciclo, RM y kg, registrar desde
+                     #   el plan, control rápido y avisos, competición, .ics, semana, sensaciones, búsqueda,
+                     #   sin conexión, hidratos, gastos deportivos e informe para la entrenadora
 npm run e2e:security # registro cerrado, límites por IP, bloqueo de cuenta, revocación de sesiones y caché,
                      #   2FA (erróneos, reutilizados, recuperación), auditoría, permisos del coach,
                      #   consentimiento IA, editar sesión, exportación y borrado de cuenta
@@ -477,7 +548,10 @@ La CI (`.github/workflows/ci.yml`) ejecuta `npm audit` (producción), lint, tipo
 
 ## 8. Limitaciones conocidas y próximos pasos
 
-- **Importar la planificación:** el lector está hecho para la maquetación de los PDF «día a día» del plan 2026-27 (cabeceras «M5 · S1 · LUNES 26/10 · …», tabla de 6 columnas). Si una versión futura cambia esa maquetación, la vista previa lo dirá (bloques no reconocidos, semanas sin días, días sin tabla) **antes** de importar. Los %RM se muestran tal cual; aún no se convierten a kg.
+- **Importar la planificación:** el lector está hecho para la maquetación de los PDF «día a día» del plan 2026-27 (cabeceras «M5 · S1 · LUNES 26/10 · …», tabla de 6 columnas). Si una versión futura cambia esa maquetación, la vista previa lo dirá (bloques no reconocidos, semanas sin días, días sin tabla) **antes** de importar. Los %RM se convierten a kg con la tabla de RM (v1.4).
+
+- **Crear plan con IA:** probado con un Gemini simulado (la CI no tiene clave). La calidad real del plan depende del modelo; la validación del servidor impide material o zonas no permitidas y progresiones bruscas, pero no sustituye a un entrenador. Las semanas de VFC «marcadas» del plan no se leen del PDF: el aviso de VFC usa cualquier semana con ≥ 3 mañanas.
+- **Recordatorios push:** se evalúan cada hora; con el contenedor apagado a esa hora, llegan en la siguiente pasada del día.
 
 - **Importar del reloj:** los tests usan ficheros FIT generados con el codificador oficial de Garmin imitando a cada marca, y GPX/TCX escritos según cada formato; **no** ficheros exportados de relojes físicos. Si un reloj concreto escribe algo inesperado, la vista previa lo muestra antes de guardar.
 - **Notificaciones en iPhone:** solo con la PWA instalada en la pantalla de inicio (iOS 16.4+). La vibración del temporizador no existe en Safari.

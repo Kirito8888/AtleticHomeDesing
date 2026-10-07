@@ -62,7 +62,7 @@ describe("sessionToFormInitial", () => {
 
   it("aplica overrides (repetir sesión) y detecta tipos no editables", () => {
     expect(sessionToFormInitial(base, { date: "2026-10-06", rpe: null }).date).toBe("2026-10-06");
-    expect(isEditableType("MIXED")).toBe(false);
+    expect(isEditableType("MIXED")).toBe(true); // con el interruptor «sesión mixta»
   });
 });
 

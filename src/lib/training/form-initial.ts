@@ -3,8 +3,11 @@
 import type { ExerciseBlock } from "@/components/training/strength-logger";
 import type { TechnicalState } from "@/components/training/technical-logger";
 import type { TrackState } from "@/components/training/track-logger";
+import { z } from "zod";
+
 import { formatDuration } from "@/lib/format";
-import { createSessionSchema } from "@/lib/training/schemas";
+import type { BodyAreaName } from "@/lib/recovery/injury-rules";
+import { createSessionSchema, feelingSchema } from "@/lib/training/schemas";
 
 export type FormKind = "STRENGTH" | "TECHNICAL" | "TRACK";
 
@@ -16,6 +19,10 @@ export interface SessionFormInitial {
   rpe: number | null;
   notes: string;
   planned: boolean;
+  /** Sensaciones al cerrar: molestias por zona. */
+  feelings?: Array<{ area: BodyAreaName; side: "LEFT" | "RIGHT" | "BOTH" | null; pain: number }>;
+  /** Sesión mixta: se guardan a la vez las partes de fuerza, técnica y pista que tengan datos. */
+  mixed?: boolean;
   blocks?: ExerciseBlock[];
   technical?: TechnicalState;
   track?: TrackState;
@@ -28,6 +35,7 @@ interface StoredSession {
   durationSec: number | null;
   sessionRpe: number | null;
   notes: string | null;
+  feelings?: unknown;
   status: string;
   strength: { sets: Array<{ exerciseId: string; reps: number; weightKg: number; rpe: number | null; isWarmup: boolean }> } | null;
   technical: {
@@ -37,6 +45,9 @@ interface StoredSession {
     approachSteps: number | null;
     isCompetition: boolean;
     focus: string | null;
+    videoTotal?: number | null;
+    videoElbowOk?: number | null;
+    videoHeadOk?: number | null;
     attempts: Array<{
       markM: number | null;
       isFoul: boolean;
@@ -58,14 +69,22 @@ interface StoredSession {
   } | null;
 }
 
-/** Las sesiones MIXED no tienen formulario propio: solo se pueden borrar y recrear. */
-export const isEditableType = (type: string): type is FormKind => type === "STRENGTH" || type === "TECHNICAL" || type === "TRACK";
+/** Tipos con formulario (MIXED se edita con el interruptor «sesión mixta»). */
+export const isEditableType = (type: string): boolean => type === "STRENGTH" || type === "TECHNICAL" || type === "TRACK" || type === "MIXED";
+const isFormKind = (type: string): type is FormKind => type === "STRENGTH" || type === "TECHNICAL" || type === "TRACK";
+
+/** Sensaciones guardadas (JSON) → valores del formulario; lo que no valida se ignora. */
+function readFeelings(raw: unknown): NonNullable<SessionFormInitial["feelings"]> {
+  const r = z.array(feelingSchema).safeParse(raw ?? []);
+  return r.success ? r.data.map((f) => ({ area: f.area, side: f.side ?? null, pain: f.pain })) : [];
+}
 
 /** "4:05" para tiempos enteros; "11.45" si hay décimas (sprints), que formatDuration redondearía. */
 const dur = (sec: number | null) => (sec == null ? "" : Number.isInteger(sec) ? formatDuration(sec) : String(sec));
 
 export function sessionToFormInitial(s: StoredSession, overrides: Partial<SessionFormInitial> = {}): SessionFormInitial {
-  const type: FormKind = isEditableType(s.type) ? s.type : "STRENGTH";
+  // MIXED: la pestaña inicial es la primera parte con datos.
+  const type: FormKind = isFormKind(s.type) ? s.type : s.strength ? "STRENGTH" : s.technical ? "TECHNICAL" : s.track ? "TRACK" : "STRENGTH";
   const base: SessionFormInitial = {
     type,
     date: s.date.toISOString().slice(0, 10),
@@ -74,6 +93,8 @@ export function sessionToFormInitial(s: StoredSession, overrides: Partial<Sessio
     rpe: s.sessionRpe,
     notes: s.notes ?? "",
     planned: s.status === "PLANNED",
+    feelings: readFeelings(s.feelings),
+    mixed: s.type === "MIXED",
   };
 
   if (s.strength) {
@@ -96,6 +117,9 @@ export function sessionToFormInitial(s: StoredSession, overrides: Partial<Sessio
       approachSteps: t.approachSteps,
       isCompetition: t.isCompetition,
       focus: t.focus ?? "",
+      videoTotal: t.videoTotal ?? null,
+      videoElbowOk: t.videoElbowOk ?? null,
+      videoHeadOk: t.videoHeadOk ?? null,
       // Ids negativos: no chocan con los que genera el cliente (1, 2, 3…).
       attempts: t.attempts.map((a, i) => ({
         id: -(i + 1),
@@ -145,6 +169,7 @@ export function templateToFormInitial(payload: unknown, date: string): SessionFo
       durationSec: p.durationSec ?? null,
       sessionRpe: p.sessionRpe ?? null,
       notes: p.notes ?? null,
+      feelings: p.feelings ?? null,
       status: p.status,
       strength: strength
         ? { sets: strength.sets.map((x) => ({ exerciseId: x.exerciseId, reps: x.reps, weightKg: x.weightKg, rpe: x.rpe ?? null, isWarmup: x.isWarmup })) }
@@ -157,6 +182,9 @@ export function templateToFormInitial(payload: unknown, date: string): SessionFo
             approachSteps: technical.approachSteps ?? null,
             isCompetition: technical.isCompetition,
             focus: technical.focus ?? null,
+            videoTotal: technical.videoTotal ?? null,
+            videoElbowOk: technical.videoElbowOk ?? null,
+            videoHeadOk: technical.videoHeadOk ?? null,
             attempts: technical.attempts.map((a) => ({
               markM: a.markM ?? null,
               isFoul: a.isFoul,

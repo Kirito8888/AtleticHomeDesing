@@ -21,10 +21,19 @@ export interface RecoveryValues {
   stress: number | null;
   mood: number | null;
   bodyWeightKg: number | null;
+  bodyFatPct: number | null;
+  squeezePain: number | null;
+  heelPain: number | null;
+  jumpCm: number | null;
+  elbowSymptoms: boolean | null;
 }
 
 const scale = (labels: string[]) => labels.map((label, i) => ({ value: i + 1, label }));
 const DOMS = Array.from({ length: 11 }, (_, i) => ({ value: i, label: String(i) }));
+const YES_NO = [
+  { value: 1, label: "Sí" },
+  { value: 0, label: "No" },
+];
 
 export function RecoveryForm({ initial }: { initial: RecoveryValues }) {
   const router = useRouter();
@@ -65,6 +74,35 @@ export function RecoveryForm({ initial }: { initial: RecoveryValues }) {
           <Stepper label="Peso corporal" value={v.bodyWeightKg} onChange={(x) => set({ bodyWeightKg: x })} step={0.1} decimals={1} max={300} suffix="kg" />
         </Field>
       </div>
+      <details className="rounded-lg border p-3" open={[v.squeezePain, v.heelPain, v.jumpCm, v.elbowSymptoms, v.bodyFatPct].some((x) => x != null)}>
+        <summary className="cursor-pointer font-medium">Control rápido</summary>
+        <p className="mt-1 text-xs text-muted-foreground">El del lunes (o el día que te toque). Alimenta los avisos de «Mis reglas».</p>
+        <div className="mt-3 grid gap-4">
+          <Field label="Test squeeze (dolor)" hint="0 = nada · 10 = máximo">
+            <Chips label="Squeeze" options={DOMS} value={v.squeezePain} onChange={(x) => set({ squeezePain: x })} allowDeselect />
+          </Field>
+          <Field label="Talón (dolor)" hint="0 = nada · 10 = máximo">
+            <Chips label="Talón" options={DOMS} value={v.heelPain} onChange={(x) => set({ heelPain: x })} allowDeselect />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Salto en la pared">
+              <Stepper label="Salto" value={v.jumpCm} onChange={(x) => set({ jumpCm: x })} step={0.5} decimals={1} max={200} suffix="cm" />
+            </Field>
+            <Field label="% de grasa" hint="Báscula, en ayunas">
+              <Stepper label="Porcentaje de grasa" value={v.bodyFatPct} onChange={(x) => set({ bodyFatPct: x })} step={0.1} decimals={1} max={70} suffix="%" />
+            </Field>
+          </div>
+          <Field label="Hormigueo o dolor en el codo al lanzar">
+            <Chips
+              label="Codo"
+              options={YES_NO}
+              value={v.elbowSymptoms == null ? null : v.elbowSymptoms ? 1 : 0}
+              onChange={(x) => set({ elbowSymptoms: x == null ? null : x === 1 })}
+              allowDeselect
+            />
+          </Field>
+        </div>
+      </details>
       <Field label="Calidad del sueño">
         <Chips label="Calidad del sueño" options={scale(["Mala", "Regular", "Normal", "Buena", "Excelente"])} value={v.sleepQuality} onChange={(x) => set({ sleepQuality: x })} allowDeselect />
       </Field>

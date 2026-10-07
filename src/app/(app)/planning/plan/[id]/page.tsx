@@ -2,11 +2,18 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/page-header";
+import { DayActions } from "@/components/ai-plan/day-actions";
 import { PlanDayView } from "@/components/training/plan-day-view";
 import { Button } from "@/components/ui/button";
 import { pageUser } from "@/lib/auth/page";
+import { dayView } from "@/lib/ai-plan/day-view";
+import { annotateKg } from "@/lib/training/plan-to-form";
+import { rmContext } from "@/lib/training/rm-service";
+import { RuleAlerts } from "@/components/rules/rule-alerts";
+import { today, toIsoDay } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
-import type { PlanBlock, VariantOption } from "@/lib/planning/plan-import/types";
+import { rulesToday } from "@/lib/rules/rules-service";
+import type { VariantOption } from "@/lib/planning/plan-import/types";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Día del plan · LifeOS" };
@@ -15,8 +22,11 @@ export const metadata = { title: "Día del plan · LifeOS" };
 export default async function PlanDayPage({ params }: PageProps<"/planning/plan/[id]">) {
   const user = await pageUser();
   const { id } = await params;
-  const d = await prisma.planDay.findFirst({ where: { id, userId: user.id }, include: { meso: { select: { code: true, name: true, variants: true, variant: true } } } });
+  const d = await prisma.planDay.findFirst({ where: { id, userId: user.id }, include: { meso: { select: { code: true, name: true, variants: true, variant: true, status: true } } } });
   if (!d) notFound();
+  const rmCtx = await rmContext(user.id);
+  const todayIso = toIsoDay(today());
+  const alerts = d.date && toIsoDay(d.date) === todayIso ? await rulesToday(user.id, todayIso) : [];
   const label = d.variant ? (d.meso.variants as VariantOption[]).find((v) => v.code === d.variant || v.code.startsWith(`${d.variant}-`))?.label : null;
   const when = d.date ? formatDate(d.date, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : d.relDay === 0 ? "Día de la competición" : `${-(d.relDay ?? 0)} días antes de competir`;
   return (
@@ -41,7 +51,12 @@ export default async function PlanDayPage({ params }: PageProps<"/planning/plan/
           .
         </p>
       ) : null}
-      <PlanDayView blocks={d.content as PlanBlock[]} heading={
+      <RuleAlerts alerts={alerts} />
+      {(() => {
+        const v = dayView(d);
+        return d.meso.status === "DRAFT" ? null : <DayActions dayId={d.id} mode={d.mode} hasLight={v.hasLight} swappable={v.swappable} />;
+      })()}
+      <PlanDayView blocks={annotateKg(dayView(d).blocks, rmCtx.rms, rmCtx.aliases, rmCtx.step)} heading={
           <>
             <Link href={`/planning/meso/${d.meso.code}`} className="underline-offset-2 hover:underline">
               {d.meso.code} · {d.meso.name}

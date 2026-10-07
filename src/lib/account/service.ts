@@ -5,7 +5,9 @@ import path from "node:path";
 import { ApiError, enforceRateLimit } from "@/lib/api";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { env } from "@/lib/env";
+import { getCycle } from "@/lib/health/cycle-service";
 import { prisma } from "@/lib/prisma";
+import { dataKeyConfigured } from "@/lib/security/data-key";
 import { type AuditContext, recordEvent } from "@/lib/security/audit";
 
 /** Re-autenticación para operaciones sensibles. Limitada para no servir de oráculo de fuerza bruta. */
@@ -120,24 +122,42 @@ export async function exportAccount(userId: string) {
       include: { coach: { select: { name: true, email: true } }, athlete: { select: { name: true, email: true } } },
     }),
   ]);
-  const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos] = await Promise.all([
+  const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos, cycle, oneRepMaxes, exerciseAliases, sharedReports, calendarFeeds] = await Promise.all([
     prisma.securityEvent.findMany({ where, orderBy: { createdAt: "desc" }, omit: { userId: true } }),
     prisma.injury.findMany({ where, orderBy: { startedOn: "asc" } }),
     prisma.sessionTemplate.findMany({ where }),
     prisma.mealTemplate.findMany({ where, include: { items: true } }),
-    prisma.planMeso.findMany({ where, orderBy: { startDate: "asc" }, include: { days: { orderBy: { key: "asc" } } } }),
+    prisma.planMeso.findMany({ where, orderBy: { startDate: "asc" }, include: { days: { orderBy: { key: "asc" } }, feedback: true } }),
+    // Datos del ciclo descifrados para su dueña (si el servidor tiene la clave).
+    dataKeyConfigured() ? getCycle(userId, 36500) : Promise.resolve(null),
+    prisma.oneRepMax.findMany({ where, orderBy: [{ nameKey: "asc" }, { effectiveFrom: "asc" }] }),
+    prisma.exerciseAlias.findMany({ where }),
+    // Enlaces compartidos: solo metadatos (el hash del token no sirve a nadie).
+    prisma.sharedReport.findMany({ where, omit: { tokenHash: true } }),
+    prisma.calendarFeed.findMany({ where, omit: { tokenHash: true } }),
   ]);
   return {
     exportedAt: new Date().toISOString(),
     format: "lifeos-export/2",
     user,
-    training: { thresholds, sessions: trainingSessions, personalRecords, dailyLoads, customExercises, cycles: trainingCycles, templates: sessionTemplates },
-    recovery: { metrics: recoveryMetrics, injuries },
+    training: {
+      thresholds,
+      sessions: trainingSessions,
+      personalRecords,
+      dailyLoads,
+      customExercises,
+      cycles: trainingCycles,
+      templates: sessionTemplates,
+      oneRepMaxes,
+      exerciseAliases,
+    },
+    recovery: { metrics: recoveryMetrics, injuries, menstrualCycle: cycle },
     planning: { calendarEvents, tasks, importedPlan: planMesos },
     finance: { accounts: financialAccounts, categories: financialCategories, transactions, budgets, subscriptions },
     nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates },
     study: { documents: studyDocuments, chatThreads, flashcardDecks },
-    coach: { reports: coachReports, links: coachLinks },
+    coach: { reports: coachReports, links: coachLinks, sharedReports },
+    calendarFeeds,
     security: { events: securityEvents },
   };
 }
