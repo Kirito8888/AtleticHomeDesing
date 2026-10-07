@@ -54,7 +54,7 @@ export const TECHNICAL_EVENT_LABEL: Record<string, string> = {
   TRIPLE_JUMP: "Triple salto",
   HIGH_JUMP: "Altura",
   POLE_VAULT: "Pértiga",
-  OTHER: "Otro",
+  OTHER: "Pelota u otro implemento",
 };
 
 export const READINESS_LABEL = { READY: "Listo", MODERATE: "Moderado", RECOVER: "Recuperar" } as const;

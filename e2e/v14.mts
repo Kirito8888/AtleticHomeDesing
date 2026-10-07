@@ -166,6 +166,28 @@ await page.getByText("Sentadilla frontal").first().waitFor();
 await shot("06-registered");
 log("registrar desde el plan con kg precargados, como sesión mixta");
 
+// 6. Bloque B: control rápido → aviso en Inicio → «Mis reglas» lo ajusta
+await go(B + "/recovery");
+await page.getByText("Control rápido").click();
+await radio("Squeeze", "5").click();
+await radio("Codo", "No").click();
+await page.getByRole("button", { name: "Guardar y calcular readiness" }).click();
+await toast(/Readiness|Guardado/);
+await go(B + "/");
+await page.getByLabel("Avisos de mis reglas").getByText("Squeeze 5/10").waitFor();
+await shot("07-rule-alert");
+await noOverflow("inicio con avisos");
+await go(B + "/settings#mis-reglas");
+await page.getByRole("textbox", { name: "Squeeze: avisar por encima de", exact: true }).fill("6");
+await page.getByRole("button", { name: "Guardar mis reglas" }).click();
+await toast(/Reglas guardadas/);
+await go(B + "/");
+if (await page.getByText("Squeeze 5/10").count()) errors.push("mis reglas: el aviso del squeeze sigue tras subir el umbral a 6");
+await go(B + "/training/performance");
+await page.getByRole("heading", { name: /los 3 mejores por implemento/ }).waitFor();
+await noOverflow("rendimiento");
+log("control rápido, aviso, mis reglas y rendimiento");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));

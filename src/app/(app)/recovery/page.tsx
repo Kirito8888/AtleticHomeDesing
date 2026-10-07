@@ -59,6 +59,11 @@ export default async function RecoveryPage() {
             stress: todayRow?.stress ?? null,
             mood: todayRow?.mood ?? null,
             bodyWeightKg: todayRow?.bodyWeightKg ?? profile?.bodyWeightKg ?? null,
+            bodyFatPct: todayRow?.bodyFatPct ?? null,
+            squeezePain: todayRow?.squeezePain ?? null,
+            heelPain: todayRow?.heelPain ?? null,
+            jumpCm: todayRow?.jumpCm ?? null,
+            elbowSymptoms: todayRow?.elbowSymptoms ?? null,
           }}
         />
         <div className="grid content-start gap-4">

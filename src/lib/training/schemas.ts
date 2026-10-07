@@ -84,6 +84,10 @@ export const technicalDetailSchema = z.object({
   windMs: optNum(-20, 20),
   isCompetition: z.boolean().default(false),
   focus: z.string().max(500).nullish(),
+  // Vídeo contado: de N revisados, cuántos con el codo estirado y con la cabeza estable
+  videoTotal: optInt(0, 200),
+  videoElbowOk: optInt(0, 200),
+  videoHeadOk: optInt(0, 200),
   attempts: z.array(technicalAttemptSchema).max(150).default([]),
 });
 
@@ -163,6 +167,12 @@ export const recoverySchema = z.object({
   stress: optInt(1, 5),
   mood: optInt(1, 5),
   bodyWeightKg: optNum(20, 300),
+  bodyFatPct: optNum(1, 70),
+  // Control rápido: dolor 0-10 en el test squeeze y en el talón, salto (cm), síntomas de codo
+  squeezePain: optInt(0, 10),
+  heelPain: optInt(0, 10),
+  jumpCm: optNum(0, 200),
+  elbowSymptoms: z.boolean().nullish(),
   notes: z.string().max(2000).nullish(),
 });
 
