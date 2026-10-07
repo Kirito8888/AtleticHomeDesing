@@ -8,13 +8,14 @@ import { getDay } from "@/lib/nutrition/service";
 import { prisma } from "@/lib/prisma";
 import { activeInjuries } from "@/lib/recovery/injuries";
 import { injuryAlert } from "@/lib/recovery/injury-rules";
+import { rulesToday } from "@/lib/rules/rules-service";
 import { getPerformanceSeries } from "@/lib/training/service";
 
 /** Todo lo que necesita el panel de inicio, en paralelo. */
 export async function getDashboard(userId: string) {
   const now = today();
   const day = toIsoDay(now);
-  const [perf, recovery, sessions, nutrition, budgets, dueCards, tasks, nextCompetition, injuries] = await Promise.all([
+  const [perf, recovery, sessions, nutrition, budgets, dueCards, tasks, nextCompetition, injuries, ruleAlerts] = await Promise.all([
     getPerformanceSeries(userId, 14),
     prisma.recoveryMetrics.findUnique({ where: { userId_date: { userId, date: now } } }),
     prisma.trainingSession.findMany({
@@ -35,6 +36,7 @@ export async function getDashboard(userId: string) {
       orderBy: { startAt: "asc" },
     }),
     activeInjuries(userId),
+    rulesToday(userId, day),
   ]);
   const rank = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 } as const;
   // Versión suave sugerida para la sesión planificada de hoy (síntomas o ciclo; cálculo local).
@@ -54,6 +56,7 @@ export async function getDashboard(userId: string) {
     tasks: tasks.sort((a, b) => rank[a.priority] - rank[b.priority]).slice(0, 5),
     nextCompetition,
     injuryAlert: injuryAlert(injuries, perf.current?.acwr ?? null),
+    ruleAlerts,
     lightSuggestion: lightDay && lightReason ? { sessionId: lightDay.sessionId!, reason: lightReason } : null,
   };
 }

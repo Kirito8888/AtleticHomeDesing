@@ -15,6 +15,7 @@ import {
 } from "@/components/settings/settings-forms";
 import { PageHeader } from "@/components/page-header";
 import { PushSettings } from "@/components/settings/push-settings";
+import { RulesForm } from "@/components/settings/rules-form";
 import { TwoFactorSettings } from "@/components/settings/two-factor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +25,7 @@ import { env } from "@/lib/env";
 import { formatDate, formatDuration } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { vapidKeys } from "@/lib/push/service";
+import { readPrefs } from "@/lib/rules/prefs";
 import { recentEvents } from "@/lib/security/audit";
 import { totpStatus } from "@/lib/security/totp";
 
@@ -52,9 +54,9 @@ function device(ua: string | null): string {
   return [browser, os].filter(Boolean).join(" · ");
 }
 
-function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
+function Section({ id, title, description, children }: { id?: string; title: string; description?: string; children: React.ReactNode }) {
   return (
-    <Card className="gap-4 py-4">
+    <Card id={id} className="scroll-mt-20 gap-4 py-4">
       <CardHeader className="px-4">
         <CardTitle className="text-base">{title}</CardTitle>
         {description ? <CardDescription>{description}</CardDescription> : null}
@@ -81,6 +83,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   ]);
   const vapid = vapidKeys();
   const p = me.athleteProfile;
+  const prefs = readPrefs(p?.prefs);
 
   return (
     <>
@@ -133,6 +136,24 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             </table>
           ) : null}
           <RecomputeTssButton />
+        </Section>
+        <Section id="mis-reglas" title="Mis reglas" description="Umbrales de los avisos (squeeze, talón, peso, VFC, lanzamientos, vídeo) y redondeo de los kg. Son pautas de prudencia, no diagnósticos.">
+          <RulesForm
+            initial={{
+              kgStep: prefs.kgStep,
+              rmTestThreshold: prefs.rmTestThreshold,
+              squeezeMax: prefs.squeezeMax,
+              heelMax: prefs.heelMax,
+              weightGainWeekKg: prefs.weightGainWeekKg,
+              weightBlockKg: prefs.weightBlockKg,
+              weightMinKg: prefs.weightMinKg,
+              bodyFatBlockPts: prefs.bodyFatBlockPts,
+              throwCapRatio: prefs.throwCapRatio,
+              throwMinHours: prefs.throwMinHours,
+              hrvDropPct: prefs.hrvDropPct,
+              videoMinPct: prefs.videoMinPct,
+            }}
+          />
         </Section>
         <Section title="Objetivo nutricional diario">
           <NutritionGoalForm today={todayIso} initial={goal} />

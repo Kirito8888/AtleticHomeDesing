@@ -39,6 +39,9 @@ interface StoredSession {
     approachSteps: number | null;
     isCompetition: boolean;
     focus: string | null;
+    videoTotal?: number | null;
+    videoElbowOk?: number | null;
+    videoHeadOk?: number | null;
     attempts: Array<{
       markM: number | null;
       isFoul: boolean;
@@ -101,6 +104,9 @@ export function sessionToFormInitial(s: StoredSession, overrides: Partial<Sessio
       approachSteps: t.approachSteps,
       isCompetition: t.isCompetition,
       focus: t.focus ?? "",
+      videoTotal: t.videoTotal ?? null,
+      videoElbowOk: t.videoElbowOk ?? null,
+      videoHeadOk: t.videoHeadOk ?? null,
       // Ids negativos: no chocan con los que genera el cliente (1, 2, 3…).
       attempts: t.attempts.map((a, i) => ({
         id: -(i + 1),
@@ -162,6 +168,9 @@ export function templateToFormInitial(payload: unknown, date: string): SessionFo
             approachSteps: technical.approachSteps ?? null,
             isCompetition: technical.isCompetition,
             focus: technical.focus ?? null,
+            videoTotal: technical.videoTotal ?? null,
+            videoElbowOk: technical.videoElbowOk ?? null,
+            videoHeadOk: technical.videoHeadOk ?? null,
             attempts: technical.attempts.map((a) => ({
               markM: a.markM ?? null,
               isFoul: a.isFoul,

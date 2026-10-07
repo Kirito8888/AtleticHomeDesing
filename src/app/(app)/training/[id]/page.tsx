@@ -15,7 +15,9 @@ import { formatDate, formatDuration, formatNum, formatPace, SESSION_TYPE_LABEL, 
 import { dayView } from "@/lib/ai-plan/day-view";
 import { annotateKg } from "@/lib/training/plan-to-form";
 import { rmContext } from "@/lib/training/rm-service";
-import { toIsoDay } from "@/lib/dates";
+import { RuleAlerts } from "@/components/rules/rule-alerts";
+import { today, toIsoDay } from "@/lib/dates";
+import { rulesToday } from "@/lib/rules/rules-service";
 import { cycleToday } from "@/lib/health/cycle-service";
 import type { VariantOption } from "@/lib/planning/plan-import/types";
 import { planDayForSession } from "@/lib/planning/plan-import/service";
@@ -48,6 +50,9 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
   const view = plan ? dayView(plan) : null;
   const rmCtx = view ? await rmContext(user.id) : null;
   const cycle = view?.hasLight && s.status === "PLANNED" ? await cycleToday(user.id, toIsoDay(s.date)) : null;
+  // Avisos de «Mis reglas» solo en la sesión planificada de hoy.
+  const todayIso = toIsoDay(today());
+  const alerts = s.status === "PLANNED" && toIsoDay(s.date) === todayIso ? await rulesToday(user.id, todayIso) : [];
 
   const byExercise = new Map<string, NonNullable<typeof s.strength>["sets"]>();
   for (const set of s.strength?.sets ?? []) {
@@ -82,6 +87,7 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
         </CardContent>
       </Card>
 
+      <RuleAlerts alerts={alerts} />
       {plan && view && s.status === "PLANNED" ? (
         <DayActions dayId={plan.id} mode={plan.mode} hasLight={view.hasLight} swappable={view.swappable} suggestion={cycle?.suggestion} />
       ) : null}

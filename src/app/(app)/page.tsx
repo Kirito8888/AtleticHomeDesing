@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Activity, Apple, Brain, CalendarDays, ChevronRight, HeartPulse, ListTodo, Plus, Trophy, Wallet } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
+import { RuleAlerts } from "@/components/rules/rule-alerts";
 import { Stat } from "@/components/stat";
 import { readinessStatus, StatusLabel, tsbStatus } from "@/components/status";
 import { Button } from "@/components/ui/button";
@@ -66,6 +67,8 @@ export default async function DashboardPage() {
           🩹 {d.injuryAlert.message}
         </Link>
       ) : null}
+
+      <RuleAlerts alerts={d.ruleAlerts} />
 
       {d.lightSuggestion ? (
         <Link href={`/training/${d.lightSuggestion.sessionId}`} role="status" className="mb-4 block rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
