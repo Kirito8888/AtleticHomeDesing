@@ -74,6 +74,31 @@ CREATE TABLE "PrivacyRequest" (
     CONSTRAINT "PrivacyRequest_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "RoutineProfile" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "mesoCode" TEXT NOT NULL,
+    "answers" JSONB NOT NULL,
+    "profile" JSONB NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "RoutineProfile_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RoutineTest" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "routineId" TEXT NOT NULL,
+    "metric" TEXT NOT NULL,
+    "value" DOUBLE PRECISION NOT NULL,
+    "date" DATE NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "RoutineTest_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Passkey_credentialId_key" ON "Passkey"("credentialId");
 
@@ -89,6 +114,12 @@ CREATE INDEX "Consent_userId_purpose_createdAt_idx" ON "Consent"("userId", "purp
 -- CreateIndex
 CREATE INDEX "PrivacyRequest_userId_createdAt_idx" ON "PrivacyRequest"("userId", "createdAt");
 
+-- CreateIndex
+CREATE INDEX "RoutineProfile_userId_createdAt_idx" ON "RoutineProfile"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "RoutineTest_routineId_metric_date_idx" ON "RoutineTest"("routineId", "metric", "date");
+
 -- AddForeignKey
 ALTER TABLE "Passkey" ADD CONSTRAINT "Passkey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -97,4 +128,10 @@ ALTER TABLE "Consent" ADD CONSTRAINT "Consent_userId_fkey" FOREIGN KEY ("userId"
 
 -- AddForeignKey
 ALTER TABLE "PrivacyRequest" ADD CONSTRAINT "PrivacyRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RoutineProfile" ADD CONSTRAINT "RoutineProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RoutineTest" ADD CONSTRAINT "RoutineTest_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "RoutineProfile"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

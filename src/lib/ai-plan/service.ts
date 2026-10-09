@@ -58,8 +58,16 @@ export async function generateAiPlan(userId: string, request: PlanRequest, deps:
     if (!warnings.length) break;
   }
 
-  const code = await nextCode(userId);
-  const e = expandAiPlan(plan!, request, code);
+  return saveDraftPlan(userId, plan!, request, { source: "AI", prefix: "IA", meta: { request, model, warnings, generatedAt: new Date().toISOString() }, warnings });
+}
+
+/**
+ * Guarda un plan generado (IA o rutina del cuestionario) como BORRADOR: mesociclo + días con fecha.
+ * No toca nada más hasta que se activa.
+ */
+export async function saveDraftPlan(userId: string, plan: AiPlan, request: PlanRequest, o: { source: "AI" | "ROUTINE"; prefix: string; meta: Record<string, unknown>; warnings: string[] }) {
+  const code = await nextCode(userId, o.prefix);
+  const e = expandAiPlan(plan, request, code);
   if (!e.days.length) throw new ApiError(422, "El plan no tiene ningún día a partir de la fecha elegida");
 
   const meso = await prisma.$transaction(async (tx) => {
@@ -73,9 +81,9 @@ export async function generateAiPlan(userId: string, request: PlanRequest, deps:
         intro: e.intro as Prisma.InputJsonValue,
         weeks: e.weeks as Prisma.InputJsonValue,
         variants: [],
-        source: "AI",
+        source: o.source,
         status: "DRAFT",
-        meta: { request, model, warnings, generatedAt: new Date().toISOString() } as Prisma.InputJsonValue,
+        meta: o.meta as Prisma.InputJsonValue,
       },
     });
     await tx.planDay.createMany({
@@ -96,13 +104,13 @@ export async function generateAiPlan(userId: string, request: PlanRequest, deps:
     });
     return m;
   });
-  return { code: meso.code, days: e.days.length, warnings, overlapDays: await overlapDays(userId, meso.id, e.start, e.end) };
+  return { code: meso.code, days: e.days.length, warnings: o.warnings, overlapDays: await overlapDays(userId, meso.id, e.start, e.end) };
 }
 
-async function nextCode(userId: string): Promise<string> {
-  const codes = await prisma.planMeso.findMany({ where: { userId, code: { startsWith: "IA" } }, select: { code: true } });
-  const max = codes.reduce((a, c) => Math.max(a, Number(c.code.slice(2)) || 0), 0);
-  return `IA${max + 1}`;
+async function nextCode(userId: string, prefix = "IA"): Promise<string> {
+  const codes = await prisma.planMeso.findMany({ where: { userId, code: { startsWith: prefix } }, select: { code: true } });
+  const max = codes.reduce((a, c) => Math.max(a, Number(c.code.slice(prefix.length)) || 0), 0);
+  return `${prefix}${max + 1}`;
 }
 
 /** Días con sesión de otros planes activos en las mismas fechas (p. ej. el de la entrenadora). */
@@ -120,8 +128,8 @@ async function aiMeso(userId: string, code: string, sources: string[] = ["AI"]) 
 
 /** Pasa el borrador a tus entrenamientos: crea el mesociclo y las sesiones planificadas. */
 export async function activateAiPlan(userId: string, code: string) {
-  // También activa los planes propios (MANUAL): mismo paso de borrador a entrenamientos
-  const meso = await aiMeso(userId, code, ["AI", "MANUAL"]);
+  // También activa los planes propios (MANUAL) y las rutinas del cuestionario (ROUTINE, v1.7)
+  const meso = await aiMeso(userId, code, ["AI", "MANUAL", "ROUTINE"]);
   return prisma.$transaction(
     async (tx) => {
       let cycleId = meso.cycleId;

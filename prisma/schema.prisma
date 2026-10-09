@@ -133,6 +133,7 @@ model User {
   processingRestrictedAt DateTime?
   consents               Consent[]
   privacyRequests        PrivacyRequest[]
+  routines               RoutineProfile[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -2024,4 +2025,34 @@ model PrivacyRequest {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+/// v1.7 · Rutina creada con el cuestionario (perfil, objetivos y tests) y su plan (PlanMeso, source ROUTINE).
+model RoutineProfile {
+  id        String   @id @default(cuid())
+  userId    String
+  mesoCode  String
+  answers   Json
+  profile   Json
+  createdAt DateTime @default(now())
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tests RoutineTest[]
+
+  @@index([userId, createdAt])
+}
+
+/// v1.7 · Resultado de un test (el inicial y los retests) para la curva real frente a la proyectada.
+model RoutineTest {
+  id        String   @id @default(cuid())
+  userId    String
+  routineId String
+  metric    String // pushups | squats60 | plankSec | km1Sec | walk6Meters | sitStand30
+  value     Float
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  routine RoutineProfile @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  @@index([routineId, metric, date])
 }
