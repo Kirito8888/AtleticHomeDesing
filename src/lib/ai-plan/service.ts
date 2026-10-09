@@ -16,9 +16,10 @@ import { allowedEquipment, type Equipment, type Location, LOCATIONS, type PlanRe
 import { buildPlanPrompt, buildSwapPrompt, PLAN_SYSTEM } from "./prompt";
 import { type AiPlan, aiPlanSchema, aiSwapSchema } from "./schema";
 import { validateAiPlan } from "./validate";
+import { womenMode } from "@/lib/health/women-service";
 
 /** Para tests: sustituyen la llamada a Gemini y la comprobación de clave + consentimiento. */
-export type AiDeps = { generate?: typeof generateJson; assertAllowed?: (userId: string) => Promise<void> };
+export type AiDeps = { generate?: typeof generateJson; assertAllowed?: (userId: string) => Promise<void>; womenMode?: (userId: string) => Promise<string> };
 
 /** Solo para tests y E2E (sin clave de Gemini): LIFEOS_FAKE_AI=1. */
 const fakeAi = () => process.env.LIFEOS_FAKE_AI === "1";
@@ -35,6 +36,10 @@ export async function generateAiPlan(userId: string, request: PlanRequest, deps:
       `Por tu respuesta (${request.safety.map((s) => SAFETY[s].toLowerCase()).join("; ")}), no voy a generar un plan: consulta antes con un profesional sanitario que te valore. Cuando te dé el visto bueno, vuelve a intentarlo.`,
       { code: "safety" },
     );
+  }
+  // Embarazo o posparto (Salud de la mujer): un plan genérico no es seguro. Solo se lee el modo, nada se envía.
+  if ((await (deps.womenMode ?? womenMode)(userId)) !== "NONE") {
+    throw new ApiError(422, "Con el modo embarazo o posparto activo no se generan planes con IA: sigue las pautas de tu médica o matrona y la guía de vuelta por fases de «Salud de la mujer».", { code: "safety" });
   }
   if (!fakeAi()) await (deps.assertAllowed ?? assertAiAllowed)(userId);
   const generate = deps.generate ?? generateJson;
@@ -107,15 +112,16 @@ export async function overlapDays(userId: string, mesoId: string, start: string,
   });
 }
 
-async function aiMeso(userId: string, code: string) {
+async function aiMeso(userId: string, code: string, sources: string[] = ["AI"]) {
   const meso = await prisma.planMeso.findUnique({ where: { userId_code: { userId, code } } });
-  if (!meso || meso.source !== "AI") throw new ApiError(404, "Plan no encontrado");
+  if (!meso || !sources.includes(meso.source)) throw new ApiError(404, "Plan no encontrado");
   return meso;
 }
 
 /** Pasa el borrador a tus entrenamientos: crea el mesociclo y las sesiones planificadas. */
 export async function activateAiPlan(userId: string, code: string) {
-  const meso = await aiMeso(userId, code);
+  // También activa los planes propios (MANUAL): mismo paso de borrador a entrenamientos
+  const meso = await aiMeso(userId, code, ["AI", "MANUAL"]);
   return prisma.$transaction(
     async (tx) => {
       let cycleId = meso.cycleId;

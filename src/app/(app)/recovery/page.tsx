@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { CycleCard } from "@/components/recovery/cycle-card";
 import { InjuriesPanel } from "@/components/recovery/injuries-panel";
+import { Button } from "@/components/ui/button";
 import { RecoveryForm } from "@/components/recovery/recovery-form";
 import { readinessStatus, StatusLabel } from "@/components/status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +16,12 @@ import { prisma } from "@/lib/prisma";
 import { dataKeyConfigured } from "@/lib/security/data-key";
 import { listInjuries } from "@/lib/recovery/injuries";
 import { READINESS_WEIGHTS, type ReadinessComponent } from "@/lib/training/readiness";
+import { womenEnabled } from "@/lib/health/women-service";
+import { readProtocol } from "@/lib/recovery/protocol-service";
+import { HrvImport } from "@/components/recovery/hrv-import";
+import { hooperIndex, sleepDebt } from "@/lib/recovery/wellness";
+import { getPrefs } from "@/lib/rules/prefs-service";
+import { dailySrpe, fosterWeek } from "@/lib/training/load-metrics";
 
 export const metadata = { title: "Recuperación · LifeOS" };
 
@@ -41,11 +49,30 @@ export default async function RecoveryPage() {
   const day = toIsoDay(now);
   const cycle = dataKeyConfigured() ? await getCycle(user.id, 200) : null;
   const showCycle = Boolean(cycle) && (profile?.sex === "FEMALE" || Boolean(cycle?.settings) || Boolean(cycle?.logs.length));
+  const showWomen = await womenEnabled(user.id);
+  // Carga y bienestar: monotonía de Foster (7 días), índice tipo Hooper y deuda de sueño
+  const [prefs, weekSessions] = await Promise.all([
+    getPrefs(user.id),
+    prisma.trainingSession.findMany({ where: { userId: user.id, status: "COMPLETED", date: { gte: addDays(now, -6), lte: now } }, select: { date: true, sessionRpe: true, durationSec: true } }),
+  ]);
+  const foster = fosterWeek(dailySrpe(weekSessions.map((s) => ({ ...s, date: toIsoDay(s.date) })), day));
+  const hooper = [...recent].reverse().map((r) => ({ date: toIsoDay(r.date), value: hooperIndex(r) })).filter((h) => h.value != null);
+  const debt = sleepDebt(recent.map((r) => ({ date: toIsoDay(r.date), sleepHours: r.sleepHours })), day, prefs.sleepTargetH);
   const todayLog = cycle?.logs.find((l) => l.date === day) ?? null;
 
   return (
     <>
-      <PageHeader title="Recuperación" description="Registro diario: 1 minuto al despertar." />
+      <PageHeader
+        title="Recuperación"
+        description="Registro diario: 1 minuto al despertar."
+        action={
+          showWomen ? (
+            <Button asChild variant="outline" size="sm">
+              <Link href="/recovery/women">Salud de la mujer</Link>
+            </Button>
+          ) : undefined
+        }
+      />
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <RecoveryForm
           initial={{
@@ -76,6 +103,43 @@ export default async function RecoveryPage() {
               suggestion={suggestLight(day, cycle.settings, cycle.logs)}
             />
           ) : null}
+          <Card className="gap-3 py-4">
+            <CardHeader className="px-4">
+              <CardTitle className="text-sm">Carga y bienestar (7 días)</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-2 px-4 text-sm">
+              <dl className="grid grid-cols-3 gap-2" aria-label="Carga y bienestar">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Monotonía</dt>
+                  <dd className={foster.monotony != null && foster.monotony > prefs.monotonyMax ? "font-semibold text-destructive" : "font-semibold"}>{foster.monotony != null ? formatNum(foster.monotony, 2) : "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Strain</dt>
+                  <dd className="font-semibold tabular-nums">{foster.strain ?? "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Deuda de sueño</dt>
+                  <dd className="font-semibold tabular-nums">{debt.nights ? `${formatNum(debt.debtH, 1)} h` : "—"}</dd>
+                </div>
+              </dl>
+              {hooper.length ? (
+                <p className="text-xs text-muted-foreground">
+                  Índice tipo Hooper (4–20, más alto = peor): {hooper.slice(-7).map((h) => h.value).join(" · ")}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground">El índice tipo Hooper sale cuando registras sueño, fatiga, estrés y agujetas.</p>
+              )}
+              <p className="text-xs text-muted-foreground">Monotonía de Foster = media / desviación de la carga diaria (RPE × minutos). Por encima de {formatNum(prefs.monotonyMax, 1)}, la semana es muy igual.</p>
+            </CardContent>
+          </Card>
+          <Card className="gap-3 py-4">
+            <CardHeader className="px-4">
+              <CardTitle className="text-sm">Importar VFC y sueño (CSV)</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4">
+              <HrvImport saved={prefs.hrvCsvMapping} />
+            </CardContent>
+          </Card>
           <InjuriesPanel
             today={toIsoDay(now)}
             injuries={injuries.map((i) => ({
@@ -87,6 +151,7 @@ export default async function RecoveryPage() {
               startedOn: toIsoDay(i.startedOn),
               resolvedOn: i.resolvedOn ? toIsoDay(i.resolvedOn) : null,
               notes: i.notes,
+              protocol: i.protocol ? readProtocol(i.protocol.phases) : null,
             }))}
           />
           <Card className="gap-3 py-4">

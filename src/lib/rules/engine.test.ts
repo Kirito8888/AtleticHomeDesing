@@ -72,6 +72,14 @@ describe("motor de reglas", () => {
     expect(a.map((x) => x.title)).toEqual(["Molestia en rodilla (6/10)"]);
   });
 
+  it("deuda de sueño, monotonía y vuelta tras lesión", () => {
+    const nights = ["2026-11-09", "2026-11-10", "2026-11-11"].map((d) => c(d, { sleepHours: 6 }));
+    expect(ids(evaluateRules({ today: TODAY, prefs, checks: nights, throws: [] }))).toEqual(["sleep-debt"]);
+    expect(ids(evaluateRules({ today: TODAY, prefs, checks: [], throws: [], loads: [300, 320, 310, 300, 330, 310, 300] }))).toEqual(["monotony"]);
+    const back = [t("2026-10-13", 20), t("2026-10-20", 20)];
+    expect(ids(evaluateRules({ today: TODAY, prefs, checks: [], throws: back, returnProtocol: { phase: "3 · Carrera e impacto" } }))).toEqual(["return"]);
+  });
+
   it("vídeo contado: dos semanas por debajo del mínimo", () => {
     const a = evaluateRules({ today: TODAY, prefs, checks: [], throws: [t("2026-11-04", 8, [8, 3, 6]), t("2026-11-11", 8, [8, 2, 7])] });
     expect(ids(a)).toEqual(["video-e"]);

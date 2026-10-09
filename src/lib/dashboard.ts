@@ -8,14 +8,17 @@ import { getDay } from "@/lib/nutrition/service";
 import { prisma } from "@/lib/prisma";
 import { activeInjuries } from "@/lib/recovery/injuries";
 import { injuryAlert } from "@/lib/recovery/injury-rules";
+import { womenAlertsToday } from "@/lib/health/women-service";
 import { rulesToday } from "@/lib/rules/rules-service";
+import { habitsToday, upcomingExamClashes } from "@/lib/study/schedule-service";
+import { equipmentAlertsToday } from "@/lib/training/equipment-service";
 import { getPerformanceSeries } from "@/lib/training/service";
 
 /** Todo lo que necesita el panel de inicio, en paralelo. */
 export async function getDashboard(userId: string) {
   const now = today();
   const day = toIsoDay(now);
-  const [perf, recovery, sessions, nutrition, budgets, dueCards, tasks, nextCompetition, injuries, ruleAlerts, tomorrow] = await Promise.all([
+  const [perf, recovery, sessions, nutrition, budgets, dueCards, tasks, nextCompetition, injuries, allRuleAlerts, tomorrow, women, habits, study, equipment] = await Promise.all([
     getPerformanceSeries(userId, 14),
     prisma.recoveryMetrics.findUnique({ where: { userId_date: { userId, date: now } } }),
     prisma.trainingSession.findMany({
@@ -38,7 +41,13 @@ export async function getDashboard(userId: string) {
     activeInjuries(userId),
     rulesToday(userId, day),
     prisma.trainingSession.findMany({ where: { userId, date: addDays(now, 1), status: "PLANNED" }, select: { id: true } }),
+    womenAlertsToday(userId, day),
+    habitsToday(userId, day),
+    upcomingExamClashes(userId, day, 7),
+    equipmentAlertsToday(userId, day),
   ]);
+  // En embarazo o posparto no aplican los avisos de peso, grasa ni tope de lanzamientos.
+  const ruleAlerts = women && women.mode !== "NONE" ? allRuleAlerts.filter((a) => !/^(weight|fat|throw)/.test(a.id)) : allRuleAlerts;
   const rank = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 } as const;
   // Versión suave sugerida para la sesión planificada de hoy (síntomas o ciclo; cálculo local).
   const planned = sessions.filter((s) => s.status === "PLANNED").map((s) => s.id);
@@ -58,8 +67,15 @@ export async function getDashboard(userId: string) {
     nextCompetition,
     injuryAlert: injuryAlert(injuries, perf.current?.acwr ?? null),
     ruleAlerts,
+    /** Salud de la mujer (cifrado; solo su dueña ve el panel de Inicio). */
+    womenAlerts: women?.alerts ?? [],
     /** Sesiones planificadas de hoy y mañana: se guardan para verlas sin conexión. */
     offlinePaths: [...sessions.filter((s) => s.status === "PLANNED"), ...tomorrow].map((s) => `/training/${s.id}`),
+    habits,
+    /** Solo «toca reponer» en Inicio; el 80 % se ve en Material. */
+    equipmentAlerts: equipment.filter((a) => a.level === "warn"),
+    nextExam: study.nextExam,
+    examClashes: study.clashes,
     lightSuggestion: lightDay && lightReason ? { sessionId: lightDay.sessionId!, reason: lightReason } : null,
   };
 }

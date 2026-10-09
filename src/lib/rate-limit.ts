@@ -49,6 +49,8 @@ export const LIMITS = {
   /** Enlaces públicos con token (.ics, informe para la entrenadora), por IP. */
   calendarFeed: { limit: 60, windowMs: 60 * 60_000 },
   sharedReport: { limit: 60, windowMs: 60 * 60_000 },
+  /** Comentarios en sesiones (cada uno puede disparar un push). */
+  comment: { limit: 60, windowMs: 60 * 60_000 },
 } as const;
 
 /**

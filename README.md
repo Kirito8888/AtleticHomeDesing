@@ -6,7 +6,7 @@ PWA personal para un atleta (pista, saltos y lanzamientos) que junta en una sola
 
 Pensada para el móvil y autoalojada en tu propio servidor.
 
-**Versión actual: v1.4**: crea tu planificación con IA (sin escribir, donde entrenes y con tu material, y adaptada al ciclo si quieres), kg desde tu tabla de RM, avisos de «Mis reglas», modo competición, calendario .ics e informe para tu entrenadora. Ver [`CHANGELOG.md`](CHANGELOG.md).
+**Versión actual: v1.5**: salud de la mujer (disponibilidad energética, RED-S, analíticas, suelo pélvico, posparto; cifrado y fuera de la IA), carga y bienestar (Foster, Hooper, sueño, agua, VFC por CSV), vuelta tras lesión por fases, plan propio, tests físicos y VBT, horario de exámenes, pomodoro y hábitos, becas y material, comentarios de la entrenadora y estado del servidor. Ver [`CHANGELOG.md`](CHANGELOG.md).
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · PostgreSQL 17 + pgvector · Prisma 7 · pg-boss · Docker Compose · Google Gemini (opcional).
 

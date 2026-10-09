@@ -27,6 +27,7 @@ export function listInjuries(userId: string) {
     where: { userId },
     orderBy: [{ resolvedOn: { sort: "desc", nulls: "first" } }, { startedOn: "desc" }],
     take: 50,
+    include: { protocol: { select: { phases: true } } },
   });
 }
 

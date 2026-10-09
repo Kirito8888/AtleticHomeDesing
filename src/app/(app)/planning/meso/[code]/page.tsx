@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AiPlanActions, WeekFeedback } from "@/components/ai-plan/ai-plan-actions";
+import { DuplicateWeek } from "@/components/planning/manual-plan";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
@@ -11,6 +12,7 @@ import { today, toIsoDay } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
 import type { ParsedWeek } from "@/lib/planning/plan-import/types";
 import { prisma } from "@/lib/prisma";
+import { mesoWeeklyTonnage } from "@/lib/training/plan-vs-done-service";
 
 export const metadata = { title: "Bloque del plan · LifeOS" };
 
@@ -49,9 +51,11 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
     meso.days.map((d) => ({ week: d.week, date: d.date ? toIsoDay(d.date) : null, status: d.sessionId ? (sessionStatus.get(d.sessionId) ?? null) : null })),
     toIsoDay(today()),
   );
+  const tonnage = await mesoWeeklyTonnage(user.id, meso.id);
   const isAi = meso.source === "AI";
+  const isManual = meso.source === "MANUAL";
   const meta = (meso.meta ?? {}) as { warnings?: string[]; model?: string };
-  const overlap = isAi && meso.status === "DRAFT" ? await overlapDays(user.id, meso.id, toIsoDay(meso.startDate), toIsoDay(meso.endDate)) : 0;
+  const overlap = (isAi || isManual) && meso.status === "DRAFT" ? await overlapDays(user.id, meso.id, toIsoDay(meso.startDate), toIsoDay(meso.endDate)) : 0;
   // Última semana ya terminada sin valorar (planes con IA activos).
   const todayIso = toIsoDay(today());
   const pendingWeek = isAi && meso.status === "ACTIVE"
@@ -105,6 +109,18 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
             </CardContent>
           </Card>
         ) : null}
+        {isManual ? (
+          <Card className="gap-3 py-4">
+            <CardHeader className="px-4">
+              <CardTitle className="text-sm">Plan propio</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 px-4">
+              <AiPlanActions code={meso.code} status={meso.status} overlapDays={overlap} canRegenerate={false} />
+              <DuplicateWeek code={meso.code} weeks={(meso.weeks as ParsedWeek[]).flatMap((w) => (w.number != null ? [w.number] : []))} />
+              <p className="text-xs text-muted-foreground">Toca un día para rellenarlo («Editar este día»). Si el plan ya está activo, los cambios llegan a tus sesiones planificadas.</p>
+            </CardContent>
+          </Card>
+        ) : null}
         {intro.length ? (
           <section className="grid gap-2" aria-label="Introducción del bloque">
             {intro.map((s, i) => (
@@ -146,6 +162,28 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
                 </tbody>
               </table>
               <p className="mt-2 text-xs text-muted-foreground">Perdidos: días que ya pasaron y siguen planificados. El % cuenta solo los días que ya tocaban.</p>
+              {tonnage.length ? (
+                <table className="mt-3 w-full text-sm tabular-nums" aria-label="Tonelaje plan frente a hecho">
+                  <thead className="text-xs text-muted-foreground">
+                    <tr>
+                      <th className="text-left font-normal">Semana</th>
+                      <th className="text-right font-normal">Tonelaje plan</th>
+                      <th className="text-right font-normal">Hecho</th>
+                      <th className="text-right font-normal">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tonnage.map((w) => (
+                      <tr key={w.week}>
+                        <td>S{w.week}</td>
+                        <td className="text-right">{Math.round(w.planned).toLocaleString("es-ES")} kg</td>
+                        <td className="text-right">{Math.round(w.done).toLocaleString("es-ES")} kg</td>
+                        <td className="text-right">{w.planned ? Math.round((w.done / w.planned) * 100) : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : null}
             </CardContent>
           </Card>
         ) : null}
@@ -167,7 +205,7 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
             <ul className="grid gap-1 border-t pt-3">
               {meso.days.map((d) => (
                 <li key={d.id}>
-                  <Link href={d.sessionId ? `/training/${d.sessionId}` : `/planning/plan/${d.id}`} className="flex gap-2 hover:underline">
+                  <Link href={isManual ? `/planning/plan/${d.id}` : d.sessionId ? `/training/${d.sessionId}` : `/planning/plan/${d.id}`} className="flex gap-2 hover:underline">
                     <span className="w-20 shrink-0 text-xs text-muted-foreground capitalize">
                       {d.date ? formatDate(d.date, { weekday: "short", day: "numeric", month: "short" }) : d.relDay === 0 ? "Día D" : `D${d.relDay}`}
                     </span>

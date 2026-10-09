@@ -42,13 +42,26 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
         title="Astras AI"
         description="Estudio con tus apuntes, coach de rendimiento y planes de entrenamiento (Gemini)"
         action={
-          <Button asChild size="sm">
-            <Link href="/study/plan">
-              <Sparkles /> Crear plan
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/study/ask">Pregunta a tus datos</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/study/plan">
+                <Sparkles /> Crear plan
+              </Link>
+            </Button>
+          </div>
         }
       />
+      <nav aria-label="Organización del estudio" className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <Link href="/study/schedule" className="underline underline-offset-4">
+          Horario y exámenes
+        </Link>
+        <Link href="/study/focus" className="underline underline-offset-4">
+          Pomodoro y horas de estudio
+        </Link>
+      </nav>
       {!aiConfigured ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
           La IA no está configurada: añade <code>GEMINI_API_KEY</code> a tu fichero de entorno y reinicia. Puedes seguir repasando flashcards existentes.

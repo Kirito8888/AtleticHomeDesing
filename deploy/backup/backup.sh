@@ -37,6 +37,7 @@ MIG_CHK="$(count "$CHECK_DB" 'select count(*) from "_prisma_migrations"')"
 USERS_CHK="$(count "$CHECK_DB" 'select count(*) from "User"')"
 if [ "$TABLES_SRC" != "$TABLES_CHK" ] || [ "$MIG_SRC" != "$MIG_CHK" ]; then
   log "FALLO: la restauración de prueba no coincide (tablas $TABLES_SRC/$TABLES_CHK, migraciones $MIG_SRC/$MIG_CHK)"
+  psql -q -d "$PGDATABASE" -c "insert into \"BackupRun\" (id, ok, detail) values (md5(random()::text || clock_timestamp()::text), false, 'restauración de prueba no coincide')" >/dev/null 2>&1 || true
   exit 1
 fi
 
@@ -47,3 +48,6 @@ fi
 
 find "$DIR" -name '*.age' -type f -mtime +"$KEEP" -delete
 log "ok $STAMP: $TABLES_CHK tablas, $USERS_CHK usuarios, restauración verificada; copias en $DIR (se conservan $KEEP días)"
+# Para «Estado del servidor» en Ajustes (la web no ve la carpeta de copias). Si la
+# tabla aún no existe (BD sin migrar a v1.5), no pasa nada.
+psql -q -d "$PGDATABASE" -c "insert into \"BackupRun\" (id, ok, detail) values (md5(random()::text || clock_timestamp()::text), true, '$STAMP: $TABLES_CHK tablas, $USERS_CHK usuarios, restauración verificada')" >/dev/null 2>&1 || true

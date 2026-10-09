@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   AiConsentToggle,
   ChangeEmailForm,
@@ -15,8 +16,10 @@ import {
 } from "@/components/settings/settings-forms";
 import { PageHeader } from "@/components/page-header";
 import { CalendarFeedSettings } from "@/components/settings/calendar-feed";
-import { CarbsByDayForm } from "@/components/settings/carbs-form";
+import { CarbsByDayForm, HydrationForm, TrackForm } from "@/components/settings/carbs-form";
 import { CoachReport } from "@/components/settings/coach-report";
+import { ServerStatusView } from "@/components/settings/server-status";
+import { serverStatus } from "@/lib/admin/status";
 import { PushSettings } from "@/components/settings/push-settings";
 import { ReminderSettings } from "@/components/settings/reminder-settings";
 import { RulesForm } from "@/components/settings/rules-form";
@@ -74,6 +77,7 @@ function Section({ id, title, description, children }: { id?: string; title: str
 
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const user = await pageUser();
+  const status = user.role === "ADMIN" ? await serverStatus() : null;
   const { welcome } = await searchParams;
   const todayIso = toIsoDay(today());
   const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed, reports] = await Promise.all([
@@ -167,6 +171,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               throwMinHours: prefs.throwMinHours,
               hrvDropPct: prefs.hrvDropPct,
               videoMinPct: prefs.videoMinPct,
+              monotonyMax: prefs.monotonyMax,
+              sleepTargetH: prefs.sleepTargetH,
+              sleepDebtMaxH: prefs.sleepDebtMaxH,
+              vbtMvt: prefs.vbtMvt,
+              vbtLossMax: prefs.vbtLossMax,
             }}
           />
         </Section>
@@ -174,6 +183,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <div className="grid gap-6">
             <NutritionGoalForm today={todayIso} initial={goal} />
             <CarbsByDayForm initial={{ carbsThrowDayG: prefs.carbsThrowDayG, carbsHeavyDayG: prefs.carbsHeavyDayG, carbsRestDayG: prefs.carbsRestDayG }} />
+            <HydrationForm initial={{ waterMlPerKg: prefs.waterMlPerKg, waterSessionExtraMl: prefs.waterSessionExtraMl, waterHotExtraMl: prefs.waterHotExtraMl, hotTempC: prefs.hotTempC }} />
           </div>
         </Section>
         <Section title="Entrenador / atletas" description="El entrenador solo ve datos deportivos; nunca finanzas, nutrición ni estudio.">
@@ -182,6 +192,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             asCoach={asCoach.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, scopes: l.scopes, other: l.athlete }))}
             asAthlete={asAthlete.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, scopes: l.scopes, other: l.coach }))}
           />
+          {(user.role === "COACH" || user.role === "ADMIN") && asCoach.some((l) => l.status === "ACTIVE") ? (
+            <Link href="/coach" className="mt-2 inline-block text-sm underline underline-offset-4">
+              Ver y comentar las sesiones de tus atletas
+            </Link>
+          ) : null}
         </Section>
         <Section id="informe" title="Informe para la entrenadora" description="Un enlace de solo lectura para quien no usa LifeOS.">
           <CoachReport
@@ -217,6 +232,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             {vapid ? <ReminderSettings initial={{ remindTomorrowHour: prefs.remindTomorrowHour, remindMondayCheck: prefs.remindMondayCheck, remindWeigh: prefs.remindWeigh }} /> : null}
           </div>
         </Section>
+        <Section id="pista" title="Mi pista" description="Para guardar el tiempo (temperatura, viento, lluvia) de tus sesiones técnicas y el calor del día. Solo se envían las coordenadas a Open-Meteo.">
+          <TrackForm initial={prefs.track} />
+        </Section>
         <Section id="calendario" title="Calendario en el móvil" description="Suscríbete a tus entrenos y competiciones (.ics de solo lectura).">
           <CalendarFeedSettings active={feed.active} lastUsedAt={feed.lastUsedAt} />
         </Section>
@@ -245,6 +263,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <Section title="Privacidad e IA" description="Astras AI usa Google Gemini. Sin tu permiso no se envía nada.">
           <AiConsentToggle initial={me.aiConsentAt != null} configured={Boolean(env().GEMINI_API_KEY)} />
         </Section>
+        {status ? (
+          <Section id="servidor" title="Estado del servidor" description="Solo administración. Míralo después de cada actualización.">
+            <ServerStatusView s={status} />
+          </Section>
+        ) : null}
         <Section title="Tus datos" description="Descarga una copia completa (JSON) o elimina tu cuenta.">
           <div className="grid gap-6">
             <div className="grid gap-2">
