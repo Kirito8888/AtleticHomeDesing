@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { Activity, Apple, Brain, CalendarDays, ChevronRight, HeartPulse, ListTodo, Plus, Trophy, Wallet } from "lucide-react";
+import { Activity, Apple, Brain, CalendarDays, ChevronRight, HeartPulse, ListChecks, ListTodo, Plus, Trophy, Wallet } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { OfflineDayCache } from "@/components/offline-day-cache";
 import { RuleAlerts } from "@/components/rules/rule-alerts";
+import { HabitsCard } from "@/components/study/habits-card";
 import { Stat } from "@/components/stat";
 import { readinessStatus, StatusLabel, tsbStatus } from "@/components/status";
 import { Button } from "@/components/ui/button";
@@ -14,16 +15,18 @@ import { getDashboard } from "@/lib/dashboard";
 import { diffDays, today } from "@/lib/dates";
 import { formatDate, formatDuration, formatEur, formatNum, READINESS_LABEL, SESSION_TYPE_LABEL } from "@/lib/format";
 
-function Widget({ title, icon: Icon, href, children }: { title: string; icon: React.ElementType; href: string; children: React.ReactNode }) {
+function Widget({ title, icon: Icon, href, children }: { title: string; icon: React.ElementType; href?: string; children: React.ReactNode }) {
   return (
     <Card className="gap-3 py-4">
       <CardHeader className="flex flex-row items-center justify-between px-4">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Icon className="size-4 text-muted-foreground" /> {title}
         </CardTitle>
-        <Link href={href} className="flex items-center text-xs text-muted-foreground hover:text-foreground" aria-label={`Ver ${title}`}>
-          Ver <ChevronRight className="size-3.5" />
-        </Link>
+        {href ? (
+          <Link href={href} className="flex items-center text-xs text-muted-foreground hover:text-foreground" aria-label={`Ver ${title}`}>
+            Ver <ChevronRight className="size-3.5" />
+          </Link>
+        ) : null}
       </CardHeader>
       <CardContent className="px-4">{children}</CardContent>
     </Card>
@@ -196,6 +199,19 @@ export default async function DashboardPage() {
               <span className="text-2xl font-semibold tabular-nums">{d.dueCards}</span>{" "}
               <span className="text-muted-foreground">flashcards para repasar</span>
             </p>
+            {d.nextExam ? (
+              <p className="text-sm">
+                📚 Examen de <span className="font-medium">{d.nextExam.subject}</span>{" "}
+                <span className="text-muted-foreground">
+                  {diffDays(new Date(`${d.nextExam.date}T00:00:00Z`), today()) === 0 ? "hoy" : `en ${diffDays(new Date(`${d.nextExam.date}T00:00:00Z`), today())} d`}
+                </span>
+              </p>
+            ) : null}
+            {d.examClashes.map((c) => (
+              <Link key={c.id} href="/study/schedule" role="status" className="block rounded-md border border-amber-500/50 bg-amber-500/5 p-2 text-xs">
+                «{c.title}» {c.kind === "EXAM" ? "cae el día" : "es la víspera"} del examen de {c.subject}
+              </Link>
+            ))}
             {d.tasks.length ? (
               <ul className="grid gap-1.5 border-t pt-3">
                 {d.tasks.map((t) => (
@@ -210,6 +226,10 @@ export default async function DashboardPage() {
               </ul>
             ) : null}
           </div>
+        </Widget>
+
+        <Widget title="Hábitos" icon={ListChecks}>
+          <HabitsCard habits={d.habits} today={d.day} />
         </Widget>
       </div>
     </>
