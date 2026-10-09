@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { AttemptSheet } from "@/components/competition/attempt-sheet";
 import { CompetitionChecklist } from "@/components/competition/checklist";
+import { AttemptSimulator, CombinedWarmups } from "@/components/competition/v17-competition";
 import { WarmupTimer } from "@/components/competition/warmup-timer";
 import { TaperCard } from "@/components/competition/taper-card";
 import { CompMeals } from "@/components/competition/comp-meals";
@@ -86,6 +87,22 @@ export default async function CompetitionPage({ params }: PageProps<"/planning/c
           </CardHeader>
           <CardContent className="px-4">
             <WarmupTimer blocks={prefs.warmupBlocks} />
+          </CardContent>
+        </Card>
+        <Card className="gap-3 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base">Simulador de intentos</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <AttemptSimulator start={!ev.allDay ? new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(ev.startAt) : null} />
+          </CardContent>
+        </Card>
+        <Card className="gap-3 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base">Pruebas combinadas</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <CombinedWarmups />
           </CardContent>
         </Card>
         <Card className="gap-3 py-4">

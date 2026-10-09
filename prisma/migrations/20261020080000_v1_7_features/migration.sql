@@ -20,6 +20,9 @@ ALTER TABLE "SecurityEvent" ADD COLUMN     "hash" TEXT,
 ADD COLUMN     "prevHash" TEXT;
 
 -- AlterTable
+ALTER TABLE "TrainingSession" ADD COLUMN     "tags" TEXT[] DEFAULT ARRAY[]::TEXT[];
+
+-- AlterTable
 ALTER TABLE "User" ADD COLUMN     "processingRestrictedAt" TIMESTAMP(3);
 
 -- CreateTable

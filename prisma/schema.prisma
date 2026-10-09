@@ -383,6 +383,8 @@ model TrainingSession {
   feelings      Json?
   // v1.6: fatiga por zona al cerrar { hombro: 0-10, … } y id del cliente (registro sin conexión, idempotente)
   zoneFatigue   Json?
+  // v1.7 · etiquetas del diario técnico («salida», «bloqueo», «viento»…)
+  tags          String[]      @default([])
   clientId      String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
