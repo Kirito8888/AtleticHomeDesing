@@ -17,7 +17,8 @@ const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, lo
 const page = await ctx.newPage();
 page.on("pageerror", (e) => errors.push(`pageerror ${page.url()}: ${e.message}`));
 page.on("console", (m) => {
-  if (m.type() === "error" && !/404|422/.test(m.text())) errors.push(`console ${page.url()}: ${m.text()}`);
+  // ERR_INTERNET_DISCONNECTED: el paso «sin conexión» lo provoca a propósito
+  if (m.type() === "error" && !/404|422|ERR_INTERNET_DISCONNECTED/.test(m.text())) errors.push(`console ${page.url()}: ${m.text()}`);
 });
 page.on("response", (r) => {
   if (r.url().includes("/api/") && r.status() >= 500) errors.push(`HTTP ${r.status()} ${r.url()}`);
@@ -261,6 +262,52 @@ if (!(await (await anon2.request.get(physio)).text()).includes("Resumen para el 
 await anon2.close();
 await noOverflow("/recovery/health");
 log("citas, suplementos y enlace para el fisio");
+
+// 5. Bloque H: sin conexión, restaurar, panel de entrenadora y accesos directos
+await go(B + "/training/new");
+await page.getByLabel("Buscar ejercicio").fill("sentadilla tr");
+await page.getByRole("button", { name: /Sentadilla trasera/ }).click();
+await ctx.setOffline(true);
+await page.fill("#minutes", "30");
+await radio("RPE de la sesión", "5").click();
+await page.getByRole("button", { name: /^Guardar sesión$/ }).click();
+await toast(/Sin conexión: la sesión queda guardada/);
+await ctx.setOffline(false);
+await page.evaluate(() => window.dispatchEvent(new Event("online")));
+await toast(/sin conexión ya enviadas/);
+const offlineCount = ((await (await page.request.get(`${B}/api/training/sessions?from=${madrid}&to=${madrid}`)).json()) as Array<{ durationSec: number | null }>).filter((x) => x.durationSec === 1800).length;
+if (offlineCount !== 1) errors.push(`sin conexión: se esperaba 1 sesión de 30 min, hay ${offlineCount}`);
+log("registrar sin conexión y envío al volver la cobertura (sin duplicar)");
+
+const exported = await (await page.request.get(B + "/api/account/export")).text();
+const restEmail = `restore-v16-${Date.now()}@test.dev`;
+const rest = await login(restEmail, newUser(restEmail));
+await rest.goto(B + "/settings");
+await rest.getByLabel("Exportación de LifeOS (JSON)").setInputFiles({ name: "lifeos.json", mimeType: "application/json", buffer: Buffer.from(exported) });
+rest.once("dialog", (d) => d.accept());
+await rest.getByRole("button", { name: "Restaurar en esta cuenta" }).click();
+await rest.getByText(/\d+ sesiones/).first().waitFor();
+await rest.context().close();
+log("restaurar la exportación en una cuenta vacía");
+
+const coachEmail = `coach16-${Date.now()}@test.dev`;
+const coach = await login(coachEmail, newUser(coachEmail, "COACH"));
+await coach.request.post(B + "/api/coach/links", { data: { athleteEmail: myEmail } });
+const coachLink = ((await (await page.request.get(B + "/api/coach/links")).json()) as { asAthlete: Array<{ id: string }> }).asAthlete[0];
+await api("patch", `/api/coach/links/${coachLink.id}`, { status: "ACTIVE" });
+await coach.goto(B + "/coach");
+await coach.getByRole("table", { name: "Comparativa de atletas" }).getByText("Atleta Prueba").waitFor();
+await coach.getByText("Comentar varias sesiones a la vez").click();
+await coach.getByLabel("Sesiones para comentar").getByRole("checkbox").first().check();
+await coach.getByLabel("Comentario para todas").fill("Buena semana");
+await coach.getByRole("button", { name: /Enviar a 1 sesión/ }).click();
+await coach.getByText(/Comentario enviado a 1 sesión/).waitFor();
+await coach.context().close();
+log("panel de entrenadora: comparativa y comentario a varias sesiones");
+
+const manifest = (await (await page.request.get(B + "/manifest.webmanifest")).json()) as { shortcuts?: Array<{ url: string }> };
+if (!manifest.shortcuts?.some((x) => x.url === "/study/focus")) errors.push("manifest sin el acceso directo al pomodoro");
+log("accesos directos de la app");
 
 await browser.close();
 if (errors.length) {

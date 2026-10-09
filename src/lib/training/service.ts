@@ -51,6 +51,11 @@ export async function createTrainingSession(
   opts: { replace?: { id: string; date: Date } } = {},
 ) {
   const date = dateOnly(input.date);
+  // v1.6 · registro sin conexión: el mismo clientId no crea dos sesiones (reenvío tras perder la respuesta)
+  if (input.clientId && !opts.replace) {
+    const dup = await prisma.trainingSession.findUnique({ where: { userId_clientId: { userId, clientId: input.clientId } } });
+    if (dup) return { ...dup, newPersonalRecords: [], tssCandidates: [], duplicate: true as const };
+  }
   const track = "track" in input ? input.track : null;
   const technical = "technical" in input ? input.technical : null;
   const strength = "strength" in input ? input.strength : null;
@@ -103,7 +108,8 @@ export async function createTrainingSession(
 
   const counts = input.status === "COMPLETED";
 
-  const session = await prisma.$transaction(async (tx) => {
+  const session = await prisma
+    .$transaction(async (tx) => {
     if (opts.replace) {
       // Editar = sustituir conservando el id: el detalle (series, intentos,
       // intervalos) se recrea entero y las marcas de esta sesión se recalculan.
@@ -114,6 +120,7 @@ export async function createTrainingSession(
       data: {
         id: opts.replace?.id,
         userId,
+        clientId: opts.replace ? null : (input.clientId ?? null),
         plannedById,
         cycleId: input.cycleId ?? null,
         date,
@@ -207,7 +214,15 @@ export async function createTrainingSession(
         })
       : [];
     return { ...created, newPersonalRecords: prs };
-  });
+    })
+    .catch(async (err) => {
+      // Dos reenvíos a la vez del mismo registro sin conexión: gana el primero
+      if (input.clientId && err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        const dup = await prisma.trainingSession.findUnique({ where: { userId_clientId: { userId, clientId: input.clientId } } });
+        if (dup) return { ...dup, newPersonalRecords: [] };
+      }
+      throw err;
+    });
 
   // Al editar, la carga cambia desde la fecha más antigua (la sesión pudo cambiar de día o de estado).
   if (opts.replace) await recomputeDailyLoads(userId, opts.replace.date < date ? opts.replace.date : date);
