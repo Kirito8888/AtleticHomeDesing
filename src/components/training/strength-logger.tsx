@@ -21,6 +21,8 @@ export interface SetRow {
   weightKg: number | null;
   rpe: number | null;
   isWarmup: boolean;
+  /** VBT: velocidad media (m/s), opcional. */
+  velocityMs?: number | null;
 }
 
 export interface ExerciseBlock {
@@ -43,7 +45,7 @@ export function blocksToSets(blocks: ExerciseBlock[]) {
   return blocks.flatMap((b) =>
     b.sets
       .filter((s) => s.reps != null && s.reps > 0)
-      .map((s) => ({ exerciseId: b.exerciseId, reps: s.reps!, weightKg: s.weightKg ?? 0, rpe: s.rpe, isWarmup: s.isWarmup })),
+      .map((s) => ({ exerciseId: b.exerciseId, reps: s.reps!, weightKg: s.weightKg ?? 0, rpe: s.rpe, isWarmup: s.isWarmup, ...(s.velocityMs ? { velocityMs: s.velocityMs } : {}) })),
   );
 }
 
@@ -164,6 +166,23 @@ export function StrengthLogger({
                   <Stepper label={`Peso serie ${i + 1}`} value={s.weightKg} onChange={(v) => setField(block.key, i, { weightKg: v })} step={2.5} decimals={2} max={1000} suffix="kg" />
                   <Stepper label={`Repeticiones serie ${i + 1}`} value={s.reps} onChange={(v) => setField(block.key, i, { reps: v })} max={200} suffix="reps" />
                 </div>
+                {!s.isWarmup ? (
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                    VBT
+                    <input
+                      aria-label={`Velocidad serie ${i + 1}`}
+                      inputMode="decimal"
+                      className="h-8 w-20 rounded-md border bg-transparent px-2 text-sm tabular-nums"
+                      placeholder="m/s"
+                      defaultValue={s.velocityMs != null ? String(s.velocityMs).replace(".", ",") : ""}
+                      onChange={(e) => {
+                        const v = Number(e.target.value.replace(",", "."));
+                        setField(block.key, i, { velocityMs: e.target.value.trim() && Number.isFinite(v) && v > 0 && v < 10 ? v : null });
+                      }}
+                    />
+                    <span>m/s (opcional)</span>
+                  </label>
+                ) : null}
                 {!s.isWarmup ? (
                   <div role="radiogroup" aria-label={`RPE serie ${i + 1}`} className="flex gap-1 overflow-x-auto pb-0.5">
                     <span className="self-center pr-1 text-xs text-muted-foreground">RPE</span>

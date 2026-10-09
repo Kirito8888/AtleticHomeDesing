@@ -37,7 +37,7 @@ interface StoredSession {
   notes: string | null;
   feelings?: unknown;
   status: string;
-  strength: { sets: Array<{ exerciseId: string; reps: number; weightKg: number; rpe: number | null; isWarmup: boolean }> } | null;
+  strength: { sets: Array<{ exerciseId: string; reps: number; weightKg: number; rpe: number | null; isWarmup: boolean; velocityMs?: number | null }> } | null;
   technical: {
     event: string;
     implementWeightG: number | null;
@@ -101,7 +101,7 @@ export function sessionToFormInitial(s: StoredSession, overrides: Partial<Sessio
     // Series consecutivas del mismo ejercicio → un bloque (como en el registro).
     const blocks: ExerciseBlock[] = [];
     for (const set of s.strength.sets) {
-      const row = { reps: set.reps, weightKg: set.weightKg, rpe: set.rpe, isWarmup: set.isWarmup };
+      const row = { reps: set.reps, weightKg: set.weightKg, rpe: set.rpe, isWarmup: set.isWarmup, velocityMs: set.velocityMs ?? null };
       const last = blocks.at(-1);
       if (last && last.exerciseId === set.exerciseId) last.sets.push(row);
       else blocks.push({ key: `srv${blocks.length}`, exerciseId: set.exerciseId, sets: [row] });
@@ -172,7 +172,7 @@ export function templateToFormInitial(payload: unknown, date: string): SessionFo
       feelings: p.feelings ?? null,
       status: p.status,
       strength: strength
-        ? { sets: strength.sets.map((x) => ({ exerciseId: x.exerciseId, reps: x.reps, weightKg: x.weightKg, rpe: x.rpe ?? null, isWarmup: x.isWarmup })) }
+        ? { sets: strength.sets.map((x) => ({ exerciseId: x.exerciseId, reps: x.reps, weightKg: x.weightKg, rpe: x.rpe ?? null, isWarmup: x.isWarmup, velocityMs: x.velocityMs ?? null })) }
         : null,
       technical: technical
         ? {

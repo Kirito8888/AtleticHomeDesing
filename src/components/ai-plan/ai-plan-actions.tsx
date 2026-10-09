@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
 
 /** Borrador de plan con IA: activar, regenerar o borrar. */
-export function AiPlanActions({ code, status, overlapDays }: { code: string; status: string; overlapDays: number }) {
+export function AiPlanActions({ code, status, overlapDays, canRegenerate = true }: { code: string; status: string; overlapDays: number; canRegenerate?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -27,7 +27,7 @@ export function AiPlanActions({ code, status, overlapDays }: { code: string; sta
         router.replace(`/planning/meso/${r.code}`);
       } else {
         await api(`/api/planning/plan/${code}`, { method: "DELETE" });
-        router.replace("/study/plan");
+        router.replace(canRegenerate ? "/study/plan" : "/planning");
       }
     } catch (e) {
       toast.error((e as Error).message);
@@ -52,9 +52,11 @@ export function AiPlanActions({ code, status, overlapDays }: { code: string; sta
             <Button type="button" disabled={busy !== null} onClick={() => void run("activate")}>
               {busy === "activate" ? "Activando…" : "Activar en mis entrenamientos"}
             </Button>
-            <Button type="button" variant="outline" disabled={busy !== null} onClick={() => void run("regenerate")}>
-              {busy === "regenerate" ? "Generando…" : "Regenerar"}
-            </Button>
+            {canRegenerate ? (
+              <Button type="button" variant="outline" disabled={busy !== null} onClick={() => void run("regenerate")}>
+                {busy === "regenerate" ? "Generando…" : "Regenerar"}
+              </Button>
+            ) : null}
             <Button type="button" variant="ghost" disabled={busy !== null} onClick={() => void run("delete")}>
               Borrar
             </Button>

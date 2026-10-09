@@ -112,15 +112,16 @@ export async function overlapDays(userId: string, mesoId: string, start: string,
   });
 }
 
-async function aiMeso(userId: string, code: string) {
+async function aiMeso(userId: string, code: string, sources: string[] = ["AI"]) {
   const meso = await prisma.planMeso.findUnique({ where: { userId_code: { userId, code } } });
-  if (!meso || meso.source !== "AI") throw new ApiError(404, "Plan no encontrado");
+  if (!meso || !sources.includes(meso.source)) throw new ApiError(404, "Plan no encontrado");
   return meso;
 }
 
 /** Pasa el borrador a tus entrenamientos: crea el mesociclo y las sesiones planificadas. */
 export async function activateAiPlan(userId: string, code: string) {
-  const meso = await aiMeso(userId, code);
+  // También activa los planes propios (MANUAL): mismo paso de borrador a entrenamientos
+  const meso = await aiMeso(userId, code, ["AI", "MANUAL"]);
   return prisma.$transaction(
     async (tx) => {
       let cycleId = meso.cycleId;

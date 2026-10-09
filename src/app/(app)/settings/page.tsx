@@ -170,6 +170,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               monotonyMax: prefs.monotonyMax,
               sleepTargetH: prefs.sleepTargetH,
               sleepDebtMaxH: prefs.sleepDebtMaxH,
+              vbtMvt: prefs.vbtMvt,
+              vbtLossMax: prefs.vbtLossMax,
             }}
           />
         </Section>

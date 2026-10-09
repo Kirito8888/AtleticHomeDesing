@@ -79,6 +79,7 @@ describe("registrar desde el plan", () => {
           row("Sentadilla frontal · SERIE DE TEST", "1 × máximo técnico", "83 %"),
           row("Sentadilla frontal", "3 × 4", "83 %"),
           row("Face pulls", "3 × 12", "Banda"),
+          row("Press banca", "2 × 8", "52,5 kg"),
           row("Ejercicio raro", "2 × 5", "50 %"),
         ],
       },
@@ -89,6 +90,7 @@ describe("registrar desde el plan", () => {
       catalog: new Map([
         ["sentadilla frontal", "ex-front"],
         ["face pulls", "ex-face"],
+        ["press banca", "ex-bench"],
       ]),
       exerciseAliases: new Map(),
       step: 2.5,
@@ -97,6 +99,7 @@ describe("registrar desde el plan", () => {
     expect(r.blocks.map((b) => [b.exerciseId, b.sets.map((s) => `${s.isWarmup ? "c" : ""}${s.reps}×${s.weightKg}`)])).toEqual([
       ["ex-front", ["c6×32.5", "c6×65", "4×82.5", "4×82.5", "4×82.5"]],
       ["ex-face", ["12×0", "12×0", "12×0"]],
+      ["ex-bench", ["8×52.5", "8×52.5"]],
     ]);
   });
 });

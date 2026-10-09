@@ -22,7 +22,7 @@ export const metadata = { title: "Día del plan · LifeOS" };
 export default async function PlanDayPage({ params }: PageProps<"/planning/plan/[id]">) {
   const user = await pageUser();
   const { id } = await params;
-  const d = await prisma.planDay.findFirst({ where: { id, userId: user.id }, include: { meso: { select: { code: true, name: true, variants: true, variant: true, status: true } } } });
+  const d = await prisma.planDay.findFirst({ where: { id, userId: user.id }, include: { meso: { select: { code: true, name: true, variants: true, variant: true, status: true, source: true } } } });
   if (!d) notFound();
   const rmCtx = await rmContext(user.id);
   const todayIso = toIsoDay(today());
@@ -35,14 +35,21 @@ export default async function PlanDayPage({ params }: PageProps<"/planning/plan/
         title={d.title}
         description={`${when}${d.durationMin ? ` · ~${d.durationMin} min` : ""}`}
         action={
-          d.sessionId ? (
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/training/${d.sessionId}`}>Ver sesión</Link>
-            </Button>
-          ) : null
+          <div className="flex gap-2">
+            {d.meso.source === "MANUAL" ? (
+              <Button asChild size="sm">
+                <Link href={`/planning/plan/${d.id}/edit`}>Editar este día</Link>
+              </Button>
+            ) : null}
+            {d.sessionId ? (
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/training/${d.sessionId}`}>Ver sesión</Link>
+              </Button>
+            ) : null}
+          </div>
         }
       />
-      {!d.sessionId ? (
+      {!d.sessionId && d.meso.source !== "MANUAL" ? (
         <p className="mb-4 rounded-md border p-3 text-sm text-muted-foreground">
           Este día es de una versión que no está activa{label ? ` (${label})` : ""}. Para pasarlo a tus entrenamientos, elige esa versión en{" "}
           <Link href="/planning#plan" className="underline">
@@ -52,6 +59,11 @@ export default async function PlanDayPage({ params }: PageProps<"/planning/plan/
         </p>
       ) : null}
       <RuleAlerts alerts={alerts} />
+      <p className="mb-2 text-right text-xs">
+        <Link href={`/print/plan/${d.id}`} className="underline underline-offset-2">
+          Versión para imprimir
+        </Link>
+      </p>
       {(() => {
         const v = dayView(d);
         return d.meso.status === "DRAFT" ? null : <DayActions dayId={d.id} mode={d.mode} hasLight={v.hasLight} swappable={v.swappable} />;

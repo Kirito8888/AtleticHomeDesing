@@ -164,6 +164,61 @@ await page.getByRole("button", { name: "+250 ml" }).click();
 await page.getByLabel("Agua").getByText(/0,25 \//).waitFor();
 log("agua del día");
 
+// 4. Bloque I: tests físicos, plan propio (crear, editar, duplicar, activar), imprimir y mover
+await go(B + "/training/tests");
+for (const v of ["4,2", "4,0"]) {
+  await page.selectOption("#t-test", "sprint30");
+  await page.fill("#t-value", v);
+  await page.getByRole("button", { name: "Guardar resultado" }).click();
+  await toast(/Resultado guardado/);
+}
+await page.getByLabel("Resultados por test").getByText("▲ 4,8 %").waitFor();
+log("tests físicos con mejora");
+
+await go(B + "/planning/plan/new");
+await page.fill("#mp-name", "Pretemporada propia");
+await page.fill("#mp-start", plusDays(madrid, 7));
+await radio("Semanas", "2").click();
+await page.getByRole("button", { name: "Crear plan" }).click();
+await page.waitForURL(/\/planning\/meso\/P\d+$/);
+const mesoUrl = page.url();
+await page.getByRole("link", { name: /entreno/ }).first().click();
+await page.getByRole("link", { name: "Editar este día" }).click();
+await page.waitForURL(/\/edit$/);
+await page.fill("#md-title", "Fuerza A");
+await page.getByRole("button", { name: "+ Ejercicio" }).click();
+await page.getByLabel("Ejercicio 1", { exact: true }).fill("Sentadilla trasera");
+await page.getByLabel("Series 1", { exact: true }).fill("3 × 5");
+await page.getByLabel("Carga 1", { exact: true }).fill("80 kg");
+await page.getByRole("button", { name: "Guardar día" }).click();
+await toast(/Día guardado/);
+await page.waitForURL(mesoUrl);
+page.once("dialog", (d) => d.accept());
+await page.getByRole("button", { name: "Duplicar semana" }).click();
+await toast(/días copiados/);
+await page.getByRole("button", { name: "Activar en mis entrenamientos" }).click();
+await toast(/Plan activado: \d+ sesiones/);
+await shot("04-manual-plan");
+log("plan propio: crear, editar, duplicar semana y activar");
+
+const day = page.getByRole("link", { name: /Fuerza A/ }).first();
+await day.click();
+await page.waitForURL(/\/planning\/plan\/[^/]+$/);
+const dayId = page.url().split("/").pop()!;
+await go(`${B}/print/plan/${dayId}`);
+await page.getByRole("button", { name: "Imprimir o guardar en PDF" }).waitFor();
+await page.getByText("Sentadilla trasera").waitFor();
+log("plan del día imprimible");
+
+await go(`${B}/planning/plan/${dayId}`);
+await page.getByRole("link", { name: "Ver sesión" }).click();
+await page.waitForURL(/\/training\/c/);
+await page.getByText("Mover o duplicar").click();
+await page.getByLabel("Nuevo día").fill(plusDays(madrid, 30));
+await page.getByRole("button", { name: "Mover", exact: true }).click();
+await toast(/Sesión movida/);
+log("mover una sesión planificada");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));
