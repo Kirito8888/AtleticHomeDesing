@@ -176,6 +176,10 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
         ✓ sesión hecha · ○ planificada · □ tarea que vence{predicted.size ? " · ● regla prevista · ◦ síntomas previstos (solo tú lo ves)" : ""}. Toca un día para ver su detalle. ¿Sin plan?{" "}
         <Link href="/study/plan" className="font-medium text-foreground underline underline-offset-2">
           Créalo con IA
+        </Link>{" "}
+        o{" "}
+        <Link href="/planning/plan/new" className="font-medium text-foreground underline underline-offset-2">
+          hazlo tú
         </Link>
         .
       </p>

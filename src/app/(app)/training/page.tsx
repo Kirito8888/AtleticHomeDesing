@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, Dumbbell, LineChart, Plus, Trophy } from "lucide-react";
+import { CalendarClock, Dumbbell, LineChart, Plus, Timer, Trophy } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +63,11 @@ export default async function TrainingPage() {
         title="Entrenamiento"
         action={
           <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/training/tests" aria-label="Tests físicos">
+                <Timer /> <span className="hidden sm:inline">Tests</span>
+              </Link>
+            </Button>
             <Button asChild variant="outline" size="sm">
               <Link href="/training/rm" aria-label="Mis RM">
                 <Dumbbell /> <span className="hidden sm:inline">Mis RM</span>

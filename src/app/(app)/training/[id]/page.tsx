@@ -24,6 +24,10 @@ import { planDayForSession } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { isEditableType } from "@/lib/training/form-initial";
 import { consistency } from "@/lib/training/consistency";
+import { MoveSession } from "@/components/training/move-session";
+import { getPrefs } from "@/lib/rules/prefs-service";
+import { velocityLoss } from "@/lib/training/vbt";
+import { sessionPlanVsDone } from "@/lib/training/plan-vs-done-service";
 
 const METHOD_LABEL: Record<string, string> = {
   HR_TSS: "hrTSS (FC)",
@@ -55,6 +59,8 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
   const todayIso = toIsoDay(today());
   const alerts = s.status === "PLANNED" && toIsoDay(s.date) === todayIso ? await rulesToday(user.id, todayIso) : [];
 
+  const { vbtLossMax } = await getPrefs(user.id);
+  const pvd = plan && s.status === "COMPLETED" && s.strength ? await sessionPlanVsDone(user.id, s.id, rmCtx ?? undefined) : null;
   const byExercise = new Map<string, NonNullable<typeof s.strength>["sets"]>();
   for (const set of s.strength?.sets ?? []) {
     const list = byExercise.get(set.exercise.name) ?? [];
@@ -89,6 +95,14 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
       </Card>
 
       <RuleAlerts alerts={alerts} />
+      {s.status === "PLANNED" ? <MoveSession id={s.id} date={toIsoDay(s.date)} /> : null}
+      {plan ? (
+        <p className="mb-2 text-right text-xs">
+          <Link href={`/print/plan/${plan.id}`} className="underline underline-offset-2">
+            Versión para imprimir
+          </Link>
+        </p>
+      ) : null}
       {plan && view && s.status === "PLANNED" ? (
         <DayActions dayId={plan.id} mode={plan.mode} hasLight={view.hasLight} swappable={view.swappable} suggestion={cycle?.suggestion} />
       ) : null}
@@ -147,10 +161,49 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
                     ))}
                   </tbody>
                 </table>
+                {(() => {
+                  const vs = sets.filter((x) => !x.isWarmup && x.velocityMs != null).map((x) => x.velocityMs!);
+                  const loss = velocityLoss(vs);
+                  return vs.length ? (
+                    <p className={loss != null && loss > vbtLossMax ? "mt-2 text-xs font-medium text-destructive" : "mt-2 text-xs text-muted-foreground"} aria-label="VBT">
+                      VBT: {vs.map((v) => formatNum(v, 2)).join(" · ")} m/s
+                      {loss != null ? ` · pérdida ${formatNum(loss, 1)} %${loss > vbtLossMax ? ` (más del ${vbtLossMax} %: fatiga; corta las series aquí la próxima vez)` : ""}` : ""}
+                    </p>
+                  ) : null;
+                })()}
               </CardContent>
             </Card>
           ))}
           <p className="text-sm text-muted-foreground">Tonelaje: {formatNum(s.strength.tonnageKg ?? 0)} kg</p>
+          {pvd?.length ? (
+            <Card className="gap-2 py-4">
+              <CardHeader className="px-4">
+                <CardTitle className="text-base">Plan frente a hecho</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto px-4">
+                <table className="w-full text-xs tabular-nums" aria-label="Plan frente a hecho">
+                  <thead className="text-muted-foreground">
+                    <tr>
+                      <th className="text-left font-normal">Ejercicio</th>
+                      <th className="text-right font-normal">Plan</th>
+                      <th className="text-right font-normal">Hecho</th>
+                      <th className="text-right font-normal">Tonelaje</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pvd.map((r, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="py-1 pr-2">{r.exercise}</td>
+                        <td className="py-1 text-right">{r.plan ? `${r.plan.sets}×${Math.round(r.plan.reps / r.plan.sets)}${r.plan.avgKg ? ` @${formatNum(r.plan.avgKg, 1)}` : ""}` : "—"}</td>
+                        <td className="py-1 text-right">{r.done ? `${r.done.sets}×${Math.round(r.done.reps / r.done.sets)}${r.done.avgKg ? ` @${formatNum(r.done.avgKg, 1)}` : ""}` : "—"}</td>
+                        <td className={r.tonnagePct != null && r.tonnagePct < -10 ? "py-1 text-right text-destructive" : "py-1 text-right"}>{r.tonnagePct != null ? `${r.tonnagePct > 0 ? "+" : ""}${r.tonnagePct} %` : "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
       ) : null}
 

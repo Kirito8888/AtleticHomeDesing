@@ -47,7 +47,9 @@ export function planToBlocks(
     }
     const rm = findRm(row.exercise, ctx.rms, ctx.aliases);
     const pct = isRmLoad(row.load) ? parsePercents(row.load)[0] : undefined;
-    const weight = rm && pct ? roundTo((rm.kg * pct) / 100, ctx.step) : 0;
+    // Carga en kg escrita tal cual («80 kg», p. ej. en un plan propio) o desde %RM
+    const absKg = /^\s*(\d+(?:[.,]\d+)?)\s*kg\b/i.exec(row.load);
+    const weight = absKg ? Number(absKg[1].replace(",", ".")) : rm && pct ? roundTo((rm.kg * pct) / 100, ctx.step) : 0;
     const sets: FormSet[] = [];
     if (ramp) {
       const rg = parseSetsReps(ramp.sets);

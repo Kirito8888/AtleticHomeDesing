@@ -62,6 +62,9 @@ export const prefsSchema = z.object({
       { name: "Lanzamientos de calentamiento", minutes: 15 },
       { name: "Activación final y concentración", minutes: 5 },
     ]),
+  /** VBT: velocidad mínima a la que sale la RM (m/s) y pérdida de velocidad para avisar (%). */
+  vbtMvt: z.number().min(0.1).max(1).default(0.3),
+  vbtLossMax: z.number().min(5).max(60).default(20),
   /** Mapeo del CSV de VFC y sueño (se recuerda para la próxima importación). */
   hrvCsvMapping: z
     .object({
