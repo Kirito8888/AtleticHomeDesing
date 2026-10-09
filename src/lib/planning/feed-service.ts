@@ -1,9 +1,12 @@
 import "server-only";
 
-import { addDays, today } from "@/lib/dates";
+import { addDays, today, toIsoDay } from "@/lib/dates";
 import { SESSION_TYPE_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { getPrefs } from "@/lib/rules/prefs-service";
 import { hashShareToken, isShareToken, newShareToken } from "@/lib/security/share-token";
+import { studyIcsEvents } from "@/lib/study/exam-plan";
+import { listSlots } from "@/lib/study/schedule-service";
 
 import { buildIcs, type IcsEvent } from "./ics";
 
@@ -49,11 +52,14 @@ export async function feedIcs(token: string): Promise<string | null> {
     }),
   ]);
   await prisma.calendarFeed.update({ where: { id: feed.id }, data: { lastUsedAt: new Date() } });
+  // v1.6 · clases y exámenes solo si lo activas en Ajustes (y solo la asignatura)
+  const study = (await getPrefs(feed.userId)).icsStudy ? studyIcsEvents(await listSlots(feed.userId), toIsoDay(now), 120) : [];
   const list: IcsEvent[] = [
     ...sessions
       .filter((s) => s.status !== "SKIPPED")
       .map((s) => ({ uid: `s-${s.id}`, title: cleanTitle(s.title ?? SESSION_TYPE_LABEL[s.type] ?? "Entreno"), start: s.date, allDay: true })),
     ...events.map((e) => ({ uid: `e-${e.id}`, title: e.title, start: e.startAt, end: e.endAt, allDay: e.allDay, location: e.location })),
+    ...study,
   ];
   return buildIcs("LifeOS · Entrenos y competiciones", list);
 }

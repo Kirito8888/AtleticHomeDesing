@@ -81,6 +81,14 @@ export const prefsSchema = z.object({
   lightZoneAmber: z.number().int().min(1).max(10).default(7),
   /** v1.6 · comida del día de competición (plantilla genérica editable). */
   compMeals: z.array(compMealSchema).max(10).default(DEFAULT_COMP_MEALS),
+  /** v1.6 · plan de estudio: minutos al día como mucho, recorte en días de entreno, bloque y horas por examen (por defecto y por id). */
+  studyDailyMin: z.number().int().min(30).max(720).default(180),
+  studyTrainingCutMin: z.number().int().min(0).max(300).default(60),
+  studyBlockMin: z.number().int().min(15).max(120).default(30),
+  studyHoursPerExam: z.number().min(1).max(300).default(15),
+  examHours: z.record(z.string().max(40), z.number().min(0).max(300)).default({}),
+  /** v1.6 · añadir clases y exámenes (solo la asignatura) al calendario .ics. */
+  icsStudy: z.boolean().default(false),
   /** Mapeo del CSV de VFC y sueño (se recuerda para la próxima importación). */
   hrvCsvMapping: z
     .object({

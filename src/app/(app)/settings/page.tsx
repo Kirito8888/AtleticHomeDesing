@@ -246,7 +246,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <TrackForm initial={prefs.track} />
         </Section>
         <Section id="calendario" title="Calendario en el móvil" description="Suscríbete a tus entrenos y competiciones (.ics de solo lectura).">
-          <CalendarFeedSettings active={feed.active} lastUsedAt={feed.lastUsedAt} />
+          <CalendarFeedSettings active={feed.active} lastUsedAt={feed.lastUsedAt} study={prefs.icsStudy} />
         </Section>
         <Section title="Actividad reciente" description="Si ves algo que no reconoces, cambia la contraseña y cierra las sesiones.">
           {events.length ? (
