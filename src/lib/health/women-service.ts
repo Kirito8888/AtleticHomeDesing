@@ -3,6 +3,7 @@ import "server-only";
 import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { ensureHealthConsent, recordConsent } from "@/lib/privacy/service";
 import { pickPatch } from "@/lib/rules/prefs";
 import { dataKeyConfigured, openJson, sealJson } from "@/lib/security/data-key";
 
@@ -46,6 +47,7 @@ export async function getWomen(userId: string) {
 }
 
 export async function saveWomenSettings(userId: string, patch: unknown): Promise<WomenSettings> {
+  await ensureHealthConsent(userId);
   const cur = (await getWomen(userId)).settings;
   const next = womenSettingsSchema.parse({ ...cur, ...pickPatch(womenSettingsSchema.partial(), patch) });
   const data = sealJson(next);
@@ -69,6 +71,8 @@ export async function deleteWomenData(userId: string) {
     prisma.womenHealth.deleteMany({ where: { userId } }),
     prisma.healthReport.deleteMany({ where: { userId, kind: "MEDICAL" } }),
   ]);
+  // Sin datos de salud ya no hay nada que consentir: retirado (art. 7.3)
+  if (!(await prisma.cycleProfile.count({ where: { userId } }))) await recordConsent(userId, "HEALTH", false);
 }
 
 /** ¿Se muestra la sección? Perfil de mujer o ya hay datos, y el servidor puede cifrar. */

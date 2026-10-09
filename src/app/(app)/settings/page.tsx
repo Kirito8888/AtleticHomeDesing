@@ -1,4 +1,5 @@
 import Link from "next/link";
+
 import {
   AiConsentToggle,
   ChangeEmailForm,
@@ -292,6 +293,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         </Section>
         <Section title="Privacidad e IA" description="Astras AI usa Google Gemini. Sin tu permiso no se envía nada.">
           <AiConsentToggle initial={me.aiConsentAt != null} configured={Boolean(env().GEMINI_API_KEY)} />
+          <Link href="/settings/privacy" className="mt-3 inline-block text-sm font-medium underline underline-offset-4">
+            Privacidad y derechos (consentimientos, limitar el tratamiento, plazos)
+          </Link>
         </Section>
         {status ? (
           <Section id="servidor" title="Estado del servidor" description="Solo administración. Míralo después de cada actualización.">

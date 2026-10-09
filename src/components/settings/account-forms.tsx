@@ -158,6 +158,7 @@ export function AiConsentToggle({ initial, configured }: { initial: boolean; con
       <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
         <li>Apuntes: el texto de los documentos que subas y tus preguntas al tutor.</li>
         <li>Coach semanal: un resumen numérico de tu semana (carga, VFC, sueño, competiciones). Sin nombre ni email.</li>
+        <li>Transferencia internacional: Google puede tratarlos fuera del Espacio Económico Europeo (Marco de Privacidad de Datos UE-EE. UU. y cláusulas contractuales tipo).</li>
         <li>Nunca se envían finanzas ni nutrición.</li>
       </ul>
       {!configured ? <p className="text-xs text-muted-foreground">Este servidor no tiene GEMINI_API_KEY: la IA no funcionará aunque lo actives.</p> : null}

@@ -43,6 +43,12 @@ const schema = z.object({
     .string()
     .refine((v) => Buffer.from(v, "base64").length === 32, "TOTP_ENCRYPTION_KEY_PREVIOUS debe ser 32 bytes en base64")
     .optional(),
+  // v1.7 · Datos del responsable para la política de privacidad y el aviso legal (públicos en
+  // /legal/…). Sin ellos, las páginas dicen que es una instalación personal sin terceros.
+  LEGAL_NAME: z.string().max(120).optional(),
+  LEGAL_EMAIL: z.string().email().optional(),
+  LEGAL_NIF: z.string().max(20).optional(),
+  LEGAL_ADDRESS: z.string().max(200).optional(),
   // Notificaciones push (Web Push / VAPID). Generar con: npx web-push generate-vapid-keys
   // Sin ellas la app funciona igual, solo sin notificaciones.
   VAPID_PUBLIC_KEY: z.string().optional(),
