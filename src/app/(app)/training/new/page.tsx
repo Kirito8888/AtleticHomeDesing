@@ -3,7 +3,7 @@ import { Repeat } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { ImportActivity } from "@/components/training/import-activity";
-import { SessionForm } from "@/components/training/session-form";
+import { VoiceSessionForm } from "@/components/training/voice-session";
 import { TemplateChips } from "@/components/training/template-chips";
 import { Button } from "@/components/ui/button";
 import { pageUser } from "@/lib/auth/page";
@@ -68,8 +68,8 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
       />
       {!initial ? <ImportActivity /> : null}
       <TemplateChips templates={templates.map((t) => ({ id: t.id, name: t.name }))} activeId={chosen?.id} />
-      <SessionForm
-        key={chosen ? `tpl-${chosen.id}` : initial ? "repeat" : "new"}
+      <VoiceSessionForm
+        formKey={chosen ? `tpl-${chosen.id}` : initial ? "repeat" : "new"}
         exercises={exercises}
         defaultDate={todayIso}
         bodyWeightKg={profile?.bodyWeightKg ?? null}

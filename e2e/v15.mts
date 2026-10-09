@@ -219,6 +219,22 @@ await page.getByRole("button", { name: "Mover", exact: true }).click();
 await toast(/Sesión movida/);
 log("mover una sesión planificada");
 
+// 5. Bloque J: pregunta a tus datos y dictar la sesión (IA simulada en la CI)
+await go(B + "/study/ask");
+await page.getByLabel("Preguntas sugeridas").getByRole("button").first().click();
+await page.getByLabel("Respuesta").getByText(/sesiones/).waitFor();
+log("pregunta a tus datos");
+
+await go(B + "/training/new");
+await page.getByText("🎙 Dictar la sesión de fuerza").click();
+await page.getByLabel("Texto dictado").fill("Sentadilla trasera 3 por 5 a 90 kilos RIR 2, 50 minutos, RPE 7");
+await page.getByRole("button", { name: "Convertir en sesión" }).click();
+await toast(/Borrador listo/);
+if ((await page.getByRole("textbox", { name: "Peso serie 1", exact: true }).inputValue()) !== "90") errors.push("voz: el peso no llegó al formulario");
+await Promise.all([page.waitForURL(/\/training\/c[^/]*$/), page.getByRole("button", { name: /^Guardar sesión$/ }).click()]);
+await page.getByText("Sentadilla trasera").first().waitFor();
+log("dictar la sesión → formulario → guardada");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));
