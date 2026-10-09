@@ -6,6 +6,7 @@ import { CompetitionChecklist } from "@/components/competition/checklist";
 import { WarmupTimer } from "@/components/competition/warmup-timer";
 import { TaperCard } from "@/components/competition/taper-card";
 import { taperProposal } from "@/lib/planning/taper-service";
+import { supplementsToCheck } from "@/lib/recovery/health-admin";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
@@ -32,6 +33,11 @@ export default async function CompetitionPage({ params }: PageProps<"/planning/c
     }),
     ev.type === "COMPETITION" ? taperProposal(user.id, ev.id) : null,
   ]);
+  const supps = await prisma.supplement.findMany({ where: { userId: user.id }, select: { id: true, name: true, endedOn: true, checkedOn: true } });
+  const toCheck = supplementsToCheck(
+    supps.map((s) => ({ ...s, endedOn: s.endedOn ? toIsoDay(s.endedOn) : null, checkedOn: s.checkedOn ? toIsoDay(s.checkedOn) : null })),
+    toIsoDay(today()),
+  );
   const todayIso = toIsoDay(today());
   return (
     <>
@@ -39,6 +45,11 @@ export default async function CompetitionPage({ params }: PageProps<"/planning/c
       <p className="mb-4 text-4xl font-semibold tabular-nums" aria-label="Cuenta atrás">
         {countdownLabel(day, todayIso)}
       </p>
+      {toCheck.length ? (
+        <Link href="/recovery/health" role="status" className="mb-4 block rounded-md border border-amber-500/50 bg-amber-500/5 p-3 text-sm">
+          Antes de competir, comprueba en la lista oficial: {toCheck.map((s) => s.name).join(", ")}.
+        </Link>
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="gap-3 py-4">
           <CardHeader className="px-4">

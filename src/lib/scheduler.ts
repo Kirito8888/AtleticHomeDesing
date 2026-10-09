@@ -201,6 +201,21 @@ export async function runPeriodReminderJob(hour = madridHour(), weekday = madrid
   return sent;
 }
 
+/** v1.6 · Citas de fisio o médico: aviso la tarde anterior (una vez). */
+export async function runAppointmentReminders(now = new Date()): Promise<number> {
+  if (madridHour() < 19) return 0;
+  const from = new Date(now.getTime());
+  const to = new Date(now.getTime() + 30 * 3600e3);
+  const appts = await prisma.appointment.findMany({ where: { at: { gt: from, lte: to }, user: { pushSubscriptions: { some: {} } } }, select: { id: true, userId: true, at: true, kind: true, place: true } });
+  let sent = 0;
+  for (const a of appts) {
+    const hour = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(a.at);
+    const what = a.kind === "PHYSIO" ? "Fisio" : a.kind === "DOCTOR" ? "Médico/a" : "Cita";
+    if (await notifyOnce(a.userId, `appt:${a.id}`, { title: "LifeOS", body: `Mañana: ${what} a las ${hour}${a.place ? ` (${a.place})` : ""}.`, url: "/recovery/health", tag: `appt-${a.id}` })) sent++;
+  }
+  return sent;
+}
+
 async function tick() {
   g.__lifeosSchedulerLastTick = new Date();
   try {
@@ -208,6 +223,7 @@ async function tick() {
     await runDailyDigestJob();
     await runRemindersJob();
     await runPeriodReminderJob();
+    await runAppointmentReminders();
     const posted = await runSubscriptionsJob();
     const reports = await runWeeklyCoachJob();
     if (posted || reports) console.info(`[scheduler] ${posted} cobro(s) de suscripciones, ${reports} informe(s) del coach`);

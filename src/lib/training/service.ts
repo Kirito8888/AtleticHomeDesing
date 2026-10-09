@@ -161,6 +161,7 @@ export async function createTrainingSession(
                 windMs: technical.windMs ?? null,
                 isCompetition: technical.isCompetition,
                 focus: technical.focus ?? null,
+                cue: technical.cue ?? null,
                 videoTotal: technical.videoTotal ?? null,
                 videoElbowOk: technical.videoElbowOk ?? null,
                 videoHeadOk: technical.videoHeadOk ?? null,

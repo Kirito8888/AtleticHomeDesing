@@ -209,6 +209,59 @@ await page.getByRole("button", { name: "Guardar", exact: true }).click();
 await toast(/Semana tipo guardada/);
 log("antropometría, temporadas y semana tipo");
 
+// 4. Bloques A+D: jabalina, Apple Health, mapa del dolor, citas y suplementos
+for (const [d, marks, cue] of [
+  [-20, [48, 49], null],
+  [-13, [50, 51.5], "brazo largo"],
+  [-6, [49.5, 50], null],
+] as const) {
+  await api("post", "/api/training/sessions", {
+    date: plusDays(madrid, d),
+    type: "TECHNICAL",
+    technical: { event: "JAVELIN", implementWeightG: 800, cue, attempts: marks.map((m) => ({ markM: m })) },
+  });
+}
+await go(B + "/training/javelin");
+await page.getByLabel("Claves técnicas").getByText("«brazo largo»").waitFor();
+await page.getByLabel("Campeonato u objetivo").fill("Mínima sub-23");
+await page.getByLabel("Marca (m)").fill("53");
+await page.getByRole("button", { name: "Añadir mínima" }).click();
+await toast(/Mínima añadida/);
+await page.getByLabel("Mínimas").getByText(/Te faltan 1,5 m/).waitFor();
+await noOverflow("/training/javelin");
+await shot("04-javelin");
+log("análisis de jabalina: clave técnica y mínima");
+
+const xml = `<?xml version="1.0"?><HealthData><Record type="HKCategoryTypeIdentifierSleepAnalysis" startDate="${plusDays(madrid, -1)} 23:00:00 +0200" endDate="${madrid} 06:30:00 +0200" value="HKCategoryValueSleepAnalysisAsleepCore"/><Record type="HKQuantityTypeIdentifierRestingHeartRate" startDate="${madrid} 08:00:00 +0200" endDate="${madrid} 08:00:00 +0200" value="51"/></HealthData>`;
+await go(B + "/recovery");
+await page.getByLabel("Fichero export.xml de Apple Health").setInputFiles({ name: "export.xml", mimeType: "text/xml", buffer: Buffer.from(xml) });
+await page.getByLabel("Vista previa de Apple Health").getByText(/7,5 h de sueño · 51 lpm/).waitFor();
+await page.getByRole("button", { name: "Importar 1 días" }).click();
+await toast(/1 días importados/);
+log("Apple Health: sueño y FC en reposo leídos en el navegador");
+
+await page.getByRole("button", { name: "Añadir molestia" }).click();
+await page.getByRole("group", { name: "Toca la zona" }).getByRole("button", { name: "Hombro" }).click({ position: { x: 3, y: 3 } });
+if ((await page.locator("#inj-area").inputValue()) !== "SHOULDER") errors.push("mapa del dolor: no eligió la zona");
+log("mapa corporal del dolor");
+
+await go(B + "/recovery/health");
+await page.getByLabel("Suplemento").fill("Creatina");
+await page.getByRole("button", { name: "Añadir suplemento" }).click();
+await toast(/Suplemento añadido/);
+await page.getByLabel("Suplementos").getByText(/compruébalo antes de competir/).waitFor();
+await page.getByRole("button", { name: "Comprobado hoy" }).click();
+await toast(/comprobado hoy/);
+await page.getByRole("button", { name: "Guardar cita" }).click();
+await toast(/Cita guardada/);
+await page.getByRole("button", { name: "Crear enlace para tu fisio" }).click();
+const physio = await page.getByLabel("Enlace creado").inputValue();
+const anon2 = await browser.newContext();
+if (!(await (await anon2.request.get(physio)).text()).includes("Resumen para el fisio")) errors.push("informe para el fisio no abre");
+await anon2.close();
+await noOverflow("/recovery/health");
+log("citas, suplementos y enlace para el fisio");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));
