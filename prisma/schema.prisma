@@ -134,6 +134,8 @@ model User {
   consents               Consent[]
   privacyRequests        PrivacyRequest[]
   routines               RoutineProfile[]
+  wellbeing              WellbeingLog[]
+  injuryPhotos           InjuryPhoto[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -2057,4 +2059,32 @@ model RoutineTest {
   routine RoutineProfile @relation(fields: [routineId], references: [id], onDelete: Cascade)
 
   @@index([routineId, metric, date])
+}
+
+/// v1.7 · Diario de bienestar: sueño, ánimo y estrés, escalas de dolor. Cifrado como la salud de la mujer.
+model WellbeingLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  data      String // cifrado: { kind: SLEEP | MOOD | SCALE, ... }
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+/// v1.7 · Foto de una molestia o lesión: el fichero va cifrado (AES-256-GCM) en UPLOAD_DIR.
+model InjuryPhoto {
+  id        String   @id @default(cuid())
+  userId    String
+  injuryId  String
+  path      String
+  mime      String
+  takenOn   DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, injuryId])
 }

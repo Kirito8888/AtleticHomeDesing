@@ -37,3 +37,26 @@ export function openAny(sealed: string, keys: Array<string | undefined>): { plai
   }
   throw last ?? new Error("No hay clave de cifrado");
 }
+
+/** v1.7 · Ficheros cifrados (fotos): iv (12) + tag (16) + cifrado, en binario. */
+export function sealBytes(data: Buffer, keyB64: string): Buffer {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", keyBytes(keyB64), iv);
+  const ct = Buffer.concat([cipher.update(data), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), ct]);
+}
+
+export function openBytes(blob: Buffer, keys: Array<string | undefined>): Buffer {
+  let last: unknown;
+  for (const k of keys) {
+    if (!k) continue;
+    try {
+      const decipher = createDecipheriv("aes-256-gcm", keyBytes(k), blob.subarray(0, 12));
+      decipher.setAuthTag(blob.subarray(12, 28));
+      return Buffer.concat([decipher.update(blob.subarray(28)), decipher.final()]);
+    } catch (err) {
+      last = err;
+    }
+  }
+  throw last ?? new Error("No hay clave de cifrado");
+}

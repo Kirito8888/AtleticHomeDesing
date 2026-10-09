@@ -119,6 +119,7 @@ export async function womenOverview(userId: string, today: string) {
   const screen = lastScreen ? { date: lastScreen.date, ...screenResult(lastScreen.answers) } : null;
   const labs = logs.filter((l): l is Extract<HealthLogEntry, { kind: "LAB" }> & { id: string } => l.kind === "LAB");
   const pelvic = logs.filter((l): l is Extract<HealthLogEntry, { kind: "PELVIC" }> & { id: string } => l.kind === "PELVIC");
+  const meno = logs.filter((l): l is Extract<HealthLogEntry, { kind: "MENO" }> & { id: string } => l.kind === "MENO");
   const pp = settings.mode === "POSTPARTUM" ? postpartumStatus(settings, today) : null;
   const predicted = predictedDays(cycle.settings, cycle.logs, today, toIsoDay(addDays(day, 21)), learnedPrediction(cycle.settings, cycle.logs, today, toIsoDay(addDays(day, 21)), settings.symptomProbMin));
   const clashes = keySessionClashes(predicted, [
@@ -189,6 +190,7 @@ export async function womenOverview(userId: string, today: string) {
     labs: labSeries(labs),
     labEntries: labs,
     pelvic: pelvic.slice(-10).reverse(),
+    meno: meno.slice(-10).reverse(),
     pillBreaks: logs.filter((l) => l.kind === "PILL_BREAK").slice(-6).reverse(),
     postpartum: pp,
     predicted,

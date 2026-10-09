@@ -14,6 +14,7 @@ import { api } from "@/lib/client-api";
 import { formatDate } from "@/lib/format";
 import { BodyMap } from "@/components/form/body-map";
 import { BODY_AREA_LABEL, type BodyAreaName, injuryName } from "@/lib/recovery/injury-rules";
+import { InjuryPhotos } from "@/components/recovery/injury-photos";
 import { currentPhase, painAllows, type ProtocolPhases } from "@/lib/recovery/return-protocol";
 
 export interface InjuryView {
@@ -27,11 +28,13 @@ export interface InjuryView {
   notes: string | null;
   /** Vuelta por fases (si se ha creado). */
   protocol?: ProtocolPhases | null;
+  /** v1.7 · fotos cifradas (solo si el servidor tiene clave de cifrado). */
+  photos?: Array<{ id: string; takenOn: string }>;
 }
 
 const PAIN = Array.from({ length: 11 }, (_, i) => ({ value: i, label: String(i) }));
 
-export function InjuriesPanel({ injuries, today }: { injuries: InjuryView[]; today: string }) {
+export function InjuriesPanel({ injuries, today, photos = false }: { injuries: InjuryView[]; today: string; photos?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -160,6 +163,7 @@ export function InjuriesPanel({ injuries, today }: { injuries: InjuryView[]; tod
                 >
                   Ya estoy recuperado/a
                 </Button>
+                {photos ? <InjuryPhotos injuryId={i.id} today={today} photos={i.photos ?? []} /> : null}
               </li>
             ))}
           </ul>

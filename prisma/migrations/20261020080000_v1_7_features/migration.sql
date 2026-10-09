@@ -102,6 +102,30 @@ CREATE TABLE "RoutineTest" (
     CONSTRAINT "RoutineTest_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "WellbeingLog" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "date" DATE NOT NULL,
+    "data" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "WellbeingLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "InjuryPhoto" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "injuryId" TEXT NOT NULL,
+    "path" TEXT NOT NULL,
+    "mime" TEXT NOT NULL,
+    "takenOn" DATE NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "InjuryPhoto_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Passkey_credentialId_key" ON "Passkey"("credentialId");
 
@@ -123,6 +147,12 @@ CREATE INDEX "RoutineProfile_userId_createdAt_idx" ON "RoutineProfile"("userId",
 -- CreateIndex
 CREATE INDEX "RoutineTest_routineId_metric_date_idx" ON "RoutineTest"("routineId", "metric", "date");
 
+-- CreateIndex
+CREATE INDEX "WellbeingLog_userId_date_idx" ON "WellbeingLog"("userId", "date");
+
+-- CreateIndex
+CREATE INDEX "InjuryPhoto_userId_injuryId_idx" ON "InjuryPhoto"("userId", "injuryId");
+
 -- AddForeignKey
 ALTER TABLE "Passkey" ADD CONSTRAINT "Passkey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -137,4 +167,10 @@ ALTER TABLE "RoutineProfile" ADD CONSTRAINT "RoutineProfile_userId_fkey" FOREIGN
 
 -- AddForeignKey
 ALTER TABLE "RoutineTest" ADD CONSTRAINT "RoutineTest_routineId_fkey" FOREIGN KEY ("routineId") REFERENCES "RoutineProfile"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WellbeingLog" ADD CONSTRAINT "WellbeingLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "InjuryPhoto" ADD CONSTRAINT "InjuryPhoto_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

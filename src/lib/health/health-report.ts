@@ -12,20 +12,25 @@ import { hashShareToken, isShareToken, newShareToken } from "@/lib/security/shar
 
 import { SYMPTOMS } from "./cycle";
 import { getCycle } from "./cycle-service";
-import { LAB_MARKERS, PELVIC_SYMPTOMS, postpartumStatus, screenResult } from "./women";
+import { listWellbeing } from "@/lib/recovery/wellbeing-service";
+import { hoursInBed, scaleScore } from "@/lib/recovery/wellbeing";
+
+import { CONTRACEPTION, LAB_MARKERS, MENO_SYMPTOMS, PELVIC_SYMPTOMS, postpartumStatus, screenResult } from "./women";
 import { completedCycles } from "./women-plus";
-import { getWomen } from "./women-service";
+import { getWomen, womenEnabled } from "./women-service";
 
 const VALID_DAYS = 7;
 const MAX_ACTIVE = 5;
-export const healthReportSchema = z.object({ kind: z.enum(["MEDICAL", "PHYSIO"]) });
+export const HEALTH_REPORT_KINDS = ["MEDICAL", "PHYSIO", "ANNUAL"] as const;
+export type HealthReportKind = (typeof HEALTH_REPORT_KINDS)[number];
+export const healthReportSchema = z.object({ kind: z.enum(HEALTH_REPORT_KINDS) });
 
 /**
  * Enlaces temporales para la médica (ciclo, analíticas, cribados) o el fisio (molestias,
  * vuelta por fases y carga). Los crea su dueña/dueño; en la BD solo el hash del token.
  * El contenido se descifra al servirlo y nunca lo ve la entrenadora.
  */
-export async function createHealthReport(userId: string, kind: "MEDICAL" | "PHYSIO") {
+export async function createHealthReport(userId: string, kind: HealthReportKind) {
   await assertNotRestricted(userId, "crear enlaces para compartir");
   const active = await prisma.healthReport.count({ where: { userId, revokedAt: null, expiresAt: { gt: new Date() } } });
   if (active >= MAX_ACTIVE) throw new ApiError(400, `Ya tienes ${MAX_ACTIVE} enlaces activos: revoca alguno`);
@@ -85,6 +90,15 @@ async function medicalBody(userId: string, today: string) {
     parts.push(`<h2>Suelo pélvico</h2>`);
     parts.push(table(["Fecha", "Síntomas"], pelvic.map((p) => (p.kind === "PELVIC" ? [p.date, p.symptoms.map((s) => PELVIC_SYMPTOMS[s]).join(", ")] : []))));
   }
+  if (women.settings.contraception !== "NONE" || women.settings.menopause !== "NONE")
+    parts.push(
+      `<p>Anticoncepción: ${esc(CONTRACEPTION[women.settings.contraception])}${women.settings.contraceptionSince ? ` (desde ${esc(women.settings.contraceptionSince)})` : ""} · etapa: ${{ NONE: "—", PERI: "perimenopausia", POST: "posmenopausia" }[women.settings.menopause]}.</p>`,
+    );
+  const meno = women.logs.filter((l) => l.kind === "MENO");
+  if (meno.length) {
+    parts.push(`<h2>Síntomas de la (peri)menopausia</h2>`);
+    parts.push(table(["Fecha", "Síntomas"], meno.slice(-20).map((m) => (m.kind === "MENO" ? [m.date, m.symptoms.map((s) => MENO_SYMPTOMS[s]).join(", ")] : []))));
+  }
   const pp = women.settings.mode === "POSTPARTUM" ? postpartumStatus(women.settings, today) : null;
   if (pp) parts.push(`<h2>Posparto</h2><p>Semana ${pp.weeks} · fase ${pp.phase + 1}: ${esc(pp.title)}.</p>`);
   return parts.join("");
@@ -124,6 +138,90 @@ async function physioBody(userId: string, today: string) {
   return parts.join("");
 }
 
+const avg = (xs: Array<number | null | undefined>) => {
+  const v = xs.filter((x): x is number => x != null);
+  return v.length ? (v.reduce((a, b) => a + b, 0) / v.length).toFixed(1) : "—";
+};
+
+/**
+ * v1.7 · Informe anual (12 meses, mes a mes): entreno, molestias, recuperación, bienestar y, si
+ * procede, ciclo y analíticas. Para una revisión médica o de temporada.
+ */
+async function annualBody(userId: string, today: string) {
+  const from = addDays(dateOnly(today), -365);
+  const [sessions, injuries, metrics, wellbeing, women] = await Promise.all([
+    prisma.trainingSession.findMany({ where: { userId, status: "COMPLETED", date: { gte: from } }, select: { date: true, durationSec: true, sessionRpe: true } }),
+    prisma.injury.findMany({ where: { userId, OR: [{ resolvedOn: null }, { resolvedOn: { gte: from } }, { startedOn: { gte: from } }] }, orderBy: { startedOn: "asc" } }),
+    prisma.recoveryMetrics.findMany({ where: { userId, date: { gte: from } }, select: { date: true, sleepHours: true, restingHr: true, hrvRmssdMs: true } }),
+    listWellbeing(userId, today, 365).catch(() => []),
+    womenEnabled(userId),
+  ]);
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const d = dateOnly(today);
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() - 11 + i);
+    return toIsoDay(d).slice(0, 7);
+  });
+  const by = <T extends { date: string }>(rows: T[], m: string) => rows.filter((r) => r.date.startsWith(m));
+  const s = sessions.map((x) => ({ ...x, date: toIsoDay(x.date) }));
+  const r = metrics.map((x) => ({ ...x, date: toIsoDay(x.date) }));
+  const parts: string[] = [`<h2>Entreno y recuperación, mes a mes</h2>`];
+  parts.push(
+    table(
+      ["Mes", "Sesiones", "Horas", "Carga (sRPE)", "Sueño (h)", "FC reposo", "VFC (ms)"],
+      months.map((m) => {
+        const ss = by(s, m);
+        const rr = by(r, m);
+        return [
+          m,
+          String(ss.length),
+          (ss.reduce((a, x) => a + (x.durationSec ?? 0), 0) / 3600).toFixed(1),
+          String(ss.reduce((a, x) => a + (x.sessionRpe ?? 0) * Math.round((x.durationSec ?? 0) / 60), 0)),
+          avg(rr.map((x) => x.sleepHours)),
+          avg(rr.map((x) => x.restingHr)),
+          avg(rr.map((x) => x.hrvRmssdMs)),
+        ];
+      }),
+    ),
+  );
+  parts.push(`<h2>Molestias y lesiones del año</h2>`);
+  parts.push(
+    table(
+      ["Zona", "Dolor (0-10)", "Desde", "Resuelta", "Días"],
+      injuries.map((i) => {
+        const end = i.resolvedOn ?? dateOnly(today);
+        return [BODY_AREA_LABEL[i.area as keyof typeof BODY_AREA_LABEL] ?? i.area, String(i.pain), toIsoDay(i.startedOn), i.resolvedOn ? toIsoDay(i.resolvedOn) : "no", String(Math.round((end.getTime() - i.startedOn.getTime()) / 864e5))];
+      }),
+    ),
+  );
+  if (wellbeing.length) {
+    const sleep = wellbeing.filter((w) => w.kind === "SLEEP");
+    const mood = wellbeing.filter((w) => w.kind === "MOOD");
+    parts.push(`<h2>Bienestar (diario)</h2>`);
+    parts.push(
+      table(
+        ["Mes", "Horas en cama", "Calidad (1-5)", "Ánimo (1-5)", "Estrés (1-5)"],
+        months
+          .map((m) => {
+            const sl = by(sleep, m);
+            const mo = by(mood, m);
+            return [m, avg(sl.map((x) => (x.kind === "SLEEP" ? hoursInBed(x.bedtime, x.wakeTime) : null))), avg(sl.map((x) => (x.kind === "SLEEP" ? x.quality : null))), avg(mo.map((x) => (x.kind === "MOOD" ? x.mood : null))), avg(mo.map((x) => (x.kind === "MOOD" ? x.stress : null)))];
+          })
+          .filter((row) => row.slice(1).some((c) => c !== "—")),
+      ),
+    );
+    const scales = wellbeing.filter((w) => w.kind === "SCALE");
+    if (scales.length) {
+      parts.push(`<h2>Escalas</h2>`);
+      parts.push(table(["Fecha", "Escala", "Puntuación"], scales.slice(0, 30).map((x) => (x.kind === "SCALE" ? (({ score, label }) => [x.date, label, score != null ? String(score) : "—"])(scaleScore(x)) : []))));
+    }
+  }
+  if (women) parts.push(await medicalBody(userId, today));
+  return parts.join("");
+}
+
+const TITLE: Record<HealthReportKind, string> = { MEDICAL: "Resumen para tu médica", PHYSIO: "Resumen para el fisio", ANNUAL: "Informe anual de salud" };
+
 /** HTML del enlace, o null si no existe, caducó o se revocó. */
 export async function healthReportHtml(token: string, now = new Date()): Promise<string | null> {
   if (!isShareToken(token)) return null;
@@ -132,5 +230,7 @@ export async function healthReportHtml(token: string, now = new Date()): Promise
   const today = toIsoDay(now);
   const who = r.user.name ?? "LifeOS";
   const expires = toIsoDay(r.expiresAt);
-  return r.kind === "MEDICAL" ? page("Resumen para tu médica", who, expires, await medicalBody(r.userId, today)) : page("Resumen para el fisio", who, expires, await physioBody(r.userId, today));
+  const kind = r.kind as HealthReportKind;
+  const body = kind === "MEDICAL" ? await medicalBody(r.userId, today) : kind === "ANNUAL" ? await annualBody(r.userId, today) : await physioBody(r.userId, today);
+  return page(TITLE[kind] ?? TITLE.PHYSIO, who, expires, body);
 }
