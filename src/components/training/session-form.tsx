@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
+import { enqueue, isNetworkError } from "@/lib/offline/outbox";
 import { formatNum } from "@/lib/format";
 import type { FormKind as Kind, SessionFormInitial } from "@/lib/training/form-initial";
 
@@ -50,6 +51,7 @@ export function SessionForm({
   autoreg?: AutoregContext;
 }) {
   const router = useRouter();
+  const [clientId] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `c${Date.now()}${Math.random().toString(36).slice(2, 10)}`));
   const [type, setType] = useState<Kind>(initial?.type ?? initialType);
   const [date, setDate] = useState(initial?.date ?? defaultDate);
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -128,15 +130,28 @@ export function SessionForm({
     if (typeof body === "string") return toast.error(body);
 
     setSaving(true);
+    // Cada sesión nueva lleva un id del dispositivo: si se reenvía (sin conexión), no se duplica
+    const withId = sessionId ? body : { ...body, clientId };
     try {
       const s = sessionId
         ? await api<Created>(`/api/training/sessions/${sessionId}`, { method: "PATCH", body })
-        : await api<Created>("/api/training/sessions", { body });
+        : await api<Created>("/api/training/sessions", { body: withId });
       const prs = s.newPersonalRecords.length ? ` · ${s.newPersonalRecords.length} marca(s) personal(es) 🎉` : "";
       toast.success(planned ? "Sesión planificada" : `Guardada${s.tss != null ? ` · ${formatNum(s.tss)} TSS` : ""}${prs}`);
       router.push(`/training/${s.id}`);
       router.refresh();
     } catch (err) {
+      if (!sessionId && isNetworkError(err)) {
+        try {
+          await enqueue({ id: clientId, url: "/api/training/sessions", body: withId, label: title || "Sesión" });
+          toast.success("Sin conexión: la sesión queda guardada en el móvil y se enviará sola al volver la cobertura");
+          // Sin red no se puede cargar otra página: se queda aquí; el aviso de arriba cuenta lo pendiente
+          setSaving(false);
+          return;
+        } catch {
+          // sin IndexedDB: se informa del error normal
+        }
+      }
       toast.error((err as Error).message);
       setSaving(false);
     }

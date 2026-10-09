@@ -19,6 +19,7 @@ import { CalendarFeedSettings } from "@/components/settings/calendar-feed";
 import { CarbsByDayForm, HydrationForm, TrackForm } from "@/components/settings/carbs-form";
 import { CoachReport } from "@/components/settings/coach-report";
 import { ServerStatusView } from "@/components/settings/server-status";
+import { RestoreForm } from "@/components/settings/restore-form";
 import { serverStatus } from "@/lib/admin/status";
 import { PushSettings } from "@/components/settings/push-settings";
 import { ReminderSettings } from "@/components/settings/reminder-settings";
@@ -297,6 +298,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                   </a>
                 </Button>
               </div>
+            </div>
+            <div className="grid gap-2">
+              <p className="text-sm font-medium">Restaurar una copia</p>
+              <RestoreForm />
             </div>
             <DeleteAccountForm />
           </div>

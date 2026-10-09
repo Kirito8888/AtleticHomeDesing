@@ -18,9 +18,10 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
     ],
     shortcuts: [
-      { name: "Nueva sesión", url: "/training/new" },
-      { name: "Recuperación", url: "/recovery" },
-      { name: "Añadir comida", url: "/nutrition" },
+      { name: "Registrar sesión", short_name: "Sesión", url: "/training/new", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "Agua", short_name: "Agua", url: "/nutrition#agua", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "Pomodoro", short_name: "Pomodoro", url: "/study/focus", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "Hábitos de hoy", short_name: "Hábitos", url: "/#habitos", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
     ],
   };
 }

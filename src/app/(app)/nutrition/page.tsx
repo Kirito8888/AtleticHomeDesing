@@ -88,7 +88,7 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
         </CardContent>
       </Card>
 
-      <div className="mb-4">
+      <div id="agua" className="mb-4 scroll-mt-20">
         <WaterCard date={date} ml={water.ml} target={water.target} hot={water.hot} hasSession={water.hasSession} maxTemp={water.maxTemp} />
       </div>
       <MealShortcuts date={date} yesterday={yesterday} favorites={favorites} />
