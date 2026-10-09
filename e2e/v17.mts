@@ -13,7 +13,9 @@ const log = (...a: unknown[]) => console.log("✔", ...a);
 const errors: string[] = [];
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
-const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "es-ES", hasTouch: true, isMobile: true });
+// IP propia (X-Forwarded-For, como en security.mjs): las suites anteriores agotan los límites por IP
+const IP = { "x-forwarded-for": "198.51.100.170" };
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "es-ES", hasTouch: true, isMobile: true, extraHTTPHeaders: IP });
 const page = await ctx.newPage();
 page.on("pageerror", (e) => errors.push(`pageerror ${page.url()}: ${e.message}`));
 page.on("console", (m) => {
@@ -49,7 +51,7 @@ const newUser = (email: string, role = "ATHLETE") => {
   return pw;
 };
 const login = async (email: string, pw: string) => {
-  const c = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "es-ES" });
+  const c = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "es-ES", extraHTTPHeaders: { "x-forwarded-for": "198.51.100.171" } });
   const p = await c.newPage();
   await p.goto(B + "/login");
   await p.fill("#email", email);
@@ -58,14 +60,15 @@ const login = async (email: string, pw: string) => {
   return p;
 };
 
-// 1. Registro
+// 1. Cuenta (con la herramienta de administración: el registro por formulario ya lo prueban las otras
+// suites y el límite de 5 registros por hora e IP se agotaría en la CI)
 const myEmail = `v17${Date.now()}@test.dev`;
-await go(B + "/register");
-await page.fill("#name", "Atleta Siete");
+const myPw = newUser(myEmail);
+await go(B + "/login");
 await page.fill("#email", myEmail);
-await page.fill("#password", "contraseña-segura-1");
-await Promise.all([page.waitForURL(/\/settings\?welcome=1/), page.click("button[type=submit]")]);
-log("registro");
+await page.fill("#password", myPw);
+await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/login")), page.click("button[type=submit]")]);
+log("cuenta e inicio de sesión");
 
 // 2. Seguridad v1.7: cabeceras, llave de acceso (autenticador virtual de Chromium) y auditoría encadenada
 const head = await page.request.get(B + "/login");

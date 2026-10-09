@@ -147,7 +147,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(raw, request) {
         const ip = clientIp(request.headers);
         const ctx = auditContext(request.headers);
-        if (!rateLimit(`login:${ip}`, LIMITS.login.limit, LIMITS.login.windowMs).ok) {
+        // Contador propio: una firma de llave no se puede adivinar, así que no gasta los intentos de contraseña
+        if (!rateLimit(`passkey:${ip}`, LIMITS.login.limit, LIMITS.login.windowMs).ok) {
           console.warn(authFailureLine(ip, "rate_limited"));
           throw new TooManyAttempts();
         }
