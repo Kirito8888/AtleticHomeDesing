@@ -110,6 +110,24 @@ model User {
   hydrationLogs     HydrationLog[]
   sessionComments   SessionComment[]       @relation("CommentAthlete")
   authoredComments  SessionComment[]       @relation("CommentAuthor")
+  // v1.6
+  healthReports     HealthReport[]
+  safetyContacts    SafetyContact[]        @relation("SafetyOwner")
+  safetyWatching    SafetyContact[]        @relation("SafetyContactUser")
+  safetyTrips       SafetyTrip[]
+  minimums          Minimum[]
+  weekTemplates     WeekTemplate[]
+  prehabRoutines    PrehabRoutine[]
+  prehabLogs        PrehabLog[]
+  bodyMeasures      BodyMeasure[]
+  supplements       Supplement[]
+  appointments      Appointment[]
+  recipes           Recipe[]
+  shoppingItems     ShoppingItem[]
+  studyPlanBlocks   StudyPlanBlock[]
+  grades            Grade[]
+  trips             Trip[]
+  deadlines         Deadline[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -345,6 +363,9 @@ model TrainingSession {
   notes         String?
   // Sensaciones al cerrar la sesión: [{ area, side?, pain 0-10 }] (alimentan los avisos)
   feelings      Json?
+  // v1.6: fatiga por zona al cerrar { hombro: 0-10, … } y id del cliente (registro sin conexión, idempotente)
+  zoneFatigue   Json?
+  clientId      String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -357,6 +378,7 @@ model TrainingSession {
   strength        StrengthSession?
   personalRecords PersonalRecord[]
 
+  @@unique([userId, clientId])
   @@index([userId, date])
   @@index([cycleId])
 }
@@ -472,6 +494,7 @@ model TechnicalSession {
   videoHeadOk      Int?
   // Condiciones a la hora de la sesión (Open-Meteo): { tempC, windMs, windDirDeg, rainMm, at }
   conditions       Json?
+  cue              String? // v1.6: clave técnica de la sesión («brazo largo»)
 
   session  TrainingSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   attempts TechnicalAttempt[]
@@ -876,6 +899,7 @@ model FinancialTransaction {
   // reimportar el mismo extracto no duplica movimientos.
   importHash     String?
   reconciled     Boolean         @default(false)
+  tripId         String? // v1.6: viaje de competición
   // Gasto deportivo (material, viajes de competición, licencias) y competición asociada
   sport          Boolean         @default(false)
   eventId        String?
@@ -984,6 +1008,7 @@ model FoodProduct {
   satFatPer100g  Float?
   fiberPer100g   Float?
   saltPer100g    Float?
+  ironPer100g    Float? // v1.6 (mg)
   nutriScore     String?  @db.Char(1)
   source         String   @default("openfoodfacts")
   raw            Json? // respuesta original para reprocesar
@@ -1023,6 +1048,8 @@ model Macros {
   carbsG        Float
   fatG          Float
   fiberG        Float?
+  ironMg        Float? // v1.6: hierro (si el producto lo trae)
+  ironRich      Boolean  @default(false) // v1.6: marcado a mano como rico en hierro
   createdAt     DateTime @default(now())
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1238,6 +1265,8 @@ model MealTemplateItem {
   carbsG        Float
   fatG          Float
   fiberG        Float?
+  ironMg        Float?
+  ironRich      Boolean @default(false)
 
   template    MealTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   foodProduct FoodProduct? @relation(fields: [foodProductId], references: [id], onDelete: SetNull)
@@ -1326,6 +1355,7 @@ model PlanDay {
   eventId     String? // competición creada en el calendario
   light       Json? // versión suave del día { durationMin, blocks } (planes con IA)
   mode        String? // null = normal · LIGHT = usar la versión suave
+  taperPct    Int? // v1.6: afinamiento aplicado (−% de series al mostrarlo); el contenido no se toca
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -1681,4 +1711,241 @@ model BackupRun {
   detail String?
 
   @@index([at])
+}
+
+// ---------- v1.6 ----------
+
+/// Enlace temporal para la médica o el fisio (solo el hash del token).
+model HealthReport {
+  id        String    @id @default(cuid())
+  userId    String
+  kind      String // MEDICAL (ciclo, analíticas, cribados) | PHYSIO (molestias, vuelta, carga)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Contacto de confianza para «entreno sola»: otra cuenta que acepta el vínculo.
+model SafetyContact {
+  id        String   @id @default(cuid())
+  userId    String
+  contactId String
+  status    String   @default("PENDING") // PENDING | ACTIVE | REVOKED
+  createdAt DateTime @default(now())
+
+  owner   User @relation("SafetyOwner", fields: [userId], references: [id], onDelete: Cascade)
+  contact User @relation("SafetyContactUser", fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contactId])
+  @@index([contactId])
+}
+
+/// Salida a entrenar con hora prevista de vuelta. `data` cifrado (nota y ubicación compartida).
+model SafetyTrip {
+  id        String    @id @default(cuid())
+  userId    String
+  startedAt DateTime  @default(now())
+  dueAt     DateTime
+  endedAt   DateTime?
+  alertedAt DateTime?
+  data      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([dueAt])
+  @@index([userId])
+}
+
+/// Mínimas de campeonatos y objetivos (a mano).
+model Minimum {
+  id               String    @id @default(cuid())
+  userId           String
+  name             String
+  markM            Float
+  deadline         DateTime? @db.Date
+  implementWeightG Int?
+  createdAt        DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Semana tipo del plan propio: días relativos (0 = lunes) con su contenido.
+model WeekTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  days      Json
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+}
+
+model PrehabRoutine {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  exercises Json // [{ name, dose }]
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs PrehabLog[]
+
+  @@index([userId])
+}
+
+model PrehabLog {
+  id        String   @id @default(cuid())
+  userId    String
+  routineId String
+  date      DateTime @db.Date
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routine PrehabRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  @@unique([routineId, date])
+}
+
+/// Perímetros (cm) y pliegues (mm). Solo los ve su dueño.
+model BodyMeasure {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  data      Json // { brazo: 32, muslo: 55, … , pliegues: { triceps: 12, … } }
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model Supplement {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  brand     String?
+  batch     String?
+  dose      String?
+  startedOn DateTime? @db.Date
+  endedOn   DateTime? @db.Date
+  checkedOn DateTime? @db.Date // última vez que se comprobó en la lista oficial
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Appointment {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String // PHYSIO | DOCTOR | OTHER
+  at        DateTime
+  place     String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, at])
+}
+
+/// Receta propia: ingredientes con sus macros por 100 g; se puede guardar como favorita.
+model Recipe {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  servings  Float    @default(1)
+  items     Json
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+}
+
+model ShoppingItem {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  qty       String?
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Bloque de estudio sugerido hasta un examen.
+model StudyPlanBlock {
+  id        String   @id @default(cuid())
+  userId    String
+  examId    String? // ClassSlot EXAM
+  subject   String
+  date      DateTime @db.Date
+  minutes   Int
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model Grade {
+  id        String   @id @default(cuid())
+  userId    String
+  subject   String
+  term      String? // convocatoria / curso
+  grade     Float?
+  credits   Float    @default(6)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Viaje de competición: presupuesto por partidas y reembolso de la federación.
+model Trip {
+  id                String    @id @default(cuid())
+  userId            String
+  eventId           String?
+  name              String
+  startsOn          DateTime  @db.Date
+  endsOn            DateTime? @db.Date
+  budget            Json // { transport, lodging, entry, food, other } en céntimos
+  reimbursableCents Int       @default(0)
+  reimbursedAt      DateTime?
+  createdAt         DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Deadline {
+  id         String   @id @default(cuid())
+  userId     String
+  title      String
+  kind       String // ENTRY | LICENSE | GRANT | OTHER
+  dueOn      DateTime @db.Date
+  remindDays Int      @default(3)
+  done       Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dueOn])
 }

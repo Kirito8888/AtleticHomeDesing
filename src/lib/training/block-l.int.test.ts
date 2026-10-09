@@ -126,7 +126,7 @@ describe.skipIf(!HAS_DB)("entrenadora, material, becas y servidor (BD real)", ()
     await prisma.backupRun.create({ data: { ok: true, detail: "prueba" } });
     const st = await serverStatus();
     expect(st.db.ok).toBe(true);
-    expect(st.migrations?.last?.name).toMatch(/v1_5_backup_log$/);
+    expect(st.migrations?.last?.name).toMatch(/^\d{14}_v\d+_/);
     expect(st.migrations?.failed).toEqual([]);
     expect(st.backup?.ok).toBe(true);
     expect(st.version).toMatch(/^\d+\.\d+\.\d+$/);

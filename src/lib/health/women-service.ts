@@ -7,6 +7,8 @@ import { pickPatch } from "@/lib/rules/prefs";
 import { dataKeyConfigured, openJson, sealJson } from "@/lib/security/data-key";
 
 import { getCycle } from "./cycle-service";
+import { boneAlert, boneScreen, completedCycles, cyclePerformance, ironWeek, learnedPrediction, type PerfDay } from "./women-plus";
+import { epley } from "@/lib/training/rm";
 import {
   energyAvailability,
   exerciseKcal,
@@ -62,7 +64,11 @@ export async function deleteHealthLog(userId: string, id: string) {
 }
 
 export async function deleteWomenData(userId: string) {
-  await prisma.$transaction([prisma.healthLog.deleteMany({ where: { userId } }), prisma.womenHealth.deleteMany({ where: { userId } })]);
+  await prisma.$transaction([
+    prisma.healthLog.deleteMany({ where: { userId } }),
+    prisma.womenHealth.deleteMany({ where: { userId } }),
+    prisma.healthReport.deleteMany({ where: { userId, kind: "MEDICAL" } }),
+  ]);
 }
 
 /** ¿Se muestra la sección? Perfil de mujer o ya hay datos, y el servidor puede cifrar. */
@@ -110,7 +116,7 @@ export async function womenOverview(userId: string, today: string) {
   const labs = logs.filter((l): l is Extract<HealthLogEntry, { kind: "LAB" }> & { id: string } => l.kind === "LAB");
   const pelvic = logs.filter((l): l is Extract<HealthLogEntry, { kind: "PELVIC" }> & { id: string } => l.kind === "PELVIC");
   const pp = settings.mode === "POSTPARTUM" ? postpartumStatus(settings, today) : null;
-  const predicted = predictedDays(cycle.settings, cycle.logs, today, toIsoDay(addDays(day, 21)));
+  const predicted = predictedDays(cycle.settings, cycle.logs, today, toIsoDay(addDays(day, 21)), learnedPrediction(cycle.settings, cycle.logs, today, toIsoDay(addDays(day, 21)), settings.symptomProbMin));
   const clashes = keySessionClashes(predicted, [
     ...upcoming.map((s) => ({ id: s.id, date: toIsoDay(s.date), title: s.title ?? "", kind: "session" as const })),
     ...events.map((e) => ({ id: e.id, date: toIsoDay(e.startAt), title: e.title, kind: "event" as const, eventType: e.type })),
@@ -132,6 +138,27 @@ export async function womenOverview(userId: string, today: string) {
   alerts.push(...labAlerts(labs, settings, today));
   const pa = pelvicAlert(pelvic, today);
   if (pa) alerts.push(pa);
+
+  // v1.6 · Salud ósea
+  const bones = logs.filter((l): l is Extract<HealthLogEntry, { kind: "BONE" }> & { id: string } => l.kind === "BONE");
+  const lastBone = bones.at(-1) ?? null;
+  const impactSessions7d = sessions.filter((x) => ["TRACK", "TECHNICAL", "MIXED"].includes(x.type)).length;
+  const lastVitD = labs.flatMap((l) => (l.values.vitaminD != null ? [l.values.vitaminD] : [])).at(-1) ?? null;
+  const bone = lastBone
+    ? boneScreen(
+        {
+          stressFractures: lastBone.stressFractures,
+          calciumServings: lastBone.calciumServings,
+          vitaminD: lastVitD,
+          amenorrhea: alerts.some((a) => a.id === "amenorrhea"),
+          lowEa: ea.ok && ea.low,
+          impactSessions7d,
+        },
+        settings,
+      )
+    : null;
+  const ba = bone ? boneAlert(bone) : null;
+  if (ba) alerts.push(ba);
   for (const c of clashes) {
     alerts.push({
       id: `clash-${c.id}`,
@@ -141,10 +168,19 @@ export async function womenOverview(userId: string, today: string) {
     });
   }
 
+  const [performance, iron] = await Promise.all([performanceDays(userId, today).then((d) => cyclePerformance(cycle.settings, cycle.logs, d)), ironDays(userId, today)]);
+  const learned = learnedPrediction(cycle.settings, cycle.logs, today, toIsoDay(addDays(day, 34)), settings.symptomProbMin);
+
   return {
     configured,
     settings,
     ea,
+    /** v1.6 */
+    performance,
+    cycles: completedCycles(cycle.settings, cycle.logs).length,
+    learned: learned != null,
+    bone: bone ? { ...bone, date: lastBone!.date, stressFractures: lastBone!.stressFractures, calciumServings: lastBone!.calciumServings, impactSessions7d } : null,
+    iron,
     screen,
     labs: labSeries(labs),
     labEntries: labs,
@@ -170,4 +206,54 @@ export async function womenMode(userId: string): Promise<WomenSettings["mode"]> 
   if (!dataKeyConfigured()) return "NONE";
   const p = await prisma.womenHealth.findUnique({ where: { userId } });
   return p ? readWomenSettings(openJson(p.data)).mode : "NONE";
+}
+
+/** v1.6 · Por día: RPE, fuerza relativa a tu mejor 1RM estimada, marca relativa a tu mejor y readiness (último año). */
+async function performanceDays(userId: string, today: string): Promise<PerfDay[]> {
+  const from = addDays(dateOnly(today), -400);
+  const [sessions, metrics] = await Promise.all([
+    prisma.trainingSession.findMany({
+      where: { userId, status: "COMPLETED", date: { gte: from } },
+      select: {
+        date: true,
+        sessionRpe: true,
+        strength: { select: { sets: { where: { isWarmup: false }, select: { exerciseId: true, reps: true, weightKg: true } } } },
+        technical: { select: { event: true, implementWeightG: true, bestMarkM: true } },
+      },
+    }),
+    prisma.recoveryMetrics.findMany({ where: { userId, date: { gte: from }, readinessScore: { not: null } }, select: { date: true, readinessScore: true } }),
+  ]);
+  const bestE1rm = new Map<string, number>();
+  const bestMark = new Map<string, number>();
+  for (const x of sessions) {
+    for (const set of x.strength?.sets ?? []) if (set.weightKg && set.reps) bestE1rm.set(set.exerciseId, Math.max(bestE1rm.get(set.exerciseId) ?? 0, epley(set.weightKg, set.reps)));
+    if (x.technical?.bestMarkM) {
+      const k = `${x.technical.event}|${x.technical.implementWeightG ?? ""}`;
+      bestMark.set(k, Math.max(bestMark.get(k) ?? 0, x.technical.bestMarkM));
+    }
+  }
+  const byDay = new Map<string, PerfDay>();
+  const get = (date: string) => byDay.get(date) ?? byDay.set(date, { date }).get(date)!;
+  for (const x of sessions) {
+    const d = get(toIsoDay(x.date));
+    if (x.sessionRpe != null) d.rpe = x.sessionRpe;
+    const day = new Map<string, number>();
+    for (const set of x.strength?.sets ?? []) if (set.weightKg && set.reps) day.set(set.exerciseId, Math.max(day.get(set.exerciseId) ?? 0, epley(set.weightKg, set.reps)));
+    if (day.size) d.strengthPct = Math.round(([...day].reduce((a, [ex, v]) => a + v / bestE1rm.get(ex)!, 0) / day.size) * 1000) / 10;
+    if (x.technical?.bestMarkM) d.markPct = Math.round((x.technical.bestMarkM / bestMark.get(`${x.technical.event}|${x.technical.implementWeightG ?? ""}`)!) * 1000) / 10;
+  }
+  for (const m of metrics) get(toIsoDay(m.date)).readiness = m.readinessScore;
+  return [...byDay.values()];
+}
+
+/** v1.6 · Hierro de la última semana (solo lo que se sabe: productos con dato o marcados a mano). */
+async function ironDays(userId: string, today: string) {
+  const rows = await prisma.macros.findMany({
+    where: { userId, date: { gte: addDays(dateOnly(today), -6), lte: dateOnly(today) } },
+    select: { date: true, customName: true, ironMg: true, ironRich: true, foodProduct: { select: { name: true } } },
+  });
+  return ironWeek(
+    rows.map((r) => ({ date: toIsoDay(r.date), name: r.foodProduct?.name ?? r.customName ?? "Alimento", ironMg: r.ironMg, ironRich: r.ironRich })),
+    today,
+  );
 }

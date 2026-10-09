@@ -12,6 +12,7 @@ import { readPrefs } from "@/lib/rules/prefs";
 import { AUDIT_RETENTION_DAYS } from "@/lib/security/audit";
 import { periodStarts } from "@/lib/health/cycle";
 import { getCycle } from "@/lib/health/cycle-service";
+import { runSafetyJob } from "@/lib/health/safety-service";
 import { readWomenSettings } from "@/lib/health/women";
 import { dataKeyConfigured, openJson } from "@/lib/security/data-key";
 
@@ -181,7 +182,13 @@ export async function runPeriodReminderJob(hour = madridHour(), weekday = madrid
   let sent = 0;
   for (const u of users) {
     try {
-      if (!readWomenSettings(openJson(u.womenHealth!.data)).remindPeriod) continue;
+      const ws = readWomenSettings(openJson(u.womenHealth!.data));
+      // v1.6 · salud ósea: pocas sesiones con impacto esta semana
+      if (ws.remindImpact && ws.boneImpactMin > 0) {
+        const impact = await prisma.trainingSession.count({ where: { userId: u.id, status: "COMPLETED", type: { in: ["TRACK", "TECHNICAL", "MIXED"] }, date: { gte: addDays(today(), -6) } } });
+        if (impact < ws.boneImpactMin && (await notifyOnce(u.id, `impact:${toIsoDay(startOfIsoWeek(today()))}`, { title: "LifeOS", body: "Esta semana ha habido poco trabajo con impacto (saltos o carrera).", url: "/recovery/women#hueso", tag: "impact" }))) sent++;
+      }
+      if (!ws.remindPeriod) continue;
       const { settings, logs } = await getCycle(u.id, 120);
       if (!settings || settings.hormonal === "si") continue;
       const last = periodStarts(settings, logs).at(-1);
@@ -209,7 +216,17 @@ async function tick() {
   }
 }
 
-const g = globalThis as unknown as { __lifeosScheduler?: NodeJS.Timeout; __lifeosSchedulerLastTick?: Date };
+const g = globalThis as unknown as { __lifeosScheduler?: NodeJS.Timeout; __lifeosSafety?: NodeJS.Timeout; __lifeosSchedulerLastTick?: Date };
+
+/** «Entreno sola, con aviso»: cada 5 min (aparte del horario de las demás tareas). */
+async function safetyTick() {
+  try {
+    const n = await runSafetyJob();
+    if (n) console.info(`[scheduler] ${n} aviso(s) de «entreno sola»`);
+  } catch (err) {
+    console.error("[scheduler] entreno sola:", err);
+  }
+}
 
 /** Para «Estado del servidor»: ¿está activo y cuándo pasó por última vez? */
 export function schedulerStatus() {
@@ -221,5 +238,6 @@ export function startScheduler() {
   if (g.__lifeosScheduler || !env().SCHEDULER_ENABLED) return;
   setTimeout(tick, 60_000).unref();
   g.__lifeosScheduler = setInterval(tick, HOUR_MS).unref();
+  g.__lifeosSafety = setInterval(safetyTick, 5 * 60_000).unref();
   console.info("[scheduler] activo: suscripciones diarias y coach semanal");
 }

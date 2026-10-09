@@ -96,6 +96,8 @@ jobs:
           npm run e2e:v14
           # v1.5: salud de la mujer, entreno, estudio y plataforma
           npm run e2e:v15
+          # v1.6: mujeres, fuerza, planificación, jabalina, salud, plataforma, nutrición, estudio y finanzas
+          npm run e2e:v16
           kill $SERVER
       # El smoke ya creó un usuario: con ALLOW_REGISTRATION=false el registro queda cerrado.
       - name: Seguridad (registro cerrado)
