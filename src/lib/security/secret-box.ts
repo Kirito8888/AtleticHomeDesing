@@ -23,3 +23,17 @@ export function open(sealed: string, keyB64: string): string {
   decipher.setAuthTag(Buffer.from(tag, "base64"));
   return Buffer.concat([decipher.update(Buffer.from(ct, "base64")), decipher.final()]).toString("utf8");
 }
+
+/** v1.7 · Abre con la clave actual y, si falla, con la anterior (rotación). Dice cuál sirvió. */
+export function openAny(sealed: string, keys: Array<string | undefined>): { plaintext: string; keyIndex: number } {
+  let last: unknown;
+  for (const [i, k] of keys.entries()) {
+    if (!k) continue;
+    try {
+      return { plaintext: open(sealed, k), keyIndex: i };
+    } catch (err) {
+      last = err;
+    }
+  }
+  throw last ?? new Error("No hay clave de cifrado");
+}

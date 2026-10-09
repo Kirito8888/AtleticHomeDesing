@@ -128,6 +128,7 @@ model User {
   grades            Grade[]
   trips             Trip[]
   deadlines         Deadline[]
+  passkeys          Passkey[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -156,6 +157,14 @@ enum SecurityEventType {
   DATA_EXPORTED
   AI_CONSENT_CHANGED
   COACH_SCOPES_CHANGED
+  // v1.7
+  PASSKEY_ADDED
+  PASSKEY_REMOVED
+  PASSKEY_LOGIN
+  SHARE_LINK_CREATED
+  DATA_RESTORED
+  CONSENT_CHANGED
+  PRIVACY_REQUEST
 }
 
 /// Registro de auditoría visible por el usuario (Ajustes → Actividad). Se borra con la cuenta
@@ -168,6 +177,10 @@ model SecurityEvent {
   userAgent String?
   detail    String?
   createdAt DateTime          @default(now())
+  // v1.7: cadena por usuario (HMAC con una clave derivada de AUTH_SECRET) para detectar
+  // registros borrados o cambiados. prevHash = hash del evento anterior de ese usuario.
+  prevHash  String?
+  hash      String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1949,4 +1962,34 @@ model Deadline {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, dueOn])
+}
+
+/// v1.7 · Llave de acceso (WebAuthn / passkey). Solo la clave pública: la privada nunca sale del dispositivo.
+model Passkey {
+  id           String    @id @default(cuid())
+  userId       String
+  credentialId String    @unique // base64url
+  publicKey    Bytes
+  counter      Int       @default(0)
+  transports   String[]
+  name         String
+  backedUp     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// v1.7 · Reto WebAuthn de un solo uso (registro o inicio de sesión), caduca en 5 min.
+model WebAuthnChallenge {
+  id        String   @id @default(cuid())
+  userId    String? // null en el inicio de sesión sin usuario (llave detectable)
+  kind      String // REGISTER | LOGIN
+  challenge String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
 }

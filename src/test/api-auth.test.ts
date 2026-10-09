@@ -12,6 +12,7 @@ const PUBLIC_ROUTES = new Set([
   "calendar/ics/[token]/route.ts", // calendario .ics: token de 32 bytes (hash en BD), revocable, sin datos de salud
   "report/[token]/route.ts", // informe para la entrenadora: token de 32 bytes, caduca a los 7 días, revocable
   "shared/health/[token]/route.ts", // v1.6: resumen para la médica o el fisio, lo crea la propia persona: token, 7 días, revocable
+  "passkeys/login-options/route.ts", // v1.7: reto aleatorio de un solo uso para entrar con llave; sin datos, limitado por IP
 ]);
 
 // Las rutas públicas con token deben limitar peticiones y validar el token.

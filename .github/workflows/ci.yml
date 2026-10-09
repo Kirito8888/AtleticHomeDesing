@@ -98,6 +98,7 @@ jobs:
           npm run e2e:v15
           # v1.6: mujeres, fuerza, planificación, jabalina, salud, plataforma, nutrición, estudio y finanzas
           npm run e2e:v16
+          npm run e2e:v17
           kill $SERVER
       # El smoke ya creó un usuario: con ALLOW_REGISTRATION=false el registro queda cerrado.
       - name: Seguridad (registro cerrado)
@@ -141,6 +142,17 @@ jobs:
           docker compose --env-file .env.production --profile tools run --rm migrate npm run user -- create ci@example.com
           docker compose --env-file .env.production up -d --build --wait web
           curl -sf http://127.0.0.1:3000/api/health
+      - name: Vulnerabilidades de la imagen (Trivy) y lista de componentes (SBOM)
+        run: |
+          # Imagen de Trivy fijada por versión (sin acciones de terceros en la cadena de suministro).
+          # Falla con fallos ALTOS o CRÍTICOS que ya tienen arreglo publicado.
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image \
+            --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress lifeos-web:latest
+          npm sbom --sbom-format cyclonedx --omit dev > sbom.cdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cdx.json
       - name: Copia cifrada y restauración real
         run: |
           docker compose --env-file .env.production --profile backup run --rm --build backup /usr/local/bin/backup.sh
@@ -149,9 +161,21 @@ jobs:
           docker compose --env-file .env.production exec -T db pg_restore -U lifeos --no-owner -d restored < /tmp/db.dump
           users=$(docker compose --env-file .env.production exec -T db psql -U lifeos -d restored -tAc 'select count(*) from "User"')
           test "$users" = "1"
-      - name: update.sh (actualización y vuelta atrás forzada)
+      - name: update.sh (actualización, contenedor huérfano y vuelta atrás forzada)
         run: |
+          # Un resto de una recreación interrumpida (el caso real de la v1.6): mismo servicio, otro nombre
+          docker create --name deadbeef0001_lifeos-web-1 \
+            --label com.docker.compose.project=lifeos --label com.docker.compose.service=web \
+            --label com.docker.compose.container-number=1 --label com.docker.compose.oneoff=False \
+            lifeos-web:latest
           ./scripts/update.sh --no-pull
+          test "$(docker ps -aq --filter label=com.docker.compose.project=lifeos --filter label=com.docker.compose.service=web | wc -l)" = "1"
+          # Endurecimiento aplicado: solo lectura, sin capacidades y con límite de memoria
+          id=$(docker compose --env-file .env.production ps -q web)
+          test "$(docker inspect -f '{{.HostConfig.ReadonlyRootfs}}' "$id")" = "true"
+          test "$(docker inspect -f '{{.HostConfig.Memory}}' "$id")" != "0"
+          docker inspect -f '{{.HostConfig.CapDrop}}' "$id" | grep -qi all
+          curl -sI http://127.0.0.1:3000/login | grep -qi "cross-origin-resource-policy: same-origin"
           if LIFEOS_SIMULATE_UNHEALTHY=1 UPDATE_HEALTH_TIMEOUT=30 ./scripts/update.sh --no-pull; then
             echo "la vuelta atrás debía terminar con error"; exit 1
           fi

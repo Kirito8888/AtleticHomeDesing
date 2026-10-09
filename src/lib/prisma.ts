@@ -11,7 +11,9 @@ function client(): PrismaClient {
     if (!connectionString) {
       throw new Error("DATABASE_URL no está definida (ver .env.example)");
     }
-    globalForPrisma.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+    // Pool pequeño (v1.7): una sola app en un servidor modesto; la BD admite pocas conexiones.
+    const max = Math.max(1, Math.min(50, Number(process.env.DB_POOL_MAX) || 5));
+    globalForPrisma.prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString, max, idleTimeoutMillis: 30_000 }) });
   }
   return globalForPrisma.prisma;
 }

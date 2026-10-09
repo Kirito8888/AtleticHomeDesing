@@ -22,13 +22,17 @@
     "e2e:plan": "tsx e2e/plan-import.mts",
     "e2e:v14": "tsx e2e/v14.mts",
     "e2e:v15": "tsx e2e/v15.mts",
-    "e2e:v16": "tsx e2e/v16.mts"
+    "e2e:v16": "tsx e2e/v16.mts",
+    "e2e:v17": "tsx e2e/v17.mts"
   },
   "dependencies": {
     "@garmin/fitsdk": "21.217.0",
     "@google/genai": "2.27.0",
+    "@node-rs/argon2": "2.2.0",
     "@prisma/adapter-pg": "7.10.0",
     "@prisma/client": "7.10.0",
+    "@simplewebauthn/browser": "13.3.0",
+    "@simplewebauthn/server": "13.3.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "fast-xml-parser": "5.11.2",
@@ -73,6 +77,14 @@
   },
   "overrides": {
     "mysql2": "3.24.5",
-    "deepmerge-ts": "8.0.2"
+    "deepmerge-ts": "8.0.2",
+    "next-auth": {
+      "@simplewebauthn/server": "$@simplewebauthn/server",
+      "@simplewebauthn/browser": "$@simplewebauthn/browser"
+    },
+    "@auth/core": {
+      "@simplewebauthn/server": "$@simplewebauthn/server",
+      "@simplewebauthn/browser": "$@simplewebauthn/browser"
+    }
   }
 }
