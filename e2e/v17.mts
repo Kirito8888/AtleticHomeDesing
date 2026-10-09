@@ -122,6 +122,46 @@ await noOverflow("/settings/privacy");
 await shot("02-privacy");
 log("privacidad: páginas legales, consentimientos con historial y limitación del tratamiento");
 
+// 4. Creador de rutinas con cuestionario y proyección
+await go(B + "/training");
+await page.getByRole("link", { name: "Crear mi rutina" }).click();
+await page.waitForURL(/\/training\/routine$/);
+await radio("Soy", "Mujer").click();
+await page.getByLabel("Edad").fill("29");
+await page.getByLabel("Peso (kg)").fill("62");
+await page.getByLabel("Altura (cm)").fill("168");
+await radio("Experiencia entrenando", "Nunca he entrenado con regularidad").click();
+await radio("Actividad diaria", "Ligera (camino a diario)").click();
+await page.getByRole("button", { name: "Siguiente" }).click();
+// Salud: con una respuesta marcada no se genera; sin nada, sí
+await page.getByRole("button", { name: "No me pasa nada de esto" }).click();
+await page.getByRole("button", { name: "Siguiente" }).click();
+await page.getByLabel(/Flexiones seguidas/).fill("6");
+await page.getByLabel(/Sentadillas en 1 minuto/).fill("24");
+await page.getByLabel(/Plancha frontal/).fill("30");
+await page.getByRole("button", { name: "Siguiente" }).click();
+await radio("Objetivo a corto plazo", "Ganar fuerza").click();
+await radio("Objetivo a largo plazo", "Hacer del ejercicio un hábito").click();
+await page.getByRole("button", { name: "Siguiente" }).click();
+for (const d of ["Lun", "Mié", "Vie"]) await page.getByRole("group", { name: "Días por semana" }).getByRole("checkbox", { name: d }).click();
+await radio("Dónde entrenas", "Casa").click();
+await page.getByRole("group", { name: "Material que tienes" }).getByRole("checkbox", { name: "Gomas elásticas" }).click();
+await page.getByRole("group", { name: "Zonas con molestias" }).getByRole("checkbox", { name: "Rodilla" }).click();
+await noOverflow("/training/routine");
+await page.getByRole("button", { name: "Crear mi rutina" }).click();
+await page.waitForURL(/\/training\/routine\/[a-z0-9]+$/, { timeout: 30_000 });
+await page.getByText("Empieza desde cero").first().waitFor();
+await page.getByRole("figure", { name: "Proyección: Flexiones seguidas (de rodillas cuentan)" }).waitFor();
+await page.getByLabel("Test", { exact: true }).selectOption("pushups");
+await page.getByLabel("Resultado").fill("8");
+await page.getByRole("button", { name: "Anotar test" }).click();
+await toast(/Test anotado/);
+await noOverflow("/training/routine/[id]");
+await shot("03-routine");
+await page.getByRole("link", { name: "Ver y activar la rutina" }).click();
+await page.getByText("Rutina del cuestionario").waitFor();
+log("creador de rutinas: cuestionario, perfil, rutina en borrador, proyección y retest");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));
