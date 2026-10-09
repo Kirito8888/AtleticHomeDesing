@@ -1,7 +1,6 @@
 "use client";
 
 import { Check, Flame, X } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -14,7 +13,6 @@ export type HabitView = { id: string; name: string; current: number; best: numbe
 
 /** Hábitos de hoy: un toque marca o desmarca. La racha se actualiza al momento. */
 export function HabitsCard({ habits: initial, today }: { habits: HabitView[]; today: string }) {
-  const router = useRouter();
   const [habits, setHabits] = useState(initial);
   const [name, setName] = useState("");
   const [editing, setEditing] = useState(false);
@@ -42,7 +40,7 @@ export function HabitsCard({ habits: initial, today }: { habits: HabitView[]; to
     try {
       await api("/api/habits", { body: { name } });
       setName("");
-      router.refresh();
+      setHabits(await api<HabitView[]>("/api/habits"));
     } catch (e) {
       toast.error((e as Error).message);
     }

@@ -35,13 +35,13 @@ export function WarmupTimer({ blocks: initial }: { blocks: Block[] }) {
   const [h, m] = time.split(":").map(Number);
   const st = time && now != null ? warmupSchedule(blocks, h * 60 + m, now) : null;
 
+  const cur = st?.phase === "during" ? (st.current ?? null) : null;
   useEffect(() => {
-    const cur = st?.phase === "during" ? st.current : null;
     if (cur != null && last.current !== cur) {
       if (last.current != null && "vibrate" in navigator) navigator.vibrate?.([200, 100, 200]);
       last.current = cur;
     }
-  }, [st?.phase, st?.current]);
+  }, [cur]);
 
   async function save(next: Block[]) {
     try {

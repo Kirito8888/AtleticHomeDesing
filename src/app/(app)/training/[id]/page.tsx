@@ -28,6 +28,8 @@ import { MoveSession } from "@/components/training/move-session";
 import { getPrefs } from "@/lib/rules/prefs-service";
 import { velocityLoss } from "@/lib/training/vbt";
 import { sessionPlanVsDone } from "@/lib/training/plan-vs-done-service";
+import { CommentThread } from "@/components/training/comment-thread";
+import { sessionThread } from "@/lib/training/comments-service";
 
 const METHOD_LABEL: Record<string, string> = {
   HR_TSS: "hrTSS (FC)",
@@ -68,6 +70,10 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
     byExercise.set(set.exercise.name, list);
   }
 
+  const [comments, hasCoach] = await Promise.all([
+    sessionThread(user, s.id),
+    prisma.coachAthlete.count({ where: { athleteId: user.id, status: "ACTIVE", scopes: { has: "SESSIONS" } } }).then((n) => n > 0),
+  ]);
   return (
     <>
       <PageHeader
@@ -307,6 +313,17 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
       ) : null}
 
       {s.notes ? <p className="mt-4 text-sm whitespace-pre-wrap text-muted-foreground">{s.notes}</p> : null}
+
+      {comments.length || hasCoach ? (
+        <Card className="mt-4 gap-3 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-sm">Comentarios con tu entrenador/a</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <CommentThread sessionId={s.id} initial={comments} />
+          </CardContent>
+        </Card>
+      ) : null}
     </>
   );
 }

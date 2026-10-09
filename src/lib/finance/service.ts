@@ -14,7 +14,7 @@ import {
   type PostingInput,
 } from "@/lib/finance/ledger";
 import { prisma } from "@/lib/prisma";
-import { sportReport } from "@/lib/finance/sport";
+import { sportBalance, sportReport } from "@/lib/finance/sport";
 
 const DEFAULT_ACCOUNTS: Array<{ name: string; type: FinancialAccountType }> = [
   { name: "Gastos", type: "EXPENSE" },
@@ -332,5 +332,21 @@ export async function sportExpenses(userId: string) {
       eventId: t.eventId && title.has(t.eventId) ? t.eventId : null,
       eventTitle: t.eventId ? (title.get(t.eventId) ?? null) : null,
     })),
+  );
+}
+
+/** Ingresos (becas, premios, patrocinios) y gastos deportivos → saldo por temporada y previsión. */
+export async function sportSeasonBalance(userId: string, today: string) {
+  const txs = await prisma.financialTransaction.findMany({
+    where: { userId, sport: true, kind: { in: ["INCOME", "EXPENSE"] } },
+    select: { date: true, kind: true, postings: { select: { amountCents: true, account: { select: { type: true } } } } },
+  });
+  return sportBalance(
+    txs.map((t) => ({
+      date: toIsoDay(t.date),
+      kind: t.kind as "INCOME" | "EXPENSE",
+      amountCents: Math.abs(t.postings.filter((p) => p.account.type === "ASSET" || p.account.type === "LIABILITY").reduce((a, p) => a + p.amountCents, 0)),
+    })),
+    today,
   );
 }

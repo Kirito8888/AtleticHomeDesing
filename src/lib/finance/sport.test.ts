@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { sportReport } from "./sport";
+import { sportBalance, sportReport } from "./sport";
 
 describe("gastos deportivos", () => {
   it("por temporada (año) y por competición, la más reciente primero", () => {
@@ -18,5 +18,26 @@ describe("gastos deportivos", () => {
       ["Autonómico", 6000],
       ["Sin competición (material, licencias…)", 3000],
     ]);
+  });
+});
+
+describe("temporada deportiva: ingresos frente a gastos", () => {
+  it("saldo por temporada y previsión de gasto de la temporada en curso", () => {
+    const r = sportBalance(
+      [
+        { date: "2026-01-15", amountCents: 100000, kind: "INCOME" },
+        { date: "2026-02-01", amountCents: 20000, kind: "EXPENSE" },
+        { date: "2026-03-01", amountCents: 16500, kind: "EXPENSE" },
+        { date: "2025-06-01", amountCents: 5000, kind: "EXPENSE" },
+      ],
+      "2026-07-02", // día 183 de 365
+    );
+    expect(r[0]).toMatchObject({ season: "2026", incomeCents: 100000, expenseCents: 36500, balanceCents: 63500 });
+    expect(r[0].forecast).toEqual({ expenseCents: Math.round((36500 * 365) / 183), balanceCents: 100000 - Math.round((36500 * 365) / 183) });
+    expect(r[1]).toMatchObject({ season: "2025", balanceCents: -5000, forecast: null });
+  });
+
+  it("sin previsión con menos de un mes de temporada", () => {
+    expect(sportBalance([{ date: "2026-01-02", amountCents: 100, kind: "EXPENSE" }], "2026-01-10")[0].forecast).toBeNull();
   });
 });

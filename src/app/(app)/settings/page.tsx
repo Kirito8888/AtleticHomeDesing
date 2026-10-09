@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   AiConsentToggle,
   ChangeEmailForm,
@@ -17,6 +18,8 @@ import { PageHeader } from "@/components/page-header";
 import { CalendarFeedSettings } from "@/components/settings/calendar-feed";
 import { CarbsByDayForm, HydrationForm, TrackForm } from "@/components/settings/carbs-form";
 import { CoachReport } from "@/components/settings/coach-report";
+import { ServerStatusView } from "@/components/settings/server-status";
+import { serverStatus } from "@/lib/admin/status";
 import { PushSettings } from "@/components/settings/push-settings";
 import { ReminderSettings } from "@/components/settings/reminder-settings";
 import { RulesForm } from "@/components/settings/rules-form";
@@ -74,6 +77,7 @@ function Section({ id, title, description, children }: { id?: string; title: str
 
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const user = await pageUser();
+  const status = user.role === "ADMIN" ? await serverStatus() : null;
   const { welcome } = await searchParams;
   const todayIso = toIsoDay(today());
   const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed, reports] = await Promise.all([
@@ -188,6 +192,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             asCoach={asCoach.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, scopes: l.scopes, other: l.athlete }))}
             asAthlete={asAthlete.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, scopes: l.scopes, other: l.coach }))}
           />
+          {(user.role === "COACH" || user.role === "ADMIN") && asCoach.some((l) => l.status === "ACTIVE") ? (
+            <Link href="/coach" className="mt-2 inline-block text-sm underline underline-offset-4">
+              Ver y comentar las sesiones de tus atletas
+            </Link>
+          ) : null}
         </Section>
         <Section id="informe" title="Informe para la entrenadora" description="Un enlace de solo lectura para quien no usa LifeOS.">
           <CoachReport
@@ -254,6 +263,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <Section title="Privacidad e IA" description="Astras AI usa Google Gemini. Sin tu permiso no se envía nada.">
           <AiConsentToggle initial={me.aiConsentAt != null} configured={Boolean(env().GEMINI_API_KEY)} />
         </Section>
+        {status ? (
+          <Section id="servidor" title="Estado del servidor" description="Solo administración. Míralo después de cada actualización.">
+            <ServerStatusView s={status} />
+          </Section>
+        ) : null}
         <Section title="Tus datos" description="Descarga una copia completa (JSON) o elimina tu cuenta.">
           <div className="grid gap-6">
             <div className="grid gap-2">
