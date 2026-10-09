@@ -165,6 +165,52 @@ await page.getByRole("link", { name: "Ver y activar la rutina" }).click();
 await page.getByText("Rutina del cuestionario").waitFor();
 log("creador de rutinas: cuestionario, perfil, rutina en borrador, proyección y retest");
 
+// 5. Entreno y competición: diario técnico, comparador, lanzamientos y récords, simulador, combinadas, calendario
+const tech = (n: number, marks: number[], tags: string[]) =>
+  api("post", "/api/training/sessions", {
+    date: plusDays(madrid, -n),
+    type: "TECHNICAL",
+    title: `Técnica ${n}`,
+    durationSec: 3600,
+    sessionRpe: 6,
+    tags,
+    notes: n === 3 ? "Mejor bloqueo con la pierna izquierda" : null,
+    technical: { event: "JAVELIN", implementWeightG: 800, cue: "brazo largo", attempts: marks.map((markM) => ({ markM, isFoul: false, isMeasured: true })) },
+  }) as Promise<{ id: string }>;
+const t1 = await tech(10, [44.2, 45.1], ["salida"]);
+const t2 = await tech(3, [46.3, 47.8, 46.9], ["bloqueo", "viento"]);
+await go(B + "/training/diary");
+await page.getByRole("navigation", { name: "Etiquetas" }).getByRole("link", { name: /#bloqueo/ }).click();
+await page.getByLabel("Entradas del diario").getByText("Mejor bloqueo con la pierna izquierda").waitFor();
+await page.getByLabel("Buscar en el diario").fill("pierna izquierda");
+await page.getByRole("button", { name: "Buscar" }).click();
+await page.getByLabel("Entradas del diario").getByText(/Clave: «brazo largo»/).first().waitFor();
+await go(`${B}/training/compare?a=${t1.id}&b=${t2.id}`);
+await page.getByRole("table", { name: "Comparación" }).getByText("Mejor marca").waitFor();
+await page.getByRole("table", { name: "Comparación" }).getByText("(+2.7)").waitFor();
+await go(B + "/training/javelin");
+await page.getByRole("table", { name: "Lanzamientos por semana" }).getByText("800 g").waitFor();
+await page.getByLabel("Récords por temporada").getByText(/47,80?\s?m/).waitFor();
+await noOverflow("/training/javelin");
+const compEv = (await api("post", "/api/planning/events", { type: "COMPETITION", title: "Liga E2E", startAt: plusDays(madrid, 9) })) as { id: string };
+await go(`${B}/planning/competition/${compEv.id}`);
+await page.getByLabel("Tus intentos").getByText("Intento 6").waitFor();
+await page.getByLabel("Prueba 1", { exact: true }).fill("100 m vallas");
+await page.getByLabel("Hora de la prueba 1").fill("09:00");
+await page.getByLabel("Prueba 2", { exact: true }).fill("Altura");
+await page.getByLabel("Hora de la prueba 2").fill("09:40");
+await page.getByLabel("Calentamientos de las pruebas").getByText(/Hueco de 10 min|Muy poco hueco/).waitFor();
+await noOverflow("/planning/competition");
+await go(B + "/planning");
+await page.getByText("Importar calendario de competiciones (.ics o CSV)").click();
+const ics = `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART;VALUE=DATE:${plusDays(madrid, 30).replaceAll("-", "")}\r\nSUMMARY:Control federativo E2E\r\nLOCATION:Burgos\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
+await page.getByLabel("Calendario de competiciones (.ics o CSV)").setInputFiles({ name: "fed.ics", mimeType: "text/calendar", buffer: Buffer.from(ics) });
+await page.getByLabel("Competiciones encontradas").getByText(/Control federativo E2E/).waitFor();
+await page.getByRole("button", { name: "Añadir 1 al calendario" }).click();
+await toast(/1 competiciones añadidas/);
+await shot("04-training");
+log("diario técnico, comparador, lanzamientos y récords, simulador, combinadas e importar calendario");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));

@@ -132,6 +132,7 @@ export async function createTrainingSession(
         durationSec: input.durationSec ?? null,
         sessionRpe: input.sessionRpe ?? null,
         notes: input.notes ?? null,
+        tags: [...new Set(input.tags ?? [])],
         feelings: input.feelings?.length ? input.feelings : Prisma.DbNull,
         zoneFatigue: input.zoneFatigue && Object.keys(input.zoneFatigue).length ? input.zoneFatigue : Prisma.DbNull,
         tss: counts ? tssResult.tss : null,
