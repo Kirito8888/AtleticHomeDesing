@@ -28,6 +28,9 @@ Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servid
 - **Avisos de «Mis reglas»** (en ámbar): squeeze o talón por encima del umbral, codo, peso, VFC, tope de lanzamientos, vídeo contado y molestias anotadas al terminar una sesión. Son **pautas de prudencia, no diagnósticos**; «Ajustar mis reglas» lleva a los umbrales.
 - **Versión suave:** si usas «Mi ciclo» y hoy marcaste síntomas (o es un día previsto con síntomas), te propone la versión suave de la sesión.
 - La próxima competición enlaza al **modo competición**.
+- **Hábitos:** marca cada hábito del día con un toque (🔥 = racha). «Editar hábitos» para añadir o archivar.
+- **Avisos de salud** (si usas «Salud de la mujer») y **avisos de material** cuando toca reponer algo.
+- **Estudio:** el próximo examen y si algún entreno cae ese día o la víspera.
 
 ## Entreno
 
@@ -44,12 +47,22 @@ Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servid
 - **Mis RM:** tu tabla de RM con historial. «Importar del plan» lee el anexo de RM del plan importado. La **serie de test** calcula la RM nueva (carga × (1 + reps/30)) y solo propone cambiarla si varía más que tu umbral (5 % por defecto). **APRE** (3/6/10) te dice cuánto subir o bajar según las repeticiones de la serie 3.
 - **Rendimiento:** PMC, **los 3 mejores por implemento** con su evolución, **marcas en competición con tus objetivos de temporada** (añádelos ahí mismo: «Mínima 55 m»…) y el **1RM estimado** por ejercicio.
 - **Editar o borrar** desde el detalle de cada sesión. Al guardar, se recalculan las marcas y la carga.
+- **Dictar la sesión** (en «+ Sesión», con la IA activada): di «sentadilla 3 por 5 a 90, RIR 2» y se rellena el formulario para que lo revises antes de guardar. El audio no sale del móvil; solo el texto.
+- **Mover o duplicar** una sesión planificada desde su detalle: avisa si deja dos sesiones de lanzamiento demasiado juntas.
+- **Planificado frente a hecho:** en una sesión que viene del plan, series, reps, kg y tonelaje pedidos frente a lo registrado.
+- **VBT:** apunta la velocidad media (m/s) de cada serie; en «Mis RM» verás el perfil carga-velocidad y la RM estimada, y en la sesión, la pérdida de velocidad.
+- **Técnica:** cada sesión muestra la consistencia (media, mejor, variación y % de nulos) y la dispersión de intentos; si pusiste tu pista en Ajustes, también el tiempo que hacía.
+- **Tests físicos** (botón del cronómetro): 30 m, saltos, balón medicinal… o los tuyos, con mejor marca y gráfica.
+- **Material** (botón de la caja): jabalinas, clavos y zapatillas con vida útil (usos o meses). Las jabalinas cuentan solas los lanzamientos registrados con su peso desde la compra; «+usos» para los que no apuntaste. Al 80 % te avisa y al 100 % pide reponer.
 
 ## Planificación
 
 - **Calendario del mes:** ✓ sesión hecha · ○ planificada · □ tarea que vence. Las barras de color son los ciclos (macro, meso, micro). Toca un día para ver su detalle.
 - **+ Añadir:** ciclos de periodización y eventos (competición con prioridad A/B/C, test de 1RM, toma de marca, taper, descarga, examen…).
 - **Tareas** con prioridad y fecha.
+- **✎ examen** en el calendario y, al tocar el día, sus clases y exámenes.
+- **Plan propio** («hazlo tú», debajo del calendario): nombre, inicio, semanas y días de la semana; luego edita cada día (título, duración y tabla de ejercicios), **duplica la semana** y **actívalo** como el plan con IA.
+- **Versión para imprimir** en cada día del plan: tabla con los kg, para llevarla a la pista o guardarla en PDF.
 
 ### Importar tu planificación
 
@@ -100,6 +113,7 @@ En el calendario o en Inicio, toca una competición:
 
 - **Cuenta atrás** (D−3, Día D…).
 - **La bolsa:** checklist (la lista se edita y vale para todas las competiciones; lo marcado se queda en ese móvil).
+- **Calentamiento cronometrado:** pon la hora de la prueba y cuenta hacia atrás bloque a bloque (movilidad, carrera, lanzamientos…), con vibración al cambiar. Los bloques se editan ahí mismo.
 - **Hoja de intentos** (el día de la competición): marca, nulo y viento de los 6 intentos. «Guardar la competición» la registra como sesión técnica de competición, con su mejor marca.
 
 ### Calendario en el móvil (.ics)
@@ -114,6 +128,17 @@ En el calendario o en Inicio, toca una competición:
 - **Control rápido** (desplegable): test squeeze y talón (0–10), salto en la pared (cm), % de grasa de la báscula y si notas el codo al lanzar. Hazlo el lunes (o el día que te toque): alimenta los avisos.
 - **Molestias y lesiones:** zona, lado, intensidad y fecha. Mientras haya una activa, el panel avisa si la carga sube.
 - **Mi ciclo** (solo si tu perfil es de mujer, y opcional): marca la regla y los síntomas del día con un toque, y en «Configurar» (luego «Mis ajustes del ciclo») la duración media, los días de regla y si usas anticonceptivo hormonal (entonces no se estiman fases, solo cuentan los síntomas). Con eso la app propone la **versión suave** los días con síntomas. Los datos se guardan **cifrados**, **no se envían a la IA** y **tu entrenadora no los ve**; «Borrar mis datos del ciclo» los elimina.
+- **Bienestar y carga:** índice tipo Hooper (sueño, estrés, fatiga y agujetas), monotonía y strain de Foster y deuda de sueño de la semana, con aviso según tus umbrales.
+- **Importar VFC y sueño (CSV):** de HRV4Training, Elite HRV, Garmin… Eliges las columnas una vez y se guarda el formato.
+- **Vuelta tras lesión por fases:** en cada molestia, «Vuelta por fases» con fases y criterios (dolor máximo, checklist, test). Mientras dura, no salen los avisos de carga que no tocan.
+- **Salud de la mujer** (botón en Recuperación; si tu perfil es de mujer o lo activas):
+  - **disponibilidad energética** de la semana (necesita que registres comida y peso; si faltan datos, lo dice);
+  - **cribado de RED-S** (8 preguntas, cada 3 meses): orientativo, no es un diagnóstico;
+  - **regla ausente o irregular** según «Mi ciclo»;
+  - **analíticas** (ferritina, hemoglobina, vitamina D…) con su tendencia y recordatorio;
+  - **suelo pélvico:** anota síntomas con un toque; propone reducir impactos y una rutina;
+  - **embarazo y posparto:** modo que bloquea el plan con IA y guía la vuelta por fases (con el alta de tu médica o matrona).
+  Igual que «Mi ciclo»: **cifrado, nunca va a la IA y tu entrenadora no lo ve**. Cada aviso recomienda consultarlo con un profesional. «Borrar mis datos de esta sección» lo elimina.
 
 ## Nutrición
 
@@ -121,6 +146,7 @@ En el calendario o en Inicio, toca una competición:
 - **Comidas favoritas** y **repetir una comida de ayer** con un toque.
 - El objetivo del día se ajusta si es día de entreno (también cuenta una sesión planificada).
 - **Hidratos según el día:** en **Ajustes → Objetivo nutricional**, pon los gramos de hidratos para día de lanzamientos, de gimnasio y sin entreno (los de tu plantilla). El día muestra cuál aplica.
+- **Agua:** vasos con un toque; el objetivo sube los días con sesión y con calor (Ajustes → Agua).
 
 ## Finanzas
 
@@ -130,6 +156,7 @@ En el calendario o en Inicio, toca una competición:
 - **Importar extractos:** CSV de tu banco (eliges columnas una vez y guardas el formato) o Norma 43. Si reimportas un extracto solapado, no se duplican movimientos.
 - **Flujo de caja** y gasto por categoría.
 - **Gastos deportivos:** al crear un gasto, activa «Gasto deportivo» y, si quieres, elige la competición; o toca 🏅 en un movimiento ya guardado. La tarjeta los suma por temporada y por competición.
+- **Becas y saldo de la temporada:** activa «Ingreso deportivo» en una beca, premio o patrocinio (o 🏅 en el movimiento). La tarjeta muestra ingresos frente a gastos deportivos, el saldo y la previsión a fin de año al ritmo actual.
 
 ## Astras AI: crear tu planificación
 
@@ -159,6 +186,9 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
 - **Chat:** preguntas sobre tus apuntes, con las fuentes citadas.
 - **Flashcards:** se generan desde un documento y se repasan con repetición espaciada.
 - **Coach semanal:** un informe de tu semana de entrenamiento. Tus lesiones no se envían a la IA.
+- **Pregunta a tus datos:** «¿cuánto he lanzado este mes?». Se envía un resumen numérico de tus entrenos (nunca salud, ciclo ni notas).
+- **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
+- **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
 
 ## Ajustes
 
@@ -172,6 +202,9 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
 - **Notificaciones:** resumen diario, informe semanal del coach, **aviso de inicio de sesión nuevo** y **recordatorios**: «mañana toca…» (a la hora que elijas), control del lunes y pesarse L-X-V. No llegan si ya lo has apuntado.
 - **Calendario en el móvil:** ver Planificación.
 - **Informe para la entrenadora:** elige el periodo (esta semana, la pasada o las últimas 4) y, si quieres, incluye tus molestias. Crea un enlace de solo lectura que **caduca a los 7 días** y se puede revocar: planificado frente a hecho, lanzamientos, mejores marcas y controles. Nunca incluye el ciclo, el peso, la VFC, las notas ni la nutrición.
+- **Mi pista:** coordenadas de tu pista (temperatura, viento y lluvia de tus sesiones técnicas, de Open-Meteo) (el calentamiento cronometrado está en el modo competición, con bloques editables).
+- **Entrenador / atletas:** si eres entrenador/a, «Ver y comentar las sesiones de tus atletas» abre **Mis atletas**: sus sesiones de 2 semanas y la próxima, y un hilo de comentarios en cada una. El atleta recibe un push y responde desde la sesión. Hace falta que te haya dado el permiso de **sesiones**.
+- **Estado del servidor** (solo administración): versión, base de datos, migraciones, cola, planificador, espacio libre y última copia. Míralo después de cada actualización.
 - **Actividad reciente:** inicios de sesión, cambios de contraseña, 2FA… (se guarda 180 días).
 - **Entrenador / atletas:** invita a tu entrenador y elige qué puede ver (carga, sesiones, recuperación, planificación, informes) y si puede planificarte.
 - **Tus datos:** descargar todo en JSON, CSV de entrenos y finanzas, y **borrar la cuenta** (definitivo).

@@ -284,6 +284,43 @@ dc up -d --build web
 docker image prune -f
 ```
 
+#### De v1.4 a v1.5 (salud de la mujer, carga, plan propio, estudio, material…)
+
+Dos migraciones, **solo aditivas**:
+
+- `v1_5_features` **crea** tablas (`WomenHealth`, `HealthLog`, `TestResult`, `ReturnProtocol`, `ClassSlot`, `StudySession`, `Habit`, `HabitLog`, `Equipment`, `HydrationLog`, `SessionComment`) y **añade columnas opcionales** (condiciones meteorológicas en la sesión técnica, velocidad por serie);
+- `v1_5_backup_log` **crea** `BackupRun`, donde el servicio de copias apunta cada copia para verla en la app.
+
+No borran ni cambian datos. Probadas sobre una copia de una BD v1.4 con datos (usuarios, sesiones y plan intactos; sin diferencias con el esquema después).
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh          # copia previa → pull → migrate → build → healthcheck (vuelta atrás si falla)
+```
+
+**Variables:** ninguna obligatoria nueva.
+
+- Los datos de «Salud de la mujer» se cifran con la misma clave que «Mi ciclo» (`DATA_ENCRYPTION_KEY` o, si no está, `TOTP_ENCRYPTION_KEY`). **No cambies esa clave** si ya hay datos del ciclo: lo cifrado con una clave no se puede leer con otra.
+- Las condiciones de la pista usan Open-Meteo (sin clave). Si el servidor no tiene salida a internet, simplemente no se guardan.
+
+**Copias:** si usas el servicio `backup`, reconstrúyelo para que apunte cada copia en la BD (la tarjeta «Estado del servidor» lo enseña):
+
+```bash
+dc --profile backup up -d --build backup
+dc --profile backup logs --tail 5 backup   # debe terminar en «[backup] ok …»
+```
+
+**Comprobar que todo fue bien:** con una cuenta de administrador (si hace falta: `dc --profile tools run --rm migrate npm run user -- set-role tu@correo ADMIN` y vuelve a iniciar sesión), **Ajustes → Estado del servidor** debe decir `v1.5.0`, base de datos OK, la última migración terminada en `v1_5_backup_log` y, tras la siguiente copia, la fecha de la última copia.
+
+Después, en la app (todo opcional):
+
+- **Ajustes → Mi pista** (coordenadas para el tiempo) y **Mis reglas** (monotonía, sueño, agua, VBT);
+- **Recuperación → Salud de la mujer** (si aplica);
+- **Astras AI → Horario y exámenes**;
+- **Entreno → Material**.
+
+Detalles en [`docs/guia-usuario.md`](docs/guia-usuario.md).
+
 #### De v1.3 a v1.4 (crear plan con IA, reglas, competición…)
 
 La migración `v1_4_features` solo **crea** tablas (`PlanFeedback`, `CycleProfile`, `CycleLog`, `OneRepMax`, `ExerciseAlias`, `CalendarFeed`, `SharedReport`) y **añade columnas opcionales** (preferencias, control rápido, vídeo contado, sensaciones, gasto deportivo, origen y estado del plan). No borra ni cambia datos. Probada sobre una copia de una BD v1.3 con datos y plan importado.
@@ -301,7 +338,7 @@ cd /opt/lifeos
 
 Después, en la app: **Ajustes → Mis reglas** (umbrales de los avisos) y, si quieres, **Ajustes → Notificaciones → recordatorios**, **Calendario en el móvil** e **Informe para la entrenadora**. Detalles en [`docs/guia-usuario.md`](docs/guia-usuario.md).
 
-> **Desde v1.2 o v1.1:** las migraciones son acumulativas y aditivas: `update.sh` (o el procedimiento a mano de v1.1) aplica v1.3 y v1.4 juntas.
+> **Desde v1.2 o v1.1:** las migraciones son acumulativas y aditivas: `update.sh` (o el procedimiento a mano de v1.1) aplica v1.3, v1.4 y v1.5 juntas.
 
 #### De v1.2 a v1.3 (importar la planificación)
 

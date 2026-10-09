@@ -165,6 +165,40 @@ rulesToday(userId, día)                                      src/lib/rules/rule
 - el informe es HTML sin JavaScript con `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'`;
 - `src/test/api-auth.test.ts` lista estas rutas y comprueba que limitan peticiones.
 
+### 3.1f Novedades de la v1.5
+
+**Salud de la mujer** (`src/lib/health/women.ts` puro, `women-service.ts`):
+- `WomenHealth` (ajustes) y `HealthLog` (cribado, analítica, suelo pélvico, semana de descanso) guardan el contenido **cifrado** con `sealJson` (AES-256-GCM, `DATA_ENCRYPTION_KEY` o `TOTP_ENCRYPTION_KEY`); en claro solo la fecha del registro. El tipo de registro va dentro del cifrado.
+- Disponibilidad energética = (kcal ingeridas − kcal del ejercicio) / kg MLG, media de los días con comida registrada en 7; kcal del ejercicio ≈ (MET − 1) × peso × horas con MET = 2 + 0,8·RPE (entre 3 y 11; se descuenta el gasto en reposo). Sin peso o sin % de grasa, o con < 4 días de comida, devuelve «sin datos» en vez de estimar.
+- El cribado de RED-S son 8 preguntas orientativas inspiradas en los dominios del LEAF-Q (no el cuestionario validado). Las fases posparto siguen Goom 2019 (tiempo + síntomas + tests de carga e impacto).
+- **Nunca** entra en los prompts (`ai/data-ai.ts`, `ai-plan`, coach semanal), ni en `/api/report/[token]`, el `.ics` o las rutas del coach (`resolveAthleteId` no da acceso a estas tablas). Lo cubren `women.int.test.ts` y `v15.int.test.ts`. Modo embarazo/posparto: `generateAiPlan` lo rechaza y `getDashboard` filtra los avisos de peso, grasa y lanzamientos.
+
+**Carga y recuperación:**
+- `training/load-metrics.ts`: monotonía y strain de Foster (media/DE de la carga sRPE diaria de 7 días; strain = carga semanal × monotonía);
+- `recovery/wellness.ts`: índice tipo Hooper (4–20) y deuda de sueño;
+- `recovery/return-protocol.ts`: fases con criterios; con un protocolo activo, `evaluateRules` cambia los avisos de carga por el de la fase;
+- `recovery/hrv-import.ts`: CSV con mapeo guardado en prefs.
+- Las condiciones (`weather.ts`) se piden a Open-Meteo con timeout de 5 s, solo con las coordenadas de la pista y fuera de la petición de guardado; `LIFEOS_NO_WEATHER=1` las desactiva (tests).
+
+**Entreno:**
+- `vbt.ts`: regresión lineal carga-velocidad → RM estimada a la velocidad mínima (`vbtMvt`);
+- `plan-vs-done.ts`;
+- `physical-tests.ts`;
+- `move-service.ts` (mueve también el `PlanDay` enlazado y avisa con `throwMinHours`);
+- `planning/manual-plan.ts` (plan `MANUAL` que se activa con el mismo `activateAiPlan`).
+
+**IA:** `ai/data-ai.ts` construye un resumen numérico de entrenos (sin salud, ciclo, notas ni nombre) para «pregunta a tus datos»; `voiceToDraft` usa Gemini solo con consentimiento y clave y, si no, el parser local `voice-parse.ts`. Límite `aiChat`.
+
+**Estudio** (`study/schedule.ts`, puro): clases semanales con validez y exámenes; `examClashes` marca sesiones planificadas el día del examen o la víspera; `studyWeek`; `habitStreak` (la racha de ayer sigue viva hasta que acaba hoy).
+
+**Plataforma:**
+- `finance/sport.ts → sportBalance`: ingresos frente a gastos deportivos por año, y la previsión del año en curso a partir del día 30.
+- `training/equipment*.ts`: usos = lanzamientos de jabalina con ese `implementWeightG` desde la compra (una competición sin intentos cuenta 6), sesiones (clavos: técnica/pista/mixta; zapatillas: todas) + `extraUses`; desgaste = el mayor entre usos y meses; 80 % avisa, 100 % pide reponer.
+- `training/comments-service.ts`: acceso con `resolveAthleteId(…, "SESSIONS")`; si escribe el coach, push al atleta; si responde el atleta, push a los coaches que ya comentaron y siguen con permiso. Límite `comment` (60/hora). Solo el autor borra.
+- `admin/status.ts`: `select 1`, tamaño de la BD, `_prisma_migrations`, estados de `pgboss.job`, `statfs(UPLOAD_DIR)`, último `BackupRun` (lo inserta `deploy/backup/backup.sh` con `psql`) y la última pasada del planificador. Nunca lanza: lo que no puede leer sale como `null`.
+
+**PATCH parciales:** zod 4 aplica los `.default()` también dentro de `.partial()`. `parsePatchBody` (`lib/api.ts`) y `pickPatch` (`rules/prefs.ts`) devuelven solo las claves enviadas; úsalos en todo PATCH con un esquema con valores por defecto.
+
 ### 3.2 Recuperación
 
 ```
@@ -510,7 +544,21 @@ Todas las rutas requieren sesión, salvo `/api/auth/*`, `/api/health` y las dos 
 | `/api/calendar/ics/[token]` | GET | **Público con token.** `text/calendar`, 60/hora por IP |
 | `/api/reports` (`/[id]`) | GET, POST · DELETE | Enlaces del informe para la entrenadora `{from, to, includeInjuries}` (≤ 120 días, ≤ 10 activos) |
 | `/api/report/[token]` | GET | **Público con token**, caduca a los 7 días. HTML sin JS |
-| `/api/finance/transactions/[id]` | PATCH | `{sport, eventId?}` marcar como gasto deportivo |
+| `/api/finance/transactions/[id]` | PATCH | `{sport, eventId?}` marcar como gasto o ingreso deportivo |
+| `/api/health/women` (`/log`) | GET, PUT, DELETE · POST, DELETE | Salud de la mujer (cifrada). Solo la dueña; nunca el coach |
+| `/api/nutrition/water` | GET, POST, DELETE | Agua del día y objetivo · anotar · deshacer la última |
+| `/api/recovery/import` | POST | CSV de VFC y sueño con mapeo de columnas |
+| `/api/recovery/injuries/[id]/protocol` | POST, PUT, DELETE | Vuelta por fases |
+| `/api/training/sessions/[id]/move` | POST | `{date, copy?}` mover o duplicar una sesión planificada |
+| `/api/training/sessions/[id]/comments` | GET, POST, DELETE | Hilo atleta–coach (`?athleteId=` para el coach con permiso SESSIONS) |
+| `/api/training/tests` (`/[id]`) | GET, POST · DELETE | Tests físicos |
+| `/api/training/equipment` (`/[id]`) | GET, POST · PATCH, DELETE | Material: `{addUses, retired, lifeUses, lifeMonths, notes}` |
+| `/api/planning/manual` (`/day/[id]`, `/[code]/duplicate`) | POST · PUT · POST | Plan propio |
+| `/api/ai/ask` · `/api/ai/voice` | POST | Pregunta a tus datos · texto dictado → borrador (límite `aiChat`) |
+| `/api/study/classes` (`/[id]`) | GET, POST · DELETE | Horario y exámenes; GET incluye los choques de 14 días |
+| `/api/study/sessions` (`/[id]`) | GET, POST · DELETE | Horas de estudio (`?week=` lunes) |
+| `/api/habits` (`/[id]`, `/[id]/toggle`) | GET, POST · PATCH, DELETE · POST | Hábitos con racha; toggle `{date}` |
+| `/api/admin/status` | GET | Estado del servidor. Solo `ADMIN` |
 
 ---
 
@@ -531,6 +579,10 @@ npm run e2e:plan     # importar un plan sintético en 390 px: vista previa, vers
 npm run e2e:v14      # v1.4 en 390 px (con LIFEOS_FAKE_AI=1): crear plan con IA, ciclo, RM y kg, registrar desde
                      #   el plan, control rápido y avisos, competición, .ics, semana, sensaciones, búsqueda,
                      #   sin conexión, hidratos, gastos deportivos e informe para la entrenadora
+npm run e2e:v15      # v1.5 en 390 px: salud de la mujer (RED-S, analíticas, suelo pélvico, posparto, ciclo en
+                     #   el plan), carga y bienestar, CSV de VFC, vuelta por fases, agua, tests físicos, plan
+                     #   propio, imprimible, mover sesión, pregunta a tus datos, dictado, horario y exámenes,
+                     #   pomodoro, hábitos, becas, material, comentario de la entrenadora y estado del servidor
 npm run e2e:security # registro cerrado, límites por IP, bloqueo de cuenta, revocación de sesiones y caché,
                      #   2FA (erróneos, reutilizados, recuperación), auditoría, permisos del coach,
                      #   consentimiento IA, editar sesión, exportación y borrado de cuenta
@@ -557,6 +609,9 @@ La CI (`.github/workflows/ci.yml`) ejecuta `npm audit` (producción), lint, tipo
 - **Notificaciones en iPhone:** solo con la PWA instalada en la pantalla de inicio (iOS 16.4+). La vibración del temporizador no existe en Safari.
 - **Commits de la v1.2 no del todo independientes:** comparten una migración y algún módulo (p. ej. la auditoría se usa en los permisos del coach); revertir uno puede exigir revertir otro.
 - **PDFs escaneados sin capa de texto:** devuelven 422. Haría falta OCR.
+- **Salud de la mujer:** el cribado de RED-S no es el LEAF-Q validado y la disponibilidad energética es una estimación (MET por RPE, % de grasa de báscula). Sirven para detectar señales, no para diagnosticar.
+- **Pregunta a tus datos y dictado:** probados con Gemini simulado; la calidad real depende del modelo. El dictado depende de la API de voz del navegador (Chrome/Android sí; Firefox no).
+- **Estado del servidor:** la «última copia» solo aparece si el servicio `backup` está activo y reconstruido con la v1.5; la copia previa de `update.sh` no se registra.
 - **Limitador en memoria:** vale para un único contenedor `web`. Con varias réplicas habría que moverlo a PostgreSQL o Redis; lo mismo para el planificador (se ejecutaría en cada réplica).
 - **Editar una sesión** desde la UI reescribe solo los campos que muestra el formulario: los que se hubieran enviado por API (p. ej. `rir`, `tempo` o `velocityMs` de una serie) se pierden al guardar.
 - **Marcas personales al editar:** se recalculan las de la sesión editada; las de sesiones posteriores que se compararon con ella no se reevalúan.
