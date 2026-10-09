@@ -10,13 +10,14 @@ import { activeInjuries } from "@/lib/recovery/injuries";
 import { injuryAlert } from "@/lib/recovery/injury-rules";
 import { womenAlertsToday } from "@/lib/health/women-service";
 import { rulesToday } from "@/lib/rules/rules-service";
+import { habitsToday, upcomingExamClashes } from "@/lib/study/schedule-service";
 import { getPerformanceSeries } from "@/lib/training/service";
 
 /** Todo lo que necesita el panel de inicio, en paralelo. */
 export async function getDashboard(userId: string) {
   const now = today();
   const day = toIsoDay(now);
-  const [perf, recovery, sessions, nutrition, budgets, dueCards, tasks, nextCompetition, injuries, allRuleAlerts, tomorrow, women] = await Promise.all([
+  const [perf, recovery, sessions, nutrition, budgets, dueCards, tasks, nextCompetition, injuries, allRuleAlerts, tomorrow, women, habits, study] = await Promise.all([
     getPerformanceSeries(userId, 14),
     prisma.recoveryMetrics.findUnique({ where: { userId_date: { userId, date: now } } }),
     prisma.trainingSession.findMany({
@@ -40,6 +41,8 @@ export async function getDashboard(userId: string) {
     rulesToday(userId, day),
     prisma.trainingSession.findMany({ where: { userId, date: addDays(now, 1), status: "PLANNED" }, select: { id: true } }),
     womenAlertsToday(userId, day),
+    habitsToday(userId, day),
+    upcomingExamClashes(userId, day, 7),
   ]);
   // En embarazo o posparto no aplican los avisos de peso, grasa ni tope de lanzamientos.
   const ruleAlerts = women && women.mode !== "NONE" ? allRuleAlerts.filter((a) => !/^(weight|fat|throw)/.test(a.id)) : allRuleAlerts;
@@ -66,6 +69,9 @@ export async function getDashboard(userId: string) {
     womenAlerts: women?.alerts ?? [],
     /** Sesiones planificadas de hoy y mañana: se guardan para verlas sin conexión. */
     offlinePaths: [...sessions.filter((s) => s.status === "PLANNED"), ...tomorrow].map((s) => `/training/${s.id}`),
+    habits,
+    nextExam: study.nextExam,
+    examClashes: study.clashes,
     lightSuggestion: lightDay && lightReason ? { sessionId: lightDay.sessionId!, reason: lightReason } : null,
   };
 }

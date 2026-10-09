@@ -54,6 +54,14 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
           </div>
         }
       />
+      <nav aria-label="Organización del estudio" className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <Link href="/study/schedule" className="underline underline-offset-4">
+          Horario y exámenes
+        </Link>
+        <Link href="/study/focus" className="underline underline-offset-4">
+          Pomodoro y horas de estudio
+        </Link>
+      </nav>
       {!aiConfigured ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
           La IA no está configurada: añade <code>GEMINI_API_KEY</code> a tu fichero de entorno y reinicia. Puedes seguir repasando flashcards existentes.
