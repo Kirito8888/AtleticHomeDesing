@@ -382,6 +382,34 @@ const ics = await (await page.request.get(B + new URL(feedUrl).pathname)).text()
 if (!ics.includes("SUMMARY:Examen: Biomecánica")) errors.push("el .ics no trae el examen con la opción activada");
 log("clases y exámenes en el calendario .ics (opcional)");
 
+const bank = (await api("post", "/api/finance/accounts", { name: "Banco", type: "ASSET" })) as { id: string };
+await api("post", "/api/finance/transactions", { mode: "simple", kind: "EXPENSE", date: madrid, description: "Tren al autonómico", amountCents: 4550, moneyAccountId: bank.id });
+await go(B + "/finance");
+await page.getByRole("link", { name: "Viajes y plazos" }).click();
+await page.waitForURL(/\/finance\/trips/);
+await page.getByLabel("Competición").selectOption({ label: `${plusDays(madrid, 5)} · Autonómico E2E` });
+await page.getByLabel("Presupuesto de transporte").fill("40");
+await page.getByLabel("Presupuesto de alojamiento").fill("60");
+await page.getByLabel("Reembolso de la federación").fill("30");
+await page.getByRole("button", { name: "Crear viaje" }).click();
+await toast(/Viaje creado/);
+await page.getByLabel("Gasto para Autonómico E2E").selectOption({ label: `${madrid} · Tren al autonómico · 45,50 €` });
+await page.getByRole("button", { name: "Enlazar" }).click();
+await toast(/Gasto enlazado/);
+await page.getByLabel("Gastado frente a presupuesto").getByText(/Gastado 45,50\s€ de 100,00\s€/).waitFor();
+await page.getByText(/La federación te debe 30,00\s€/).first().waitFor();
+await page.getByText(/La federación te debe 30,00\s€/).last().click();
+await toast(/Reembolso cobrado/);
+await page.getByLabel("Plazo", { exact: true }).fill("Licencia federativa");
+await page.getByLabel("Tipo de plazo").selectOption("LICENSE");
+await page.getByLabel("Fecha límite").fill(plusDays(madrid, 2));
+await page.getByRole("button", { name: "Añadir plazo" }).click();
+await toast(/Plazo añadido/);
+await page.getByLabel("Plazos").getByText("en 2 d").waitFor();
+await noOverflow("/finance/trips");
+await shot("07-trips");
+log("viaje de competición con presupuesto, gasto enlazado y reembolso; plazo con aviso");
+
 const manifest = (await (await page.request.get(B + "/manifest.webmanifest")).json()) as { shortcuts?: Array<{ url: string }> };
 if (!manifest.shortcuts?.some((x) => x.url === "/study/focus")) errors.push("manifest sin el acceso directo al pomodoro");
 log("accesos directos de la app");

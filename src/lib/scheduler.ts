@@ -1,12 +1,13 @@
 import "server-only";
 
 import { generateWeeklyCoachReport } from "@/lib/ai/coach";
-import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
+import { addDays, dateOnly, localDay, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { formatEur } from "@/lib/format";
 import { env } from "@/lib/env";
 import { runDueSubscriptions } from "@/lib/finance/service";
 import { prisma } from "@/lib/prisma";
 import { dueReminders, publicTitle } from "@/lib/push/reminders";
+import { deadlineState } from "@/lib/finance/trips";
 import { notifyOnce } from "@/lib/push/service";
 import { readPrefs } from "@/lib/rules/prefs";
 import { AUDIT_RETENTION_DAYS } from "@/lib/security/audit";
@@ -216,6 +217,24 @@ export async function runAppointmentReminders(now = new Date()): Promise<number>
   return sent;
 }
 
+/** v1.6 · Plazos (inscripciones, licencia, becas): un aviso desde N días antes (una vez por plazo y fecha). */
+export async function runDeadlineReminders(now = new Date()): Promise<number> {
+  if (madridHour() < 9) return 0;
+  const day = localDay(now);
+  const rows = await prisma.deadline.findMany({
+    where: { done: false, dueOn: { gte: dateOnly(day), lte: addDays(dateOnly(day), 60) }, user: { pushSubscriptions: { some: {} } } },
+    select: { id: true, userId: true, title: true, dueOn: true, remindDays: true, done: true },
+  });
+  let sent = 0;
+  for (const d of rows) {
+    const st = deadlineState({ dueOn: toIsoDay(d.dueOn), remindDays: d.remindDays, done: d.done }, day);
+    if (!st.remindNow) continue;
+    const when = st.daysLeft === 0 ? "hoy" : st.daysLeft === 1 ? "mañana" : `en ${st.daysLeft} días`;
+    if (await notifyOnce(d.userId, `deadline:${d.id}:${toIsoDay(d.dueOn)}`, { title: "LifeOS · plazo", body: `${d.title}: vence ${when}.`, url: "/finance/trips", tag: `deadline-${d.id}` })) sent++;
+  }
+  return sent;
+}
+
 async function tick() {
   g.__lifeosSchedulerLastTick = new Date();
   try {
@@ -224,6 +243,7 @@ async function tick() {
     await runRemindersJob();
     await runPeriodReminderJob();
     await runAppointmentReminders();
+    await runDeadlineReminders();
     const posted = await runSubscriptionsJob();
     const reports = await runWeeklyCoachJob();
     if (posted || reports) console.info(`[scheduler] ${posted} cobro(s) de suscripciones, ${reports} informe(s) del coach`);
