@@ -61,6 +61,9 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
         <Link href="/study/focus" className="underline underline-offset-4">
           Pomodoro y horas de estudio
         </Link>
+        <Link href="/study/exams" className="underline underline-offset-4">
+          Exámenes y notas
+        </Link>
       </nav>
       {!aiConfigured ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">

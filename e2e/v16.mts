@@ -353,6 +353,35 @@ await toast(/Lista limpia/);
 await noOverflow("/nutrition/shopping");
 log("lista de la compra a mano y desde favoritas");
 
+await api("post", "/api/study/classes", { kind: "EXAM", subject: "Biomecánica", date: plusDays(madrid, 6), start: "09:00", end: "11:00" });
+await go(B + "/study/exams");
+await page.getByLabel("Horas para Biomecánica").fill("2");
+await page.getByRole("button", { name: "Generar plan de estudio" }).click();
+await toast(/Plan de estudio con \d+ bloques/);
+await Promise.all([page.waitForResponse((r) => r.url().includes("/api/study/exam-plan/") && r.ok()), page.getByLabel("Bloques de estudio").getByRole("checkbox").first().check()]);
+await page.reload();
+await page.getByText(/hecho 30 min/).waitFor();
+await page.getByLabel("Asignatura").fill("Anatomía");
+await page.getByLabel("Nota", { exact: true }).fill("8");
+await page.getByRole("button", { name: "Añadir nota" }).click();
+await page.getByRole("table", { name: "Notas" }).getByText("Anatomía").waitFor();
+await page.getByLabel("Asignatura").fill("Física");
+await page.getByLabel("Nota", { exact: true }).fill("4");
+await page.getByLabel("Créditos").fill("3");
+await page.getByRole("button", { name: "Añadir nota" }).click();
+await page.getByLabel("Media ponderada").getByText("6.67").waitFor();
+await noOverflow("/study/exams");
+await shot("06-exams");
+log("plan de estudio hasta el examen y media ponderada");
+
+await go(B + "/settings#calendario");
+await page.getByLabel("Incluir mis clases y exámenes (solo la asignatura, sin aula)").check();
+await toast(/Clases y exámenes en el calendario/);
+const feedUrl = ((await api("post", "/api/calendar/feed")) as { url: string }).url;
+const ics = await (await page.request.get(B + new URL(feedUrl).pathname)).text();
+if (!ics.includes("SUMMARY:Examen: Biomecánica")) errors.push("el .ics no trae el examen con la opción activada");
+log("clases y exámenes en el calendario .ics (opcional)");
+
 const manifest = (await (await page.request.get(B + "/manifest.webmanifest")).json()) as { shortcuts?: Array<{ url: string }> };
 if (!manifest.shortcuts?.some((x) => x.url === "/study/focus")) errors.push("manifest sin el acceso directo al pomodoro");
 log("accesos directos de la app");
