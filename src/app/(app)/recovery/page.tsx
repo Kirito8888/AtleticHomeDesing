@@ -19,6 +19,7 @@ import { READINESS_WEIGHTS, type ReadinessComponent } from "@/lib/training/readi
 import { womenEnabled } from "@/lib/health/women-service";
 import { readProtocol } from "@/lib/recovery/protocol-service";
 import { HrvImport } from "@/components/recovery/hrv-import";
+import { AppleImport } from "@/components/recovery/apple-import";
 import { hooperIndex, sleepDebt } from "@/lib/recovery/wellness";
 import { getPrefs } from "@/lib/rules/prefs-service";
 import { dailySrpe, fosterWeek } from "@/lib/training/load-metrics";
@@ -74,6 +75,9 @@ export default async function RecoveryPage() {
         ) : null}
         <Link href="/recovery/body" className="underline underline-offset-4">
           Antropometría
+        </Link>
+        <Link href="/recovery/health" className="underline underline-offset-4">
+          Citas y suplementos
         </Link>
       </nav>
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
@@ -150,10 +154,13 @@ export default async function RecoveryPage() {
           </Card>
           <Card className="gap-3 py-4">
             <CardHeader className="px-4">
-              <CardTitle className="text-sm">Importar VFC y sueño (CSV)</CardTitle>
+              <CardTitle className="text-sm">Importar VFC y sueño</CardTitle>
             </CardHeader>
             <CardContent className="px-4">
               <HrvImport saved={prefs.hrvCsvMapping} />
+              <div className="mt-4 border-t pt-3">
+                <AppleImport />
+              </div>
             </CardContent>
           </Card>
           <InjuriesPanel

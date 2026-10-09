@@ -87,6 +87,7 @@ export const technicalDetailSchema = z.object({
   windMs: optNum(-20, 20),
   isCompetition: z.boolean().default(false),
   focus: z.string().max(500).nullish(),
+  cue: z.string().trim().max(60).nullish(),
   // Vídeo contado: de N revisados, cuántos con el codo estirado y con la cabeza estable
   videoTotal: optInt(0, 200),
   videoElbowOk: optInt(0, 200),

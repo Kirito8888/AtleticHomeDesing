@@ -30,6 +30,8 @@ export interface TechnicalState {
   approachSteps: number | null;
   isCompetition: boolean;
   focus: string;
+  /** v1.6 · clave técnica de la sesión (una frase corta). */
+  cue?: string;
   attempts: Attempt[];
   /** Vídeo contado: de N lanzamientos revisados, cuántos con el codo estirado y con la cabeza estable. */
   videoTotal?: number | null;
@@ -74,6 +76,7 @@ export function technicalPayload(t: TechnicalState) {
     approachSteps: t.approachSteps,
     isCompetition: t.isCompetition,
     focus: t.focus || null,
+    cue: t.cue?.trim() || null,
     videoTotal: t.videoTotal || null,
     videoElbowOk: t.videoTotal ? Math.min(t.videoElbowOk ?? 0, t.videoTotal) : null,
     videoHeadOk: t.videoTotal ? Math.min(t.videoHeadOk ?? 0, t.videoTotal) : null,
@@ -168,6 +171,9 @@ export function TechnicalLogger({ value, onChange }: { value: TechnicalState; on
         </div>
       </div>
 
+      <Field label="Clave técnica del día" htmlFor="cue" hint="Una frase corta que repites antes de lanzar. Luego verás con qué claves lanzas más.">
+        <Input id="cue" value={value.cue ?? ""} maxLength={60} onChange={(e) => set({ cue: e.target.value })} placeholder="brazo largo" />
+      </Field>
       <Field label="Objetivo técnico" htmlFor="focus">
         <Input id="focus" value={value.focus} onChange={(e) => set({ focus: e.target.value })} placeholder="p.ej. bloqueo de la pierna izquierda" />
       </Field>
