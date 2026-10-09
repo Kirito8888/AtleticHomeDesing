@@ -20,6 +20,9 @@ ALTER TABLE "SecurityEvent" ADD COLUMN     "hash" TEXT,
 ADD COLUMN     "prevHash" TEXT;
 
 -- AlterTable
+ALTER TABLE "Supplement" ADD COLUMN     "days" INTEGER[] DEFAULT ARRAY[]::INTEGER[];
+
+-- AlterTable
 ALTER TABLE "TrainingSession" ADD COLUMN     "tags" TEXT[] DEFAULT ARRAY[]::TEXT[];
 
 -- AlterTable
@@ -126,6 +129,64 @@ CREATE TABLE "InjuryPhoto" (
     CONSTRAINT "InjuryPhoto_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "MealPlanEntry" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "date" DATE NOT NULL,
+    "mealType" "MealType" NOT NULL,
+    "recipeId" TEXT NOT NULL,
+    "servings" DOUBLE PRECISION NOT NULL DEFAULT 1,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MealPlanEntry_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SupplementLog" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "supplementId" TEXT NOT NULL,
+    "date" DATE NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SupplementLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SweatTest" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "date" DATE NOT NULL,
+    "minutes" INTEGER NOT NULL,
+    "preKg" DOUBLE PRECISION NOT NULL,
+    "postKg" DOUBLE PRECISION NOT NULL,
+    "fluidMl" INTEGER NOT NULL DEFAULT 0,
+    "urineMl" INTEGER NOT NULL DEFAULT 0,
+    "tempC" DOUBLE PRECISION,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SweatTest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Assignment" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "dueOn" DATE NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'TODO',
+    "weightPct" INTEGER,
+    "grade" DOUBLE PRECISION,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Assignment_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Passkey_credentialId_key" ON "Passkey"("credentialId");
 
@@ -153,6 +214,21 @@ CREATE INDEX "WellbeingLog_userId_date_idx" ON "WellbeingLog"("userId", "date");
 -- CreateIndex
 CREATE INDEX "InjuryPhoto_userId_injuryId_idx" ON "InjuryPhoto"("userId", "injuryId");
 
+-- CreateIndex
+CREATE INDEX "MealPlanEntry_userId_date_idx" ON "MealPlanEntry"("userId", "date");
+
+-- CreateIndex
+CREATE INDEX "SupplementLog_userId_date_idx" ON "SupplementLog"("userId", "date");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SupplementLog_supplementId_date_key" ON "SupplementLog"("supplementId", "date");
+
+-- CreateIndex
+CREATE INDEX "SweatTest_userId_date_idx" ON "SweatTest"("userId", "date");
+
+-- CreateIndex
+CREATE INDEX "Assignment_userId_dueOn_idx" ON "Assignment"("userId", "dueOn");
+
 -- AddForeignKey
 ALTER TABLE "Passkey" ADD CONSTRAINT "Passkey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -173,4 +249,25 @@ ALTER TABLE "WellbeingLog" ADD CONSTRAINT "WellbeingLog_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "InjuryPhoto" ADD CONSTRAINT "InjuryPhoto_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "InjuryPhoto" ADD CONSTRAINT "InjuryPhoto_injuryId_fkey" FOREIGN KEY ("injuryId") REFERENCES "Injury"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MealPlanEntry" ADD CONSTRAINT "MealPlanEntry_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MealPlanEntry" ADD CONSTRAINT "MealPlanEntry_recipeId_fkey" FOREIGN KEY ("recipeId") REFERENCES "Recipe"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupplementLog" ADD CONSTRAINT "SupplementLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupplementLog" ADD CONSTRAINT "SupplementLog_supplementId_fkey" FOREIGN KEY ("supplementId") REFERENCES "Supplement"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SweatTest" ADD CONSTRAINT "SweatTest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Assignment" ADD CONSTRAINT "Assignment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

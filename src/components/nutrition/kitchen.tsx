@@ -8,6 +8,7 @@ import { Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { BarcodeScanner } from "@/components/nutrition/barcode-scanner";
 import { api } from "@/lib/client-api";
 import { recipeMacros, type RecipeItem } from "@/lib/nutrition/kitchen";
 import { cn } from "@/lib/utils";
@@ -63,6 +64,30 @@ export function ShoppingList({ items: initial, favorites }: { items: Array<{ id:
           </li>
         ))}
       </ul>
+      <details className="rounded-md border p-2">
+        <summary className="cursor-pointer text-sm font-medium">Escanear en el súper</summary>
+        <div className="mt-2 grid gap-2">
+          <p className="text-xs text-muted-foreground">Si el producto está en la lista se tacha; si no, se añade. Datos de Open Food Facts.</p>
+          <BarcodeScanner
+            onCode={(code) =>
+              call(async () => {
+                const p = await api<{ name: string; brand: string | null; nutriScore: string | null }>(`/api/nutrition/products/${encodeURIComponent(code)}`);
+                const key = p.name.trim().toLowerCase();
+                const hit = items.find((x) => !x.done && (key.includes(x.name.trim().toLowerCase()) || x.name.trim().toLowerCase().includes(key)));
+                const score = p.nutriScore ? ` · Nutri-Score ${p.nutriScore}` : "";
+                if (hit) {
+                  await api(`/api/nutrition/shopping/${hit.id}`, { method: "PATCH", body: { done: true } });
+                  toast.success(`Tachado: ${hit.name}${score}`);
+                } else {
+                  await api("/api/nutrition/shopping", { body: { name: p.name.slice(0, 80), qty: p.brand?.slice(0, 40) ?? null } });
+                  toast.success(`Añadido: ${p.name}${score}`);
+                }
+                await reload();
+              })
+            }
+          />
+        </div>
+      </details>
       {items.some((x) => x.done) ? (
         <Button type="button" variant="ghost" size="sm" className="justify-self-start" onClick={() => call(async () => (await api("/api/nutrition/shopping?done=1", { method: "DELETE" }), await reload()), "Lista limpia")}>
           Quitar lo comprado

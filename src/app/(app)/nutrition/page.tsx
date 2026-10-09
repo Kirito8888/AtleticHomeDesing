@@ -61,12 +61,18 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
         </Button>
       </div>
 
-      <nav aria-label="Cocina" className="mb-4 flex gap-2">
+      <nav aria-label="Cocina" className="mb-4 flex flex-wrap gap-2">
         <Button asChild variant="outline" size="sm">
           <Link href="/nutrition/shopping">Lista de la compra</Link>
         </Button>
         <Button asChild variant="outline" size="sm">
           <Link href="/nutrition/recipes">Recetas</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/nutrition/plan">Plan semanal</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/nutrition/sweat">Sudoración</Link>
         </Button>
       </nav>
 

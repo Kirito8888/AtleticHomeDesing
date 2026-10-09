@@ -136,6 +136,10 @@ model User {
   routines               RoutineProfile[]
   wellbeing              WellbeingLog[]
   injuryPhotos           InjuryPhoto[]
+  mealPlan               MealPlanEntry[]
+  supplementLogs         SupplementLog[]
+  sweatTests             SweatTest[]
+  assignments            Assignment[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -1502,6 +1506,7 @@ model Injury {
 
   user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   protocol ReturnProtocol?
+  photos   InjuryPhoto[]
 
   @@index([userId, startedOn])
 }
@@ -1862,9 +1867,12 @@ model Supplement {
   endedOn   DateTime? @db.Date
   checkedOn DateTime? @db.Date // última vez que se comprobó en la lista oficial
   notes     String?
+  /// v1.7 · días de la semana en que se toma (1 = lunes … 7 = domingo); vacío = sin calendario
+  days      Int[]     @default([])
   createdAt DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs SupplementLog[]
 
   @@index([userId])
 }
@@ -1892,7 +1900,8 @@ model Recipe {
   items     Json
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planned MealPlanEntry[]
 
   @@unique([userId, name])
 }
@@ -2084,7 +2093,77 @@ model InjuryPhoto {
   takenOn   DateTime @db.Date
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  injury Injury @relation(fields: [injuryId], references: [id], onDelete: Cascade)
 
   @@index([userId, injuryId])
+}
+
+/// v1.7 · Plan semanal de comidas: una receta propia en un día y una comida.
+model MealPlanEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  mealType  MealType
+  recipeId  String
+  servings  Float    @default(1)
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+/// v1.7 · Toma de un suplemento en un día (calendario sin dosis).
+model SupplementLog {
+  id           String   @id @default(cuid())
+  userId       String
+  supplementId String
+  date         DateTime @db.Date
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplement Supplement @relation(fields: [supplementId], references: [id], onDelete: Cascade)
+
+  @@unique([supplementId, date])
+  @@index([userId, date])
+}
+
+/// v1.7 · Prueba de tasa de sudoración (peso antes y después, líquido bebido y orina).
+model SweatTest {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  minutes   Int
+  preKg     Float
+  postKg    Float
+  fluidMl   Int      @default(0)
+  urineMl   Int      @default(0)
+  tempC     Float?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+/// v1.7 · Trabajos y entregas de clase.
+model Assignment {
+  id        String   @id @default(cuid())
+  userId    String
+  subject   String
+  title     String
+  dueOn     DateTime @db.Date
+  status    String   @default("TODO") // TODO | DOING | DONE
+  weightPct Int? // peso en la nota de la asignatura
+  grade     Float?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dueOn])
 }

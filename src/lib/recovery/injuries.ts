@@ -5,6 +5,7 @@ import { ApiError } from "@/lib/api";
 import { dateOnly, isoDate } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { BODY_AREA_LABEL } from "@/lib/recovery/injury-rules";
+import { removePhotoFiles } from "@/lib/recovery/wellbeing-service";
 
 const areas = Object.keys(BODY_AREA_LABEL) as [keyof typeof BODY_AREA_LABEL, ...Array<keyof typeof BODY_AREA_LABEL>];
 
@@ -54,6 +55,9 @@ export async function updateInjury(userId: string, id: string, input: z.infer<ty
 }
 
 export async function deleteInjury(userId: string, id: string) {
+  const photos = await prisma.injuryPhoto.findMany({ where: { injuryId: id, userId }, select: { path: true } });
   const { count } = await prisma.injury.deleteMany({ where: { id, userId } });
   if (!count) throw new ApiError(404, "Lesión no encontrada");
+  // Las filas de las fotos caen en cascada; los ficheros cifrados se borran aquí
+  await removePhotoFiles(userId, photos);
 }

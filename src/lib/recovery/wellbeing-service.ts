@@ -91,3 +91,7 @@ export async function deleteInjuryPhoto(userId: string, id: string) {
 }
 
 export const listInjuryPhotos = (userId: string) => prisma.injuryPhoto.findMany({ where: { userId }, orderBy: { takenOn: "desc" }, select: { id: true, injuryId: true, takenOn: true } });
+
+export async function removePhotoFiles(userId: string, photos: Array<{ path: string }>) {
+  for (const p of photos) if (p.path) await rm(photoFile(userId, p.path), { force: true });
+}
