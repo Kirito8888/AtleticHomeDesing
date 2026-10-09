@@ -73,6 +73,24 @@ export default async function DashboardPage() {
       ) : null}
 
       <OfflineDayCache paths={d.offlinePaths} />
+      <Link
+        href="/recovery"
+        role="status"
+        aria-label="Semáforo del día"
+        className={
+          d.dailyLight.level === "red"
+            ? "mb-4 flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm"
+            : d.dailyLight.level === "amber"
+              ? "mb-4 flex items-start gap-3 rounded-md border border-amber-500/50 bg-amber-500/5 p-3 text-sm"
+              : "mb-4 flex items-start gap-3 rounded-md border p-3 text-sm"
+        }
+      >
+        <span aria-hidden className={d.dailyLight.level === "red" ? "mt-0.5 size-3 shrink-0 rounded-full bg-destructive" : d.dailyLight.level === "amber" ? "mt-0.5 size-3 shrink-0 rounded-full bg-amber-500" : "mt-0.5 size-3 shrink-0 rounded-full bg-emerald-500"} />
+        <span>
+          <span className="font-medium">{d.dailyLight.label}</span>
+          {d.dailyLight.reasons.length ? <span className="block text-xs text-muted-foreground">{d.dailyLight.reasons.join(" · ")}</span> : null}
+        </span>
+      </Link>
       <RuleAlerts alerts={d.ruleAlerts} />
       <RuleAlerts alerts={d.womenAlerts} label="Avisos de salud" link={{ href: "/recovery/women", text: "Salud de la mujer" }} />
       <RuleAlerts alerts={d.equipmentAlerts} label="Avisos de material" link={{ href: "/training/equipment", text: "Ver material" }} />

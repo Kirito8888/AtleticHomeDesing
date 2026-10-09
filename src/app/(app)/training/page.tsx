@@ -89,6 +89,15 @@ export default async function TrainingPage() {
         }
       />
 
+      <nav aria-label="Más de entrenamiento" className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <Link href="/training/prehab" className="underline underline-offset-4">
+          Prehabilitación
+        </Link>
+        <Link href="/training/seasons" className="underline underline-offset-4">
+          Temporadas
+        </Link>
+      </nav>
+
       <WeekStrip days={week} today={toIsoDay(now)} throws={throwsInfo.weeks.at(-1)?.throws ?? 0} cap={throwsInfo.cap} />
 
       {upcoming.length ? (

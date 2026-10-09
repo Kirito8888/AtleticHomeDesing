@@ -9,7 +9,7 @@ import { planDayForSession } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { dayView } from "@/lib/ai-plan/day-view";
 import { planToBlocks } from "@/lib/training/plan-to-form";
-import { rmContext } from "@/lib/training/rm-service";
+import { autoregContext, rmContext } from "@/lib/training/rm-service";
 import { isEditableType, sessionToFormInitial } from "@/lib/training/form-initial";
 import { exerciseOptions, formSessionInclude } from "@/lib/training/session-queries";
 
@@ -17,6 +17,7 @@ export const metadata = { title: "Editar sesión · LifeOS" };
 
 export default async function EditSessionPage({ params }: PageProps<"/training/[id]/edit">) {
   const user = await pageUser();
+  const autoreg = await autoregContext(user.id);
   const { id } = await params;
   const [session, exercises, profile] = await Promise.all([
     prisma.trainingSession.findFirst({ where: { id, userId: user.id }, include: formSessionInclude }),
@@ -68,6 +69,7 @@ export default async function EditSessionPage({ params }: PageProps<"/training/[
         bodyWeightKg={session.strength?.bodyWeightKg ?? profile?.bodyWeightKg ?? null}
         initial={initial}
         sessionId={session.id}
+        autoreg={autoreg}
       />
     </>
   );

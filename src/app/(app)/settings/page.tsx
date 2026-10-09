@@ -176,6 +176,15 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               sleepDebtMaxH: prefs.sleepDebtMaxH,
               vbtMvt: prefs.vbtMvt,
               vbtLossMax: prefs.vbtLossMax,
+              autoregMaxPct: prefs.autoregMaxPct,
+              taperDays: prefs.taperDays,
+              taperPct: prefs.taperPct,
+              lightReadinessAmber: prefs.lightReadinessAmber,
+              lightReadinessRed: prefs.lightReadinessRed,
+              lightHooperAmber: prefs.lightHooperAmber,
+              lightHooperRed: prefs.lightHooperRed,
+              lightPainRed: prefs.lightPainRed,
+              lightZoneAmber: prefs.lightZoneAmber,
             }}
           />
         </Section>

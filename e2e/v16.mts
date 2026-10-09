@@ -134,6 +134,81 @@ await shot("02-safety");
 await friend.context().close();
 log("entreno sola: invitar, aceptar, salir y llegar");
 
+// 3. Bloques C+B: fuerza y planificación (el plan no cambia sin confirmar)
+const mp = (await api("post", "/api/planning/manual", { name: "Bloque E2E", start: madrid, weeks: 2, weekdays: [0, 1, 2, 3, 4, 5, 6], type: "STRENGTH" })) as { code: string; id?: string };
+const mesoDays = (await (await page.request.get(`${B}/api/planning/manual?code=${mp.code}`)).json()) as { days?: Array<{ id: string; date: string | null }> };
+const dayIds = (mesoDays.days ?? []).filter((d) => d.date);
+for (const d of dayIds) {
+  await api("put", `/api/planning/manual/day/${d.id}`, { title: "Fuerza A", durationMin: 60, type: "STRENGTH", notes: "", rows: [{ exercise: "Sentadilla trasera", sets: "3 × 5", load: "80 kg", rir: "2", rest: "2′", how: "" }] });
+}
+await api("post", `/api/ai-plan/${mp.code}/activate`, {});
+const todayDay = dayIds.find((d) => d.date === madrid)!;
+await go(`${B}/planning/plan/${todayDay.id}`);
+await page.getByRole("link", { name: "Ver sesión" }).click();
+await page.waitForURL(/\/training\/c/);
+const sessionUrl = page.url();
+await page.getByRole("link", { name: "Registrar" }).click();
+await page.waitForURL(/\/edit$/);
+await radio("RPE serie 1", "9").click();
+const kgDay = page.getByLabel("Kg del día de Sentadilla trasera");
+await kgDay.getByText(/Hoy\s*77,5 kg/).waitFor();
+await kgDay.getByRole("button", { name: "Usar en las series que quedan" }).click();
+if ((await page.getByRole("textbox", { name: "Peso serie 2", exact: true }).inputValue()) !== "77,5") errors.push("kg del día: no se aplicó a la serie 2");
+await page.getByLabel("Guardar como planificada (no suma carga)").uncheck();
+await page.getByLabel("Fatiga en hombro").selectOption("8");
+await page.fill("#minutes", "60");
+await radio("RPE de la sesión", "7").click();
+await Promise.all([page.waitForURL(sessionUrl), page.getByRole("button", { name: "Guardar cambios" }).click()]);
+await page.getByText("kg del día: 77,5").waitFor();
+await go(`${B}/planning/plan/${todayDay.id}`);
+await page.getByText("3 × 5").first().waitFor();
+await shot("03-autoreg");
+log("kg del día: sugerencia con RIR, «Usar», plan intacto y plan/sugerido/hecho");
+
+await go(B + "/");
+await page.getByLabel("Semáforo del día").getByText(/fatiga 8\/10 en hombro/).waitFor();
+log("semáforo del día con la fatiga por zona");
+
+const comp = (await api("post", "/api/planning/events", { type: "COMPETITION", title: "Autonómico E2E", startAt: plusDays(madrid, 5), priority: "A" })) as { id: string };
+await go(`${B}/planning/competition/${comp.id}`);
+await page.getByRole("button", { name: "Aplicar el afinamiento" }).click();
+await toast(/Afinamiento aplicado a \d+ días/);
+const tapered = dayIds.find((d) => d.date === plusDays(madrid, 2))!;
+await go(`${B}/planning/plan/${tapered.id}`);
+await page.getByText(/Afinamiento −30 %/).waitFor();
+await page.getByText("2 × 5").first().waitFor();
+await go(`${B}/planning/competition/${comp.id}`);
+await page.getByRole("button", { name: "Quitar el afinamiento" }).click();
+await toast(/vuelve el plan original/);
+log("afinamiento: aplicar y quitar sin tocar el plan");
+
+const missed = (await api("post", "/api/training/sessions", { date: plusDays(madrid, -2), type: "STRENGTH", status: "PLANNED", title: "Saltada E2E", strength: { sets: [] } })) as { id: string };
+await go(`${B}/training/${missed.id}`);
+await page.getByLabel("Recolocar la sesión").getByRole("button", { name: "Mover aquí" }).first().click();
+await toast(/Sesión recolocada/);
+log("recolocar una sesión que no se hizo");
+
+await go(B + "/training/prehab");
+await page.getByRole("button", { name: "+ Hombro del lanzador" }).click();
+await toast(/Rutina «Hombro del lanzador» añadida/);
+await page.getByRole("checkbox", { name: "Hecha hoy: Hombro del lanzador" }).click();
+await page.getByText("1 días esta semana").waitFor();
+await noOverflow("/training/prehab");
+log("prehabilitación de hombro con adherencia");
+
+await go(B + "/recovery/body");
+await page.getByLabel("Brazo relajado").fill("32,5");
+await page.getByRole("button", { name: "Guardar medidas" }).click();
+await toast(/Medidas guardadas/);
+await noOverflow("/recovery/body");
+await go(B + "/training/seasons");
+await page.getByRole("table", { name: "Temporadas" }).waitFor();
+await go(`${B}/planning/meso/${mp.code}`);
+await page.getByLabel("como semana tipo").fill("Semana E2E");
+await page.getByRole("button", { name: "Guardar", exact: true }).click();
+await toast(/Semana tipo guardada/);
+log("antropometría, temporadas y semana tipo");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));

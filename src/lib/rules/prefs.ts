@@ -65,6 +65,18 @@ export const prefsSchema = z.object({
   /** VBT: velocidad mínima a la que sale la RM (m/s) y pérdida de velocidad para avisar (%). */
   vbtMvt: z.number().min(0.1).max(1).default(0.3),
   vbtLossMax: z.number().min(5).max(60).default(20),
+  /** v1.6 · kg del día autorregulados: cuánto pueden alejarse del plan (%) como mucho. */
+  autoregMaxPct: z.number().min(0).max(20).default(5),
+  /** v1.6 · afinamiento antes de una competición A: días antes y % de series que se recortan. */
+  taperDays: z.number().int().min(2).max(21).default(7),
+  taperPct: z.number().int().min(10).max(60).default(30),
+  /** v1.6 · semáforo del día: readiness por debajo de (ámbar / rojo), índice Hooper desde (ámbar / rojo), dolor desde (rojo) y fatiga de una zona desde (ámbar). */
+  lightReadinessAmber: z.number().int().min(0).max(100).default(60),
+  lightReadinessRed: z.number().int().min(0).max(100).default(40),
+  lightHooperAmber: z.number().int().min(4).max(20).default(14),
+  lightHooperRed: z.number().int().min(4).max(20).default(17),
+  lightPainRed: z.number().int().min(1).max(10).default(6),
+  lightZoneAmber: z.number().int().min(1).max(10).default(7),
   /** Mapeo del CSV de VFC y sueño (se recuerda para la próxima importación). */
   hrvCsvMapping: z
     .object({

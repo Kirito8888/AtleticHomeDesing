@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { AttemptSheet } from "@/components/competition/attempt-sheet";
 import { CompetitionChecklist } from "@/components/competition/checklist";
 import { WarmupTimer } from "@/components/competition/warmup-timer";
+import { TaperCard } from "@/components/competition/taper-card";
+import { taperProposal } from "@/lib/planning/taper-service";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
@@ -22,12 +24,13 @@ export default async function CompetitionPage({ params }: PageProps<"/planning/c
   const ev = await prisma.calendarEvent.findFirst({ where: { id, userId: user.id } });
   if (!ev) notFound();
   const day = toIsoDay(ev.startAt);
-  const [prefs, done] = await Promise.all([
+  const [prefs, done, taper] = await Promise.all([
     getPrefs(user.id),
     prisma.trainingSession.findMany({
       where: { userId: user.id, date: ev.startAt, technical: { isCompetition: true } },
       select: { id: true, title: true, technical: { select: { bestMarkM: true } } },
     }),
+    ev.type === "COMPETITION" ? taperProposal(user.id, ev.id) : null,
   ]);
   const todayIso = toIsoDay(today());
   return (
@@ -45,6 +48,16 @@ export default async function CompetitionPage({ params }: PageProps<"/planning/c
             <CompetitionChecklist eventId={ev.id} items={prefs.checklist} />
           </CardContent>
         </Card>
+        {taper && day > toIsoDay(today()) ? (
+          <Card className="gap-3 py-4">
+            <CardHeader className="px-4">
+              <CardTitle className="text-base">Afinamiento{taper.priority === "A" ? " (competición A)" : ""}</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4">
+              <TaperCard eventId={ev.id} pct={taper.pct} nDays={taper.nDays} days={taper.days} applied={taper.applied} />
+            </CardContent>
+          </Card>
+        ) : null}
         <Card className="gap-3 py-4">
           <CardHeader className="px-4">
             <CardTitle className="text-base">Calentamiento</CardTitle>

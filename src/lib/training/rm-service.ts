@@ -1,12 +1,13 @@
 import "server-only";
 
 import { ApiError } from "@/lib/api";
-import { dateOnly, today, toIsoDay } from "@/lib/dates";
+import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
 import type { PlanBlock } from "@/lib/planning/plan-import/types";
 import { prisma } from "@/lib/prisma";
 import { getPrefs } from "@/lib/rules/prefs-service";
 
 import { findRm, isRmLoad, nameKey, parseAnnexRms, type RmEntry } from "./rm";
+import { loadVelocityProfile } from "./vbt";
 
 /** RM vigentes (la última por ejercicio). */
 export async function currentRms(userId: string): Promise<Array<RmEntry & { id: string; source: string; effectiveFrom: string }>> {
@@ -123,4 +124,21 @@ export async function unlinkedPlanExercises(userId: string) {
     }
   }
   return { noRm: [...noRm.values()].sort(), noCatalog: [...noCatalog.values()].sort() };
+}
+
+/** v1.6 · Contexto de los kg del día: tope (Mis reglas), paso de discos, MVT y perfiles carga-velocidad (90 días). */
+export async function autoregContext(userId: string) {
+  const prefs = await getPrefs(userId);
+  const sets = await prisma.strengthSet.findMany({
+    where: { velocityMs: { gt: 0 }, isWarmup: false, strengthSession: { session: { userId, status: "COMPLETED", date: { gte: addDays(today(), -90) } } } },
+    select: { exerciseId: true, weightKg: true, velocityMs: true },
+  });
+  const by = new Map<string, Array<{ kg: number; v: number }>>();
+  for (const s of sets) by.set(s.exerciseId, [...(by.get(s.exerciseId) ?? []), { kg: s.weightKg, v: s.velocityMs! }]);
+  const profiles: Record<string, { slope: number; intercept: number }> = {};
+  for (const [id, pts] of by) {
+    const p = loadVelocityProfile(pts, prefs.vbtMvt);
+    if (p?.reliable) profiles[id] = { slope: p.slope, intercept: p.intercept };
+  }
+  return { maxPct: prefs.autoregMaxPct, step: prefs.kgStep, mvt: prefs.vbtMvt, profiles };
 }
