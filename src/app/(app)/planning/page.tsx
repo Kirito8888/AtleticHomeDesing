@@ -16,9 +16,7 @@ import { agendaForDay, tasksDuePerDay } from "@/lib/planning/agenda";
 import { planOverview } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
-import { getCycle } from "@/lib/health/cycle-service";
-import { predictedDays } from "@/lib/health/women";
-import { dataKeyConfigured } from "@/lib/security/data-key";
+import { cyclePredictions } from "@/lib/health/cycle-service";
 import { fromMin, slotsOnDay } from "@/lib/study/schedule";
 import { listSlots } from "@/lib/study/schedule-service";
 
@@ -71,8 +69,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
   }));
 
   // Días previstos de regla o síntomas (solo para ella; cálculo local, nunca sale de aquí).
-  const cycleData = dataKeyConfigured() ? await getCycle(user.id, 200) : null;
-  const predicted = new Map(predictedDays(cycleData?.settings ?? null, cycleData?.logs ?? [], toIsoDay(gridStart), toIsoDay(gridEnd)).map((p) => [p.date, p]));
+  const predicted = new Map((await cyclePredictions(user.id, toIsoDay(gridStart), toIsoDay(gridEnd))).map((p) => [p.date, p]));
   const dueByDay = tasksDuePerDay(tasks);
   const selectedDay = typeof rawDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : null;
   const agenda = selectedDay ? agendaForDay(selectedDay, { sessions, events, tasks, cycles }) : null;

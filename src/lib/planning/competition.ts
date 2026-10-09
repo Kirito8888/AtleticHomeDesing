@@ -31,3 +31,8 @@ export function warmupSchedule(blocks: Array<{ name: string; minutes: number }>,
 }
 
 export const hhmm = (min: number) => `${String(Math.floor((((min % 1440) + 1440) % 1440) / 60)).padStart(2, "0")}:${String((((min % 60) + 60) % 60)).padStart(2, "0")}`;
+
+/** Minutos que faltan hasta una fecha y hora (negativo si ya pasó). */
+export function minutesUntil(at: Date, now: Date = new Date()): number {
+  return Math.round((at.getTime() - now.getTime()) / 60000);
+}

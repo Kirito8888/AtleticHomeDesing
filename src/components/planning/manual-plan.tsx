@@ -192,3 +192,86 @@ export function DuplicateWeek({ code, weeks }: { code: string; weeks: number[] }
     </div>
   );
 }
+
+/** v1.6 · Semanas tipo: guardar una semana del plan propio y aplicarla a otra. */
+export function WeekTemplates({ code, weeks, templates }: { code: string; weeks: number[]; templates: Array<{ id: string; name: string }> }) {
+  const router = useRouter();
+  const [week, setWeek] = useState(weeks[0]);
+  const [name, setName] = useState("");
+  const [tpl, setTpl] = useState(templates[0]?.id ?? "");
+  const [target, setTarget] = useState(weeks[0]);
+  const [busy, setBusy] = useState(false);
+  async function run(fn: () => Promise<string>) {
+    setBusy(true);
+    try {
+      toast.success(await fn());
+      router.refresh();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  if (!weeks.length) return null;
+  return (
+    <div className="grid gap-3 border-t pt-3 text-sm">
+      <div className="flex flex-wrap items-end gap-2">
+        <Field label="Guardar la semana" htmlFor="wt-week">
+          <Select id="wt-week" value={week} onChange={(e) => setWeek(Number(e.target.value))}>
+            {weeks.map((w) => (
+              <option key={w} value={w}>
+                S{w}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        <Field label="como semana tipo" htmlFor="wt-name">
+          <Input id="wt-name" value={name} maxLength={60} placeholder="Semana de carga" onChange={(e) => setName(e.target.value)} />
+        </Field>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={busy || !name.trim()}
+          onClick={() => run(async () => (await api(`/api/planning/manual/${code}/week-template`, { body: { name, week } }), setName(""), "Semana tipo guardada"))}
+        >
+          Guardar
+        </Button>
+      </div>
+      {templates.length ? (
+        <div className="flex flex-wrap items-end gap-2">
+          <Field label="Aplicar la semana tipo" htmlFor="wt-tpl">
+            <Select id="wt-tpl" value={tpl} onChange={(e) => setTpl(e.target.value)}>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="a la semana" htmlFor="wt-target">
+            <Select id="wt-target" value={target} onChange={(e) => setTarget(Number(e.target.value))}>
+              {weeks.map((w) => (
+                <option key={w} value={w}>
+                  S{w}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy || !tpl}
+            onClick={() => {
+              if (!confirm(`Se sustituyen los días de la semana ${target} (salvo los ya hechos). ¿Seguir?`)) return;
+              void run(async () => `${(await api<{ applied: number }>(`/api/planning/manual/${code}/week-template`, { method: "PUT", body: { week: target, templateId: tpl } })).applied} días aplicados`);
+            }}
+          >
+            Aplicar
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}

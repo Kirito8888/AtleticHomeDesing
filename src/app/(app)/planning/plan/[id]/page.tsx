@@ -59,6 +59,11 @@ export default async function PlanDayPage({ params }: PageProps<"/planning/plan/
         </p>
       ) : null}
       <RuleAlerts alerts={alerts} />
+      {d.taperPct ? (
+        <p role="status" className="mb-3 rounded-md border border-primary/40 bg-primary/5 p-2 text-sm">
+          Afinamiento −{d.taperPct} % de series (antes de competir). El plan original se conserva: lo ves en «Cómo lo hago».
+        </p>
+      ) : null}
       <p className="mb-2 text-right text-xs">
         <Link href={`/print/plan/${d.id}`} className="underline underline-offset-2">
           Versión para imprimir

@@ -1,17 +1,19 @@
 import "server-only";
 
 import { generateWeeklyCoachReport } from "@/lib/ai/coach";
-import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
+import { addDays, dateOnly, localDay, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { formatEur } from "@/lib/format";
 import { env } from "@/lib/env";
 import { runDueSubscriptions } from "@/lib/finance/service";
 import { prisma } from "@/lib/prisma";
 import { dueReminders, publicTitle } from "@/lib/push/reminders";
+import { deadlineState } from "@/lib/finance/trips";
 import { notifyOnce } from "@/lib/push/service";
 import { readPrefs } from "@/lib/rules/prefs";
 import { AUDIT_RETENTION_DAYS } from "@/lib/security/audit";
 import { periodStarts } from "@/lib/health/cycle";
 import { getCycle } from "@/lib/health/cycle-service";
+import { runSafetyJob } from "@/lib/health/safety-service";
 import { readWomenSettings } from "@/lib/health/women";
 import { dataKeyConfigured, openJson } from "@/lib/security/data-key";
 
@@ -181,7 +183,13 @@ export async function runPeriodReminderJob(hour = madridHour(), weekday = madrid
   let sent = 0;
   for (const u of users) {
     try {
-      if (!readWomenSettings(openJson(u.womenHealth!.data)).remindPeriod) continue;
+      const ws = readWomenSettings(openJson(u.womenHealth!.data));
+      // v1.6 · salud ósea: pocas sesiones con impacto esta semana
+      if (ws.remindImpact && ws.boneImpactMin > 0) {
+        const impact = await prisma.trainingSession.count({ where: { userId: u.id, status: "COMPLETED", type: { in: ["TRACK", "TECHNICAL", "MIXED"] }, date: { gte: addDays(today(), -6) } } });
+        if (impact < ws.boneImpactMin && (await notifyOnce(u.id, `impact:${toIsoDay(startOfIsoWeek(today()))}`, { title: "LifeOS", body: "Esta semana ha habido poco trabajo con impacto (saltos o carrera).", url: "/recovery/women#hueso", tag: "impact" }))) sent++;
+      }
+      if (!ws.remindPeriod) continue;
       const { settings, logs } = await getCycle(u.id, 120);
       if (!settings || settings.hormonal === "si") continue;
       const last = periodStarts(settings, logs).at(-1);
@@ -194,6 +202,39 @@ export async function runPeriodReminderJob(hour = madridHour(), weekday = madrid
   return sent;
 }
 
+/** v1.6 · Citas de fisio o médico: aviso la tarde anterior (una vez). */
+export async function runAppointmentReminders(now = new Date()): Promise<number> {
+  if (madridHour() < 19) return 0;
+  const from = new Date(now.getTime());
+  const to = new Date(now.getTime() + 30 * 3600e3);
+  const appts = await prisma.appointment.findMany({ where: { at: { gt: from, lte: to }, user: { pushSubscriptions: { some: {} } } }, select: { id: true, userId: true, at: true, kind: true, place: true } });
+  let sent = 0;
+  for (const a of appts) {
+    const hour = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(a.at);
+    const what = a.kind === "PHYSIO" ? "Fisio" : a.kind === "DOCTOR" ? "Médico/a" : "Cita";
+    if (await notifyOnce(a.userId, `appt:${a.id}`, { title: "LifeOS", body: `Mañana: ${what} a las ${hour}${a.place ? ` (${a.place})` : ""}.`, url: "/recovery/health", tag: `appt-${a.id}` })) sent++;
+  }
+  return sent;
+}
+
+/** v1.6 · Plazos (inscripciones, licencia, becas): un aviso desde N días antes (una vez por plazo y fecha). */
+export async function runDeadlineReminders(now = new Date()): Promise<number> {
+  if (madridHour() < 9) return 0;
+  const day = localDay(now);
+  const rows = await prisma.deadline.findMany({
+    where: { done: false, dueOn: { gte: dateOnly(day), lte: addDays(dateOnly(day), 60) }, user: { pushSubscriptions: { some: {} } } },
+    select: { id: true, userId: true, title: true, dueOn: true, remindDays: true, done: true },
+  });
+  let sent = 0;
+  for (const d of rows) {
+    const st = deadlineState({ dueOn: toIsoDay(d.dueOn), remindDays: d.remindDays, done: d.done }, day);
+    if (!st.remindNow) continue;
+    const when = st.daysLeft === 0 ? "hoy" : st.daysLeft === 1 ? "mañana" : `en ${st.daysLeft} días`;
+    if (await notifyOnce(d.userId, `deadline:${d.id}:${toIsoDay(d.dueOn)}`, { title: "LifeOS · plazo", body: `${d.title}: vence ${when}.`, url: "/finance/trips", tag: `deadline-${d.id}` })) sent++;
+  }
+  return sent;
+}
+
 async function tick() {
   g.__lifeosSchedulerLastTick = new Date();
   try {
@@ -201,6 +242,8 @@ async function tick() {
     await runDailyDigestJob();
     await runRemindersJob();
     await runPeriodReminderJob();
+    await runAppointmentReminders();
+    await runDeadlineReminders();
     const posted = await runSubscriptionsJob();
     const reports = await runWeeklyCoachJob();
     if (posted || reports) console.info(`[scheduler] ${posted} cobro(s) de suscripciones, ${reports} informe(s) del coach`);
@@ -209,7 +252,17 @@ async function tick() {
   }
 }
 
-const g = globalThis as unknown as { __lifeosScheduler?: NodeJS.Timeout; __lifeosSchedulerLastTick?: Date };
+const g = globalThis as unknown as { __lifeosScheduler?: NodeJS.Timeout; __lifeosSafety?: NodeJS.Timeout; __lifeosSchedulerLastTick?: Date };
+
+/** «Entreno sola, con aviso»: cada 5 min (aparte del horario de las demás tareas). */
+async function safetyTick() {
+  try {
+    const n = await runSafetyJob();
+    if (n) console.info(`[scheduler] ${n} aviso(s) de «entreno sola»`);
+  } catch (err) {
+    console.error("[scheduler] entreno sola:", err);
+  }
+}
 
 /** Para «Estado del servidor»: ¿está activo y cuándo pasó por última vez? */
 export function schedulerStatus() {
@@ -221,5 +274,6 @@ export function startScheduler() {
   if (g.__lifeosScheduler || !env().SCHEDULER_ENABLED) return;
   setTimeout(tick, 60_000).unref();
   g.__lifeosScheduler = setInterval(tick, HOUR_MS).unref();
+  g.__lifeosSafety = setInterval(safetyTick, 5 * 60_000).unref();
   console.info("[scheduler] activo: suscripciones diarias y coach semanal");
 }

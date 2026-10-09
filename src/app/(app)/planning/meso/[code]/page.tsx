@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { AiPlanActions, WeekFeedback } from "@/components/ai-plan/ai-plan-actions";
-import { DuplicateWeek } from "@/components/planning/manual-plan";
+import { DuplicateWeek, WeekTemplates } from "@/components/planning/manual-plan";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
@@ -117,6 +117,11 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
             <CardContent className="grid gap-3 px-4">
               <AiPlanActions code={meso.code} status={meso.status} overlapDays={overlap} canRegenerate={false} />
               <DuplicateWeek code={meso.code} weeks={(meso.weeks as ParsedWeek[]).flatMap((w) => (w.number != null ? [w.number] : []))} />
+              <WeekTemplates
+                code={meso.code}
+                weeks={(meso.weeks as ParsedWeek[]).flatMap((w) => (w.number != null ? [w.number] : []))}
+                templates={await prisma.weekTemplate.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true } })}
+              />
               <p className="text-xs text-muted-foreground">Toca un día para rellenarlo («Editar este día»). Si el plan ya está activo, los cambios llegan a tus sesiones planificadas.</p>
             </CardContent>
           </Card>

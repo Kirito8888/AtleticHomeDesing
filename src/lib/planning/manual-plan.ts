@@ -133,3 +133,54 @@ export async function duplicateWeek(userId: string, code: string, from: number) 
   if (meso.status === "ACTIVE") await rematerialize(userId, meso.id);
   return { copied: src.length };
 }
+
+// ---------- v1.6 · Semanas tipo (solo planes propios) ----------
+
+export const weekTemplateSchema = z.object({ name: z.string().trim().min(1).max(60), week: z.number().int().min(1).max(60) });
+type WeekTemplateDay = { weekday: number; title: string; durationMin: number | null; type: string; content: unknown };
+
+/** Guarda una semana de un plan propio como semana tipo (lunes = 0). */
+export async function saveWeekTemplate(userId: string, code: string, input: z.infer<typeof weekTemplateSchema>) {
+  const meso = await prisma.planMeso.findUnique({ where: { userId_code: { userId, code } }, include: { days: true } });
+  if (!meso || meso.source !== "MANUAL") throw new ApiError(404, "Plan no encontrado");
+  const days: WeekTemplateDay[] = meso.days
+    .filter((d) => d.week === input.week && d.date)
+    .map((d) => ({ weekday: (d.date!.getUTCDay() + 6) % 7, title: d.title, durationMin: d.durationMin, type: d.type, content: d.content }));
+  if (!days.length) throw new ApiError(400, "Esa semana no tiene días");
+  return prisma.weekTemplate.upsert({
+    where: { userId_name: { userId, name: input.name } },
+    create: { userId, name: input.name, days: json(days) },
+    update: { days: json(days) },
+    select: { id: true },
+  });
+}
+
+/**
+ * Aplica una semana tipo a una semana de un plan propio: rellena o sustituye los días de
+ * esa semana por día de la semana. Nunca toca planes importados ni con IA, ni días ya hechos.
+ */
+export async function applyWeekTemplate(userId: string, code: string, week: number, templateId: string) {
+  const [meso, tpl] = await Promise.all([
+    prisma.planMeso.findUnique({ where: { userId_code: { userId, code } }, include: { days: { select: { key: true, date: true, sessionId: true } } } }),
+    prisma.weekTemplate.findFirst({ where: { id: templateId, userId } }),
+  ]);
+  if (!meso || meso.source !== "MANUAL") throw new ApiError(404, "Plan no encontrado");
+  if (!tpl) throw new ApiError(404, "Semana tipo no encontrada");
+  const target = (meso.weeks as Array<{ number: number; start: string }>).find((w) => w.number === week);
+  if (!target) throw new ApiError(400, "Esa semana no existe en el plan");
+  const done = new Set(
+    (await prisma.trainingSession.findMany({ where: { userId, status: "COMPLETED", id: { in: meso.days.flatMap((d) => (d.sessionId ? [d.sessionId] : [])) } }, select: { id: true } })).map((s) => s.id),
+  );
+  let applied = 0;
+  for (const d of tpl.days as WeekTemplateDay[]) {
+    const date = addDays(dateOnly(target.start), d.weekday);
+    const key = `${code}|-|${toIsoDay(date)}|1`;
+    const existing = meso.days.find((x) => x.key === key);
+    if (existing?.sessionId && done.has(existing.sessionId)) continue;
+    const data = { title: d.title, durationMin: d.durationMin, type: d.type as never, content: json(d.content) };
+    await prisma.planDay.upsert({ where: { userId_key: { userId, key } }, create: { userId, mesoId: meso.id, key, week, code: `S${week}`, date, ...data }, update: data });
+    applied++;
+  }
+  if (meso.status === "ACTIVE") await rematerialize(userId, meso.id);
+  return { applied };
+}

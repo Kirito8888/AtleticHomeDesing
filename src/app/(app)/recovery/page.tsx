@@ -2,7 +2,6 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { CycleCard } from "@/components/recovery/cycle-card";
 import { InjuriesPanel } from "@/components/recovery/injuries-panel";
-import { Button } from "@/components/ui/button";
 import { RecoveryForm } from "@/components/recovery/recovery-form";
 import { readinessStatus, StatusLabel } from "@/components/status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +11,7 @@ import { addDays, today, toIsoDay } from "@/lib/dates";
 import { formatDate, formatNum, READINESS_LABEL } from "@/lib/format";
 import { cyclePhase, suggestLight } from "@/lib/health/cycle";
 import { getCycle } from "@/lib/health/cycle-service";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { dataKeyConfigured } from "@/lib/security/data-key";
 import { listInjuries } from "@/lib/recovery/injuries";
@@ -19,9 +19,11 @@ import { READINESS_WEIGHTS, type ReadinessComponent } from "@/lib/training/readi
 import { womenEnabled } from "@/lib/health/women-service";
 import { readProtocol } from "@/lib/recovery/protocol-service";
 import { HrvImport } from "@/components/recovery/hrv-import";
+import { AppleImport } from "@/components/recovery/apple-import";
 import { hooperIndex, sleepDebt } from "@/lib/recovery/wellness";
 import { getPrefs } from "@/lib/rules/prefs-service";
 import { dailySrpe, fosterWeek } from "@/lib/training/load-metrics";
+import { type FatigueZone, zoneTrend } from "@/lib/training/zone-fatigue";
 
 export const metadata = { title: "Recuperación · LifeOS" };
 
@@ -51,10 +53,12 @@ export default async function RecoveryPage() {
   const showCycle = Boolean(cycle) && (profile?.sex === "FEMALE" || Boolean(cycle?.settings) || Boolean(cycle?.logs.length));
   const showWomen = await womenEnabled(user.id);
   // Carga y bienestar: monotonía de Foster (7 días), índice tipo Hooper y deuda de sueño
-  const [prefs, weekSessions] = await Promise.all([
+  const [prefs, weekSessions, zoneRows] = await Promise.all([
     getPrefs(user.id),
     prisma.trainingSession.findMany({ where: { userId: user.id, status: "COMPLETED", date: { gte: addDays(now, -6), lte: now } }, select: { date: true, sessionRpe: true, durationSec: true } }),
+    prisma.trainingSession.findMany({ where: { userId: user.id, status: "COMPLETED", date: { gte: addDays(now, -27), lte: now }, zoneFatigue: { not: Prisma.DbNull } }, select: { date: true, zoneFatigue: true } }),
   ]);
+  const zones = zoneTrend(zoneRows.map((r) => ({ date: toIsoDay(r.date), zones: r.zoneFatigue as Partial<Record<FatigueZone, number>> })), day);
   const foster = fosterWeek(dailySrpe(weekSessions.map((s) => ({ ...s, date: toIsoDay(s.date) })), day));
   const hooper = [...recent].reverse().map((r) => ({ date: toIsoDay(r.date), value: hooperIndex(r) })).filter((h) => h.value != null);
   const debt = sleepDebt(recent.map((r) => ({ date: toIsoDay(r.date), sleepHours: r.sleepHours })), day, prefs.sleepTargetH);
@@ -62,17 +66,20 @@ export default async function RecoveryPage() {
 
   return (
     <>
-      <PageHeader
-        title="Recuperación"
-        description="Registro diario: 1 minuto al despertar."
-        action={
-          showWomen ? (
-            <Button asChild variant="outline" size="sm">
-              <Link href="/recovery/women">Salud de la mujer</Link>
-            </Button>
-          ) : undefined
-        }
-      />
+      <PageHeader title="Recuperación" description="Registro diario: 1 minuto al despertar." />
+      <nav aria-label="Más de recuperación" className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        {showWomen ? (
+          <Link href="/recovery/women" className="font-medium underline underline-offset-4">
+            Salud de la mujer
+          </Link>
+        ) : null}
+        <Link href="/recovery/body" className="underline underline-offset-4">
+          Antropometría
+        </Link>
+        <Link href="/recovery/health" className="underline underline-offset-4">
+          Citas y suplementos
+        </Link>
+      </nav>
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <RecoveryForm
           initial={{
@@ -130,14 +137,30 @@ export default async function RecoveryPage() {
                 <p className="text-xs text-muted-foreground">El índice tipo Hooper sale cuando registras sueño, fatiga, estrés y agujetas.</p>
               )}
               <p className="text-xs text-muted-foreground">Monotonía de Foster = media / desviación de la carga diaria (RPE × minutos). Por encima de {formatNum(prefs.monotonyMax, 1)}, la semana es muy igual.</p>
+              {zones.length ? (
+                <ul className="grid gap-0.5 border-t pt-2 text-xs" aria-label="Fatiga por zona">
+                  {zones.map((z) => (
+                    <li key={z.zone} className="flex justify-between gap-2 tabular-nums">
+                      <span>{z.label}</span>
+                      <span>
+                        {formatNum(z.recent!, 1)}/10 (14 días, n={z.n})
+                        {z.prev != null ? ` · antes ${formatNum(z.prev, 1)}` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </CardContent>
           </Card>
           <Card className="gap-3 py-4">
             <CardHeader className="px-4">
-              <CardTitle className="text-sm">Importar VFC y sueño (CSV)</CardTitle>
+              <CardTitle className="text-sm">Importar VFC y sueño</CardTitle>
             </CardHeader>
             <CardContent className="px-4">
               <HrvImport saved={prefs.hrvCsvMapping} />
+              <div className="mt-4 border-t pt-3">
+                <AppleImport />
+              </div>
             </CardContent>
           </Card>
           <InjuriesPanel

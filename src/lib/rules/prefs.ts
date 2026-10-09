@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { compMealSchema, DEFAULT_COMP_MEALS } from "@/lib/nutrition/kitchen";
+
 /**
  * «Mis reglas»: umbrales y preferencias del usuario (AthleteProfile.prefs).
  * Los valores por defecto son genéricos; ninguno es un dato personal.
@@ -65,6 +67,28 @@ export const prefsSchema = z.object({
   /** VBT: velocidad mínima a la que sale la RM (m/s) y pérdida de velocidad para avisar (%). */
   vbtMvt: z.number().min(0.1).max(1).default(0.3),
   vbtLossMax: z.number().min(5).max(60).default(20),
+  /** v1.6 · kg del día autorregulados: cuánto pueden alejarse del plan (%) como mucho. */
+  autoregMaxPct: z.number().min(0).max(20).default(5),
+  /** v1.6 · afinamiento antes de una competición A: días antes y % de series que se recortan. */
+  taperDays: z.number().int().min(2).max(21).default(7),
+  taperPct: z.number().int().min(10).max(60).default(30),
+  /** v1.6 · semáforo del día: readiness por debajo de (ámbar / rojo), índice Hooper desde (ámbar / rojo), dolor desde (rojo) y fatiga de una zona desde (ámbar). */
+  lightReadinessAmber: z.number().int().min(0).max(100).default(60),
+  lightReadinessRed: z.number().int().min(0).max(100).default(40),
+  lightHooperAmber: z.number().int().min(4).max(20).default(14),
+  lightHooperRed: z.number().int().min(4).max(20).default(17),
+  lightPainRed: z.number().int().min(1).max(10).default(6),
+  lightZoneAmber: z.number().int().min(1).max(10).default(7),
+  /** v1.6 · comida del día de competición (plantilla genérica editable). */
+  compMeals: z.array(compMealSchema).max(10).default(DEFAULT_COMP_MEALS),
+  /** v1.6 · plan de estudio: minutos al día como mucho, recorte en días de entreno, bloque y horas por examen (por defecto y por id). */
+  studyDailyMin: z.number().int().min(30).max(720).default(180),
+  studyTrainingCutMin: z.number().int().min(0).max(300).default(60),
+  studyBlockMin: z.number().int().min(15).max(120).default(30),
+  studyHoursPerExam: z.number().min(1).max(300).default(15),
+  examHours: z.record(z.string().max(40), z.number().min(0).max(300)).default({}),
+  /** v1.6 · añadir clases y exámenes (solo la asignatura) al calendario .ics. */
+  icsStudy: z.boolean().default(false),
   /** Mapeo del CSV de VFC y sueño (se recuerda para la próxima importación). */
   hrvCsvMapping: z
     .object({

@@ -190,6 +190,61 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
 - **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
 
+## Novedades de la v1.6 (dónde está cada cosa)
+
+**Nada de esto cambia tu planificación por su cuenta.** Lo que sugiere (kg del día, afinamiento, recolocar) aparece junto al plan y solo se aplica si pulsas «Usar» o «Aplicar». El afinamiento se quita con otro botón y el día vuelve a ser el original.
+
+**Entreno**
+- **Kg del día:** en el registro de fuerza, tras la primera serie con RIR (o velocidad), aparece «Kg del día de X» con el motivo. «Usar en las series que quedan» lo copia al formulario. Como mucho se aleja un 5 % del plan (Mis reglas).
+- **Fatiga por zona:** al cerrar la sesión, puntúa hombro, codo, espalda… de 0 a 10. La tendencia sale en Recuperación.
+- **Entreno → Análisis de jabalina:** clave técnica (escríbela en la sesión técnica), equivalencia entre pesos, «¿día bueno o progreso?», mínimas con fecha límite y previsión de marca. Si no hay datos suficientes, lo dice.
+- **Entreno → Prehabilitación:** rutinas de hombro y codo, marcado de un toque y adherencia de la semana.
+- **Entreno → Temporadas:** año frente a año.
+- **Registrar sin cobertura:** si guardas una sesión sin conexión, se queda en el móvil («N sesiones sin enviar») y se manda sola al volver. Solo sesiones; el agua y los hábitos necesitan conexión.
+
+**Planificación**
+- **Afinamiento:** en el modo competición de una competición A, «Aplicar el afinamiento» recorta un % de series los días previos (Mis reglas: días y %). «Quitar el afinamiento» lo deshace.
+- **Recolocar:** en una sesión planificada que no hiciste, «Recolocar la sesión» propone hasta 3 días que respetan las horas entre lanzamientos, tus exámenes y (si usas el ciclo) los días previstos con síntomas. «Mover aquí» la mueve.
+- **Semanas tipo:** en tu plan propio, guarda una semana como tipo y aplícala a otra.
+- **Semáforo del día** en Inicio: normal, suave o descanso, con el porqué.
+
+**Recuperación**
+- **Antropometría:** perímetros y pliegues con tendencia.
+- **Citas y suplementos:** citas de fisio o médico con aviso la tarde anterior; suplementos con lote y «comprobado en la lista oficial». La app no dice si algo está permitido: compruébalo siempre. Desde aquí creas el **enlace para tu fisio**.
+- **Importar de Apple Health:** en el iPhone, Salud → tu foto → Exportar todos los datos; descomprime y elige `export.xml`. Se lee en el móvil y solo se envían sueño y FC en reposo por día.
+- **Mapa del dolor:** toca la zona en la silueta al anotar una molestia o una sensación.
+
+**Salud de la mujer** (cifrado; ni la IA ni tu entrenadora lo ven)
+- **Tu patrón:** con 3 ciclos registrados, compara tu rendimiento en días con y sin síntomas. Si la diferencia puede ser casualidad, lo dice.
+- **Próximos días (aprendido de tus ciclos):** probabilidad de síntomas según tus registros.
+- **Salud ósea:** cribado y aviso para pedir valoración; recordatorio opcional de trabajo de impacto.
+- **Enlace para tu médica:** 7 días, revocable.
+- **Hierro:** marca «Fe» al anotar comidas ricas en hierro; verás cuántos días de la semana llegas.
+- **Entreno sola, con aviso** (Salud de la mujer → «Entreno sola» → Abrir):
+  1. Invita a tu contacto por su email de LifeOS; tiene que aceptarlo desde su cuenta.
+  2. Al salir, elige cuánto tardas y pulsa «Salgo». Al volver, pulsa «Llegué».
+  3. Si se pasa la hora, tu contacto recibe un push. Solo push: sin SMS ni email, y tu contacto necesita la app instalada con notificaciones.
+
+**Nutrición**
+- **Lista de la compra** (botón en Nutrición): añade a mano o elige favoritas y «Añadir sus ingredientes».
+- **Recetas:** ingredientes con sus macros por 100 g (o búscalos en OpenFoodFacts) → macros por ración. «Anotar hoy» o «A favoritas».
+- **Comida del día de competición:** en el modo competición, lo que toca ahora sale resaltado. «Editar» cambia la plantilla para todas.
+
+**Astras AI → Exámenes y notas**
+- **Plan hasta el examen:** pon las horas que quieres para cada examen (salen del horario) y pulsa «Generar plan de estudio». Reparte bloques descontando clases y días de entreno; la víspera, solo esa asignatura. Si no da tiempo, te dice cuánto falta. Cada pomodoro tacha los bloques del día de esa asignatura.
+- **Notas y créditos:** media ponderada, créditos aprobados y pendientes.
+
+**Finanzas → Viajes y plazos**
+- **Viaje:** elige la competición, pon el presupuesto por partidas y lo que reembolsa la federación. Enlaza los gastos (quedan como deportivos) y marca el reembolso cuando lo cobres.
+- **Plazos:** inscripciones, licencia, becas; push N días antes.
+
+**Ajustes**
+- **Calendario:** «Incluir mis clases y exámenes» (solo la asignatura).
+- **Restaurar una exportación:** solo en una cuenta vacía. Entran entrenos, recuperación, salud (se vuelve a cifrar), calendario, comidas, recetas, estudio y plazos. No entran finanzas, viajes, apuntes, planes importados ni vínculos.
+- **Accesos directos:** mantén pulsado el icono de la app para ir a Sesión, Agua, Pomodoro o Hábitos.
+
+**Si eres entrenador/a:** en Mis atletas tienes la comparativa (carga 7 días, cumplimiento 14 días, mejor marca 30 días; cada dato solo si te dieron ese permiso) y «Comentar varias sesiones a la vez».
+
 ## Ajustes
 
 - **Seguridad:**

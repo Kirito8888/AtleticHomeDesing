@@ -15,9 +15,9 @@ import { getDashboard } from "@/lib/dashboard";
 import { diffDays, today } from "@/lib/dates";
 import { formatDate, formatDuration, formatEur, formatNum, READINESS_LABEL, SESSION_TYPE_LABEL } from "@/lib/format";
 
-function Widget({ title, icon: Icon, href, children }: { title: string; icon: React.ElementType; href?: string; children: React.ReactNode }) {
+function Widget({ title, icon: Icon, href, id, children }: { title: string; icon: React.ElementType; href?: string; id?: string; children: React.ReactNode }) {
   return (
-    <Card className="gap-3 py-4">
+    <Card id={id} className="scroll-mt-20 gap-3 py-4">
       <CardHeader className="flex flex-row items-center justify-between px-4">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Icon className="size-4 text-muted-foreground" /> {title}
@@ -73,6 +73,24 @@ export default async function DashboardPage() {
       ) : null}
 
       <OfflineDayCache paths={d.offlinePaths} />
+      <Link
+        href="/recovery"
+        role="status"
+        aria-label="Semáforo del día"
+        className={
+          d.dailyLight.level === "red"
+            ? "mb-4 flex items-start gap-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm"
+            : d.dailyLight.level === "amber"
+              ? "mb-4 flex items-start gap-3 rounded-md border border-amber-500/50 bg-amber-500/5 p-3 text-sm"
+              : "mb-4 flex items-start gap-3 rounded-md border p-3 text-sm"
+        }
+      >
+        <span aria-hidden className={d.dailyLight.level === "red" ? "mt-0.5 size-3 shrink-0 rounded-full bg-destructive" : d.dailyLight.level === "amber" ? "mt-0.5 size-3 shrink-0 rounded-full bg-amber-500" : "mt-0.5 size-3 shrink-0 rounded-full bg-emerald-500"} />
+        <span>
+          <span className="font-medium">{d.dailyLight.label}</span>
+          {d.dailyLight.reasons.length ? <span className="block text-xs text-muted-foreground">{d.dailyLight.reasons.join(" · ")}</span> : null}
+        </span>
+      </Link>
       <RuleAlerts alerts={d.ruleAlerts} />
       <RuleAlerts alerts={d.womenAlerts} label="Avisos de salud" link={{ href: "/recovery/women", text: "Salud de la mujer" }} />
       <RuleAlerts alerts={d.equipmentAlerts} label="Avisos de material" link={{ href: "/training/equipment", text: "Ver material" }} />
@@ -229,7 +247,7 @@ export default async function DashboardPage() {
           </div>
         </Widget>
 
-        <Widget title="Hábitos" icon={ListChecks}>
+        <Widget title="Hábitos" icon={ListChecks} id="habitos">
           <HabitsCard habits={d.habits} today={d.day} />
         </Widget>
       </div>

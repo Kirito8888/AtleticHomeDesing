@@ -12,10 +12,10 @@ type Ctx = Awaited<ReturnType<typeof rmContext>>;
 async function doneSets(userId: string, sessionIds: string[]) {
   const sets = await prisma.strengthSet.findMany({
     where: { strengthSession: { session: { userId, id: { in: sessionIds } } } },
-    select: { reps: true, weightKg: true, isWarmup: true, exerciseId: true, exercise: { select: { name: true } }, strengthSession: { select: { sessionId: true } } },
+    select: { reps: true, weightKg: true, isWarmup: true, suggestedKg: true, exerciseId: true, exercise: { select: { name: true } }, strengthSession: { select: { sessionId: true } } },
     orderBy: { order: "asc" },
   });
-  return sets.map((s) => ({ sessionId: s.strengthSession.sessionId, exerciseId: s.exerciseId, exercise: s.exercise.name, reps: s.reps, weightKg: s.weightKg, isWarmup: s.isWarmup }));
+  return sets.map((s) => ({ sessionId: s.strengthSession.sessionId, exerciseId: s.exerciseId, exercise: s.exercise.name, reps: s.reps, weightKg: s.weightKg, isWarmup: s.isWarmup, suggestedKg: s.suggestedKg }));
 }
 
 /** Plan frente a hecho de una sesión hecha que viene del plan (null si no aplica). */

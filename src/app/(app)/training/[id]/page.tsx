@@ -24,7 +24,8 @@ import { planDayForSession } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { isEditableType } from "@/lib/training/form-initial";
 import { consistency } from "@/lib/training/consistency";
-import { MoveSession } from "@/components/training/move-session";
+import { MoveSession, RescheduleCard } from "@/components/training/move-session";
+import { rescheduleSuggestions } from "@/lib/training/move-service";
 import { getPrefs } from "@/lib/rules/prefs-service";
 import { velocityLoss } from "@/lib/training/vbt";
 import { sessionPlanVsDone } from "@/lib/training/plan-vs-done-service";
@@ -101,12 +102,18 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
       </Card>
 
       <RuleAlerts alerts={alerts} />
+      {s.status === "PLANNED" && toIsoDay(s.date) < toIsoDay(today()) ? <RescheduleCard id={s.id} date={toIsoDay(s.date)} options={await rescheduleSuggestions(user.id, s.id)} /> : null}
       {s.status === "PLANNED" ? <MoveSession id={s.id} date={toIsoDay(s.date)} /> : null}
       {plan ? (
         <p className="mb-2 text-right text-xs">
           <Link href={`/print/plan/${plan.id}`} className="underline underline-offset-2">
             Versión para imprimir
           </Link>
+        </p>
+      ) : null}
+      {view?.taperPct ? (
+        <p role="status" className="mb-3 rounded-md border border-primary/40 bg-primary/5 p-2 text-sm">
+          Afinamiento −{view.taperPct} % de series (antes de competir). El plan original se conserva.
         </p>
       ) : null}
       {plan && view && s.status === "PLANNED" ? (
@@ -199,7 +206,10 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
                   <tbody>
                     {pvd.map((r, i) => (
                       <tr key={i} className="border-b last:border-0">
-                        <td className="py-1 pr-2">{r.exercise}</td>
+                        <td className="py-1 pr-2">
+                          {r.exercise}
+                          {r.suggestedKg ? <span className="block text-xs text-muted-foreground">kg del día: {formatNum(r.suggestedKg, 1)}</span> : null}
+                        </td>
                         <td className="py-1 text-right">{r.plan ? `${r.plan.sets}×${Math.round(r.plan.reps / r.plan.sets)}${r.plan.avgKg ? ` @${formatNum(r.plan.avgKg, 1)}` : ""}` : "—"}</td>
                         <td className="py-1 text-right">{r.done ? `${r.done.sets}×${Math.round(r.done.reps / r.done.sets)}${r.done.avgKg ? ` @${formatNum(r.done.avgKg, 1)}` : ""}` : "—"}</td>
                         <td className={r.tonnagePct != null && r.tonnagePct < -10 ? "py-1 text-right text-destructive" : "py-1 text-right"}>{r.tonnagePct != null ? `${r.tonnagePct > 0 ? "+" : ""}${r.tonnagePct} %` : "—"}</td>

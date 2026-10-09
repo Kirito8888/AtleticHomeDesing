@@ -136,7 +136,7 @@ await toast(/Readiness: \d+/);
 await page.waitForTimeout(800);
 await shot("05-recovery");
 log("recuperación →", await page.getByText(/Readiness: \d+/).first().innerText());
-await page.getByRole("button", { name: "Añadir", exact: true }).click();
+await page.getByRole("button", { name: "Añadir molestia" }).click();
 await page.selectOption("#inj-area", "KNEE");
 await page.selectOption("#inj-side", "LEFT");
 await page.getByRole("radiogroup", { name: "Dolor" }).getByRole("radio", { name: "7", exact: true }).click();

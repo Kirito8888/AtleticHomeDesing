@@ -19,6 +19,7 @@ import { CalendarFeedSettings } from "@/components/settings/calendar-feed";
 import { CarbsByDayForm, HydrationForm, TrackForm } from "@/components/settings/carbs-form";
 import { CoachReport } from "@/components/settings/coach-report";
 import { ServerStatusView } from "@/components/settings/server-status";
+import { RestoreForm } from "@/components/settings/restore-form";
 import { serverStatus } from "@/lib/admin/status";
 import { PushSettings } from "@/components/settings/push-settings";
 import { ReminderSettings } from "@/components/settings/reminder-settings";
@@ -176,6 +177,15 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               sleepDebtMaxH: prefs.sleepDebtMaxH,
               vbtMvt: prefs.vbtMvt,
               vbtLossMax: prefs.vbtLossMax,
+              autoregMaxPct: prefs.autoregMaxPct,
+              taperDays: prefs.taperDays,
+              taperPct: prefs.taperPct,
+              lightReadinessAmber: prefs.lightReadinessAmber,
+              lightReadinessRed: prefs.lightReadinessRed,
+              lightHooperAmber: prefs.lightHooperAmber,
+              lightHooperRed: prefs.lightHooperRed,
+              lightPainRed: prefs.lightPainRed,
+              lightZoneAmber: prefs.lightZoneAmber,
             }}
           />
         </Section>
@@ -236,7 +246,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <TrackForm initial={prefs.track} />
         </Section>
         <Section id="calendario" title="Calendario en el móvil" description="Suscríbete a tus entrenos y competiciones (.ics de solo lectura).">
-          <CalendarFeedSettings active={feed.active} lastUsedAt={feed.lastUsedAt} />
+          <CalendarFeedSettings active={feed.active} lastUsedAt={feed.lastUsedAt} study={prefs.icsStudy} />
         </Section>
         <Section title="Actividad reciente" description="Si ves algo que no reconoces, cambia la contraseña y cierra las sesiones.">
           {events.length ? (
@@ -288,6 +298,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                   </a>
                 </Button>
               </div>
+            </div>
+            <div className="grid gap-2">
+              <p className="text-sm font-medium">Restaurar una copia</p>
+              <RestoreForm />
             </div>
             <DeleteAccountForm />
           </div>

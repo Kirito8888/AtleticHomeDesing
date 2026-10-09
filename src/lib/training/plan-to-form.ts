@@ -2,7 +2,16 @@ import type { PlanBlock, PlanRow } from "@/lib/planning/plan-import/types";
 
 import { findRm, isRmLoad, loadToKg, nameKey, parsePercents, type RmEntry, roundTo } from "./rm";
 
-export type FormSet = { reps: number; weightKg: number; rpe: number | null; isWarmup: boolean };
+export type FormSet = {
+  reps: number;
+  weightKg: number;
+  rpe: number | null;
+  isWarmup: boolean;
+  /** v1.6 · lo que pide el plan (para sugerir los kg del día sin tocar el plan). */
+  planKg?: number | null;
+  planReps?: number | null;
+  planRir?: number | null;
+};
 export type PlannedBlock = { exercise: string; exerciseId: string | null; sets: FormSet[] };
 
 /** «3 × 4» → [3, 4]; «1 × 6 y 1 × 6» → [[1,6],[1,6]]; «3 × (mi máximo − 2)» → reps null. */
@@ -59,7 +68,10 @@ export function planToBlocks(
       });
       ramp = null;
     }
-    for (const g of groups) for (let k = 0; k < g.sets; k++) sets.push({ reps: g.reps!, weightKg: weight, rpe: null, isWarmup: false });
+    const rir = /\d+/.exec(row.rir ?? "")?.[0];
+    for (const g of groups)
+      for (let k = 0; k < g.sets; k++)
+        sets.push({ reps: g.reps!, weightKg: weight, rpe: null, isWarmup: false, ...(weight > 0 && rir != null ? { planKg: weight, planReps: g.reps!, planRir: Number(rir) } : {}) });
     const prev = out.at(-1);
     // Serie de test + series normales del mismo ejercicio → un bloque.
     if (prev && prev.exerciseId === exerciseId) prev.sets.push(...sets);

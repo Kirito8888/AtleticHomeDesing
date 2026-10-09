@@ -7,8 +7,9 @@ import { toast } from "sonner";
 
 import { Chips, Field } from "@/components/form/chips";
 import { RestTimer } from "@/components/training/rest-timer";
-import { blocksToSets, StrengthLogger, type ExerciseBlock, type ExerciseOption } from "@/components/training/strength-logger";
+import { type AutoregContext, blocksToSets, StrengthLogger, type ExerciseBlock, type ExerciseOption } from "@/components/training/strength-logger";
 import { type FeelingValue, FeelingsPicker } from "@/components/training/feelings-picker";
+import { FATIGUE_ZONES, type FatigueZone } from "@/lib/training/zone-fatigue";
 import { initialTechnical, TechnicalLogger, technicalPayload, type TechnicalState } from "@/components/training/technical-logger";
 import { initialTrack, TrackLogger, trackPayload, type TrackState } from "@/components/training/track-logger";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
+import { enqueue, isNetworkError } from "@/lib/offline/outbox";
 import { formatNum } from "@/lib/format";
 import type { FormKind as Kind, SessionFormInitial } from "@/lib/training/form-initial";
 
@@ -35,6 +37,7 @@ export function SessionForm({
   initialType = "STRENGTH",
   initial,
   sessionId,
+  autoreg,
 }: {
   exercises: ExerciseOption[];
   defaultDate: string;
@@ -44,8 +47,11 @@ export function SessionForm({
   initial?: SessionFormInitial;
   /** Si se indica, se guarda con PATCH sobre esa sesión en vez de crear otra. */
   sessionId?: string;
+  /** v1.6 · kg del día autorregulados (solo sugerencias; el plan no cambia). */
+  autoreg?: AutoregContext;
 }) {
   const router = useRouter();
+  const [clientId] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `c${Date.now()}${Math.random().toString(36).slice(2, 10)}`));
   const [type, setType] = useState<Kind>(initial?.type ?? initialType);
   const [date, setDate] = useState(initial?.date ?? defaultDate);
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -53,6 +59,7 @@ export function SessionForm({
   const [rpe, setRpe] = useState<number | null>(initial?.rpe ?? null);
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [feelings, setFeelings] = useState<FeelingValue[]>(initial?.feelings ?? []);
+  const [zones, setZones] = useState<Partial<Record<FatigueZone, number>>>(initial?.zoneFatigue ?? {});
   const [planned, setPlanned] = useState(initial?.planned ?? false);
   const [mixed, setMixed] = useState(initial?.mixed ?? false);
   const [blocks, setBlocks] = useState<ExerciseBlock[]>(initial?.blocks ?? []);
@@ -74,6 +81,7 @@ export function SessionForm({
       sessionRpe: rpe,
       notes: notes || null,
       feelings: planned || !feelings.length ? null : feelings,
+      zoneFatigue: planned || !Object.keys(zones).length ? null : zones,
     };
     if (mixed) {
       // Sesión mixta: cada parte con datos va en la misma sesión.
@@ -122,15 +130,28 @@ export function SessionForm({
     if (typeof body === "string") return toast.error(body);
 
     setSaving(true);
+    // Cada sesión nueva lleva un id del dispositivo: si se reenvía (sin conexión), no se duplica
+    const withId = sessionId ? body : { ...body, clientId };
     try {
       const s = sessionId
         ? await api<Created>(`/api/training/sessions/${sessionId}`, { method: "PATCH", body })
-        : await api<Created>("/api/training/sessions", { body });
+        : await api<Created>("/api/training/sessions", { body: withId });
       const prs = s.newPersonalRecords.length ? ` · ${s.newPersonalRecords.length} marca(s) personal(es) 🎉` : "";
       toast.success(planned ? "Sesión planificada" : `Guardada${s.tss != null ? ` · ${formatNum(s.tss)} TSS` : ""}${prs}`);
       router.push(`/training/${s.id}`);
       router.refresh();
     } catch (err) {
+      if (!sessionId && isNetworkError(err)) {
+        try {
+          await enqueue({ id: clientId, url: "/api/training/sessions", body: withId, label: title || "Sesión" });
+          toast.success("Sin conexión: la sesión queda guardada en el móvil y se enviará sola al volver la cobertura");
+          // Sin red no se puede cargar otra página: se queda aquí; el aviso de arriba cuenta lo pendiente
+          setSaving(false);
+          return;
+        } catch {
+          // sin IndexedDB: se informa del error normal
+        }
+      }
       toast.error((err as Error).message);
       setSaving(false);
     }
@@ -175,6 +196,7 @@ export function SessionForm({
             onChange={setBlocks}
             bodyWeightKg={bodyWeightKg}
             onSetCompleted={() => setRestSignal((n) => n + 1)}
+            autoreg={autoreg}
           />
         </TabsContent>
         <TabsContent value="TECHNICAL">
@@ -192,6 +214,34 @@ export function SessionForm({
       {!planned ? (
         <Field label="Sensaciones al terminar" hint="¿Alguna molestia? Toca la zona y marca el dolor. Avisa en Inicio si hace falta.">
           <FeelingsPicker value={feelings} onChange={setFeelings} />
+        </Field>
+      ) : null}
+      {!planned ? (
+        <Field label="Fatiga por zona (opcional)" hint="0 = nada · 10 = muy cargada. Entra en el semáforo de Inicio.">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {(Object.keys(FATIGUE_ZONES) as FatigueZone[]).map((z) => (
+              <label key={z} className="flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-sm">
+                {FATIGUE_ZONES[z]}
+                <select
+                  aria-label={`Fatiga en ${FATIGUE_ZONES[z].toLowerCase()}`}
+                  className="h-8 rounded-md border bg-background px-1 tabular-nums"
+                  value={zones[z] ?? ""}
+                  onChange={(e) => {
+                    const { [z]: _drop, ...rest } = zones;
+                    void _drop;
+                    setZones(e.target.value === "" ? rest : { ...rest, [z]: Number(e.target.value) });
+                  }}
+                >
+                  <option value="">—</option>
+                  {Array.from({ length: 11 }, (_, i) => (
+                    <option key={i} value={i}>
+                      {i}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
         </Field>
       ) : null}
 

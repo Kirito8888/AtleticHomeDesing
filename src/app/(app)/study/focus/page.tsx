@@ -10,6 +10,7 @@ import { addDays, dateOnly, startOfIsoWeek, today, toIsoDay } from "@/lib/dates"
 import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { studyWeek } from "@/lib/study/schedule";
+import { todayBlocks } from "@/lib/study/exam-plan-service";
 import { knownSubjects } from "@/lib/study/schedule-service";
 
 export const metadata = { title: "Pomodoro · LifeOS" };
@@ -21,9 +22,10 @@ export default async function FocusPage({ searchParams }: PageProps<"/study/focu
   const { week: raw } = await searchParams;
   const weekStart = startOfIsoWeek(typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? dateOnly(raw) : today());
   const ws = toIsoDay(weekStart);
-  const [subjects, rows] = await Promise.all([
+  const [subjects, rows, plan] = await Promise.all([
     knownSubjects(user.id),
     prisma.studySession.findMany({ where: { userId: user.id, date: { gte: weekStart, lte: addDays(weekStart, 6) } }, orderBy: { createdAt: "desc" } }),
+    todayBlocks(user.id, toIsoDay(today())),
   ]);
   const w = studyWeek(rows.map((r) => ({ ...r, date: toIsoDay(r.date) })), ws);
   const max = Math.max(60, ...w.days.map((d) => d.minutes));
@@ -35,6 +37,21 @@ export default async function FocusPage({ searchParams }: PageProps<"/study/focu
         <Card className="h-fit gap-3 py-4">
           <CardContent className="px-4">
             <Pomodoro subjects={subjects} />
+            {plan.length ? (
+              <div className="mt-4 grid gap-1 border-t pt-3 text-sm" aria-label="Hoy toca">
+                <p className="font-medium">
+                  Hoy toca ·{" "}
+                  <Link href="/study/exams" className="text-xs font-normal underline underline-offset-2">
+                    plan de estudio
+                  </Link>
+                </p>
+                {plan.map((b) => (
+                  <p key={b.id} className={b.done ? "text-muted-foreground line-through" : undefined}>
+                    {b.subject} · {hm(b.minutes)}
+                  </p>
+                ))}
+              </div>
+            ) : null}
           </CardContent>
         </Card>
         <Card className="h-fit gap-3 py-4">

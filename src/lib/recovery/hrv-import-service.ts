@@ -14,6 +14,13 @@ import { type HrvMapping, hrvCsvRows } from "./hrv-import";
 export async function importHrvCsv(userId: string, text: string, mapping: HrvMapping, commit: boolean) {
   const { rows, errors } = hrvCsvRows(text, mapping);
   if (!commit) return { rows: rows.slice(0, 200), total: rows.length, errors: errors.slice(0, 50) };
+  await saveRecoveryRows(userId, rows);
+  await updatePrefs(userId, { hrvCsvMapping: mapping });
+  return { imported: rows.length, errors: errors.length };
+}
+
+/** Guarda solo los campos que traen las filas y recalcula el readiness en orden. */
+export async function saveRecoveryRows(userId: string, rows: Array<{ date: string; hrvRmssdMs: number | null; restingHr: number | null; sleepHours: number | null }>) {
   for (const r of rows) {
     const data = Object.fromEntries(
       Object.entries({ hrvRmssdMs: r.hrvRmssdMs, restingHr: r.restingHr, sleepHours: r.sleepHours }).filter(([, v]) => v != null),
@@ -23,6 +30,4 @@ export async function importHrvCsv(userId: string, text: string, mapping: HrvMap
   }
   // El readiness de cada día usa la línea base de los anteriores: se recalcula en orden.
   for (const r of [...rows].sort((a, b) => (a.date < b.date ? -1 : 1))) await refreshReadiness(userId, dateOnly(r.date));
-  await updatePrefs(userId, { hrvCsvMapping: mapping });
-  return { imported: rows.length, errors: errors.length };
 }

@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 
 /** Enlace .ics para suscribirse desde Google/Apple Calendar (solo títulos y fechas). */
-export function CalendarFeedSettings({ active: initialActive, lastUsedAt }: { active: boolean; lastUsedAt: string | null }) {
+export function CalendarFeedSettings({ active: initialActive, lastUsedAt, study: initialStudy }: { active: boolean; lastUsedAt: string | null; study: boolean }) {
   const [active, setActive] = useState(initialActive);
+  const [study, setStudy] = useState(initialStudy);
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -42,6 +43,17 @@ export function CalendarFeedSettings({ active: initialActive, lastUsedAt }: { ac
     }
   }
 
+  async function toggleStudy(on: boolean) {
+    setStudy(on);
+    try {
+      await api("/api/settings/prefs", { method: "PATCH", body: { icsStudy: on } });
+      toast.success(on ? "Clases y exámenes en el calendario" : "Clases y exámenes fuera del calendario");
+    } catch (err) {
+      setStudy(!on);
+      toast.error((err as Error).message);
+    }
+  }
+
   async function copy() {
     if (!url) return;
     try {
@@ -57,6 +69,10 @@ export function CalendarFeedSettings({ active: initialActive, lastUsedAt }: { ac
       <p className="text-muted-foreground">
         Tus sesiones planificadas y tus competiciones en Google Calendar o en el calendario del iPhone. Solo títulos y fechas: ni notas, ni marcas, ni datos de salud. Quien tenga el enlace ve esos títulos: no lo compartas.
       </p>
+      <label className="flex items-center gap-2">
+        <input type="checkbox" className="size-4" checked={study} onChange={(e) => toggleStudy(e.target.checked)} />
+        Incluir mis clases y exámenes (solo la asignatura, sin aula)
+      </label>
       {url ? (
         <div className="grid gap-2">
           <label htmlFor="ics-url" className="font-medium">
