@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { compMealSchema, DEFAULT_COMP_MEALS } from "@/lib/nutrition/kitchen";
+
 /**
  * «Mis reglas»: umbrales y preferencias del usuario (AthleteProfile.prefs).
  * Los valores por defecto son genéricos; ninguno es un dato personal.
@@ -77,6 +79,8 @@ export const prefsSchema = z.object({
   lightHooperRed: z.number().int().min(4).max(20).default(17),
   lightPainRed: z.number().int().min(1).max(10).default(6),
   lightZoneAmber: z.number().int().min(1).max(10).default(7),
+  /** v1.6 · comida del día de competición (plantilla genérica editable). */
+  compMeals: z.array(compMealSchema).max(10).default(DEFAULT_COMP_MEALS),
   /** Mapeo del CSV de VFC y sueño (se recuerda para la próxima importación). */
   hrvCsvMapping: z
     .object({

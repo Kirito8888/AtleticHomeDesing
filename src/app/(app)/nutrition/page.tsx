@@ -61,6 +61,15 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
         </Button>
       </div>
 
+      <nav aria-label="Cocina" className="mb-4 flex gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href="/nutrition/shopping">Lista de la compra</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/nutrition/recipes">Recetas</Link>
+        </Button>
+      </nav>
+
       <Card className="mb-4 py-4">
         <CardContent className="grid gap-3 px-4 sm:grid-cols-2">
           {(

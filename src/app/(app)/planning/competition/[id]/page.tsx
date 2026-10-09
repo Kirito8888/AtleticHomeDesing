@@ -5,6 +5,9 @@ import { AttemptSheet } from "@/components/competition/attempt-sheet";
 import { CompetitionChecklist } from "@/components/competition/checklist";
 import { WarmupTimer } from "@/components/competition/warmup-timer";
 import { TaperCard } from "@/components/competition/taper-card";
+import { CompMeals } from "@/components/competition/comp-meals";
+import { mealNow } from "@/lib/nutrition/kitchen";
+import { minutesUntil } from "@/lib/planning/competition";
 import { taperProposal } from "@/lib/planning/taper-service";
 import { supplementsToCheck } from "@/lib/recovery/health-admin";
 import { PageHeader } from "@/components/page-header";
@@ -69,6 +72,14 @@ export default async function CompetitionPage({ params }: PageProps<"/planning/c
             </CardContent>
           </Card>
         ) : null}
+        <Card className="gap-3 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base">Comida del día</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <CompMeals meals={prefs.compMeals} current={!ev.allDay ? mealNow(minutesUntil(ev.startAt)) : null} />
+          </CardContent>
+        </Card>
         <Card className="gap-3 py-4">
           <CardHeader className="px-4">
             <CardTitle className="text-base">Calentamiento</CardTitle>
