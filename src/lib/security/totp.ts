@@ -11,7 +11,7 @@ import {
   looksLikeRecoveryCode,
   RECOVERY_CODE_COUNT,
 } from "@/lib/security/recovery-codes";
-import { open, seal } from "@/lib/security/secret-box";
+import { openAny, seal } from "@/lib/security/secret-box";
 
 const ISSUER = "LifeOS";
 
@@ -46,7 +46,7 @@ export async function startTotpSetup(userId: string, email: string) {
  */
 async function checkTotp(userId: string, sealedSecret: string, lastStep: number | null, token: string): Promise<boolean> {
   if (!/^\d{6}$/.test(token)) return false;
-  const secret = open(sealedSecret, encryptionKey());
+  const secret = openAny(sealedSecret, [encryptionKey(), env().TOTP_ENCRYPTION_KEY_PREVIOUS]).plaintext;
   const result = await verify({ secret, token, epochTolerance: 30, afterTimeStep: lastStep ?? undefined });
   // verify() devuelve un tipo común a HOTP y TOTP: timeStep solo existe en TOTP.
   if (!result.valid || !("timeStep" in result)) return false;

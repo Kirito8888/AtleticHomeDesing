@@ -58,3 +58,4 @@ export function ServerStatusView({ s }: { s: ServerStatus }) {
     </dl>
   );
 }
+

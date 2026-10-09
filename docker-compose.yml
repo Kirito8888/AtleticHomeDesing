@@ -10,8 +10,30 @@ name: lifeos
 
 services:
   db:
-    image: pgvector/pgvector:pg17
+    # Versión fijada (v1.7): una imagen «latest» puede cambiar sin avisar.
+    image: pgvector/pgvector:0.8.7-pg17-bookworm
     restart: unless-stopped
+    # Ajustes para un servidor pequeño (v1.7). Se cambian en .env.production sin tocar este fichero.
+    command:
+      - postgres
+      - -c
+      - shared_buffers=${PG_SHARED_BUFFERS:-128MB}
+      - -c
+      - effective_cache_size=${PG_EFFECTIVE_CACHE:-384MB}
+      - -c
+      - work_mem=${PG_WORK_MEM:-4MB}
+      - -c
+      - maintenance_work_mem=${PG_MAINTENANCE_WORK_MEM:-64MB}
+      - -c
+      - max_connections=${PG_MAX_CONNECTIONS:-30}
+      - -c
+      - autovacuum_naptime=5min
+      - -c
+      - log_min_duration_statement=${PG_SLOW_MS:-1000}
+    mem_limit: ${DB_MEM:-768m}
+    cpus: ${DB_CPUS:-1.0}
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?define POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?define POSTGRES_PASSWORD}
@@ -38,6 +60,20 @@ services:
     environment:
       # Dentro de la red de compose el host de la BD es "db".
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      # Memoria de Node por debajo del límite del contenedor (deja margen al resto del proceso).
+      NODE_OPTIONS: --max-old-space-size=${WEB_HEAP_MB:-640}
+    # Límites (v1.7): una fuga o un pico no se lleva todo el servidor.
+    mem_limit: ${WEB_MEM:-1g}
+    cpus: ${WEB_CPUS:-1.5}
+    # Endurecido (v1.7): sistema de ficheros de solo lectura salvo los ficheros subidos y temporales,
+    # sin capacidades de Linux y sin escalar privilegios.
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+      - /app/.next/cache:size=64m,uid=1001,gid=1001
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
     # Solo localhost por defecto: se publica detrás de un proxy HTTPS (Caddy/nginx).
     # Ojo: los puertos publicados por Docker se saltan ufw/iptables del host.
     ports:
@@ -63,7 +99,7 @@ services:
   # y al terminar: docker compose --profile pgadmin stop pgadmin
   pgadmin:
     profiles: ["pgadmin"]
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:9.18
     restart: unless-stopped
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:?define PGADMIN_DEFAULT_EMAIL}
@@ -96,6 +132,9 @@ services:
     profiles: ["backup"]
     build: ./deploy/backup
     restart: unless-stopped
+    mem_limit: ${BACKUP_MEM:-256m}
+    security_opt:
+      - no-new-privileges:true
     environment:
       PGHOST: db
       PGUSER: ${POSTGRES_USER}
@@ -105,9 +144,13 @@ services:
       BACKUP_TIME: ${BACKUP_TIME:-03:30}
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
       BACKUP_ON_START: ${BACKUP_ON_START:-true}
+      BACKUP_KEEP_MONTHS: ${BACKUP_KEEP_MONTHS:-12}
+      BACKUP_REMOTE: ${BACKUP_REMOTE:-}
     volumes:
       - ${BACKUP_DIR:-./backups}:/backups
       - uploads:/uploads:ro
+      # Clave SSH (solo lectura) para la copia fuera del servidor. Si no usas BACKUP_REMOTE, apunta a /dev/null.
+      - ${BACKUP_SSH_KEY_FILE:-/dev/null}:/run/secrets/backup_ssh_key:ro
     depends_on:
       db:
         condition: service_healthy

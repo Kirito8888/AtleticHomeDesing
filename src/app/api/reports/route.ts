@@ -1,6 +1,7 @@
 import { parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { env } from "@/lib/env";
+import { auditContext, recordEvent } from "@/lib/security/audit";
 import { createReport, createReportSchema, listReports } from "@/lib/report/service";
 
 /** Enlaces del informe para la entrenadora: listar los activos y crear uno. */
@@ -13,6 +14,7 @@ export const POST = route(async (req) => {
   const user = await requireUser();
   const input = await parseBody(req, createReportSchema);
   const { token, expiresAt } = await createReport(user.id, input);
+  await recordEvent(user.id, "SHARE_LINK_CREATED", auditContext(req.headers), "informe para la entrenadora");
   const base = (env().AUTH_URL ?? req.nextUrl.origin).replace(/\/$/, "");
   return { url: `${base}/api/report/${token}`, expiresAt: expiresAt.toISOString() };
 });

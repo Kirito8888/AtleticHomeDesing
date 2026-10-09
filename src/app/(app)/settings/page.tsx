@@ -16,8 +16,11 @@ import {
 } from "@/components/settings/settings-forms";
 import { PageHeader } from "@/components/page-header";
 import { CalendarFeedSettings } from "@/components/settings/calendar-feed";
+import { PasskeySettings } from "@/components/settings/passkeys";
+import { listPasskeys } from "@/lib/auth/passkey";
 import { CarbsByDayForm, HydrationForm, TrackForm } from "@/components/settings/carbs-form";
 import { CoachReport } from "@/components/settings/coach-report";
+import { RotateKeys } from "@/components/settings/rotate-keys";
 import { ServerStatusView } from "@/components/settings/server-status";
 import { RestoreForm } from "@/components/settings/restore-form";
 import { serverStatus } from "@/lib/admin/status";
@@ -36,7 +39,7 @@ import { listReports } from "@/lib/report/service";
 import { prisma } from "@/lib/prisma";
 import { vapidKeys } from "@/lib/push/service";
 import { readPrefs } from "@/lib/rules/prefs";
-import { recentEvents } from "@/lib/security/audit";
+import { auditIntegrity, recentEvents } from "@/lib/security/audit";
 import { totpStatus } from "@/lib/security/totp";
 
 export const metadata = { title: "Ajustes · LifeOS" };
@@ -54,6 +57,13 @@ const EVENT_LABEL: Record<string, string> = {
   DATA_EXPORTED: "Datos exportados",
   AI_CONSENT_CHANGED: "Consentimiento de IA",
   COACH_SCOPES_CHANGED: "Permisos del entrenador cambiados",
+  PASSKEY_ADDED: "Llave de acceso añadida",
+  PASSKEY_REMOVED: "Llave de acceso quitada",
+  PASSKEY_LOGIN: "Inicio de sesión con llave de acceso",
+  SHARE_LINK_CREATED: "Enlace para compartir creado",
+  DATA_RESTORED: "Exportación restaurada",
+  CONSENT_CHANGED: "Consentimiento cambiado",
+  PRIVACY_REQUEST: "Ejercicio de derechos",
 };
 
 /** "Chrome · Android" a partir del user-agent (solo para que el usuario reconozca el dispositivo). */
@@ -81,7 +91,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const status = user.role === "ADMIN" ? await serverStatus() : null;
   const { welcome } = await searchParams;
   const todayIso = toIsoDay(today());
-  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed, reports] = await Promise.all([
+  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed, reports, passkeys, integrity] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { athleteProfile: true } }),
     prisma.thresholdHistory.findMany({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" }, take: 5 }),
     prisma.nutritionGoal.findFirst({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" } }),
@@ -93,6 +103,8 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     prisma.pushSubscription.count({ where: { userId: user.id } }),
     feedStatus(user.id),
     listReports(user.id),
+    listPasskeys(user.id),
+    auditIntegrity(user.id),
   ]);
   const monday = startOfIsoWeek(today());
   const reportPeriods = [
@@ -233,6 +245,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             <SignOutEverywhere />
           </div>
         </Section>
+        <Section title="Llaves de acceso" description="Entrar sin contraseña con la huella o la cara (passkeys).">
+          <PasskeySettings passkeys={passkeys.map((p) => ({ ...p, createdAt: p.createdAt.toISOString(), lastUsedAt: p.lastUsedAt?.toISOString() ?? null }))} />
+        </Section>
         <Section title="Verificación en dos pasos" description="Un código de tu móvil además de la contraseña.">
           <TwoFactorSettings initial={{ ...twoFactor, enabledAt: twoFactor.enabledAt?.toISOString() ?? null }} />
         </Section>
@@ -269,6 +284,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           ) : (
             <p className="text-sm text-muted-foreground">Sin actividad registrada todavía.</p>
           )}
+          <p role="status" aria-label="Integridad del registro" className={integrity.ok ? "mt-3 text-xs text-muted-foreground" : "mt-3 text-sm font-medium text-destructive"}>
+            {integrity.ok
+              ? `Registro íntegro: ${integrity.checked} eventos encadenados sin cambios.`
+              : `El registro de actividad se ha alterado (${integrity.reason}). Alguien ha tocado la base de datos: sigue el plan de incidentes.`}
+          </p>
         </Section>
         <Section title="Privacidad e IA" description="Astras AI usa Google Gemini. Sin tu permiso no se envía nada.">
           <AiConsentToggle initial={me.aiConsentAt != null} configured={Boolean(env().GEMINI_API_KEY)} />
@@ -276,6 +296,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         {status ? (
           <Section id="servidor" title="Estado del servidor" description="Solo administración. Míralo después de cada actualización.">
             <ServerStatusView s={status} />
+            <RotateKeys />
           </Section>
         ) : null}
         <Section title="Tus datos" description="Descarga una copia completa (JSON) o elimina tu cuenta.">
