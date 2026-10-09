@@ -121,14 +121,14 @@ export function TrackForm({ initial }: { initial: Track }) {
   return (
     <div className="grid gap-3">
       <Field label="Nombre" htmlFor="track-name">
-        <input id="track-name" className="h-10 rounded-md border bg-transparent px-3 text-sm" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="p. ej. Pista municipal" />
+        <input id="track-name" className="h-10 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="p. ej. Pista municipal" />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Latitud" htmlFor="track-lat">
-          <input id="track-lat" inputMode="decimal" className="h-10 rounded-md border bg-transparent px-3 text-sm" value={lat} onChange={(e) => setLat(e.target.value)} />
+          <input id="track-lat" inputMode="decimal" className="h-10 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm" value={lat} onChange={(e) => setLat(e.target.value)} />
         </Field>
         <Field label="Longitud" htmlFor="track-lon">
-          <input id="track-lon" inputMode="decimal" className="h-10 rounded-md border bg-transparent px-3 text-sm" value={lon} onChange={(e) => setLon(e.target.value)} />
+          <input id="track-lon" inputMode="decimal" className="h-10 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm" value={lon} onChange={(e) => setLon(e.target.value)} />
         </Field>
       </div>
       <div className="flex flex-wrap gap-2">
