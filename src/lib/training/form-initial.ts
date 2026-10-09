@@ -8,6 +8,7 @@ import { z } from "zod";
 import { formatDuration } from "@/lib/format";
 import type { BodyAreaName } from "@/lib/recovery/injury-rules";
 import { createSessionSchema, feelingSchema } from "@/lib/training/schemas";
+import { type FatigueZone, zoneFatigueSchema } from "@/lib/training/zone-fatigue";
 
 export type FormKind = "STRENGTH" | "TECHNICAL" | "TRACK";
 
@@ -21,6 +22,8 @@ export interface SessionFormInitial {
   planned: boolean;
   /** Sensaciones al cerrar: molestias por zona. */
   feelings?: Array<{ area: BodyAreaName; side: "LEFT" | "RIGHT" | "BOTH" | null; pain: number }>;
+  /** v1.6 · fatiga por zona 0–10. */
+  zoneFatigue?: Partial<Record<FatigueZone, number>>;
   /** Sesión mixta: se guardan a la vez las partes de fuerza, técnica y pista que tengan datos. */
   mixed?: boolean;
   blocks?: ExerciseBlock[];
@@ -36,6 +39,7 @@ interface StoredSession {
   sessionRpe: number | null;
   notes: string | null;
   feelings?: unknown;
+  zoneFatigue?: unknown;
   status: string;
   strength: { sets: Array<{ exerciseId: string; reps: number; weightKg: number; rpe: number | null; isWarmup: boolean; velocityMs?: number | null }> } | null;
   technical: {
@@ -94,6 +98,10 @@ export function sessionToFormInitial(s: StoredSession, overrides: Partial<Sessio
     notes: s.notes ?? "",
     planned: s.status === "PLANNED",
     feelings: readFeelings(s.feelings),
+    zoneFatigue: (() => {
+      const r = zoneFatigueSchema.safeParse(s.zoneFatigue ?? {});
+      return r.success ? r.data : {};
+    })(),
     mixed: s.type === "MIXED",
   };
 

@@ -12,11 +12,13 @@ import { today, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { sessionToFormInitial, templateToFormInitial } from "@/lib/training/form-initial";
 import { exerciseOptions, formSessionInclude } from "@/lib/training/session-queries";
+import { autoregContext } from "@/lib/training/rm-service";
 
 export const metadata = { title: "Nueva sesión · LifeOS" };
 
 export default async function NewSessionPage({ searchParams }: PageProps<"/training/new">) {
   const user = await pageUser();
+  const autoreg = await autoregContext(user.id);
   const { type, repeat, template } = await searchParams;
   const [exercises, profile, lastStrength, templates] = await Promise.all([
     exerciseOptions(user.id),
@@ -75,6 +77,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
         bodyWeightKg={profile?.bodyWeightKg ?? null}
         initialType={initialType}
         initial={initial}
+        autoreg={autoreg}
       />
     </>
   );

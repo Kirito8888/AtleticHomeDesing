@@ -614,6 +614,7 @@ model StrengthSet {
   tempo             String? // "3-1-X-0"
   restSec           Int?
   velocityMs        Float? // velocidad media propulsiva (VBT), si se mide
+  suggestedKg       Float? // v1.6: kg del día propuestos (autorregulación) que se aceptaron con «Usar»
   est1RmKg          Float? // Epley/Brzycki ajustado por RIR (Fase 2)
   notes             String?
   createdAt         DateTime @default(now())

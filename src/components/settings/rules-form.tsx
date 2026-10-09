@@ -28,7 +28,16 @@ type RuleKeys =
   | "sleepTargetH"
   | "sleepDebtMaxH"
   | "vbtMvt"
-  | "vbtLossMax";
+  | "vbtLossMax"
+  | "autoregMaxPct"
+  | "taperDays"
+  | "taperPct"
+  | "lightReadinessAmber"
+  | "lightReadinessRed"
+  | "lightHooperAmber"
+  | "lightHooperRed"
+  | "lightPainRed"
+  | "lightZoneAmber";
 export type RuleValues = Pick<Prefs, RuleKeys>;
 
 const KG_STEPS = [0.5, 1, 1.25, 2.5] as const;
@@ -92,6 +101,15 @@ export function RulesForm({ initial }: { initial: RuleValues }) {
         {num("sleepTargetH", "Sueño: horas objetivo", { step: 0.5, decimals: 1, min: 5, max: 12, suffix: "h" })}
         {num("vbtMvt", "VBT: velocidad mínima (RM)", { step: 0.05, decimals: 2, min: 0.1, max: 1, suffix: "m/s" })}
         {num("vbtLossMax", "VBT: pérdida de velocidad para avisar", { step: 1, min: 5, max: 60, suffix: "%" })}
+        {num("autoregMaxPct", "Kg del día: como mucho ± respecto al plan", { step: 1, min: 0, max: 20, suffix: "%" })}
+        {num("taperDays", "Afinamiento: días antes de competir", { step: 1, min: 2, max: 21, suffix: "d" })}
+        {num("taperPct", "Afinamiento: series que se recortan", { step: 5, min: 10, max: 60, suffix: "%" })}
+        {num("lightReadinessAmber", "Semáforo: readiness ámbar por debajo de", { step: 5, min: 0, max: 100 })}
+        {num("lightReadinessRed", "Semáforo: readiness rojo por debajo de", { step: 5, min: 0, max: 100 })}
+        {num("lightHooperAmber", "Semáforo: índice Hooper ámbar desde", { step: 1, min: 4, max: 20 })}
+        {num("lightHooperRed", "Semáforo: índice Hooper rojo desde", { step: 1, min: 4, max: 20 })}
+        {num("lightPainRed", "Semáforo: dolor rojo desde", { step: 1, min: 1, max: 10, suffix: "/10" })}
+        {num("lightZoneAmber", "Semáforo: fatiga de una zona ámbar desde", { step: 1, min: 1, max: 10, suffix: "/10" })}
         {num("sleepDebtMaxH", "Deuda de sueño (7 días): avisar desde", { step: 0.5, decimals: 1, min: 1, max: 30, suffix: "h" })}
       </div>
       <Button type="button" onClick={save} disabled={saving}>

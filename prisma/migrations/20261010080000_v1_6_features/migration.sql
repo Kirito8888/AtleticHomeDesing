@@ -17,6 +17,9 @@ ADD COLUMN     "ironRich" BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE "PlanDay" ADD COLUMN     "taperPct" INTEGER;
 
 -- AlterTable
+ALTER TABLE "StrengthSet" ADD COLUMN     "suggestedKg" DOUBLE PRECISION;
+
+-- AlterTable
 ALTER TABLE "TechnicalSession" ADD COLUMN     "cue" TEXT;
 
 -- AlterTable

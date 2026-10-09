@@ -12,6 +12,9 @@ import { womenAlertsToday } from "@/lib/health/women-service";
 import { rulesToday } from "@/lib/rules/rules-service";
 import { habitsToday, upcomingExamClashes } from "@/lib/study/schedule-service";
 import { equipmentAlertsToday } from "@/lib/training/equipment-service";
+import { hooperIndex } from "@/lib/recovery/wellness";
+import { dailyLight } from "@/lib/rules/daily-light";
+import { getPrefs } from "@/lib/rules/prefs-service";
 import { getPerformanceSeries } from "@/lib/training/service";
 
 /** Todo lo que necesita el panel de inicio, en paralelo. */
@@ -54,7 +57,28 @@ export async function getDashboard(userId: string) {
   const lightDay = planned.length
     ? await prisma.planDay.findFirst({ where: { userId, sessionId: { in: planned }, light: { not: Prisma.AnyNull }, mode: null }, select: { sessionId: true } })
     : null;
-  const lightReason = lightDay ? ((await cycleToday(userId, day))?.suggestion ?? null) : null;
+  const cycle = await cycleToday(userId, day);
+  const lightReason = lightDay ? (cycle?.suggestion ?? null) : null;
+  // v1.6 · Semáforo del día
+  const [prefs, protocol, recentSessions] = await Promise.all([
+    getPrefs(userId),
+    prisma.returnProtocol.findFirst({ where: { userId, injury: { resolvedOn: null } }, orderBy: { updatedAt: "desc" } }),
+    prisma.trainingSession.findMany({ where: { userId, status: "COMPLETED", date: { gte: addDays(now, -1) } }, select: { zoneFatigue: true } }),
+  ]);
+  let zone: { zone: string; value: number } | null = null;
+  for (const s of recentSessions) for (const [z, v] of Object.entries((s.zoneFatigue as Record<string, number>) ?? {})) if (!zone || v > zone.value) zone = { zone: z, value: v };
+  const phases = protocol?.phases as Array<{ name: string }> | undefined;
+  const light = dailyLight(
+    {
+      readiness: recovery?.readinessScore ?? null,
+      hooper: recovery ? hooperIndex(recovery) : null,
+      maxPain: injuries.length ? Math.max(...injuries.map((i) => i.pain)) : null,
+      protocolPhase: protocol && phases ? (phases[protocol.current]?.name ?? null) : null,
+      zoneFatigue: zone,
+      cycleSuggestion: cycle?.suggestion ?? null,
+    },
+    prefs,
+  );
   return {
     day,
     perf,
@@ -76,6 +100,7 @@ export async function getDashboard(userId: string) {
     equipmentAlerts: equipment.filter((a) => a.level === "warn"),
     nextExam: study.nextExam,
     examClashes: study.clashes,
+    dailyLight: light,
     lightSuggestion: lightDay && lightReason ? { sessionId: lightDay.sessionId!, reason: lightReason } : null,
   };
 }
