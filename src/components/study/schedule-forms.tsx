@@ -10,8 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
-
-export const WEEKDAY_NAMES = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+import { WEEKDAY_NAMES } from "@/lib/study/schedule";
 
 /** Alta de una clase semanal o de un examen. */
 export function ClassForm({ today }: { today: string }) {

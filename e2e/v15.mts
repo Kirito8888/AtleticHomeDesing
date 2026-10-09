@@ -1,5 +1,6 @@
 // E2E de la v1.5 en un móvil de 390 px (app con ALLOW_REGISTRATION=true y LIFEOS_FAKE_AI=1).
 //   BASE_URL=http://localhost:3000 npm run e2e:v15
+import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 
 import { chromium } from "playwright-core";
@@ -234,6 +235,119 @@ if ((await page.getByRole("textbox", { name: "Peso serie 1", exact: true }).inpu
 await Promise.all([page.waitForURL(/\/training\/c[^/]*$/), page.getByRole("button", { name: /^Guardar sesión$/ }).click()]);
 await page.getByText("Sentadilla trasera").first().waitFor();
 log("dictar la sesión → formulario → guardada");
+
+// 6. Bloque K: horario y exámenes, pomodoro y hábitos
+await api("post", "/api/training/sessions", { date: plusDays(madrid, 3), type: "STRENGTH", status: "PLANNED", title: "Lanzamientos largos", strength: { sets: [] } });
+await go(B + "/study/schedule");
+await page.getByRole("radio", { name: "Examen" }).click();
+await page.getByLabel("Asignatura").fill("Cálculo");
+await page.getByLabel("Fecha del examen").fill(plusDays(madrid, 3));
+await page.getByRole("button", { name: "Añadir examen" }).click();
+await toast(/Examen añadido/);
+await page.getByRole("radio", { name: "Clase semanal" }).click();
+await page.getByLabel("Asignatura").fill("Física");
+await page.getByRole("button", { name: "Añadir clase" }).click();
+await toast(/Clase añadida/);
+await page.getByLabel("Choques con exámenes").getByText(/Lanzamientos largos.*mismo día.*Cálculo/).waitFor();
+await noOverflow("/study/schedule");
+await shot("05-schedule");
+log("horario: examen y clase; aviso de entreno el día del examen");
+
+await go(B + "/study/focus");
+await page.getByLabel("Asignatura").fill("Cálculo");
+await page.getByRole("button", { name: "Empezar pomodoro" }).click();
+await page.getByRole("timer").getByText(/Concentración · Cálculo/).waitFor();
+await page.getByRole("button", { name: /Terminar ahora/ }).click();
+await page.getByLabel("¿Estudiaste sin temporizador? Minutos").fill("45");
+await page.getByRole("button", { name: "Anotar", exact: true }).click();
+await toast(/Estudio anotado/);
+await page.getByLabel("Horas por asignatura").getByText("45 min").waitFor();
+await noOverflow("/study/focus");
+log("pomodoro y horas de estudio por asignatura");
+
+await go(B + "/");
+await page.getByLabel("Nuevo hábito").fill("Estiramientos");
+await page.getByRole("button", { name: "Añadir", exact: true }).click();
+const habit = page.getByRole("checkbox", { name: "Estiramientos" });
+await habit.click();
+await page.waitForTimeout(500);
+await go(B + "/");
+if ((await habit.getAttribute("aria-checked")) !== "true") errors.push("hábito: el toque no se guardó");
+await page.getByLabel("Hábitos de hoy").getByText("1", { exact: true }).waitFor();
+await noOverflow("/ (hábitos)");
+await shot("06-habits");
+log("hábito marcado de un toque, con racha");
+
+// 7. Bloque L: becas, material, comentarios de la entrenadora y estado del servidor
+const acc = (await api("post", "/api/finance/accounts", { name: "Banco", type: "ASSET" })) as { id?: string };
+await api("post", "/api/finance/transactions", { mode: "simple", kind: "INCOME", date: madrid, description: "Beca federación", amountCents: 120000, moneyAccountId: acc.id, sport: true });
+await go(B + "/finance");
+await page.getByLabel("Saldo deportivo por temporada").getByText(/Becas, premios y patrocinios 1200,00/).waitFor();
+log("beca deportiva en el saldo de la temporada");
+
+await go(B + "/training/equipment");
+await page.getByLabel("Nombre").fill("Jabalina 600");
+await page.getByLabel("Peso (g)").fill("600");
+await page.getByLabel(/Vida útil/).fill("10");
+await page.getByRole("button", { name: "Añadir material" }).click();
+await toast(/Material añadido/);
+await page.getByLabel("Usos extra de Jabalina 600").fill("12");
+await page.getByRole("button", { name: "Anotar" }).click();
+await page.getByLabel("Avisos de material").getByText("Toca reponer: Jabalina 600").waitFor();
+await noOverflow("/training/equipment");
+await shot("07-equipment");
+log("material con aviso de reposición");
+
+const athleteEmail = ((await (await page.request.get(B + "/api/profile")).json()) as { email: string }).email;
+const user = (...a: string[]) => execFileSync("npm", ["run", "-s", "user", "--", ...a], { encoding: "utf8" });
+const newUser = (email: string, role: string) => {
+  const pw = user("create", email, "--name", "Entrenadora", "--role", role).match(/Contraseña: (\S+)/)?.[1];
+  if (!pw) throw new Error(`no se pudo crear ${email}`);
+  return pw;
+};
+const login = async (email: string, pw: string) => {
+  const c = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "es-ES" });
+  const p = await c.newPage();
+  await p.goto(B + "/login");
+  await p.fill("#email", email);
+  await p.fill("#password", pw);
+  await Promise.all([p.waitForURL((u) => !u.pathname.startsWith("/login")), p.click("button[type=submit]")]);
+  return p;
+};
+const coachEmail = `coach-v15-${Date.now()}@test.dev`;
+const coach = await login(coachEmail, newUser(coachEmail, "COACH"));
+const inv = await coach.request.post(B + "/api/coach/links", { data: { athleteEmail } });
+if (!inv.ok()) errors.push(`invitación del coach: ${inv.status()}`);
+const link = ((await (await page.request.get(B + "/api/coach/links")).json()) as { asAthlete: Array<{ id: string }> }).asAthlete[0];
+await api("patch", `/api/coach/links/${link.id}`, { status: "ACTIVE" });
+await coach.goto(B + "/coach");
+await coach.getByRole("link", { name: /Sentadilla trasera|Fuerza|Lanzamientos/ }).first().click();
+await coach.waitForURL(/\/coach\/session\//);
+const sessionId = new URL(coach.url()).pathname.split("/").pop()!;
+await coach.getByLabel("Escribe un comentario").fill("Buen trabajo, baja 2,5 kg la próxima");
+await coach.getByRole("button", { name: "Enviar" }).click();
+await coach.getByLabel("Comentarios").getByText(/Buen trabajo/).waitFor();
+await go(`${B}/training/${sessionId}`);
+await page.getByLabel("Comentarios").getByText(/Buen trabajo/).waitFor();
+await page.getByLabel("Escribe un comentario").fill("Hecho, gracias");
+await page.getByRole("button", { name: "Enviar" }).click();
+await page.getByLabel("Comentarios").getByText("Hecho, gracias").waitFor();
+await noOverflow("/training/[id] (comentarios)");
+await shot("08-comments");
+await coach.context().close();
+log("comentario de la entrenadora y respuesta del atleta");
+
+if ((await page.request.get(B + "/api/admin/status")).status() !== 403) errors.push("estado del servidor: un atleta no debe verlo");
+const adminEmail = `admin-v15-${Date.now()}@test.dev`;
+const admin = await login(adminEmail, newUser(adminEmail, "ADMIN"));
+await admin.goto(B + "/settings#servidor");
+const status = admin.getByLabel("Estado del servidor");
+await status.getByText(/Base de datos/).waitFor();
+await status.getByText(/OK \(\d+ ms/).waitFor();
+await status.getByText(/v1_5_backup_log/).waitFor();
+await admin.screenshot({ path: `${out}/v15-09-status.png`, fullPage: true });
+await admin.context().close();
+log("estado del servidor solo para admin");
 
 await browser.close();
 if (errors.length) {

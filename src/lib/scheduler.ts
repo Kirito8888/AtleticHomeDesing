@@ -195,6 +195,7 @@ export async function runPeriodReminderJob(hour = madridHour(), weekday = madrid
 }
 
 async function tick() {
+  g.__lifeosSchedulerLastTick = new Date();
   try {
     await pruneAuditJob();
     await runDailyDigestJob();
@@ -208,7 +209,12 @@ async function tick() {
   }
 }
 
-const g = globalThis as unknown as { __lifeosScheduler?: NodeJS.Timeout };
+const g = globalThis as unknown as { __lifeosScheduler?: NodeJS.Timeout; __lifeosSchedulerLastTick?: Date };
+
+/** Para «Estado del servidor»: ¿está activo y cuándo pasó por última vez? */
+export function schedulerStatus() {
+  return { enabled: env().SCHEDULER_ENABLED, running: Boolean(g.__lifeosScheduler), lastTick: g.__lifeosSchedulerLastTick?.toISOString() ?? null };
+}
 
 /** Una pasada al arrancar (con 1 min de margen) y después cada hora. */
 export function startScheduler() {

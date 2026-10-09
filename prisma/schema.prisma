@@ -1671,3 +1671,14 @@ model SessionComment {
 
   @@index([sessionId, createdAt])
 }
+
+/// Copias de seguridad hechas por el servicio "backup" (lo escribe deploy/backup/backup.sh con psql).
+/// Solo sirve para enseñar la última copia en «Estado del servidor».
+model BackupRun {
+  id     String   @id @default(cuid())
+  at     DateTime @default(now())
+  ok     Boolean
+  detail String?
+
+  @@index([at])
+}

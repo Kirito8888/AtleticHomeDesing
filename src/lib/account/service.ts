@@ -139,6 +139,18 @@ export async function exportAccount(userId: string) {
     // Salud de la mujer descifrada para su dueña (si el servidor tiene la clave).
     dataKeyConfigured() ? getWomen(userId) : Promise.resolve(null),
   ]);
+  // v1.5: tests físicos, vuelta por fases, agua, horario, estudio, hábitos, material y comentarios
+  const [testResults, returnProtocols, hydration, classSlots, studySessions, habits, equipment, sessionComments] = await Promise.all([
+    prisma.testResult.findMany({ where, orderBy: { date: "asc" } }),
+    prisma.returnProtocol.findMany({ where }),
+    prisma.hydrationLog.findMany({ where, orderBy: { date: "asc" } }),
+    prisma.classSlot.findMany({ where }),
+    prisma.studySession.findMany({ where, orderBy: { date: "asc" } }),
+    prisma.habit.findMany({ where, include: { logs: { select: { date: true }, orderBy: { date: "asc" } } } }),
+    prisma.equipment.findMany({ where }),
+    // Los de sus sesiones (de quien sea) y los que escribió en sesiones de sus atletas
+    prisma.sessionComment.findMany({ where: { OR: [{ athleteId: userId }, { authorId: userId }] }, orderBy: { createdAt: "asc" }, include: { author: { select: { name: true, email: true } } } }),
+  ]);
   return {
     exportedAt: new Date().toISOString(),
     format: "lifeos-export/2",
@@ -153,12 +165,15 @@ export async function exportAccount(userId: string) {
       templates: sessionTemplates,
       oneRepMaxes,
       exerciseAliases,
+      physicalTests: testResults,
+      equipment,
+      comments: sessionComments,
     },
-    recovery: { metrics: recoveryMetrics, injuries, menstrualCycle: cycle, womenHealth: women ? { settings: women.settings, logs: women.logs } : null },
+    recovery: { metrics: recoveryMetrics, injuries, returnProtocols, menstrualCycle: cycle, womenHealth: women ? { settings: women.settings, logs: women.logs } : null },
     planning: { calendarEvents, tasks, importedPlan: planMesos },
     finance: { accounts: financialAccounts, categories: financialCategories, transactions, budgets, subscriptions },
-    nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates },
-    study: { documents: studyDocuments, chatThreads, flashcardDecks },
+    nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration },
+    study: { documents: studyDocuments, chatThreads, flashcardDecks, classSlots, sessions: studySessions, habits },
     coach: { reports: coachReports, links: coachLinks, sharedReports },
     calendarFeeds,
     security: { events: securityEvents },

@@ -1,12 +1,12 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/page-header";
-import { ClassForm, DeleteSlot, WEEKDAY_NAMES } from "@/components/study/schedule-forms";
+import { ClassForm, DeleteSlot } from "@/components/study/schedule-forms";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
-import { fromMin } from "@/lib/study/schedule";
+import { fromMin, WEEKDAY_NAMES } from "@/lib/study/schedule";
 import { upcomingExamClashes } from "@/lib/study/schedule-service";
 
 export const metadata = { title: "Horario · LifeOS" };

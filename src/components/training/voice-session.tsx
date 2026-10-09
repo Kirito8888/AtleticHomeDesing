@@ -33,6 +33,13 @@ export function VoiceSessionForm(props: { exercises: ExerciseOption[]; defaultDa
   const [busy, setBusy] = useState(false);
   const [initial, setInitial] = useState(props.initial);
   const [key, setKey] = useState(props.formKey);
+  // Al elegir una plantilla o «registrar desde el plan» cambian las props: manda lo nuevo
+  const [propKey, setPropKey] = useState(props.formKey);
+  if (propKey !== props.formKey) {
+    setPropKey(props.formKey);
+    setInitial(props.initial);
+    setKey(props.formKey);
+  }
 
   function listen() {
     const w = window as unknown as { SpeechRecognition?: SpeechCtor; webkitSpeechRecognition?: SpeechCtor };
