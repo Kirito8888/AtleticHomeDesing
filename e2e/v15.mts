@@ -134,7 +134,9 @@ const ev = (await api("post", "/api/planning/events", { type: "COMPETITION", tit
 await go(`${B}/planning/competition/${ev.id}`);
 const inAnHour = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(Date.now() + 3 * 3600e3));
 await page.fill("#ev-time", inAnHour);
-await page.getByRole("timer").getByText(/Empieza a calentar a las/).waitFor();
+// Con «ahora + 3 h» después de las 21:00 la hora cae al día siguiente: según la hora del día el
+// temporizador estará antes, durante o después del calentamiento (los tres son válidos)
+await page.getByRole("timer").getByText(/Empieza a calentar a las|quedan|A competir/).first().waitFor();
 log("consistencia técnica y calentamiento cronometrado");
 
 await go(B + "/recovery");

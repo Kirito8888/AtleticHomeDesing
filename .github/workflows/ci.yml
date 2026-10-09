@@ -148,7 +148,7 @@ jobs:
           # Falla con fallos ALTOS o CRÍTICOS que ya tienen arreglo publicado.
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image \
             --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress lifeos-web:latest
-          npm sbom --sbom-format cyclonedx --omit dev > sbom.cdx.json
+          npm sbom --package-lock-only --sbom-format cyclonedx --omit dev > sbom.cdx.json
       - uses: actions/upload-artifact@v4
         with:
           name: sbom
