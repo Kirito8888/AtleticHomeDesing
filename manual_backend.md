@@ -199,6 +199,50 @@ rulesToday(userId, día)                                      src/lib/rules/rule
 
 **PATCH parciales:** zod 4 aplica los `.default()` también dentro de `.partial()`. `parsePatchBody` (`lib/api.ts`) y `pickPatch` (`rules/prefs.ts`) devuelven solo las claves enviadas; úsalos en todo PATCH con un esquema con valores por defecto.
 
+### 3.1g Novedades de la v1.6
+
+**Regla transversal: nada escribe en `PlanDay`, `PlanMeso` ni en las sesiones planificadas sin una acción explícita.** `planning/v16-plan.int.test.ts` comprueba que el plan queda idéntico tras pedir sugerencias de kg, afinamiento y recolocación.
+
+**Mujeres** (`health/women-plus.ts` puro; cifrado con el patrón de la v1.5):
+- `completedCycles` (21–45 días entre inicios); `learnedSymptomDays` = proporción de ciclos completos con síntomas en cada día del ciclo (hace falta `MIN_CYCLES = 3`; un día sin registro cuenta como «sin síntomas»). Sustituye a `symptomParts` en `predictedDays` y en la versión suave cuando hay datos.
+- `cyclePerformance`: días con síntomas o regla registrados frente al resto (RPE, kg/RM, marca, readiness); media e IC 95 %; «clara» solo si los intervalos no se solapan.
+- `boneScreen` y `ironWeek` sin dosis. Registro `BONE` dentro de `HealthLog` (cifrado).
+- `health/health-report.ts`: `HealthReport` (hash del token, 7 días, revocable). `/api/shared/health/[token]` es pública, HTML sin JS con CSP estricta y límite por IP; descifra al servir. `MEDICAL` (ciclo, analíticas, cribados) o `PHYSIO` (molestias, vuelta, carga).
+- `health/safety-service.ts`: `SafetyContact` (vínculo aceptado, patrón `CoachAthlete`) y `SafetyTrip` (nota y ubicación con `sealJson`). `runSafetyJob` corre cada 5 min en su propio temporizador y avisa una sola vez (`alertedAt`).
+
+**Fuerza y plan:**
+- `training/autoreg.ts → suggestKg`: 1RM del día = Epley con `reps + RIR` de la primera serie efectiva (o el perfil carga-velocidad desplazado a la serie de hoy); kg = `kgForReps(1RM, repsPlan + RIRplan)`, limitado a ±`autoregMaxPct` del kg planificado y redondeado a `kgStep` dentro del límite. Se guarda en `StrengthSet.suggestedKg` solo si se usa.
+- `planning/taper.ts`: `taperSets` recorta series («3 × 5» −30 % → «2 × 5», nunca menos de 1); se guarda solo `PlanDay.taperPct` y `dayView` lo aplica al mostrar.
+- `planning/reschedule.ts → rescheduleOptions`: hasta 3 días en el horizonte; descarta los que rompen `throwMinHours` y penaliza exámenes, días previstos con síntomas y días ocupados. Mueve con `move-service` solo al confirmar.
+- `rules/daily-light.ts`: verde/ámbar/rojo con umbrales `light*` de prefs y la lista de motivos.
+- `manual-plan.ts → saveWeekTemplate/applyWeekTemplate` (solo planes `MANUAL`), `training/seasons.ts`, `training/prehab.ts`, `training/zone-fatigue.ts`, `recovery/body-measures.ts`.
+
+**Jabalina** (`training/javelin-insights.ts`, puro; con pocos datos lo dice):
+- `cueStats`: media de las sesiones con cada clave frente a la media del mismo implemento.
+- `implementEquivalence`: mediana de (mejor con un peso / mejor con el de referencia) en los meses con ambos.
+- `conditionsEffect`: residuo = mejor de la sesión − media de las 5 anteriores con el mismo implemento, por viento y temperatura.
+- `minimumStatus`: distancia con la mejor de la temporada y fecha estimada por la tendencia de 8 semanas.
+- `competitionForecast`: mejor de entreno de las 3 semanas previas × la relación competición/entreno propia (≥ 2 competiciones), con margen.
+
+**Salud y recuperación:** `recovery/apple-health.ts` lee `export.xml` por trozos en el navegador y solo envía totales diarios (sueño ≤ 16 h, FC en reposo media) a `/api/recovery/import/days`; la VFC de Apple (SDNN) se ignora. `recovery/health-admin.ts`: suplementos (nunca dice si algo está permitido) y citas; `runAppointmentReminders` avisa la tarde anterior.
+
+**Cocina** (`nutrition/kitchen.ts`): `mealNow(minutos hasta la prueba)` elige el momento de `compMeals`; `shoppingFromFavorites` suma gramos por ingrediente y salta lo que ya está en la lista (una favorita con el nombre de una receta aporta sus ingredientes); `recipeMacros` por ingrediente y por ración.
+
+**Estudio** (`study/exam-plan.ts`):
+- `dayCapacity = studyDailyMin − clase/2 − studyTrainingCutMin` si hay sesión ese día.
+- `planStudy` reparte por orden de examen (el más cercano primero, para que uno lejano no lo deje corto), bloque a bloque en el día más libre; la víspera de cada examen queda para ese examen. Lo que no cabe sale en `shortfall`.
+- `generateExamPlan` borra solo los bloques pendientes desde hoy y descuenta los hechos.
+- `tickStudyBlocks` se llama al guardar un pomodoro.
+- `gradeAverage` pondera por créditos.
+- `studyIcsEvents` expande clases y exámenes a 120 días con `madridToUtc` (horario de verano), solo con `icsStudy`.
+
+**Finanzas** (`finance/trips.ts`): presupuesto por partidas en céntimos; gastado = suma de los gastos con `tripId` (dinero que sale de cuentas ASSET/LIABILITY, como el informe deportivo); `netCents = gastado − reembolsable`. Enlazar un gasto lo marca `sport` con la competición del viaje. `deadlineState` y `runDeadlineReminders` avisan desde `remindDays` antes, una vez por plazo y fecha.
+
+**Plataforma:**
+- `offline/outbox.ts` (IndexedDB) + `OutboxSync`: el formulario de sesión manda `clientId`; `createTrainingSession` busca el duplicado y, si dos envíos coinciden, captura el P2002 de `@@unique([userId, clientId])` y devuelve la existente.
+- `account/restore.ts`: valida `lifeos-export/2`, exige cuenta vacía, recrea sesiones con `createTrainingSession` y vuelve a cifrar lo de salud con la clave del servidor.
+- `coach/compare.ts`: carga 7 días, cumplimiento 14 y mejor marca 30, cada dato solo con su permiso.
+
 ### 3.2 Recuperación
 
 ```
@@ -559,6 +603,22 @@ Todas las rutas requieren sesión, salvo `/api/auth/*`, `/api/health` y las dos 
 | `/api/study/sessions` (`/[id]`) | GET, POST · DELETE | Horas de estudio (`?week=` lunes) |
 | `/api/habits` (`/[id]`, `/[id]/toggle`) | GET, POST · PATCH, DELETE · POST | Hábitos con racha; toggle `{date}` |
 | `/api/admin/status` | GET | Estado del servidor. Solo `ADMIN` |
+| `/api/health/reports` (`/[id]`) | GET, POST · DELETE | Enlaces para la médica o el fisio `{kind}`; DELETE revoca |
+| `/api/shared/health/[token]` | GET | **Pública** con token: HTML sin JS, caduca y se revoca |
+| `/api/safety` · `/api/safety/trip` · `/api/safety/contacts` (`/[id]`) | GET · POST, DELETE · POST · PATCH | «Entreno sola»: estado · salir/llegar · invitar · aceptar o quitar |
+| `/api/planning/taper` | GET, POST | `?eventId=` propuesta · `{eventId, apply}` aplica o quita el afinamiento (solo `taperPct`) |
+| `/api/training/sessions/[id]/reschedule` | GET | Huecos sugeridos (no mueve; mover usa la ruta de mover sesiones de la v1.5) |
+| `/api/planning/manual/[code]/week-template` | POST, PUT | Guardar una semana tipo · aplicarla `{week, templateId}` (solo plan propio) |
+| `/api/training/minimums` (`/[id]`) · `/api/training/prehab` (`/[id]`, `/[id]/toggle`) | GET, POST · DELETE / PATCH · POST | Mínimas · prehabilitación (marcar el día con `toggle`) |
+| `/api/recovery/body` · `/supplements` · `/appointments` (`/[id]`) | GET, POST · DELETE | Antropometría, suplementos (también PATCH, p. ej. «comprobado hoy») y citas |
+| `/api/recovery/import/days` | POST | Totales diarios (Apple Health, leído en el navegador) |
+| `/api/account/restore` | POST | Exportación `lifeos-export/2` → cuenta vacía (409 si no lo está) |
+| `/api/nutrition/shopping` (`/[id]`) | GET, POST, DELETE · PATCH | Lista de la compra; POST `{name}` o `{favorites}`; DELETE `?done=1` |
+| `/api/nutrition/recipes` (`/[id]`, `/[id]/use`) | GET, POST · DELETE · POST | Recetas; `use` `{as:"entry",date,mealType,servings}` o `{as:"favorite"}` |
+| `/api/study/exam-plan` (`/[id]`) | GET, POST · PATCH | Plan hasta el examen `{hours:{examId:h}}` · tachar `{done}` |
+| `/api/study/grades` (`/[id]`) | GET, POST · PATCH, DELETE | Notas con media ponderada |
+| `/api/finance/trips` (`/[id]`) | GET, POST · PATCH, DELETE | Viajes; PATCH `{reimbursed?, link?, unlink?}` |
+| `/api/finance/deadlines` (`/[id]`) | GET, POST · PATCH, DELETE | Plazos con aviso |
 
 ---
 
@@ -583,6 +643,10 @@ npm run e2e:v15      # v1.5 en 390 px: salud de la mujer (RED-S, analíticas, su
                      #   el plan), carga y bienestar, CSV de VFC, vuelta por fases, agua, tests físicos, plan
                      #   propio, imprimible, mover sesión, pregunta a tus datos, dictado, horario y exámenes,
                      #   pomodoro, hábitos, becas, material, comentario de la entrenadora y estado del servidor
+npm run e2e:v16      # v1.6 en 390 px: mujeres (patrón, predicción, cribado óseo, enlace médico, hierro, entreno
+                     #   sola), kg del día, afinamiento, recolocar, semáforo, semanas tipo, temporadas, prehab,
+                     #   antropometría, jabalina, Apple Health, mapa del dolor, citas, sin conexión, restaurar,
+                     #   panel multiatleta, cocina, plan de estudio, notas, .ics, viajes y plazos
 npm run e2e:security # registro cerrado, límites por IP, bloqueo de cuenta, revocación de sesiones y caché,
                      #   2FA (erróneos, reutilizados, recuperación), auditoría, permisos del coach,
                      #   consentimiento IA, editar sesión, exportación y borrado de cuenta
@@ -611,7 +675,11 @@ La CI (`.github/workflows/ci.yml`) ejecuta `npm audit` (producción), lint, tipo
 - **PDFs escaneados sin capa de texto:** devuelven 422. Haría falta OCR.
 - **Salud de la mujer:** el cribado de RED-S no es el LEAF-Q validado y la disponibilidad energética es una estimación (MET por RPE, % de grasa de báscula). Sirven para detectar señales, no para diagnosticar.
 - **Pregunta a tus datos y dictado:** probados con Gemini simulado; la calidad real depende del modelo. El dictado depende de la API de voz del navegador (Chrome/Android sí; Firefox no).
-- **Estado del servidor:** la «última copia» solo aparece si el servicio `backup` está activo y reconstruido con la v1.5; la copia previa de `update.sh` no se registra.
+- **Estado del servidor:** la «última copia» solo aparece si el servicio `backup` está activo y reconstruido desde la v1.5; la copia previa de `update.sh` no se registra.
+- **v1.6 · Sin conexión:** solo las sesiones van a la bandeja; agua y hábitos todavía no. La bandeja vive en el navegador de ese móvil: si borras los datos del sitio antes de recuperar cobertura, se pierde.
+- **v1.6 · Restaurar:** no entran finanzas ni viajes (asientos que dependen de cuentas), apuntes ni planes importados; los vínculos con coach y contactos de «entreno sola» hay que rehacerlos.
+- **v1.6 · Entreno sola:** depende del push (sin SMS ni email) y de que el contenedor esté encendido; el aviso puede llegar hasta 5 min tarde. No sustituye a avisar a alguien de viva voz.
+- **v1.6 · Predicciones (ciclo, previsión de marca, equivalencia entre implementos):** estadística sencilla sobre tus propios datos; con pocos datos lo dicen y no dan cifra, pero con pocos más siguen siendo orientativas.
 - **Limitador en memoria:** vale para un único contenedor `web`. Con varias réplicas habría que moverlo a PostgreSQL o Redis; lo mismo para el planificador (se ejecutaría en cada réplica).
 - **Editar una sesión** desde la UI reescribe solo los campos que muestra el formulario: los que se hubieran enviado por API (p. ej. `rir`, `tempo` o `velocityMs` de una serie) se pierden al guardar.
 - **Marcas personales al editar:** se recalculan las de la sesión editada; las de sesiones posteriores que se compararon con ella no se reevalúan.

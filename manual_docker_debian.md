@@ -103,7 +103,7 @@ Valores a revisar:
 | `AUTH_SECRET` | El generado arriba. Si cambia, todas las sesiones se cierran |
 | `AUTH_URL` | La URL pública **exacta**: `https://lifeos.tudominio.es`. Con `https://` se activa además `upgrade-insecure-requests` en la CSP |
 | `ALLOW_REGISTRATION` | `false`: nadie puede crear cuentas desde `/register` salvo el primer usuario de una instalación vacía. Las demás cuentas, con `npm run user -- create` (§ 8) |
-| `SCHEDULER_ENABLED` | `true`: cobra suscripciones a diario y genera el informe semanal del coach (solo a quien activó la IA) |
+| `SCHEDULER_ENABLED` | `true`: cobra suscripciones a diario, genera el informe semanal del coach (solo a quien activó la IA) y manda los recordatorios push (citas, plazos y «Entreno sola», que se revisa cada 5 min) |
 | `UPLOAD_QUOTA_MB` | Espacio de apuntes por usuario (por defecto 200) |
 | `TOTP_ENCRYPTION_KEY` | El generado arriba. Cifra los secretos de la verificación en dos pasos. **Guárdalo con tus copias**: si se pierde, quien tenga 2FA tendrá que desactivarla con `npm run user -- disable-2fa` |
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Notificaciones push (opcional). `VAPID_SUBJECT=mailto:tu@email`. Si cambian las claves, cada dispositivo debe volver a activar las notificaciones |
@@ -284,6 +284,31 @@ dc up -d --build web
 docker image prune -f
 ```
 
+#### De v1.5 a v1.6 (mujeres, kg del día, plan inteligente, jabalina, salud, cocina, estudio, viajes…)
+
+Una migración, **solo aditiva**: `v1_6_features` **crea** tablas (`HealthReport`, `SafetyContact`, `SafetyTrip`, `Minimum`, `WeekTemplate`, `PrehabRoutine`, `PrehabLog`, `BodyMeasure`, `Supplement`, `Appointment`, `Recipe`, `ShoppingItem`, `StudyPlanBlock`, `Grade`, `Trip`, `Deadline`) y **añade columnas opcionales** (afinamiento del día del plan, clave técnica, fatiga por zona, id del registro sin conexión, hierro, viaje del gasto, kg sugerido). No borra ni cambia datos: probada sobre una copia de una BD v1.5 con datos (días del plan y sesiones idénticos antes y después; sin diferencias con el esquema).
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh          # copia previa → pull → migrate → build → healthcheck (vuelta atrás si falla)
+```
+
+**Variables:** ninguna nueva.
+
+- Los informes para tu médica o tu fisio y «Entreno sola» usan la misma clave de cifrado que «Mi ciclo» (`DATA_ENCRYPTION_KEY` o, si no está, `TOTP_ENCRYPTION_KEY`). **No la cambies.**
+- Los enlaces de los informes se construyen con `AUTH_URL`: debe ser tu dirección pública (la de DuckDNS), no `localhost`, o el enlace no le funcionará a quien lo reciba.
+- «Entreno sola» y los plazos avisan por **push**: el planificador debe estar activo (`SCHEDULER_ENABLED=true`) y quien recibe el aviso necesita la app instalada con las notificaciones activadas. No hay SMS ni email.
+
+**Comprobar que todo fue bien:** **Ajustes → Estado del servidor** debe decir `v1.6.0`, base de datos OK y la última migración `v1_6_features`. Después, en la app (todo opcional):
+
+- **Ajustes → Mis reglas:** tope de los kg del día, afinamiento (días y %), semáforo y plan de estudio;
+- **Recuperación → Salud de la mujer** (cribado óseo, enlace para tu médica, «Entreno sola» y su contacto);
+- **Entreno → Jabalina** (mínimas) y **Entreno → Prehab**;
+- **Astras AI → Exámenes y notas**; **Finanzas → Viajes y plazos**;
+- **Ajustes → Calendario** si quieres tus clases y exámenes en el `.ics`.
+
+Detalles en [`docs/guia-usuario.md`](docs/guia-usuario.md).
+
 #### De v1.4 a v1.5 (salud de la mujer, carga, plan propio, estudio, material…)
 
 Dos migraciones, **solo aditivas**:
@@ -338,7 +363,7 @@ cd /opt/lifeos
 
 Después, en la app: **Ajustes → Mis reglas** (umbrales de los avisos) y, si quieres, **Ajustes → Notificaciones → recordatorios**, **Calendario en el móvil** e **Informe para la entrenadora**. Detalles en [`docs/guia-usuario.md`](docs/guia-usuario.md).
 
-> **Desde v1.2 o v1.1:** las migraciones son acumulativas y aditivas: `update.sh` (o el procedimiento a mano de v1.1) aplica v1.3, v1.4 y v1.5 juntas.
+> **Desde v1.2 o v1.1:** las migraciones son acumulativas y aditivas: `update.sh` (o el procedimiento a mano de v1.1) aplica v1.3, v1.4, v1.5 y v1.6 juntas.
 
 #### De v1.2 a v1.3 (importar la planificación)
 
