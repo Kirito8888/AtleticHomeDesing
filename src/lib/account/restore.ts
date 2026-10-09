@@ -14,11 +14,13 @@ import { createTrainingSession, recomputeDailyLoads } from "@/lib/training/servi
 /**
  * Restaurar una exportación (lifeos-export/2) en una cuenta VACÍA (v1.6).
  * Entra: entrenos (sesiones con sus series, intentos e intervalos), umbrales, RM, tests, material,
- * mínimas; recuperación, molestias, antropometría, suplementos y citas; ciclo y salud de la mujer
- * (se vuelven a cifrar con la clave de este servidor); calendario y tareas; comidas, agua y objetivos;
- * horario, estudio y hábitos.
- * No entra: finanzas (asientos con cuentas), apuntes, chats y flashcards (los ficheros no van en la
- * exportación), planes importados o con IA, vínculos con el coach ni enlaces compartidos.
+ * mínimas, semanas tipo y prehabilitación; recuperación, molestias, antropometría, suplementos y citas;
+ * ciclo y salud de la mujer (se vuelven a cifrar con la clave de este servidor); calendario y tareas;
+ * comidas, agua, objetivos, recetas y lista de la compra; horario, estudio, plan de estudio, notas y
+ * hábitos; plazos.
+ * No entra: finanzas (asientos con cuentas) ni viajes, apuntes, chats y flashcards (los ficheros no van
+ * en la exportación), planes importados o con IA, vínculos con el coach o de «entreno sola» ni enlaces
+ * compartidos.
  */
 type Row = Record<string, unknown>;
 const arr = (v: unknown): Row[] => (Array.isArray(v) ? (v as Row[]) : []);
@@ -110,9 +112,43 @@ export async function restoreExport(userId: string, data: unknown) {
     ["comidas", get(data, "nutrition", "entries"), Prisma.MacrosScalarFieldEnum, (d) => prisma.macros.create({ data: { ...d, foodProductId: null, customName: (d.customName as string | null) ?? "Alimento (restaurado)" } as never })],
     ["objetivos de nutrición", get(data, "nutrition", "goals"), Prisma.NutritionGoalScalarFieldEnum, (d) => prisma.nutritionGoal.create({ data: d as never })],
     ["agua", get(data, "nutrition", "hydration"), Prisma.HydrationLogScalarFieldEnum, (d) => prisma.hydrationLog.create({ data: d as never })],
-    ["clases y exámenes", get(data, "study", "classSlots"), Prisma.ClassSlotScalarFieldEnum, (d) => prisma.classSlot.create({ data: d as never })],
     ["bloques de estudio", get(data, "study", "sessions"), Prisma.StudySessionScalarFieldEnum, (d) => prisma.studySession.create({ data: d as never })],
+    // v1.6
+    ["mínimas", get(data, "training", "minimums"), Prisma.MinimumScalarFieldEnum, (d) => prisma.minimum.create({ data: d as never })],
+    ["semanas tipo", get(data, "training", "weekTemplates"), Prisma.WeekTemplateScalarFieldEnum, (d) => prisma.weekTemplate.create({ data: d as never })],
+    ["antropometría", get(data, "recovery", "bodyMeasures"), Prisma.BodyMeasureScalarFieldEnum, (d) => prisma.bodyMeasure.create({ data: d as never })],
+    ["suplementos", get(data, "recovery", "supplements"), Prisma.SupplementScalarFieldEnum, (d) => prisma.supplement.create({ data: d as never })],
+    ["citas", get(data, "recovery", "appointments"), Prisma.AppointmentScalarFieldEnum, (d) => prisma.appointment.create({ data: d as never })],
+    ["recetas", get(data, "nutrition", "recipes"), Prisma.RecipeScalarFieldEnum, (d) => prisma.recipe.create({ data: d as never })],
+    ["lista de la compra", get(data, "nutrition", "shopping"), Prisma.ShoppingItemScalarFieldEnum, (d) => prisma.shoppingItem.create({ data: d as never })],
+    ["notas", get(data, "study", "grades"), Prisma.GradeScalarFieldEnum, (d) => prisma.grade.create({ data: d as never })],
+    ["plazos", get(data, "finance", "deadlines"), Prisma.DeadlineScalarFieldEnum, (d) => prisma.deadline.create({ data: d as never })],
   ];
+  // Clases y exámenes: se guardan los ids nuevos para enlazar los bloques del plan de estudio
+  const slotMap = new Map<string, string>();
+  for (const r of arr(get(data, "study", "classSlots"))) {
+    const created = await prisma.classSlot.create({ data: { ...pick(r, Prisma.ClassSlotScalarFieldEnum), userId } as never, select: { id: true } }).catch(() => null);
+    if (created) {
+      slotMap.set(String(r.id), created.id);
+      add("clases y exámenes");
+    } else skipped.push("clases y exámenes");
+  }
+  for (const r of arr(get(data, "study", "planBlocks"))) {
+    await prisma.studyPlanBlock
+      .create({ data: { ...pick(r, Prisma.StudyPlanBlockScalarFieldEnum, ["examId"]), examId: slotMap.get(String(r.examId)) ?? null, userId } as never })
+      .then(() => add("plan de estudio"), () => skipped.push("plan de estudio"));
+  }
+  // Rutinas de prehabilitación con sus días
+  for (const r of arr(get(data, "training", "prehabRoutines"))) {
+    const routine = await prisma.prehabRoutine.create({ data: { ...pick(r, Prisma.PrehabRoutineScalarFieldEnum), userId } as never, select: { id: true } }).catch(() => null);
+    if (!routine) {
+      skipped.push("prehabilitación");
+      continue;
+    }
+    const dates = arr(r.logs).flatMap((l) => (day(l.date) ? [dateOnly(day(l.date)!)] : []));
+    if (dates.length) await prisma.prehabLog.createMany({ data: dates.map((date) => ({ userId, routineId: routine.id, date })), skipDuplicates: true });
+    add("prehabilitación");
+  }
   for (const [label, rows, fields, create] of simple) {
     for (const r of arr(rows)) {
       try {
