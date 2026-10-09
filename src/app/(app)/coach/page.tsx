@@ -16,7 +16,8 @@ export const metadata = { title: "Mis atletas · LifeOS" };
 export default async function CoachPage() {
   const user = await pageUser();
   const links = await prisma.coachAthlete.findMany({
-    where: { coachId: user.id, status: "ACTIVE", scopes: { has: "SESSIONS" } },
+    // v1.7: sin atletas que hayan limitado el tratamiento de sus datos (art. 18 RGPD)
+    where: { coachId: user.id, status: "ACTIVE", scopes: { has: "SESSIONS" }, athlete: { processingRestrictedAt: null } },
     include: { athlete: { select: { id: true, name: true, email: true } } },
   });
   const now = today();

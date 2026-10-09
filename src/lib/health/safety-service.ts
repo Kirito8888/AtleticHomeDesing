@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { ApiError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { recordConsent } from "@/lib/privacy/service";
 import { sendToUser } from "@/lib/push/service";
 import { dataKeyConfigured, openJson, sealJson } from "@/lib/security/data-key";
 
@@ -29,6 +30,7 @@ export async function inviteContact(userId: string, email: string) {
   // Mismo mensaje exista o no: no se filtra qué emails están registrados
   if (!other || other.id === userId) throw new ApiError(404, "No se pudo enviar la invitación");
   await prisma.safetyContact.upsert({ where: { userId_contactId: { userId, contactId: other.id } }, create: { userId, contactId: other.id }, update: { status: "PENDING" } });
+  await recordConsent(userId, "SAFETY", true);
   await sendToUser(other.id, { title: "Te han elegido como contacto de confianza", body: "Acepta en LifeOS → Entreno sola para recibir el aviso si no llega a tiempo.", url: "/safety" });
 }
 

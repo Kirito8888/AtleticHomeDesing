@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, isoDate, toIsoDay } from "@/lib/dates";
 import { formatNum, SESSION_TYPE_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { assertNotRestricted, isRestricted } from "@/lib/privacy/service";
 import { BODY_AREA_LABEL } from "@/lib/recovery/injury-rules";
 import { weekOf } from "@/lib/rules/engine";
 import { loadRuleInputs } from "@/lib/rules/rules-service";
@@ -24,6 +25,7 @@ export const createReportSchema = z
 
 /** Crea el enlace (caduca a los 7 días). El token solo se devuelve aquí. */
 export async function createReport(userId: string, input: z.infer<typeof createReportSchema>): Promise<{ token: string; expiresAt: Date }> {
+  await assertNotRestricted(userId, "crear enlaces para compartir");
   const active = await prisma.sharedReport.count({ where: { userId, expiresAt: { gt: new Date() } } });
   if (active >= MAX_ACTIVE) throw new ApiError(400, `Ya tienes ${MAX_ACTIVE} enlaces activos: revoca alguno`);
   const { token, hash } = newShareToken();
@@ -49,7 +51,7 @@ export async function revokeReport(userId: string, id: string) {
 export async function reportHtml(token: string, now = new Date()): Promise<string | null> {
   if (!isShareToken(token)) return null;
   const r = await prisma.sharedReport.findUnique({ where: { tokenHash: hashShareToken(token) } });
-  if (!r || r.expiresAt <= now) return null;
+  if (!r || r.expiresAt <= now || (await isRestricted(r.userId))) return null;
   return renderReport(await reportData(r.userId, toIsoDay(r.from), toIsoDay(r.to), r.includeInjuries, r.expiresAt));
 }
 

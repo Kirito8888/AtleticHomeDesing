@@ -36,6 +36,9 @@ export async function resolveAthleteId(
     where: { coachId_athleteId: { coachId: user.id, athleteId } },
   });
   if (!link || link.status !== "ACTIVE") throw new ApiError(403, "Sin vínculo activo con este atleta");
+  // v1.7 · Limitación del tratamiento (art. 18): el entrenador deja de ver nada mientras dure
+  const athlete = await prisma.user.findUnique({ where: { id: athleteId }, select: { processingRestrictedAt: true } });
+  if (athlete?.processingRestrictedAt) throw new ApiError(403, "El atleta ha limitado el tratamiento de sus datos");
   if (!link.scopes.includes(scope)) throw new ApiError(403, `El atleta no te ha dado acceso a: ${SCOPE_LABEL[scope]}`);
   if (mode === "write" && !link.canPlan) throw new ApiError(403, "El atleta no te ha dado permiso de planificación");
   return athleteId;

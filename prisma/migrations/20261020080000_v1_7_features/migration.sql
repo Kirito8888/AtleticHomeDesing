@@ -19,6 +19,9 @@ ALTER TYPE "SecurityEventType" ADD VALUE 'PRIVACY_REQUEST';
 ALTER TABLE "SecurityEvent" ADD COLUMN     "hash" TEXT,
 ADD COLUMN     "prevHash" TEXT;
 
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "processingRestrictedAt" TIMESTAMP(3);
+
 -- CreateTable
 CREATE TABLE "Passkey" (
     "id" TEXT NOT NULL,
@@ -47,6 +50,30 @@ CREATE TABLE "WebAuthnChallenge" (
     CONSTRAINT "WebAuthnChallenge_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Consent" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "purpose" TEXT NOT NULL,
+    "version" TEXT NOT NULL,
+    "granted" BOOLEAN NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Consent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PrivacyRequest" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "right" TEXT NOT NULL,
+    "detail" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "resolvedAt" TIMESTAMP(3),
+
+    CONSTRAINT "PrivacyRequest_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Passkey_credentialId_key" ON "Passkey"("credentialId");
 
@@ -56,6 +83,18 @@ CREATE INDEX "Passkey_userId_idx" ON "Passkey"("userId");
 -- CreateIndex
 CREATE INDEX "WebAuthnChallenge_expiresAt_idx" ON "WebAuthnChallenge"("expiresAt");
 
+-- CreateIndex
+CREATE INDEX "Consent_userId_purpose_createdAt_idx" ON "Consent"("userId", "purpose", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PrivacyRequest_userId_createdAt_idx" ON "PrivacyRequest"("userId", "createdAt");
+
 -- AddForeignKey
 ALTER TABLE "Passkey" ADD CONSTRAINT "Passkey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Consent" ADD CONSTRAINT "Consent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PrivacyRequest" ADD CONSTRAINT "PrivacyRequest_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

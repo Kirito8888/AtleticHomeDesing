@@ -101,6 +101,15 @@ export function LoginForm({ callbackUrl, canRegister = false }: { callbackUrl?: 
               <ErrorText state={pk} />
             </>
           ) : null}
+          <p className="text-center text-xs text-muted-foreground">
+            <Link href="/legal/privacidad" className="underline underline-offset-2">
+              Privacidad
+            </Link>{" "}
+            ·{" "}
+            <Link href="/legal/aviso" className="underline underline-offset-2">
+              Aviso legal
+            </Link>
+          </p>
           {canRegister && !needCode && (
             <p className="text-center text-sm text-muted-foreground">
               ¿Sin cuenta?{" "}

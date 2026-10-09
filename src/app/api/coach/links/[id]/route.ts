@@ -3,6 +3,7 @@ import { z } from "zod";
 import { ApiError, parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { recordConsent } from "@/lib/privacy/service";
 import { auditContext, recordEvent } from "@/lib/security/audit";
 
 const schema = z.object({
@@ -38,5 +39,7 @@ export const PATCH = route(async (req, ctx: RouteContext<"/api/coach/links/[id]"
   if (data.scopes) {
     await recordEvent(user.id, "COACH_SCOPES_CHANGED", auditContext(req.headers), data.scopes.join(", ") || "ninguno");
   }
+  // v1.7 · Consentimiento del atleta: aceptar el vínculo lo concede; revocarlo lo retira
+  if (isAthlete && data.status) await recordConsent(user.id, "COACH", data.status === "ACTIVE", auditContext(req.headers));
   return updated;
 });

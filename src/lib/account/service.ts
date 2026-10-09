@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { dataKeyConfigured, openJson } from "@/lib/security/data-key";
 import { type AuditContext, recordEvent } from "@/lib/security/audit";
 import { getWomen } from "@/lib/health/women-service";
+import { recordConsent } from "@/lib/privacy/service";
 
 /** Re-autenticación para operaciones sensibles. Limitada para no servir de oráculo de fuerza bruta. */
 export async function verifyCurrentPassword(userId: string, password: string): Promise<void> {
@@ -52,6 +53,7 @@ export async function setAiConsent(userId: string, enabled: boolean, ctx: AuditC
     select: { aiConsentAt: true },
   });
   await recordEvent(userId, "AI_CONSENT_CHANGED", ctx, enabled ? "activado" : "desactivado");
+  await recordConsent(userId, "AI", enabled, ctx);
   return { enabled: aiConsentAt != null, aiConsentAt };
 }
 

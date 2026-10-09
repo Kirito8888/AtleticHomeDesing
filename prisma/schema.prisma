@@ -59,76 +59,80 @@ model User {
   coaching  CoachAthlete[] @relation("CoachLinks")
   coachedBy CoachAthlete[] @relation("AthleteLinks")
 
-  athleteProfile    AthleteProfile?
-  thresholds        ThresholdHistory[]
-  trainingSessions  TrainingSession[]
-  plannedSessions   TrainingSession[]      @relation("PlannedBy")
-  personalRecords   PersonalRecord[]
-  dailyLoads        DailyLoad[]
-  recoveryMetrics   RecoveryMetrics[]
-  customExercises   Exercise[]
-  trainingCycles    TrainingCycle[]
-  calendarEvents    CalendarEvent[]
-  tasks             Task[]
-  financialAccounts FinancialAccount[]
-  financialCats     FinancialCategory[]
-  transactions      FinancialTransaction[]
-  budgets           Budget[]
-  subscriptions     Subscription[]
-  macros            Macros[]
-  nutritionGoals    NutritionGoal[]
-  studyDocuments    StudyDocument[]
-  chatThreads       ChatThread[]
-  flashcardDecks    FlashcardDeck[]
-  coachReports      CoachReport[]
-  recoveryCodes     RecoveryCode[]
-  securityEvents    SecurityEvent[]
-  sessionTemplates  SessionTemplate[]
-  mealTemplates     MealTemplate[]
-  injuries          Injury[]
-  pushSubscriptions PushSubscription[]
-  notificationLogs  NotificationLog[]
-  bankProfiles      BankImportProfile[]
-  planMesos         PlanMeso[]
-  planDays          PlanDay[]
-  planFeedback      PlanFeedback[]
-  cycleProfile      CycleProfile?
-  cycleLogs         CycleLog[]
-  oneRepMaxes       OneRepMax[]
-  exerciseAliases   ExerciseAlias[]
-  calendarFeeds     CalendarFeed[]
-  sharedReports     SharedReport[]
-  womenHealth       WomenHealth?
-  healthLogs        HealthLog[]
-  testResults       TestResult[]
-  returnProtocols   ReturnProtocol[]
-  classSlots        ClassSlot[]
-  studySessions     StudySession[]
-  habits            Habit[]
-  habitLogs         HabitLog[]
-  equipment         Equipment[]
-  hydrationLogs     HydrationLog[]
-  sessionComments   SessionComment[]       @relation("CommentAthlete")
-  authoredComments  SessionComment[]       @relation("CommentAuthor")
+  athleteProfile         AthleteProfile?
+  thresholds             ThresholdHistory[]
+  trainingSessions       TrainingSession[]
+  plannedSessions        TrainingSession[]      @relation("PlannedBy")
+  personalRecords        PersonalRecord[]
+  dailyLoads             DailyLoad[]
+  recoveryMetrics        RecoveryMetrics[]
+  customExercises        Exercise[]
+  trainingCycles         TrainingCycle[]
+  calendarEvents         CalendarEvent[]
+  tasks                  Task[]
+  financialAccounts      FinancialAccount[]
+  financialCats          FinancialCategory[]
+  transactions           FinancialTransaction[]
+  budgets                Budget[]
+  subscriptions          Subscription[]
+  macros                 Macros[]
+  nutritionGoals         NutritionGoal[]
+  studyDocuments         StudyDocument[]
+  chatThreads            ChatThread[]
+  flashcardDecks         FlashcardDeck[]
+  coachReports           CoachReport[]
+  recoveryCodes          RecoveryCode[]
+  securityEvents         SecurityEvent[]
+  sessionTemplates       SessionTemplate[]
+  mealTemplates          MealTemplate[]
+  injuries               Injury[]
+  pushSubscriptions      PushSubscription[]
+  notificationLogs       NotificationLog[]
+  bankProfiles           BankImportProfile[]
+  planMesos              PlanMeso[]
+  planDays               PlanDay[]
+  planFeedback           PlanFeedback[]
+  cycleProfile           CycleProfile?
+  cycleLogs              CycleLog[]
+  oneRepMaxes            OneRepMax[]
+  exerciseAliases        ExerciseAlias[]
+  calendarFeeds          CalendarFeed[]
+  sharedReports          SharedReport[]
+  womenHealth            WomenHealth?
+  healthLogs             HealthLog[]
+  testResults            TestResult[]
+  returnProtocols        ReturnProtocol[]
+  classSlots             ClassSlot[]
+  studySessions          StudySession[]
+  habits                 Habit[]
+  habitLogs              HabitLog[]
+  equipment              Equipment[]
+  hydrationLogs          HydrationLog[]
+  sessionComments        SessionComment[]       @relation("CommentAthlete")
+  authoredComments       SessionComment[]       @relation("CommentAuthor")
   // v1.6
-  healthReports     HealthReport[]
-  safetyContacts    SafetyContact[]        @relation("SafetyOwner")
-  safetyWatching    SafetyContact[]        @relation("SafetyContactUser")
-  safetyTrips       SafetyTrip[]
-  minimums          Minimum[]
-  weekTemplates     WeekTemplate[]
-  prehabRoutines    PrehabRoutine[]
-  prehabLogs        PrehabLog[]
-  bodyMeasures      BodyMeasure[]
-  supplements       Supplement[]
-  appointments      Appointment[]
-  recipes           Recipe[]
-  shoppingItems     ShoppingItem[]
-  studyPlanBlocks   StudyPlanBlock[]
-  grades            Grade[]
-  trips             Trip[]
-  deadlines         Deadline[]
-  passkeys          Passkey[]
+  healthReports          HealthReport[]
+  safetyContacts         SafetyContact[]        @relation("SafetyOwner")
+  safetyWatching         SafetyContact[]        @relation("SafetyContactUser")
+  safetyTrips            SafetyTrip[]
+  minimums               Minimum[]
+  weekTemplates          WeekTemplate[]
+  prehabRoutines         PrehabRoutine[]
+  prehabLogs             PrehabLog[]
+  bodyMeasures           BodyMeasure[]
+  supplements            Supplement[]
+  appointments           Appointment[]
+  recipes                Recipe[]
+  shoppingItems          ShoppingItem[]
+  studyPlanBlocks        StudyPlanBlock[]
+  grades                 Grade[]
+  trips                  Trip[]
+  deadlines              Deadline[]
+  passkeys               Passkey[]
+  // v1.7 · Limitación del tratamiento (art. 18): sin IA, sin acceso del entrenador y sin enlaces compartidos
+  processingRestrictedAt DateTime?
+  consents               Consent[]
+  privacyRequests        PrivacyRequest[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -1992,4 +1996,32 @@ model WebAuthnChallenge {
   createdAt DateTime @default(now())
 
   @@index([expiresAt])
+}
+
+/// v1.7 · Historial de consentimientos (art. 7 RGPD: hay que poder demostrarlos). Solo se añaden filas.
+model Consent {
+  id        String   @id @default(cuid())
+  userId    String
+  purpose   String // AI | HEALTH | COACH | SAFETY | PUSH
+  version   String // versión del texto informativo aceptado
+  granted   Boolean
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt])
+}
+
+/// v1.7 · Ejercicio de derechos (arts. 15-22 RGPD): qué se pidió y cuándo se atendió.
+model PrivacyRequest {
+  id         String    @id @default(cuid())
+  userId     String
+  right      String // ACCESS | RECTIFICATION | ERASURE | RESTRICTION | PORTABILITY | OBJECTION
+  detail     String?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

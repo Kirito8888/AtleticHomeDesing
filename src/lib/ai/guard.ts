@@ -11,7 +11,8 @@ import { prisma } from "@/lib/prisma";
  */
 export async function assertAiAllowed(dataOwnerId: string): Promise<void> {
   gemini(); // 503 si falta GEMINI_API_KEY
-  const owner = await prisma.user.findUnique({ where: { id: dataOwnerId }, select: { aiConsentAt: true } });
+  const owner = await prisma.user.findUnique({ where: { id: dataOwnerId }, select: { aiConsentAt: true, processingRestrictedAt: true } });
+  if (owner?.processingRestrictedAt) throw new ApiError(403, "Tratamiento limitado (Ajustes → Privacidad): no se envía nada a la IA", { code: "restricted" });
   if (!owner?.aiConsentAt) {
     throw new ApiError(403, "Activa el consentimiento de IA en Ajustes para usar Astras AI", { code: "ai_consent_required" });
   }

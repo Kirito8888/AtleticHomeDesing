@@ -98,6 +98,30 @@ await page.getByText("Inicio de sesión con llave de acceso").first().waitFor();
 log("llave de acceso: alta, entrar sin contraseña y registro de auditoría íntegro");
 
 
+// 3. Privacidad: páginas legales públicas, consentimientos y limitación del tratamiento
+const anon = await browser.newContext();
+for (const path of ["/legal/privacidad", "/legal/aviso"]) {
+  const r = await anon.request.get(B + path, { maxRedirects: 0 });
+  if (r.status() !== 200) errors.push(`${path} debería ser pública: ${r.status()}`);
+}
+if (!(await (await anon.request.get(B + "/legal/privacidad")).text()).includes("Política de privacidad")) errors.push("la política de privacidad no se muestra");
+await anon.close();
+await go(B + "/settings");
+await page.getByRole("switch", { name: "Permitir enviar datos a Google Gemini" }).click();
+await toast(/Astras AI activado/);
+await go(B + "/settings/privacy");
+await page.getByLabel("Consentimientos").getByText(/Astras AI \(Google Gemini\) · concedido/).waitFor();
+await page.getByRole("switch", { name: "Limitar el tratamiento de mis datos" }).click();
+await toast(/Tratamiento limitado/);
+const blocked = await page.request.post(B + "/api/calendar/feed");
+if (blocked.status() !== 403) errors.push(`con la limitación activa el enlace .ics debería dar 403 (da ${blocked.status()})`);
+await page.getByRole("switch", { name: "Limitar el tratamiento de mis datos" }).click();
+await toast(/Limitación levantada/);
+await page.getByLabel("Mis peticiones").getByText(/levantada/).waitFor();
+await noOverflow("/settings/privacy");
+await shot("02-privacy");
+log("privacidad: páginas legales, consentimientos con historial y limitación del tratamiento");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { assertNotRestricted, isRestricted } from "@/lib/privacy/service";
 import { BODY_AREA_LABEL } from "@/lib/recovery/injury-rules";
 import { esc } from "@/lib/report/render";
 import { hashShareToken, isShareToken, newShareToken } from "@/lib/security/share-token";
@@ -25,6 +26,7 @@ export const healthReportSchema = z.object({ kind: z.enum(["MEDICAL", "PHYSIO"])
  * El contenido se descifra al servirlo y nunca lo ve la entrenadora.
  */
 export async function createHealthReport(userId: string, kind: "MEDICAL" | "PHYSIO") {
+  await assertNotRestricted(userId, "crear enlaces para compartir");
   const active = await prisma.healthReport.count({ where: { userId, revokedAt: null, expiresAt: { gt: new Date() } } });
   if (active >= MAX_ACTIVE) throw new ApiError(400, `Ya tienes ${MAX_ACTIVE} enlaces activos: revoca alguno`);
   const { token, hash } = newShareToken();
@@ -126,7 +128,7 @@ async function physioBody(userId: string, today: string) {
 export async function healthReportHtml(token: string, now = new Date()): Promise<string | null> {
   if (!isShareToken(token)) return null;
   const r = await prisma.healthReport.findUnique({ where: { tokenHash: hashShareToken(token) }, include: { user: { select: { name: true } } } });
-  if (!r || r.revokedAt || r.expiresAt <= now) return null;
+  if (!r || r.revokedAt || r.expiresAt <= now || (await isRestricted(r.userId))) return null;
   const today = toIsoDay(now);
   const who = r.user.name ?? "LifeOS";
   const expires = toIsoDay(r.expiresAt);

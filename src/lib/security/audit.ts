@@ -67,6 +67,7 @@ export async function recordEvent(userId: string, type: SecurityEventType, ctx: 
   if (alert) void sendToUser(userId, { title: "LifeOS · seguridad", body: `${alert} Si no has sido tú, revisa Ajustes → Seguridad.`, url: "/settings", tag: `sec-${type}` }).catch(() => undefined);
 }
 
+/** Días que se conserva el registro (por defecto; RETENTION_AUDIT_DAYS lo cambia). */
 export const AUDIT_RETENTION_DAYS = 180;
 
 export function recentEvents(userId: string, take = 30) {
