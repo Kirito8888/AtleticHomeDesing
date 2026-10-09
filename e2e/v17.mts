@@ -211,6 +211,59 @@ await toast(/1 competiciones añadidas/);
 await shot("04-training");
 log("diario técnico, comparador, lanzamientos y récords, simulador, combinadas e importar calendario");
 
+// 5. Salud: sueño, ánimo, escalas, respiración, fotos de lesión, anticoncepción y menopausia, informe anual
+await go(B + "/recovery/wellbeing");
+await page.getByLabel("Cafeína del día (mg)").fill("200");
+await page.getByLabel("Última cafeína").fill("21:00");
+await radio("Calidad del sueño", "2").click();
+await page.getByRole("button", { name: "Guardar noche" }).click();
+await toast(/Noche guardada/);
+await page.getByLabel("Últimas noches").getByText(/cafeína/).first().waitFor();
+await radio("Ánimo", "2").click();
+await radio("Estrés", "4").click();
+await page.getByRole("button", { name: "Guardar ánimo de hoy" }).click();
+await toast(/Ánimo guardado/);
+await page.getByLabel("Tendencia del ánimo").getByText(/7 días: ánimo 2/).waitFor();
+await page.getByLabel("Zona", { exact: true }).fill("codo");
+await radio("Dolor ahora", "4").click();
+await page.getByRole("button", { name: "Guardar escala" }).click();
+await page.getByLabel("Escalas guardadas").getByText(/Dolor \(EVA\) codo: 4/).waitFor();
+await page.getByRole("button", { name: "Empezar" }).click();
+await page.getByText(/Inhala · \d/).waitFor();
+await page.getByRole("button", { name: "Parar" }).click();
+await noOverflow("/recovery/wellbeing");
+await shot("05-wellbeing");
+
+await api("post", "/api/recovery/injuries", { area: "ELBOW", side: "RIGHT", pain: 3, startedOn: madrid });
+await go(B + "/recovery");
+// PNG de 2×2 sintético: el navegador lo vuelve a codificar a JPEG (sin EXIF) antes de subirlo
+const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAEElEQVR4nGM4EWAARAwQCgAmTgUhXywv4AAAAABJRU5ErkJggg==", "base64");
+await page.getByLabel("Añadir foto de la molestia").setInputFiles({ name: "codo.png", mimeType: "image/png", buffer: png });
+await toast(/Foto guardada/);
+await page.getByLabel("Fotos de la molestia").getByRole("button").first().click();
+await page.getByRole("img", { name: "Foto de la molestia" }).waitFor();
+const photoOk = await page.getByRole("img", { name: "Foto de la molestia" }).evaluate((i: HTMLImageElement) => i.decode().then(() => i.naturalWidth > 0));
+if (!photoOk) errors.push("la foto descifrada no se ve");
+await page.getByRole("button", { name: "Borrar esta foto" }).click();
+await page.getByLabel("Fotos de la molestia").waitFor({ state: "detached" });
+
+await api("put", "/api/health/women", { contraception: "PILL_COMBINED", contraceptionSince: plusDays(madrid, -200), menopause: "PERI" });
+await go(B + "/recovery/women");
+await page.locator("#etapa").getByText("Píldora combinada", { exact: true }).waitFor();
+await page.getByLabel("Pautas de la menopausia").waitFor();
+await page.getByRole("group", { name: "Síntomas de hoy" }).getByRole("checkbox", { name: "Sofocos" }).click();
+await page.getByRole("button", { name: "Guardar síntomas de hoy" }).click();
+await toast(/Síntomas guardados/);
+await noOverflow("/recovery/women");
+const annual = (await api("post", "/api/health/reports", { kind: "ANNUAL" })) as { url?: string };
+const anon2 = await browser.newContext();
+const rep = await anon2.request.get(annual.url!.replace(/^https?:\/\/[^/]+/, B));
+const repHtml = await rep.text();
+if (!rep.ok() || !repHtml.includes("Informe anual de salud") || !repHtml.includes("Sofocos")) errors.push(`informe anual: ${rep.status()}`);
+await anon2.close();
+await shot("06-women");
+log("sueño, ánimo, escalas, respiración, fotos cifradas, anticoncepción y menopausia, informe anual");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));

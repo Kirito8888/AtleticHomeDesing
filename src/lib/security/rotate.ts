@@ -1,8 +1,11 @@
 import "server-only";
 
+import { readFile, writeFile } from "node:fs/promises";
+
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { openAny, seal } from "@/lib/security/secret-box";
+import { photoFile } from "@/lib/recovery/wellbeing-service";
+import { openAny, openBytes, seal, sealBytes } from "@/lib/security/secret-box";
 
 import { dataKey, previousDataKey } from "./data-key";
 
@@ -22,6 +25,7 @@ const tables: Table[] = [
   { name: "ciclo (días)", read: (skip) => prisma.cycleLog.findMany({ select: { id: true, data: true }, skip, take: BATCH, orderBy: { id: "asc" } }), write: (id, data) => prisma.cycleLog.update({ where: { id }, data: { data } }) },
   { name: "salud de la mujer", read: (skip) => prisma.womenHealth.findMany({ select: { userId: true, data: true }, skip, take: BATCH, orderBy: { userId: "asc" } }).then((r) => r.map((x) => ({ id: x.userId, data: x.data }))), write: (userId, data) => prisma.womenHealth.update({ where: { userId }, data: { data } }) },
   { name: "registros de salud", read: (skip) => prisma.healthLog.findMany({ select: { id: true, data: true }, skip, take: BATCH, orderBy: { id: "asc" } }), write: (id, data) => prisma.healthLog.update({ where: { id }, data: { data } }) },
+  { name: "bienestar", read: (skip) => prisma.wellbeingLog.findMany({ select: { id: true, data: true }, skip, take: BATCH, orderBy: { id: "asc" } }), write: (id, data) => prisma.wellbeingLog.update({ where: { id }, data: { data } }) },
   { name: "entreno sola", read: (skip) => prisma.safetyTrip.findMany({ where: { data: { not: null } }, select: { id: true, data: true }, skip, take: BATCH, orderBy: { id: "asc" } }), write: (id, data) => prisma.safetyTrip.update({ where: { id }, data: { data } }) },
 ];
 
@@ -51,8 +55,30 @@ async function rotateTables(list: Table[], keys: [string, string | undefined]) {
   return out;
 }
 
+/** Fotos de lesión: el fichero entero se vuelve a cifrar si solo abre con la clave anterior. */
+async function rotatePhotos(keys: [string, string | undefined]) {
+  const r = { rotated: 0, current: 0, failed: 0 };
+  for (const p of await prisma.injuryPhoto.findMany({ select: { userId: true, path: true } })) {
+    try {
+      const file = photoFile(p.userId, p.path);
+      const blob = await readFile(file);
+      try {
+        openBytes(blob, [keys[0]]);
+        r.current++;
+      } catch {
+        await writeFile(file, sealBytes(openBytes(blob, [keys[1]]), keys[0]), { mode: 0o600 });
+        r.rotated++;
+      }
+    } catch {
+      r.failed++;
+    }
+  }
+  return r;
+}
+
 export async function reencryptAll() {
-  const data = await rotateTables(tables, [dataKey(), previousDataKey()]);
+  const keys: [string, string | undefined] = [dataKey(), previousDataKey()];
+  const data: Record<string, { rotated: number; current: number; failed: number }> = { ...(await rotateTables(tables, keys)), "fotos de lesión": await rotatePhotos(keys) };
   const totpKey = env().TOTP_ENCRYPTION_KEY;
   const totp = totpKey
     ? await rotateTables(

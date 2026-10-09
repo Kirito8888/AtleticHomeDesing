@@ -55,6 +55,11 @@ export default async function HealthAdminPage() {
               <p className="text-xs text-muted-foreground">Molestias, vuelta por fases, carga de 8 semanas y fatiga por zona. Caduca en 7 días; tu entrenadora no lo ve.</p>
               <HealthReportLinks kind="PHYSIO" label="Tu fisio" active={reports.filter((r) => r.kind === "PHYSIO").map((r) => ({ id: r.id, expiresAt: r.expiresAt.toISOString() }))} />
             </div>
+            <div className="grid gap-2 border-t pt-3">
+              <p className="font-medium">Informe anual de salud</p>
+              <p className="text-xs text-muted-foreground">12 meses, mes a mes: entreno, molestias, sueño, FC y VFC, bienestar y (si la usas) salud de la mujer. Para la revisión anual o la de temporada. Caduca en 7 días.</p>
+              <HealthReportLinks kind="ANNUAL" label="La revisión anual" active={reports.filter((r) => r.kind === "ANNUAL").map((r) => ({ id: r.id, expiresAt: r.expiresAt.toISOString() }))} />
+            </div>
           </CardContent>
         </Card>
         <Card className="h-fit gap-3 py-4">
