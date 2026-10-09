@@ -181,7 +181,23 @@ export function WomenSettingsForm({ initial }: { initial: WomenSettings }) {
         <Field label="Recordar analítica cada" hint="meses (vacío = no recordar)">
           <Stepper label="Meses entre analíticas" value={s.labEveryMonths} onChange={(v) => set({ labEveryMonths: v == null || v < 1 ? null : v })} max={24} />
         </Field>
+        <Field label="Día «con síntomas» si los tuve en" hint="% de mis ciclos (predicción aprendida)">
+          <Stepper label="Proporción de ciclos con síntomas" value={Math.round(s.symptomProbMin * 100)} onChange={(v) => v != null && set({ symptomProbMin: Math.min(100, Math.max(20, v)) / 100 })} min={20} max={100} step={10} />
+        </Field>
+        <Field label="Calcio: objetivo de raciones al día" hint="lácteos o equivalentes (salud ósea)">
+          <Stepper label="Objetivo de raciones de calcio" value={s.calciumMin} onChange={(v) => v != null && set({ calciumMin: v })} min={0} max={8} />
+        </Field>
+        <Field label="Vitamina D: avisar por debajo de" hint="ng/mL">
+          <Stepper label="Umbral de vitamina D" value={s.vitDMin} onChange={(v) => v != null && set({ vitDMin: v })} min={5} max={100} />
+        </Field>
+        <Field label="Sesiones con impacto a la semana" hint="saltos, carrera o lanzamientos">
+          <Stepper label="Sesiones con impacto a la semana" value={s.boneImpactMin} onChange={(v) => v != null && set({ boneImpactMin: v })} min={0} max={14} />
+        </Field>
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" className="size-4" checked={s.remindImpact} onChange={(e) => set({ remindImpact: e.target.checked })} />
+        Recordarme el trabajo con impacto si una semana no llego
+      </label>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" className="size-4" checked={s.remindPeriod} onChange={(e) => set({ remindPeriod: e.target.checked })} />
         Recordarme apuntar la regla si llevo tiempo sin hacerlo

@@ -81,6 +81,7 @@ export const createEntrySchema = z.union([
     foodProductId: z.string().optional(),
     barcode: z.string().optional(),
     quantityG: z.number().positive().max(5000),
+    ironRich: z.boolean().optional(),
   }).refine((d) => d.foodProductId || d.barcode, "Indica foodProductId o barcode"),
   z.object({
     date: isoDate,
@@ -92,6 +93,7 @@ export const createEntrySchema = z.union([
     carbsG: z.number().min(0).max(1000),
     fatG: z.number().min(0).max(1000),
     fiberG: z.number().min(0).max(500).nullish(),
+    ironRich: z.boolean().optional(),
   }),
 ]);
 
@@ -115,6 +117,8 @@ export async function createEntry(userId: string, input: z.infer<typeof createEn
       foodProductId: product.id,
       quantityG: input.quantityG,
       ...macrosForQuantity(product, input.quantityG),
+      ironMg: product.ironPer100g == null ? null : Math.round(product.ironPer100g * input.quantityG) / 100,
+      ironRich: input.ironRich ?? false,
     },
     include: { foodProduct: { select: { name: true, brand: true, imageUrl: true } } },
   });

@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { dataKeyConfigured, openJson, sealJson } from "@/lib/security/data-key";
 
 import { type CycleLogEntry, cyclePhase, type CycleSettings, suggestLight } from "./cycle";
+import { predictedDays, readWomenSettings } from "./women";
+import { learnedPrediction } from "./women-plus";
 
 /**
  * Datos del ciclo menstrual, cifrados en la BD. Solo los lee su dueña: no hay
@@ -46,10 +48,32 @@ export async function cycleToday(userId: string, day: string) {
   const has = await prisma.cycleProfile.count({ where: { userId } });
   const hasLogs = has ? 1 : await prisma.cycleLog.count({ where: { userId } });
   if (!has && !hasLogs) return null;
-  const { settings, logs } = await getCycle(userId, 200);
+  const { settings, logs } = await getCycle(userId, 400);
+  // v1.6: con 3 ciclos o más manda lo aprendido de sus registros
+  const learned = learnedPrediction(settings, logs, day, day, await symptomProbMin(userId));
+  const today = logs.find((l) => l.date === day);
   return {
     phase: settings ? cyclePhase(day, settings, logs) : null,
-    suggestion: suggestLight(day, settings, logs),
+    suggestion: today?.symptoms.length
+      ? "Hoy has marcado síntomas"
+      : learned
+        ? learned.length
+          ? "Según tus últimos ciclos, estos días sueles tener síntomas"
+          : null
+        : suggestLight(day, settings, logs),
     today: logs.find((l) => l.date === day) ?? null,
   };
+}
+
+async function symptomProbMin(userId: string): Promise<number> {
+  const w = await prisma.womenHealth.findUnique({ where: { userId } });
+  return readWomenSettings(w ? openJson(w.data) : null).symptomProbMin;
+}
+
+/** Días previstos de regla y síntomas (lo aprendido si hay 3 ciclos; si no, lo que ella indicó). Solo para su dueña. */
+export async function cyclePredictions(userId: string, from: string, to: string) {
+  if (!dataKeyConfigured()) return [];
+  const { settings, logs } = await getCycle(userId, 400);
+  if (!settings && !logs.length) return [];
+  return predictedDays(settings, logs, from, to, learnedPrediction(settings, logs, from, to, await symptomProbMin(userId)));
 }
