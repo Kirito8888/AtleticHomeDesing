@@ -19,6 +19,13 @@ describe.skipIf(!HAS_DB)("restaurar una exportación (BD real)", () => {
     await prisma.recoveryMetrics.create({ data: { userId: from, date: new Date("2026-10-01"), sleepHours: 7.5, readinessParts: { tsb: 1 } } });
     const h = await prisma.habit.create({ data: { userId: from, name: "Estirar" } });
     await prisma.habitLog.create({ data: { userId: from, habitId: h.id, date: new Date("2026-10-01") } });
+    // v1.6
+    const exam = await prisma.classSlot.create({ data: { userId: from, subject: "Cálculo", kind: "EXAM", date: new Date("2026-10-20"), startMin: 540, endMin: 660 } });
+    await prisma.studyPlanBlock.create({ data: { userId: from, examId: exam.id, subject: "Cálculo", date: new Date("2026-10-18"), minutes: 60, done: true } });
+    await prisma.recipe.create({ data: { userId: from, name: "Arroz", servings: 2, items: [{ name: "Arroz", grams: 200, kcal100: 350, protein100: 7, carbs100: 77, fat100: 1 }] } });
+    await prisma.grade.create({ data: { userId: from, subject: "Anatomía", grade: 8, credits: 6 } });
+    const pr = await prisma.prehabRoutine.create({ data: { userId: from, name: "Hombro", exercises: [{ name: "Rotación externa", dose: "3×15" }] } });
+    await prisma.prehabLog.create({ data: { userId: from, routineId: pr.id, date: new Date("2026-10-01") } });
   });
 
   afterAll(async () => {
@@ -34,6 +41,10 @@ describe.skipIf(!HAS_DB)("restaurar una exportación (BD real)", () => {
     const s = await prisma.trainingSession.findFirstOrThrow({ where: { userId: to }, include: { technical: true } });
     expect(s.technical?.bestMarkM).toBe(50.5);
     expect(await prisma.habitLog.count({ where: { userId: to } })).toBe(1);
+    expect(r.counts).toMatchObject({ "plan de estudio": 1, recetas: 1, notas: 1, prehabilitación: 1 });
+    const [slot, block] = await Promise.all([prisma.classSlot.findFirstOrThrow({ where: { userId: to } }), prisma.studyPlanBlock.findFirstOrThrow({ where: { userId: to } })]);
+    expect(block).toMatchObject({ examId: slot.id, done: true });
+    expect(await prisma.prehabLog.count({ where: { userId: to } })).toBe(1);
     await expect(restoreExport(to, data)).rejects.toThrow(/cuenta vacía/);
     await expect(restoreExport(to, { format: "otro" })).rejects.toThrow(/lifeos-export/);
   });
