@@ -42,11 +42,16 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
         title="Astras AI"
         description="Estudio con tus apuntes, coach de rendimiento y planes de entrenamiento (Gemini)"
         action={
-          <Button asChild size="sm">
-            <Link href="/study/plan">
-              <Sparkles /> Crear plan
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/study/ask">Pregunta a tus datos</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/study/plan">
+                <Sparkles /> Crear plan
+              </Link>
+            </Button>
+          </div>
         }
       />
       {!aiConfigured ? (
