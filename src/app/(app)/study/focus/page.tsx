@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { studyWeek } from "@/lib/study/schedule";
 import { todayBlocks } from "@/lib/study/exam-plan-service";
 import { knownSubjects } from "@/lib/study/schedule-service";
+import { focusStats } from "@/lib/study/v17-service";
 
 export const metadata = { title: "Pomodoro · LifeOS" };
 
@@ -22,10 +23,11 @@ export default async function FocusPage({ searchParams }: PageProps<"/study/focu
   const { week: raw } = await searchParams;
   const weekStart = startOfIsoWeek(typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? dateOnly(raw) : today());
   const ws = toIsoDay(weekStart);
-  const [subjects, rows, plan] = await Promise.all([
+  const [subjects, rows, plan, focus] = await Promise.all([
     knownSubjects(user.id),
     prisma.studySession.findMany({ where: { userId: user.id, date: { gte: weekStart, lte: addDays(weekStart, 6) } }, orderBy: { createdAt: "desc" } }),
     todayBlocks(user.id, toIsoDay(today())),
+    focusStats(user.id, toIsoDay(today())),
   ]);
   const w = studyWeek(rows.map((r) => ({ ...r, date: toIsoDay(r.date) })), ws);
   const max = Math.max(60, ...w.days.map((d) => d.minutes));
@@ -110,6 +112,32 @@ export default async function FocusPage({ searchParams }: PageProps<"/study/focu
           </CardContent>
         </Card>
       </div>
+      <Card className="mt-4 gap-3 py-4">
+        <CardHeader className="px-4">
+          <CardTitle className="text-sm">Cuándo te concentras mejor (60 días)</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2 px-4 text-sm">
+          {focus.total ? (
+            <>
+              <ul className="grid gap-1" aria-label="Estudio por franja">
+                {focus.slots.map((s) => (
+                  <li key={s.key} className="flex justify-between gap-2 tabular-nums">
+                    <span>{s.label}</span>
+                    <span>
+                      {hm(s.minutes)} · {s.sessions} bloques{s.sessions ? ` · ${s.avg} min de media` : ""}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted-foreground">
+                {focus.best ? `Tus bloques más largos salen por la ${focus.best.label.split(" (")[0].toLowerCase()}: reserva ahí lo más difícil.` : "Con 3 bloques o más en una franja te diré cuál te rinde más."} El inicio se calcula como la hora en que guardaste el bloque menos su duración.
+              </p>
+            </>
+          ) : (
+            <p className="text-muted-foreground">Usa el pomodoro unos días y aquí verás en qué franja rindes más.</p>
+          )}
+        </CardContent>
+      </Card>
       <p className="mt-3 text-xs text-muted-foreground">
         ¿Clases y exámenes?{" "}
         <Link href="/study/schedule" className="underline underline-offset-2">

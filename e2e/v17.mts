@@ -264,6 +264,61 @@ await anon2.close();
 await shot("06-women");
 log("sueño, ánimo, escalas, respiración, fotos cifradas, anticoncepción y menopausia, informe anual");
 
+// 6. Nutrición y estudio: plan semanal → compra, sudoración, suplementos, tarjetas a mano, trabajos y franjas
+await api("post", "/api/nutrition/recipes", { name: "Lentejas E2E", servings: 2, items: [{ name: "Lentejas", grams: 200, kcal100: 350, protein100: 24, carbs100: 60, fat100: 1 }] });
+await go(B + "/nutrition/plan");
+await radio("Comida", "Comida").click();
+await page.getByRole("button", { name: "Añadir al plan" }).click();
+await toast(/Añadida al plan/);
+await page.getByLabel("Plan de la semana").getByText(/Comida: Lentejas E2E/).waitFor();
+await page.getByRole("button", { name: "Pasar los ingredientes a la lista de la compra" }).click();
+await toast(/1 ingredientes a la lista/);
+await noOverflow("/nutrition/plan");
+await go(B + "/nutrition/shopping");
+await page.getByLabel("Lista de la compra").getByText("Lentejas", { exact: true }).waitFor();
+await page.getByText("Escanear en el súper").waitFor();
+
+await go(B + "/nutrition/sweat");
+await page.getByLabel("Peso antes (kg)").fill("70");
+await page.getByLabel("Peso después (kg)").fill("68,9");
+await page.getByLabel("Bebido durante (ml)").fill("500");
+await page.getByLabel("Orina durante (ml)").fill("100");
+await page.getByRole("button", { name: "Calcular y guardar" }).click();
+await page.getByLabel("Pruebas de sudoración").getByText(/1,5 L\/h/).waitFor();
+await noOverflow("/nutrition/sweat");
+
+await api("post", "/api/recovery/supplements", { name: "Hierro E2E", startedOn: madrid });
+await go(B + "/recovery/health");
+await page.getByRole("button", { name: /Días de Hierro E2E/ }).click();
+const wd = ["L", "M", "X", "J", "V", "S", "D"][(new Date(`${madrid}T12:00:00Z`).getUTCDay() + 6) % 7];
+await page.getByRole("group", { name: "Días de Hierro E2E" }).getByRole("button", { name: wd, exact: true }).click();
+await page.getByRole("checkbox", { name: new RegExp(`^Hierro E2E `) }).first().click();
+await page.getByText(/Cumplimiento de la semana: 100 %/).waitFor();
+await noOverflow("/recovery/health");
+
+await go(B + "/study");
+await page.getByRole("tab", { name: "Flashcards" }).click();
+await page.getByLabel("Mazo").fill("Biología E2E");
+await page.getByLabel("Tarjetas", { exact: true }).fill("ADN | Ácido desoxirribonucleico\nATP | Adenosín trifosfato");
+await page.getByRole("button", { name: "Añadir tarjetas" }).click();
+await toast(/2 tarjetas añadidas/);
+await go(B + "/study/assignments");
+await page.getByLabel("Asignatura").fill("Física");
+await page.getByLabel("Trabajo", { exact: true }).fill("Práctica de péndulo");
+await page.getByLabel("Entrega").fill(plusDays(madrid, 2));
+await page.getByRole("button", { name: "Añadir trabajo" }).click();
+await page.getByLabel("Trabajos pendientes").getByText(/En 2 d y sin empezar/).waitFor();
+await radio("Estado de Práctica de péndulo", "Entregado").click();
+await page.getByLabel("Nota de Práctica de péndulo").fill("8,5");
+await page.getByRole("button", { name: "Guardar nota" }).click();
+await page.getByLabel("Media por asignatura").getByText(/8,5/).waitFor();
+await noOverflow("/study/assignments");
+await api("post", "/api/study/sessions", { subject: "Física", minutes: 25, date: madrid });
+await go(B + "/study/focus");
+await page.getByLabel("Estudio por franja").waitFor();
+await shot("07-nutrition-study");
+log("plan de comidas y compra, sudoración, calendario de suplementos, tarjetas a mano, trabajos y franjas de estudio");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));
