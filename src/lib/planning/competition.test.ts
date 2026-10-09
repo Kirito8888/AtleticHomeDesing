@@ -35,7 +35,7 @@ describe("calentamiento cronometrado", () => {
 
 describe("calendario .ics", () => {
   it("escapa, pliega y marca días completos con DTEND exclusivo", () => {
-    expect(icsText("A, B; C\\D\nE")).toBe("A\\, B\; C\\\\D\\nE");
+    expect(icsText("A, B; C\\D\nE")).toBe("A\\, B\\; C\\\\D\\nE");
     const long = "SUMMARY:" + "á".repeat(80);
     expect(foldLine(long).split("\r\n ").every((l) => Buffer.byteLength(l) <= 75)).toBe(true);
     const ics = buildIcs("LifeOS", [{ uid: "e1", title: "Control, Burgos", start: new Date("2026-10-10"), allDay: true, location: "Pista" }], new Date("2026-10-07T10:00:00Z"));

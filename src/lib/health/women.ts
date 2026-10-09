@@ -35,6 +35,15 @@ export const womenSettingsSchema = z.object({
   labEveryMonths: z.number().int().min(1).max(24).nullable().default(6),
   /** Recordatorio suave para registrar la regla si lleva tiempo sin datos. */
   remindPeriod: z.boolean().default(false),
+  // v1.6
+  /** Predicción aprendida: un día del ciclo cuenta como «con síntomas» si los tuvo en al menos esta proporción de ciclos. */
+  symptomProbMin: z.number().min(0.2).max(1).default(0.5),
+  /** Salud ósea: raciones de lácteos o equivalentes en calcio al día, vitamina D mínima (ng/mL) y sesiones con impacto a la semana. */
+  calciumMin: z.number().min(0).max(8).default(3),
+  vitDMin: z.number().min(5).max(100).default(30),
+  boneImpactMin: z.number().int().min(0).max(14).default(2),
+  /** Recordatorio semanal si no hubo trabajo con impacto. */
+  remindImpact: z.boolean().default(false),
 });
 export type WomenSettings = z.infer<typeof womenSettingsSchema>;
 export const readWomenSettings = (raw: unknown): WomenSettings => {
@@ -85,6 +94,8 @@ export const healthLogSchema = z.discriminatedUnion("kind", [
   }),
   z.object({ kind: z.literal("PELVIC"), date: isoDate, symptoms: z.array(z.enum(Object.keys(PELVIC_SYMPTOMS) as [PelvicSymptom, ...PelvicSymptom[]])).min(1).max(5) }),
   z.object({ kind: z.literal("PILL_BREAK"), date: isoDate, days: z.number().int().min(1).max(10) }),
+  // v1.6: cribado de salud ósea (fracturas de estrés previas y raciones de calcio al día)
+  z.object({ kind: z.literal("BONE"), date: isoDate, stressFractures: z.number().int().min(0).max(20), calciumServings: z.number().min(0).max(10) }),
 ]);
 export type HealthLogEntry = z.infer<typeof healthLogSchema>;
 
@@ -294,16 +305,25 @@ export function postpartumStatus(s: Pick<WomenSettings, "postpartumSince" | "cle
 export type PredictedDay = { date: string; period: boolean; symptoms: boolean };
 
 /** Días previstos de regla y de síntomas habituales entre from y to (estimación local). */
-export function predictedDays(settings: CycleSettings | null, logs: CycleLogEntry[], from: string, to: string): PredictedDay[] {
+export function predictedDays(
+  settings: CycleSettings | null,
+  logs: CycleLogEntry[],
+  from: string,
+  to: string,
+  /** v1.6: días con síntomas aprendidos de sus ciclos (sustituyen a «suelo encontrarme peor en…»). */
+  learned: Array<{ date: string }> | null = null,
+): PredictedDay[] {
   if (!settings || settings.hormonal === "si") return [];
+  const learnedSet = learned ? new Set(learned.map((l) => l.date)) : null;
   const out: PredictedDay[] = [];
   for (let t = ms(from); t <= ms(to); t += DAY) {
     const date = iso(t);
     const { part } = cyclePhase(date, settings, logs);
     if (!part) continue;
     const period = part === "regla";
-    const symptoms =
-      (part === "regla" && settings.symptomParts.includes("regla")) ||
+    const symptoms = learnedSet
+      ? learnedSet.has(date)
+      : (part === "regla" && settings.symptomParts.includes("regla")) ||
       (part === "antes" && settings.symptomParts.includes("antes")) ||
       (part === "ovulacion" && settings.symptomParts.includes("ovulacion"));
     if (period || symptoms) out.push({ date, period, symptoms });

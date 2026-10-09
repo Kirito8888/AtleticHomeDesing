@@ -2,6 +2,68 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v1.6 — 36 funcionalidades: mujeres, fuerza autorregulada, plan inteligente, jabalina, salud, cocina, estudio y viajes (9/10/2026)
+
+**Regla de diseño de toda la versión: nada toca tu planificación sin que lo confirmes.** Los kg del día, el afinamiento y la recolocación son **sugerencias** junto al plan; solo se aplican con «Usar» o «Aplicar». El afinamiento se guarda aparte (`PlanDay.taperPct`), se aplica al mostrar el día y se quita con un botón: el contenido del día queda intacto (lo comprueba un test de integración).
+
+**Mujeres** (todo cifrado, nunca a la IA, la entrenadora no lo ve, fuera del `.ics` y de los informes compartidos; entra en la exportación y en el borrado)
+- **Patrón ciclo–rendimiento:** con ≥ 3 ciclos registrados compara RPE, kg frente a la RM, marcas y readiness en días con y sin síntomas. Con pocos datos dice «aún no hay suficiente».
+- **Predicción aprendida:** probabilidad de síntomas por día del ciclo calculada con tus registros; sustituye a la previsión genérica cuando hay datos (calendario y versión suave).
+- **Salud ósea:** cribado (fracturas de estrés previas, regla ausente, disponibilidad energética, impactos semanales, calcio y vitamina D) con aviso de prudencia y recordatorio opcional de trabajo de impacto.
+- **Informe para tu médica:** enlace temporal (7 días, revocable) con ciclo, analíticas y cribados; HTML sin JavaScript, descifrado solo al servirlo.
+- **Hierro en la dieta:** marca «Fe» en comidas y favoritas (y el hierro de OpenFoodFacts si viene), días ricos en hierro por semana y consejos (vitamina C, café y té). Nunca da dosis.
+- **Entreno sola, con aviso:** «Salgo» con hora de vuelta y «Llegué». Si no llegas a tiempo, tu contacto de confianza (otra cuenta de LifeOS que aceptó el vínculo) recibe un push. Ubicación solo si la compartes en ese momento. **Sin SMS ni email:** el contacto necesita la app con notificaciones.
+
+**Fuerza y prevención**
+- **Kg del día autorregulados:** con el RIR (o la velocidad) de la primera serie efectiva estima tu RM de hoy y sugiere el kg, como mucho ±5 % del plan (editable en Mis reglas) y redondeado a tus discos. «Usar en las series que quedan» lo aplica al formulario; el plan y la tabla de RM no cambian. «Planificado frente a hecho» enseña plan / sugerido / hecho.
+- **Prehabilitación** de hombro y codo: rutinas editables, marcado de un toque y adherencia semanal.
+- **Fatiga por zona** (0–10) al cerrar la sesión, con tendencia en Recuperación; una zona alta entra en el semáforo.
+- **Antropometría:** perímetros y pliegues con tendencia (solo tú).
+
+**Planificación inteligente**
+- **Afinamiento** antes de una competición A: recorta un % de series los N días previos (Mis reglas). Reversible.
+- **Recolocar una sesión saltada:** huecos que respetan las horas entre lanzamientos, los exámenes y los días previstos con síntomas. Solo mueve al pulsar.
+- **Semáforo del día** en Inicio (normal / suave / descanso) con el porqué: readiness, Hooper, molestias, vuelta tras lesión, fatiga por zona y ciclo (si lo usas).
+- **Semanas tipo:** guarda una semana de tu plan propio y aplícala a otra (nunca a planes importados ni con IA).
+- **Comparar temporadas:** carga, lanzamientos, marcas y días con molestias, año frente a año.
+
+**Jabalina y competición** (Entreno → Jabalina)
+- **Clave técnica** por sesión y su relación con la media y la mejor marca.
+- **Equivalencia entre implementos** (regresión con tus datos) y progresión por peso.
+- **Condiciones y marcas:** ¿día bueno o progreso? (residuo frente a la tendencia).
+- **Mínimas** con fecha límite, lo que falta y la tendencia.
+- **Previsión de marca en competición** con margen de error, a partir de tu relación entreno/competición. Sin datos suficientes no la da.
+
+**Recuperación y salud**
+- **Importar Apple Health** (`export.xml`, leído en el navegador en streaming): sueño y FC en reposo. La VFC de Apple (SDNN) no se importa: no es comparable con la RMSSD.
+- **Mapa corporal del dolor** táctil para molestias y sensaciones.
+- **Suplementos** con marca, lote y dosis anotada, y recordatorio de comprobarlo en la lista oficial antes de competir. La app **no dice si algo está permitido**.
+- **Citas** de fisio y médico con aviso la tarde anterior y **enlace para el fisio** (molestias, vuelta y carga; mismo patrón que el de tu médica).
+
+**Nutrición**
+- **Comida del día de competición** (antes / entre rondas / después) en el modo competición, con lo que toca ahora resaltado; plantilla editable.
+- **Lista de la compra** a mano o desde tus favoritas (las que vienen de una receta aportan sus ingredientes).
+- **Recetas** con macros por ración calculados por ingredientes (con búsqueda en OpenFoodFacts); se anotan en el día o pasan a favoritas.
+
+**Estudio**
+- **Plan hasta el examen:** reparte las horas que pidas por examen entre los días que quedan, descontando clases y días de entreno; la víspera, solo esa asignatura. Si no da tiempo, lo dice. El pomodoro tacha los bloques solo.
+- **Notas y créditos** con media ponderada.
+- **Clases y exámenes en el `.ics`** (opcional en Ajustes → Calendario; solo la asignatura, sin aula).
+
+**Finanzas**
+- **Viajes de competición:** presupuesto por partidas, gastos enlazados (quedan como deportivos y con su competición), lo que te cuesta tras el reembolso y lo que te debe la federación.
+- **Plazos** (inscripciones, licencia, becas) con push N días antes.
+
+**Plataforma**
+- **Registrar sin conexión:** si guardas una sesión sin cobertura queda en una bandeja del móvil y se envía sola al volver; no se duplica aunque se reenvíe. Solo sesiones (agua y hábitos todavía no).
+- **Restaurar una exportación** en una cuenta vacía (Ajustes). No entran finanzas, viajes, apuntes, planes importados ni vínculos.
+- **Panel de entrenadora multiatleta:** comparativa de carga, cumplimiento y marcas, y comentar varias sesiones a la vez, con los mismos permisos (nunca salud ni finanzas).
+- **Accesos directos** de la app instalada: Sesión, Agua, Pomodoro y Hábitos.
+
+**Corrección:** el `.ics` escapa bien el punto y coma (RFC 5545).
+
+**Base de datos:** una migración aditiva (`v1_6_features`): tablas nuevas y columnas opcionales. Probada sobre una copia de una BD v1.5 con datos: plan y sesiones idénticos byte a byte y sin diferencias de esquema después. Sin variables de entorno nuevas.
+
 ## v1.5 — Salud de la mujer, carga y recuperación, plan propio, estudio y plataforma (9/10/2026)
 
 **Salud de la mujer** (Recuperación → Salud de la mujer; perfil de mujer u opcional). Todo **cifrado**, **nunca se envía a la IA**, la entrenadora **no lo ve** (ni con permiso de recuperación) y no sale en el `.ics` ni en el informe. Son herramientas de **cribado y prudencia, no diagnósticos**: cada aviso remite a una valoración profesional.

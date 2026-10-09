@@ -1,9 +1,12 @@
+import Link from "next/link";
+
 import { BankImport, type ImportProfile } from "@/components/finance/bank-import";
 import { CashflowChart } from "@/components/finance/cashflow-chart";
 import { DeleteTransaction, ManageFinance, QuickTransaction, RunSubscriptionsButton, SportToggle } from "@/components/finance/finance-forms";
 import { PageHeader } from "@/components/page-header";
 import { Stat } from "@/components/stat";
 import { StatusLabel } from "@/components/status";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { pageUser } from "@/lib/auth/page";
@@ -66,6 +69,12 @@ export default async function FinancePage() {
           </div>
         }
       />
+
+      <nav aria-label="Deporte" className="mb-4 flex gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href="/finance/trips">Viajes y plazos</Link>
+        </Button>
+      </nav>
 
       <Card className="mb-4 py-4">
         <CardContent className="grid grid-cols-2 gap-4 px-4 sm:grid-cols-4">

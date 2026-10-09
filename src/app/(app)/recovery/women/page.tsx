@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/page-header";
 import { LabForm, LabTable, PelvicForm, PillBreakForm, PostpartumCard, ScreenForm, WomenSettingsForm } from "@/components/recovery/women-panel";
+import { BoneForm, HealthReportLinks } from "@/components/recovery/women-extra";
 import { RuleAlerts } from "@/components/rules/rule-alerts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
@@ -10,7 +11,10 @@ import { today, toIsoDay } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
 import { getCycle } from "@/lib/health/cycle-service";
 import { PELVIC_SYMPTOMS } from "@/lib/health/women";
+import { listHealthReports } from "@/lib/health/health-report";
+import { IRON_TIPS, PERF_LABEL } from "@/lib/health/women-plus";
 import { womenEnabled, womenOverview } from "@/lib/health/women-service";
+import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Salud de la mujer · LifeOS" };
 
@@ -33,7 +37,7 @@ export default async function WomenHealthPage() {
   const user = await pageUser();
   if (!(await womenEnabled(user.id))) notFound();
   const day = toIsoDay(today());
-  const [o, cycle] = await Promise.all([womenOverview(user.id, day), getCycle(user.id, 60)]);
+  const [o, cycle, reports] = await Promise.all([womenOverview(user.id, day), getCycle(user.id, 60), listHealthReports(user.id)]);
   const hormonal = cycle.settings?.hormonal === "si";
 
   return (
@@ -79,7 +83,86 @@ export default async function WomenHealthPage() {
           <div className="grid gap-4">
             <LabTable series={o.labs} />
             <LabForm today={day} />
+            <div className="grid gap-1 border-t pt-3 text-sm" aria-label="Hierro en la dieta">
+              <p className="font-medium">Hierro en la dieta (7 días)</p>
+              <p>
+                {o.iron.daysWithRich} de 7 días con alimentos ricos en hierro
+                {o.iron.knownMg ? ` · al menos ${o.iron.knownMg} mg en los productos que traen el dato` : ""}.
+              </p>
+              {o.iron.richFoods.length ? <p className="text-xs text-muted-foreground">{o.iron.richFoods.join(", ")}</p> : null}
+              <p className="text-xs text-muted-foreground">
+                Marca «Fe» en una comida de Nutrición si es rica en hierro (legumbres, carne roja, mejillones, almejas…). {o.iron.unknown ? "Muchos alimentos no traen el dato: el total es un mínimo." : ""}
+              </p>
+              <ul className="list-disc pl-5 text-xs text-muted-foreground">
+                {IRON_TIPS.map((t) => (
+                  <li key={t}>{t}</li>
+                ))}
+              </ul>
+            </div>
           </div>
+        </Section>
+
+        <Section title="Tu patrón ciclo–rendimiento">
+          {o.performance.ok ? (
+            <div className="grid gap-2 text-sm">
+              <p className="text-xs text-muted-foreground">Días con regla o síntomas frente al resto, en tus {o.performance.cycles} últimos ciclos. Media e intervalo al 95 %.</p>
+              <ul className="grid gap-2" aria-label="Patrón ciclo–rendimiento">
+                {o.performance.rows.map((r) => {
+                  const meta = PERF_LABEL[r.metric];
+                  const worse = meta.higherIsBetter ? r.diff < 0 : r.diff > 0;
+                  return (
+                    <li key={r.metric} className="grid gap-0.5">
+                      <span className="font-medium">{meta.label}</span>
+                      <span className="tabular-nums">
+                        con síntomas {r.with.mean}
+                        {meta.unit} (n={r.with.n}) · sin {r.without.mean}
+                        {meta.unit} (n={r.without.n}) ·{" "}
+                        <span className={cn(r.clear && worse && "font-semibold text-destructive", r.clear && !worse && "font-semibold")}>
+                          {r.clear ? (worse ? "peor de forma clara" : "mejor de forma clara") : "sin diferencia clara"}
+                        </span>
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="text-xs text-muted-foreground">Solo con tus datos: si no hay diferencia clara, no hace falta cambiar nada del plan esos días.</p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{o.performance.reason}</p>
+          )}
+        </Section>
+
+        <Section title="Salud ósea" id="hueso">
+          <div className="grid gap-3 text-sm">
+            {o.bone ? (
+              <p>
+                Último ({o.bone.date}):{" "}
+                <span className={cn("font-semibold", o.bone.level === "red" && "text-destructive")}>
+                  {o.bone.level === "red" ? "pide valoración médica" : o.bone.level === "amber" ? "vigilar" : "sin señales"}
+                </span>
+                {o.bone.reasons.length ? <span className="block text-xs text-muted-foreground">{o.bone.reasons.join(" · ")}</span> : null}
+              </p>
+            ) : (
+              <p className="text-muted-foreground">Cribado de prudencia: cruza fracturas previas, regla, energía, calcio, vitamina D y el trabajo con impacto ({o.settings.boneImpactMin} sesiones a la semana).</p>
+            )}
+            <BoneForm today={day} initial={o.bone ? { stressFractures: o.bone.stressFractures, calciumServings: o.bone.calciumServings } : null} />
+          </div>
+        </Section>
+
+        <Section title="Para tu médica o ginecóloga">
+          <p className="mb-3 text-sm text-muted-foreground">
+            Un enlace de solo lectura con tu ciclo, analíticas, cribados, suelo pélvico y posparto. Caduca en 7 días, puedes revocarlo y tu entrenadora nunca lo ve.
+          </p>
+          <HealthReportLinks kind="MEDICAL" label="Tu médica" active={reports.filter((r) => r.kind === "MEDICAL").map((r) => ({ id: r.id, expiresAt: r.expiresAt.toISOString() }))} />
+        </Section>
+
+        <Section title="Entreno sola, con aviso">
+          <p className="text-sm text-muted-foreground">
+            Marca «salgo» con la hora de vuelta y, si no marcas «llegué», tus contactos de confianza reciben un aviso.{" "}
+            <Link href="/safety" className="font-medium text-foreground underline underline-offset-2">
+              Abrir
+            </Link>
+          </p>
         </Section>
 
         <Section title="Suelo pélvico">
@@ -97,7 +180,7 @@ export default async function WomenHealthPage() {
           </div>
         </Section>
 
-        <Section title="Próximos días (según tu ciclo)">
+        <Section title={o.learned ? "Próximos días (aprendido de tus ciclos)" : "Próximos días (según tu ciclo)"}>
           {o.predicted.length ? (
             <ul className="flex flex-wrap gap-1.5 text-xs" aria-label="Días previstos">
               {o.predicted.map((d) => (

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { zoneFatigueSchema } from "./zone-fatigue";
+
 import { isoDate } from "@/lib/dates";
 import { BODY_AREA_LABEL, type BodyAreaName } from "@/lib/recovery/injury-rules";
 
@@ -85,6 +87,7 @@ export const technicalDetailSchema = z.object({
   windMs: optNum(-20, 20),
   isCompetition: z.boolean().default(false),
   focus: z.string().max(500).nullish(),
+  cue: z.string().trim().max(60).nullish(),
   // Vídeo contado: de N revisados, cuántos con el codo estirado y con la cabeza estable
   videoTotal: optInt(0, 200),
   videoElbowOk: optInt(0, 200),
@@ -103,6 +106,7 @@ export const strengthSetSchema = z.object({
   tempo: z.string().max(20).nullish(),
   restSec: optInt(0, 3600),
   velocityMs: optNum(0, 10),
+  suggestedKg: optNum(0, 1000),
   notes: z.string().max(500).nullish(),
 });
 
@@ -131,6 +135,9 @@ const common = {
   cycleId: z.string().nullish(),
   notes: z.string().max(5000).nullish(),
   feelings: z.array(feelingSchema).max(8).nullish(),
+  /** v1.6 · fatiga por zona (0–10) al terminar; id del cliente para el registro sin conexión. */
+  zoneFatigue: zoneFatigueSchema.nullish(),
+  clientId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/).nullish(),
 };
 
 export const createSessionSchema = z.discriminatedUnion("type", [

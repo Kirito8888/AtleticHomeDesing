@@ -12,9 +12,7 @@ import { throwWeeks } from "@/lib/rules/rules-service";
 import { weekGrid } from "@/lib/training/week";
 import { formatDate, formatDuration, formatNum, formatPace, SESSION_TYPE_LABEL, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { getCycle } from "@/lib/health/cycle-service";
-import { predictedDays } from "@/lib/health/women";
-import { dataKeyConfigured } from "@/lib/security/data-key";
+import { cyclePredictions } from "@/lib/health/cycle-service";
 
 export const metadata = { title: "Entrenamiento · LifeOS" };
 
@@ -49,8 +47,7 @@ export default async function TrainingPage() {
     throwWeeks(user.id, toIsoDay(now)),
   ]);
   // Días previstos de regla o síntomas (solo para ella; cálculo local).
-  const cycleData = dataKeyConfigured() ? await getCycle(user.id, 200) : null;
-  const predicted = new Map(predictedDays(cycleData?.settings ?? null, cycleData?.logs ?? [], toIsoDay(now), toIsoDay(addDays(now, 7))).map((p) => [p.date, p]));
+  const predicted = new Map((await cyclePredictions(user.id, toIsoDay(now), toIsoDay(addDays(now, 7)))).map((p) => [p.date, p]));
   const week = weekGrid(
     weekSessions.map((s) => ({ date: toIsoDay(s.date), status: s.status })),
     toIsoDay(monday),
@@ -91,6 +88,18 @@ export default async function TrainingPage() {
           </div>
         }
       />
+
+      <nav aria-label="Más de entrenamiento" className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <Link href="/training/javelin" className="underline underline-offset-4">
+          Análisis de jabalina
+        </Link>
+        <Link href="/training/prehab" className="underline underline-offset-4">
+          Prehabilitación
+        </Link>
+        <Link href="/training/seasons" className="underline underline-offset-4">
+          Temporadas
+        </Link>
+      </nav>
 
       <WeekStrip days={week} today={toIsoDay(now)} throws={throwsInfo.weeks.at(-1)?.throws ?? 0} cap={throwsInfo.cap} />
 

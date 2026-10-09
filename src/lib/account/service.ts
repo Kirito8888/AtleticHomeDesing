@@ -7,7 +7,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { env } from "@/lib/env";
 import { getCycle } from "@/lib/health/cycle-service";
 import { prisma } from "@/lib/prisma";
-import { dataKeyConfigured } from "@/lib/security/data-key";
+import { dataKeyConfigured, openJson } from "@/lib/security/data-key";
 import { type AuditContext, recordEvent } from "@/lib/security/audit";
 import { getWomen } from "@/lib/health/women-service";
 
@@ -151,6 +151,30 @@ export async function exportAccount(userId: string) {
     // Los de sus sesiones (de quien sea) y los que escribió en sesiones de sus atletas
     prisma.sessionComment.findMany({ where: { OR: [{ athleteId: userId }, { authorId: userId }] }, orderBy: { createdAt: "asc" }, include: { author: { select: { name: true, email: true } } } }),
   ]);
+  // v1.6: jabalina, prehab, antropometría, salud (suplementos, citas, enlaces, «entreno sola»), cocina, estudio, viajes y plazos
+  const [minimums, weekTemplates, prehabRoutines, bodyMeasures, supplements, appointments, healthReports, safetyContacts, safetyTrips, recipes, shopping, studyPlanBlocks, grades, trips, deadlines] = await Promise.all([
+    prisma.minimum.findMany({ where }),
+    prisma.weekTemplate.findMany({ where }),
+    prisma.prehabRoutine.findMany({ where, include: { logs: { select: { date: true }, orderBy: { date: "asc" } } } }),
+    prisma.bodyMeasure.findMany({ where, orderBy: { date: "asc" } }),
+    prisma.supplement.findMany({ where }),
+    prisma.appointment.findMany({ where, orderBy: { at: "asc" } }),
+    prisma.healthReport.findMany({ where, omit: { tokenHash: true } }),
+    prisma.safetyContact.findMany({
+      where: { OR: [{ userId }, { contactId: userId }] },
+      select: { status: true, createdAt: true, userId: true, owner: { select: { name: true, email: true } }, contact: { select: { name: true, email: true } } },
+    }),
+    prisma.safetyTrip.findMany({ where, orderBy: { startedAt: "asc" } }),
+    prisma.recipe.findMany({ where }),
+    prisma.shoppingItem.findMany({ where }),
+    prisma.studyPlanBlock.findMany({ where, orderBy: { date: "asc" } }),
+    prisma.grade.findMany({ where }),
+    prisma.trip.findMany({ where }),
+    prisma.deadline.findMany({ where, orderBy: { dueOn: "asc" } }),
+  ]);
+  // Lo cifrado (nota y ubicación de «entreno sola») se entrega descifrado a su dueña, o se omite sin clave
+  const safetyTripsOut = safetyTrips.map(({ data, ...t }) => ({ ...t, details: data && dataKeyConfigured() ? openJson(data) : null }));
+  const safetyContactsOut = safetyContacts.map((c) => ({ status: c.status, createdAt: c.createdAt, role: c.userId === userId ? "MY_CONTACT" : "I_AM_CONTACT", person: c.userId === userId ? c.contact : c.owner }));
   return {
     exportedAt: new Date().toISOString(),
     format: "lifeos-export/2",
@@ -168,12 +192,21 @@ export async function exportAccount(userId: string) {
       physicalTests: testResults,
       equipment,
       comments: sessionComments,
+      minimums,
+      weekTemplates,
+      prehabRoutines,
     },
-    recovery: { metrics: recoveryMetrics, injuries, returnProtocols, menstrualCycle: cycle, womenHealth: women ? { settings: women.settings, logs: women.logs } : null },
+    recovery: { metrics: recoveryMetrics, injuries, returnProtocols, menstrualCycle: cycle, womenHealth: women ? { settings: women.settings, logs: women.logs } : null,
+      bodyMeasures,
+      supplements,
+      appointments,
+      healthReports,
+      safety: { contacts: safetyContactsOut, trips: safetyTripsOut },
+    },
     planning: { calendarEvents, tasks, importedPlan: planMesos },
-    finance: { accounts: financialAccounts, categories: financialCategories, transactions, budgets, subscriptions },
-    nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration },
-    study: { documents: studyDocuments, chatThreads, flashcardDecks, classSlots, sessions: studySessions, habits },
+    finance: { accounts: financialAccounts, categories: financialCategories, transactions, budgets, subscriptions, trips, deadlines },
+    nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration, recipes, shopping },
+    study: { documents: studyDocuments, chatThreads, flashcardDecks, classSlots, sessions: studySessions, habits, planBlocks: studyPlanBlocks, grades },
     coach: { reports: coachReports, links: coachLinks, sharedReports },
     calendarFeeds,
     security: { events: securityEvents },

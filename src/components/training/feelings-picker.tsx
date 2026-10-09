@@ -1,5 +1,6 @@
 "use client";
 
+import { BodyMap } from "@/components/form/body-map";
 import { Chips } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
@@ -32,6 +33,13 @@ export function FeelingsPicker({ value, onChange }: { value: FeelingValue[]; onC
           <Chips label={`Dolor ${BODY_AREA_LABEL[f.area]}`} options={PAIN} value={f.pain} onChange={(pain) => pain != null && set(i, { pain })} />
         </div>
       ))}
+      {value.length < 8 ? (
+        <BodyMap
+          label="Toca dónde te molesta"
+          marked={value.map((f) => f.area)}
+          onPick={(area) => (value.some((f) => f.area === area) ? onChange(value.filter((f) => f.area !== area)) : onChange([...value, { area, side: null, pain: 3 }]))}
+        />
+      ) : null}
       {free.length && value.length < 8 ? (
         <Select
           aria-label="Añadir molestia"

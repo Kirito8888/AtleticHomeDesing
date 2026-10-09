@@ -4,6 +4,12 @@ import { notFound } from "next/navigation";
 import { AttemptSheet } from "@/components/competition/attempt-sheet";
 import { CompetitionChecklist } from "@/components/competition/checklist";
 import { WarmupTimer } from "@/components/competition/warmup-timer";
+import { TaperCard } from "@/components/competition/taper-card";
+import { CompMeals } from "@/components/competition/comp-meals";
+import { mealNow } from "@/lib/nutrition/kitchen";
+import { minutesUntil } from "@/lib/planning/competition";
+import { taperProposal } from "@/lib/planning/taper-service";
+import { supplementsToCheck } from "@/lib/recovery/health-admin";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
@@ -22,13 +28,19 @@ export default async function CompetitionPage({ params }: PageProps<"/planning/c
   const ev = await prisma.calendarEvent.findFirst({ where: { id, userId: user.id } });
   if (!ev) notFound();
   const day = toIsoDay(ev.startAt);
-  const [prefs, done] = await Promise.all([
+  const [prefs, done, taper] = await Promise.all([
     getPrefs(user.id),
     prisma.trainingSession.findMany({
       where: { userId: user.id, date: ev.startAt, technical: { isCompetition: true } },
       select: { id: true, title: true, technical: { select: { bestMarkM: true } } },
     }),
+    ev.type === "COMPETITION" ? taperProposal(user.id, ev.id) : null,
   ]);
+  const supps = await prisma.supplement.findMany({ where: { userId: user.id }, select: { id: true, name: true, endedOn: true, checkedOn: true } });
+  const toCheck = supplementsToCheck(
+    supps.map((s) => ({ ...s, endedOn: s.endedOn ? toIsoDay(s.endedOn) : null, checkedOn: s.checkedOn ? toIsoDay(s.checkedOn) : null })),
+    toIsoDay(today()),
+  );
   const todayIso = toIsoDay(today());
   return (
     <>
@@ -36,6 +48,11 @@ export default async function CompetitionPage({ params }: PageProps<"/planning/c
       <p className="mb-4 text-4xl font-semibold tabular-nums" aria-label="Cuenta atrás">
         {countdownLabel(day, todayIso)}
       </p>
+      {toCheck.length ? (
+        <Link href="/recovery/health" role="status" className="mb-4 block rounded-md border border-amber-500/50 bg-amber-500/5 p-3 text-sm">
+          Antes de competir, comprueba en la lista oficial: {toCheck.map((s) => s.name).join(", ")}.
+        </Link>
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="gap-3 py-4">
           <CardHeader className="px-4">
@@ -43,6 +60,24 @@ export default async function CompetitionPage({ params }: PageProps<"/planning/c
           </CardHeader>
           <CardContent className="px-4">
             <CompetitionChecklist eventId={ev.id} items={prefs.checklist} />
+          </CardContent>
+        </Card>
+        {taper && day > toIsoDay(today()) ? (
+          <Card className="gap-3 py-4">
+            <CardHeader className="px-4">
+              <CardTitle className="text-base">Afinamiento{taper.priority === "A" ? " (competición A)" : ""}</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4">
+              <TaperCard eventId={ev.id} pct={taper.pct} nDays={taper.nDays} days={taper.days} applied={taper.applied} />
+            </CardContent>
+          </Card>
+        ) : null}
+        <Card className="gap-3 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base">Comida del día</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <CompMeals meals={prefs.compMeals} current={!ev.allDay ? mealNow(minutesUntil(ev.startAt)) : null} />
           </CardContent>
         </Card>
         <Card className="gap-3 py-4">

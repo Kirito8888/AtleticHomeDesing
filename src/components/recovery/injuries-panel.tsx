@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
 import { formatDate } from "@/lib/format";
+import { BodyMap } from "@/components/form/body-map";
 import { BODY_AREA_LABEL, type BodyAreaName, injuryName } from "@/lib/recovery/injury-rules";
 import { currentPhase, painAllows, type ProtocolPhases } from "@/lib/recovery/return-protocol";
 
@@ -38,6 +39,7 @@ export function InjuriesPanel({ injuries, today }: { injuries: InjuryView[]; tod
   const active = injuries.filter((i) => !i.resolvedOn);
   const past = injuries.filter((i) => i.resolvedOn).slice(0, 5);
 
+  const [area, setArea] = useState<BodyAreaName>("KNEE");
   async function run(fn: () => Promise<unknown>, ok: string) {
     setBusy(true);
     try {
@@ -58,7 +60,7 @@ export function InjuriesPanel({ injuries, today }: { injuries: InjuryView[]; tod
       <CardHeader className="flex flex-row items-center justify-between px-4">
         <CardTitle className="text-sm">Molestias y lesiones</CardTitle>
         {!adding ? (
-          <Button size="sm" variant="outline" onClick={() => setAdding(true)}>
+          <Button size="sm" variant="outline" aria-label="Añadir molestia" onClick={() => setAdding(true)}>
             Añadir
           </Button>
         ) : null}
@@ -87,9 +89,10 @@ export function InjuriesPanel({ injuries, today }: { injuries: InjuryView[]; tod
               if (ok) setAdding(false);
             }}
           >
+            <BodyMap label="Toca la zona" marked={[area]} onPick={setArea} />
             <div className="grid grid-cols-2 gap-2">
               <Field label="Zona" htmlFor="inj-area">
-                <Select id="inj-area" name="area" defaultValue="KNEE">
+                <Select id="inj-area" name="area" value={area} onChange={(e) => setArea(e.target.value as BodyAreaName)}>
                   {Object.entries(BODY_AREA_LABEL).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v}

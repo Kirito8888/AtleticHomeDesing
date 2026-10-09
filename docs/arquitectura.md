@@ -108,16 +108,18 @@ Reimportar respeta lo ya hecho. Detalle en `manual_backend.md` § 3.1b.
 
 | Ruta | Contenido |
 |---|---|
-| `src/lib/training/` | Motor de carga, importar del reloj, plantillas, temporizador, tabla de RM y %RM → kg, registrar desde el plan, 3 mejores por implemento |
-| `src/lib/planning/` | Agenda del calendario, `plan-import/` (lector de PDF, versiones, servicio), cumplimiento, competición y calendario .ics |
+| `src/lib/training/` | Motor de carga, importar del reloj, plantillas, temporizador, tabla de RM y %RM → kg, registrar desde el plan, 3 mejores por implemento; v1.6: kg del día (`autoreg.ts`), análisis de jabalina, temporadas, prehab y fatiga por zona |
+| `src/lib/planning/` | Agenda del calendario, `plan-import/` (lector de PDF, versiones, servicio), cumplimiento, competición y calendario .ics; v1.6: afinamiento, recolocar y semanas tipo (sugerencias que no tocan el plan sin confirmar) |
 | `src/lib/ai-plan/` | Crear planificación con IA: cuestionario, prompt, validación, expansión a días, ajustes y seguimiento |
-| `src/lib/rules/` | «Mis reglas»: preferencias y motor de avisos (control rápido, peso, VFC, lanzamientos, vídeo, sensaciones) |
-| `src/lib/health/` | Ciclo menstrual (cifrado, cálculo local de fase y síntomas) |
+| `src/lib/rules/` | «Mis reglas»: preferencias y motor de avisos (control rápido, peso, VFC, lanzamientos, vídeo, sensaciones) y semáforo del día |
+| `src/lib/health/` | Ciclo menstrual y salud de la mujer (cifrado), patrón y predicción aprendida, salud ósea, enlaces para médica y fisio, «entreno sola» |
 | `src/lib/report/` | Informe de solo lectura para la entrenadora |
-| `src/lib/finance/` | Contabilidad, presupuestos, importar extractos |
+| `src/lib/finance/` | Contabilidad, presupuestos, importar extractos, viajes de competición y plazos |
 | `src/lib/ai/` | Gemini, RAG, flashcards, coach semanal |
 | `src/lib/security/` · `src/lib/auth/` | 2FA, auditoría, cifrado, CSP · sesión y permisos del coach |
 | `src/lib/push/` · `src/lib/jobs/` · `src/lib/scheduler.ts` | Notificaciones · cola · tareas programadas |
 | `prisma/` | Esquema, migraciones, seed y `scripts/user-admin.ts` |
 | `deploy/` · `scripts/update.sh` | Copias, fail2ban · actualizar con vuelta atrás |
-| `e2e/` | Recorridos en Chromium: uso diario, seguridad, importar el plan y v1.4 |
+| `src/lib/recovery/` · `src/lib/nutrition/` · `src/lib/study/` | Readiness, importaciones (CSV, Apple Health), antropometría, citas y suplementos · OpenFoodFacts, agua, cocina (recetas, compra, comida de competición) · horario, pomodoro, hábitos, plan hasta el examen y notas |
+| `src/lib/offline/` · `src/lib/account/` | Bandeja sin conexión (IndexedDB) · exportar, restaurar y borrar la cuenta |
+| `e2e/` | Recorridos en Chromium: uso diario, seguridad, importar el plan, v1.4, v1.5 y v1.6 |

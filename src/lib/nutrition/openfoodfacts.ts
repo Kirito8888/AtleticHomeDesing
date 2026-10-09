@@ -26,6 +26,7 @@ export interface OffNutriments {
   "saturated-fat_100g"?: number;
   fiber_100g?: number;
   salt_100g?: number;
+  iron_100g?: number; // g
 }
 
 export interface OffProduct {
@@ -53,6 +54,8 @@ export interface NormalizedFood {
   satFatPer100g: number | null;
   fiberPer100g: number | null;
   saltPer100g: number | null;
+  /** mg (OFF lo da en g); a menudo no viene. */
+  ironPer100g: number | null;
   nutriScore: string | null;
 }
 
@@ -83,6 +86,7 @@ export function normalizeOffProduct(p: OffProduct): NormalizedFood | null {
     satFatPer100g: num(n["saturated-fat_100g"]),
     fiberPer100g: num(n.fiber_100g),
     saltPer100g: num(n.salt_100g),
+    ironPer100g: num(n.iron_100g) != null ? num(n.iron_100g! * 1000) : null,
     nutriScore: grade && /^[A-E]$/.test(grade) ? grade : null,
   };
 }

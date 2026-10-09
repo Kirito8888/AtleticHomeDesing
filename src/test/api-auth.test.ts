@@ -11,10 +11,11 @@ const PUBLIC_ROUTES = new Set([
   "health/route.ts", // healthcheck de Docker: no devuelve datos de usuarios
   "calendar/ics/[token]/route.ts", // calendario .ics: token de 32 bytes (hash en BD), revocable, sin datos de salud
   "report/[token]/route.ts", // informe para la entrenadora: token de 32 bytes, caduca a los 7 días, revocable
+  "shared/health/[token]/route.ts", // v1.6: resumen para la médica o el fisio, lo crea la propia persona: token, 7 días, revocable
 ]);
 
 // Las rutas públicas con token deben limitar peticiones y validar el token.
-const TOKEN_ROUTES = ["calendar/ics/[token]/route.ts", "report/[token]/route.ts"];
+const TOKEN_ROUTES = ["calendar/ics/[token]/route.ts", "report/[token]/route.ts", "shared/health/[token]/route.ts"];
 
 const API = path.resolve(__dirname, "../app/api");
 

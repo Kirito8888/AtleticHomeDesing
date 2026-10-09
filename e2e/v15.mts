@@ -344,7 +344,7 @@ await admin.goto(B + "/settings#servidor");
 const status = admin.getByLabel("Estado del servidor");
 await status.getByText(/Base de datos/).waitFor();
 await status.getByText(/OK \(\d+ ms/).waitFor();
-await status.getByText(/v1_5_backup_log/).waitFor();
+await status.getByText(/_v1_\d+_/).waitFor();
 await admin.screenshot({ path: `${out}/v15-09-status.png`, fullPage: true });
 await admin.context().close();
 log("estado del servidor solo para admin");

@@ -17,7 +17,7 @@ describe("planificado frente a hecho", () => {
         { exerciseId: "pull", exercise: "Dominadas", reps: 8, weightKg: 0, isWarmup: false },
       ],
     );
-    expect(r[0]).toEqual({ exercise: "Sentadilla", exerciseId: "sq", plan: { sets: 3, reps: 12, avgKg: 80, tonnage: 960 }, done: { sets: 2, reps: 8, avgKg: 81.3, tonnage: 650 }, tonnagePct: -32 });
+    expect(r[0]).toEqual({ suggestedKg: null, exercise: "Sentadilla", exerciseId: "sq", plan: { sets: 3, reps: 12, avgKg: 80, tonnage: 960 }, done: { sets: 2, reps: 8, avgKg: 81.3, tonnage: 650 }, tonnagePct: -32 });
     expect(r[1]).toMatchObject({ exercise: "Ejercicio raro", done: null });
     expect(r[2]).toMatchObject({ exercise: "Dominadas", plan: null, done: { sets: 1, avgKg: null } });
   });

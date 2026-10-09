@@ -7,6 +7,7 @@ import { Stepper } from "@/components/form/stepper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatNum } from "@/lib/format";
+import { suggestKg } from "@/lib/training/autoreg";
 import { estimateOneRm, repsInReserve, tonnageKg } from "@/lib/training/strength";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +24,14 @@ export interface SetRow {
   isWarmup: boolean;
   /** VBT: velocidad media (m/s), opcional. */
   velocityMs?: number | null;
+  /** v1.6 · lo que pide el plan (solo lectura) y los kg del día aceptados con «Usar». */
+  planKg?: number | null;
+  planReps?: number | null;
+  planRir?: number | null;
+  suggestedKg?: number | null;
 }
+
+export type AutoregContext = { maxPct: number; step: number; mvt: number; profiles: Record<string, { slope: number; intercept: number }> };
 
 export interface ExerciseBlock {
   key: string;
@@ -45,7 +53,7 @@ export function blocksToSets(blocks: ExerciseBlock[]) {
   return blocks.flatMap((b) =>
     b.sets
       .filter((s) => s.reps != null && s.reps > 0)
-      .map((s) => ({ exerciseId: b.exerciseId, reps: s.reps!, weightKg: s.weightKg ?? 0, rpe: s.rpe, isWarmup: s.isWarmup, ...(s.velocityMs ? { velocityMs: s.velocityMs } : {}) })),
+      .map((s) => ({ exerciseId: b.exerciseId, reps: s.reps!, weightKg: s.weightKg ?? 0, rpe: s.rpe, isWarmup: s.isWarmup, ...(s.velocityMs ? { velocityMs: s.velocityMs } : {}), ...(s.suggestedKg ? { suggestedKg: s.suggestedKg } : {}) })),
   );
 }
 
@@ -89,11 +97,14 @@ export function StrengthLogger({
   onChange,
   bodyWeightKg,
   onSetCompleted,
+  autoreg,
 }: {
   exercises: ExerciseOption[];
   blocks: ExerciseBlock[];
   onChange: (b: ExerciseBlock[]) => void;
   bodyWeightKg: number | null;
+  /** v1.6 · kg del día: tope, paso de discos y perfiles carga-velocidad. Sin él no se sugiere nada. */
+  autoreg?: AutoregContext;
   /** Se llama al pulsar "Repetir serie" (= serie terminada): arranca el descanso. */
   onSetCompleted?: () => void;
 }) {
@@ -119,6 +130,20 @@ export function StrengthLogger({
                 estimateOneRm((s.weightKg ?? 0) + (ex?.bodyweightFactor ?? 0) * (bodyWeightKg ?? 0), s.reps!, repsInReserve({ rpe: s.rpe })) ?? 0,
             ),
         );
+        // Kg del día: con la 1.ª serie efectiva (con RPE/RIR o velocidad) de un ejercicio que viene del plan
+        const firstIdx = block.sets.findIndex((x) => !x.isWarmup && x.reps && x.weightKg && (x.rpe != null || x.velocityMs));
+        const firstSet = firstIdx >= 0 ? block.sets[firstIdx] : null;
+        const planSet = firstSet?.planKg && firstSet.planReps && firstSet.planRir != null ? firstSet : null;
+        const later = firstIdx >= 0 ? block.sets.slice(firstIdx + 1).filter((x) => !x.isWarmup && x.planKg) : [];
+        const suggestion =
+          autoreg && planSet && later.length
+            ? suggestKg(
+                { kg: planSet.planKg!, reps: planSet.planReps!, rir: planSet.planRir! },
+                { kg: firstSet!.weightKg!, reps: firstSet!.reps!, rir: firstSet!.rpe != null ? repsInReserve({ rpe: firstSet!.rpe }) : null, velocityMs: firstSet!.velocityMs ?? null },
+                { maxPct: autoreg.maxPct, step: autoreg.step, mvt: autoreg.mvt, profile: autoreg.profiles[block.exerciseId] ?? null },
+              )
+            : null;
+        const applied = suggestion != null && later.every((x) => x.weightKg === suggestion.kg && x.suggestedKg === suggestion.kg);
         return (
           <section key={block.key} className="grid gap-2 rounded-lg border p-3" aria-label={ex?.name}>
             <div className="flex items-center justify-between gap-2">
@@ -205,6 +230,30 @@ export function StrengthLogger({
                 ) : null}
               </div>
             ))}
+
+            {suggestion ? (
+              <div role="status" aria-label={`Kg del día de ${ex?.name ?? "ejercicio"}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 p-2 text-sm">
+                <span>
+                  Plan <span className="tabular-nums">{formatNum(planSet!.planKg!, 2)} kg</span> · Hoy{" "}
+                  <span className="font-semibold tabular-nums">{formatNum(suggestion.kg, 2)} kg</span>
+                  <span className="block text-xs text-muted-foreground">{suggestion.text} El plan no cambia.</span>
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={applied ? "ghost" : "default"}
+                  disabled={applied}
+                  onClick={() =>
+                    update(block.key, (b) => ({
+                      ...b,
+                      sets: b.sets.map((x, j) => (j > firstIdx && !x.isWarmup && x.planKg ? { ...x, weightKg: suggestion.kg, suggestedKg: suggestion.kg } : x)),
+                    }))
+                  }
+                >
+                  {applied ? "Aplicado" : "Usar en las series que quedan"}
+                </Button>
+              </div>
+            ) : null}
 
             <Button
               type="button"

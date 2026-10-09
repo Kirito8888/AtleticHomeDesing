@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { AddFoodSheet } from "@/components/nutrition/add-food-sheet";
-import { DeleteEntry } from "@/components/nutrition/delete-entry";
+import { DeleteEntry, IronToggle } from "@/components/nutrition/delete-entry";
+import { womenEnabled } from "@/lib/health/women-service";
 import { MealShortcuts, SaveMealFavorite } from "@/components/nutrition/meal-shortcuts";
 import { MEAL_LABEL } from "@/components/nutrition/meals";
 import { PageHeader } from "@/components/page-header";
@@ -22,6 +23,7 @@ export const metadata = { title: "Nutrición · LifeOS" };
 
 export default async function NutritionPage({ searchParams }: PageProps<"/nutrition">) {
   const user = await pageUser();
+  const showIron = await womenEnabled(user.id);
   const { date: raw } = await searchParams;
   const date = typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : toIsoDay(today());
   const [day, yesterday, favorites, water] = await Promise.all([
@@ -59,6 +61,15 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
         </Button>
       </div>
 
+      <nav aria-label="Cocina" className="mb-4 flex gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href="/nutrition/shopping">Lista de la compra</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/nutrition/recipes">Recetas</Link>
+        </Button>
+      </nav>
+
       <Card className="mb-4 py-4">
         <CardContent className="grid gap-3 px-4 sm:grid-cols-2">
           {(
@@ -86,7 +97,7 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
         </CardContent>
       </Card>
 
-      <div className="mb-4">
+      <div id="agua" className="mb-4 scroll-mt-20">
         <WaterCard date={date} ml={water.ml} target={water.target} hot={water.hot} hasSession={water.hasSession} maxTemp={water.maxTemp} />
       </div>
       <MealShortcuts date={date} yesterday={yesterday} favorites={favorites} />
@@ -119,6 +130,7 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
                             </div>
                           </div>
                           <span className="shrink-0 tabular-nums">{Math.round(e.kcal)}</span>
+                          {showIron ? <IronToggle id={e.id} name={name} initial={e.ironRich} /> : null}
                           <DeleteEntry id={e.id} name={name} />
                         </li>
                       );
