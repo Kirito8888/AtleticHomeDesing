@@ -9,6 +9,7 @@ import { getCycle } from "@/lib/health/cycle-service";
 import { prisma } from "@/lib/prisma";
 import { dataKeyConfigured } from "@/lib/security/data-key";
 import { type AuditContext, recordEvent } from "@/lib/security/audit";
+import { getWomen } from "@/lib/health/women-service";
 
 /** Re-autenticación para operaciones sensibles. Limitada para no servir de oráculo de fuerza bruta. */
 export async function verifyCurrentPassword(userId: string, password: string): Promise<void> {
@@ -122,7 +123,7 @@ export async function exportAccount(userId: string) {
       include: { coach: { select: { name: true, email: true } }, athlete: { select: { name: true, email: true } } },
     }),
   ]);
-  const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos, cycle, oneRepMaxes, exerciseAliases, sharedReports, calendarFeeds] = await Promise.all([
+  const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos, cycle, oneRepMaxes, exerciseAliases, sharedReports, calendarFeeds, women] = await Promise.all([
     prisma.securityEvent.findMany({ where, orderBy: { createdAt: "desc" }, omit: { userId: true } }),
     prisma.injury.findMany({ where, orderBy: { startedOn: "asc" } }),
     prisma.sessionTemplate.findMany({ where }),
@@ -135,6 +136,20 @@ export async function exportAccount(userId: string) {
     // Enlaces compartidos: solo metadatos (el hash del token no sirve a nadie).
     prisma.sharedReport.findMany({ where, omit: { tokenHash: true } }),
     prisma.calendarFeed.findMany({ where, omit: { tokenHash: true } }),
+    // Salud de la mujer descifrada para su dueña (si el servidor tiene la clave).
+    dataKeyConfigured() ? getWomen(userId) : Promise.resolve(null),
+  ]);
+  // v1.5: tests físicos, vuelta por fases, agua, horario, estudio, hábitos, material y comentarios
+  const [testResults, returnProtocols, hydration, classSlots, studySessions, habits, equipment, sessionComments] = await Promise.all([
+    prisma.testResult.findMany({ where, orderBy: { date: "asc" } }),
+    prisma.returnProtocol.findMany({ where }),
+    prisma.hydrationLog.findMany({ where, orderBy: { date: "asc" } }),
+    prisma.classSlot.findMany({ where }),
+    prisma.studySession.findMany({ where, orderBy: { date: "asc" } }),
+    prisma.habit.findMany({ where, include: { logs: { select: { date: true }, orderBy: { date: "asc" } } } }),
+    prisma.equipment.findMany({ where }),
+    // Los de sus sesiones (de quien sea) y los que escribió en sesiones de sus atletas
+    prisma.sessionComment.findMany({ where: { OR: [{ athleteId: userId }, { authorId: userId }] }, orderBy: { createdAt: "asc" }, include: { author: { select: { name: true, email: true } } } }),
   ]);
   return {
     exportedAt: new Date().toISOString(),
@@ -150,12 +165,15 @@ export async function exportAccount(userId: string) {
       templates: sessionTemplates,
       oneRepMaxes,
       exerciseAliases,
+      physicalTests: testResults,
+      equipment,
+      comments: sessionComments,
     },
-    recovery: { metrics: recoveryMetrics, injuries, menstrualCycle: cycle },
+    recovery: { metrics: recoveryMetrics, injuries, returnProtocols, menstrualCycle: cycle, womenHealth: women ? { settings: women.settings, logs: women.logs } : null },
     planning: { calendarEvents, tasks, importedPlan: planMesos },
     finance: { accounts: financialAccounts, categories: financialCategories, transactions, budgets, subscriptions },
-    nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates },
-    study: { documents: studyDocuments, chatThreads, flashcardDecks },
+    nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration },
+    study: { documents: studyDocuments, chatThreads, flashcardDecks, classSlots, sessions: studySessions, habits },
     coach: { reports: coachReports, links: coachLinks, sharedReports },
     calendarFeeds,
     security: { events: securityEvents },

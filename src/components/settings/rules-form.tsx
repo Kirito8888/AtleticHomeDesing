@@ -23,7 +23,12 @@ type RuleKeys =
   | "throwCapRatio"
   | "throwMinHours"
   | "hrvDropPct"
-  | "videoMinPct";
+  | "videoMinPct"
+  | "monotonyMax"
+  | "sleepTargetH"
+  | "sleepDebtMaxH"
+  | "vbtMvt"
+  | "vbtLossMax";
 export type RuleValues = Pick<Prefs, RuleKeys>;
 
 const KG_STEPS = [0.5, 1, 1.25, 2.5] as const;
@@ -83,6 +88,11 @@ export function RulesForm({ initial }: { initial: RuleValues }) {
         {num("throwMinHours", "Horas entre sesiones de lanzamiento", { step: 6, max: 168, suffix: "h" })}
         {num("hrvDropPct", "VFC: caída que cuenta", { step: 0.5, decimals: 1, max: 30, suffix: "%" })}
         {num("videoMinPct", "Vídeo: mínimo correcto", { step: 5, max: 100, suffix: "%" })}
+        {num("monotonyMax", "Monotonía (Foster): avisar por encima de", { step: 0.1, decimals: 1, min: 1, max: 5 })}
+        {num("sleepTargetH", "Sueño: horas objetivo", { step: 0.5, decimals: 1, min: 5, max: 12, suffix: "h" })}
+        {num("vbtMvt", "VBT: velocidad mínima (RM)", { step: 0.05, decimals: 2, min: 0.1, max: 1, suffix: "m/s" })}
+        {num("vbtLossMax", "VBT: pérdida de velocidad para avisar", { step: 1, min: 5, max: 60, suffix: "%" })}
+        {num("sleepDebtMaxH", "Deuda de sueño (7 días): avisar desde", { step: 0.5, decimals: 1, min: 1, max: 30, suffix: "h" })}
       </div>
       <Button type="button" onClick={save} disabled={saving}>
         {saving ? "Guardando…" : "Guardar mis reglas"}

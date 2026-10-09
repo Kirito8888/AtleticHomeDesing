@@ -112,7 +112,7 @@ export function QuickTransaction({
                   moneyAccountId: str(f, "account"),
                   counterAccountId: kind === "TRANSFER" ? str(f, "to") : undefined,
                   categoryId: kind === "TRANSFER" ? null : str(f, "category"),
-                  sport: kind === "EXPENSE" && sport,
+                  sport: (kind === "EXPENSE" || kind === "INCOME") && sport,
                   eventId: kind === "EXPENSE" && sport ? str(f, "event") || null : null,
                 },
                 "Movimiento guardado",
@@ -171,6 +171,12 @@ export function QuickTransaction({
             <Field label="Fecha" htmlFor="t-date">
               <Input id="t-date" name="date" type="date" defaultValue={today} required />
             </Field>
+            {kind === "INCOME" ? (
+              <label className="flex items-center justify-between gap-3 text-sm">
+                <span>Ingreso deportivo (beca, premio, patrocinio)</span>
+                <Switch checked={sport} onCheckedChange={setSport} aria-label="Ingreso deportivo" />
+              </label>
+            ) : null}
             {kind === "EXPENSE" ? (
               <div className="grid gap-2">
                 <label className="flex items-center justify-between gap-3 text-sm">
@@ -472,8 +478,8 @@ export function DeleteTransaction({ id }: { id: string }) {
   );
 }
 
-/** Marca o desmarca un gasto como deportivo. */
-export function SportToggle({ id, sport }: { id: string; sport: boolean }) {
+/** Marca o desmarca un gasto o ingreso como deportivo. */
+export function SportToggle({ id, sport, income = false }: { id: string; sport: boolean; income?: boolean }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   return (
@@ -483,7 +489,7 @@ export function SportToggle({ id, sport }: { id: string; sport: boolean }) {
       size="icon"
       disabled={busy}
       aria-pressed={sport}
-      aria-label={sport ? "Quitar de gastos deportivos" : "Marcar como gasto deportivo"}
+      aria-label={income ? (sport ? "Quitar de ingresos deportivos" : "Marcar como ingreso deportivo") : sport ? "Quitar de gastos deportivos" : "Marcar como gasto deportivo"}
       className={sport ? "" : "opacity-40"}
       onClick={async () => {
         setBusy(true);

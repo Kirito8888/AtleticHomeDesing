@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { hashShareToken, isShareToken, newShareToken } from "@/lib/security/share-token";
 
-import { countdownLabel, sheetBest } from "./competition";
+import { countdownLabel, hhmm, sheetBest, warmupSchedule } from "./competition";
 import { buildIcs, foldLine, icsText } from "./ics";
 
 describe("modo competición", () => {
@@ -15,6 +15,21 @@ describe("modo competición", () => {
   it("mejor intento de la hoja", () => {
     expect(sheetBest([{ markM: 50, isFoul: false, windMs: null }, { markM: 55, isFoul: true, windMs: null }, { markM: null, isFoul: false, windMs: null }])).toBe(50);
     expect(sheetBest([{ markM: null, isFoul: true, windMs: null }])).toBeNull();
+  });
+});
+
+describe("calentamiento cronometrado", () => {
+  it("bloques hacia atrás desde la hora de la prueba", () => {
+    const blocks = [
+      { name: "Movilidad", minutes: 10 },
+      { name: "Carrera", minutes: 10 },
+      { name: "Lanzamientos", minutes: 15 },
+    ];
+    const ev = 18 * 60; // 18:00
+    expect(hhmm(warmupSchedule(blocks, ev, 0).startMin)).toBe("17:25");
+    expect(warmupSchedule(blocks, ev, (17 * 60 + 20) * 60)).toMatchObject({ phase: "before", remainingSec: 300 });
+    expect(warmupSchedule(blocks, ev, (17 * 60 + 40) * 60)).toMatchObject({ phase: "during", current: 1, remainingSec: 300 });
+    expect(warmupSchedule(blocks, ev, ev * 60)).toMatchObject({ phase: "done" });
   });
 });
 

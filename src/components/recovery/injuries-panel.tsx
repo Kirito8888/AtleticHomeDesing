@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
 import { formatDate } from "@/lib/format";
 import { BODY_AREA_LABEL, type BodyAreaName, injuryName } from "@/lib/recovery/injury-rules";
+import { currentPhase, painAllows, type ProtocolPhases } from "@/lib/recovery/return-protocol";
 
 export interface InjuryView {
   id: string;
@@ -23,6 +24,8 @@ export interface InjuryView {
   startedOn: string;
   resolvedOn: string | null;
   notes: string | null;
+  /** Vuelta por fases (si se ha creado). */
+  protocol?: ProtocolPhases | null;
 }
 
 const PAIN = Array.from({ length: 11 }, (_, i) => ({ value: i, label: String(i) }));
@@ -139,6 +142,13 @@ export function InjuriesPanel({ injuries, today }: { injuries: InjuryView[]; tod
                   {i.limitsTraining ? " · limita el entreno" : ""}
                   {i.notes ? ` · ${i.notes}` : ""}
                 </p>
+                {i.protocol ? (
+                  <ProtocolView injuryId={i.id} phases={i.protocol} pain={i.pain} busy={busy} run={run} />
+                ) : (
+                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => run(() => api(`/api/recovery/injuries/${i.id}/protocol`, { method: "POST" }), "Vuelta por fases creada")}>
+                    Vuelta por fases
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -169,5 +179,39 @@ export function InjuriesPanel({ injuries, today }: { injuries: InjuryView[]; tod
         <p className="text-xs text-muted-foreground">Dato de salud privado: no se envía a la IA y tu entrenador solo lo ve si le das el permiso de recuperación.</p>
       </CardContent>
     </Card>
+  );
+}
+
+/** Fases de la vuelta tras lesión: la actual, sus criterios con casillas y el dolor máximo permitido. */
+function ProtocolView({ injuryId, phases: initial, pain, busy, run }: { injuryId: string; phases: ProtocolPhases; pain: number; busy: boolean; run: (fn: () => Promise<unknown>, ok: string) => Promise<boolean> }) {
+  // Estado local: varios toques seguidos no deben pisarse con datos aún sin refrescar.
+  const [phases, setPhases] = useState(initial);
+  const cur = currentPhase(phases);
+  const p = phases[cur];
+  const toggle = (j: number, done: boolean) => {
+    const next = phases.map((ph, k) => (k === cur ? { ...ph, criteria: ph.criteria.map((c, m) => (m === j ? { ...c, done } : c)) } : ph));
+    setPhases(next);
+    return run(() => api(`/api/recovery/injuries/${injuryId}/protocol`, { method: "PUT", body: { phases: next } }), "Guardado");
+  };
+  return (
+    <div className="grid gap-1.5 rounded-md bg-muted/50 p-2" aria-label="Vuelta por fases">
+      <div className="flex items-baseline justify-between text-xs">
+        <span className="font-medium">
+          Fase {cur + 1}/{phases.length}: {p.name}
+        </span>
+        <span className={painAllows(phases, cur, pain) ? "text-muted-foreground" : "font-medium text-destructive"}>dolor máx. {p.maxPain}</span>
+      </div>
+      <ul className="grid gap-1">
+        {p.criteria.map((c, j) => (
+          <li key={j}>
+            <label className="flex items-center gap-2 text-xs">
+              <input type="checkbox" className="size-4" disabled={busy} checked={c.done} onChange={(e) => void toggle(j, e.target.checked)} />
+              {c.text}
+            </label>
+          </li>
+        ))}
+      </ul>
+      {!painAllows(phases, cur, pain) ? <p className="text-xs text-destructive">Con este dolor, quédate en esta fase (o vuelve a la anterior).</p> : null}
+    </div>
   );
 }

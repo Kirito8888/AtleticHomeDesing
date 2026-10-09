@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarClock, Dumbbell, LineChart, Plus, Trophy } from "lucide-react";
+import { CalendarClock, Dumbbell, LineChart, Plus, Timer, Trophy, Package } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,9 @@ import { throwWeeks } from "@/lib/rules/rules-service";
 import { weekGrid } from "@/lib/training/week";
 import { formatDate, formatDuration, formatNum, formatPace, SESSION_TYPE_LABEL, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { getCycle } from "@/lib/health/cycle-service";
+import { predictedDays } from "@/lib/health/women";
+import { dataKeyConfigured } from "@/lib/security/data-key";
 
 export const metadata = { title: "Entrenamiento · LifeOS" };
 
@@ -45,6 +48,9 @@ export default async function TrainingPage() {
     prisma.trainingSession.findMany({ where: { userId: user.id, date: { gte: monday, lte: addDays(monday, 6) } }, select: { date: true, status: true } }),
     throwWeeks(user.id, toIsoDay(now)),
   ]);
+  // Días previstos de regla o síntomas (solo para ella; cálculo local).
+  const cycleData = dataKeyConfigured() ? await getCycle(user.id, 200) : null;
+  const predicted = new Map(predictedDays(cycleData?.settings ?? null, cycleData?.logs ?? [], toIsoDay(now), toIsoDay(addDays(now, 7))).map((p) => [p.date, p]));
   const week = weekGrid(
     weekSessions.map((s) => ({ date: toIsoDay(s.date), status: s.status })),
     toIsoDay(monday),
@@ -57,6 +63,16 @@ export default async function TrainingPage() {
         title="Entrenamiento"
         action={
           <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/training/equipment" aria-label="Material">
+                <Package /> <span className="hidden sm:inline">Material</span>
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/training/tests" aria-label="Tests físicos">
+                <Timer /> <span className="hidden sm:inline">Tests</span>
+              </Link>
+            </Button>
             <Button asChild variant="outline" size="sm">
               <Link href="/training/rm" aria-label="Mis RM">
                 <Dumbbell /> <span className="hidden sm:inline">Mis RM</span>
@@ -92,6 +108,11 @@ export default async function TrainingPage() {
                   <Link href={`/training/${s.id}`} className="flex items-center gap-3 rounded-md px-1 py-1 text-sm hover:bg-accent">
                     <span className="w-16 shrink-0 text-xs text-muted-foreground capitalize">{formatDate(s.date, { weekday: "short", day: "numeric" })}</span>
                     <span className="min-w-0 flex-1 truncate">{s.title ?? SESSION_TYPE_LABEL[s.type]}</span>
+                    {predicted.get(toIsoDay(s.date)) ? (
+                      <span className="shrink-0 text-xs text-rose-600 dark:text-rose-400" title="Solo tú lo ves">
+                        {predicted.get(toIsoDay(s.date))!.period ? "● regla prevista" : "◦ síntomas previstos"}
+                      </span>
+                    ) : null}
                     {s.durationSec ? <span className="shrink-0 text-xs text-muted-foreground tabular-nums">~{Math.round(s.durationSec / 60)} min</span> : null}
                   </Link>
                 </li>

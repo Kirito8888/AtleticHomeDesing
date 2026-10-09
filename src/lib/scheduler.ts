@@ -10,6 +10,10 @@ import { dueReminders, publicTitle } from "@/lib/push/reminders";
 import { notifyOnce } from "@/lib/push/service";
 import { readPrefs } from "@/lib/rules/prefs";
 import { AUDIT_RETENTION_DAYS } from "@/lib/security/audit";
+import { periodStarts } from "@/lib/health/cycle";
+import { getCycle } from "@/lib/health/cycle-service";
+import { readWomenSettings } from "@/lib/health/women";
+import { dataKeyConfigured, openJson } from "@/lib/security/data-key";
 
 const HOUR_MS = 60 * 60_000;
 
@@ -165,11 +169,38 @@ export async function runRemindersJob(hour = madridHour(), weekday = madridWeekd
   return sent;
 }
 
+/**
+ * Recordatorio de «Salud de la mujer» (opcional, domingos desde las 19:00): si
+ * lleva más de un ciclo sin registrar la regla. Texto neutro: la notificación
+ * se ve en la pantalla bloqueada.
+ */
+export async function runPeriodReminderJob(hour = madridHour(), weekday = madridWeekday()): Promise<number> {
+  if (weekday !== 6 || hour < 19 || !dataKeyConfigured()) return 0;
+  const day = toIsoDay(today());
+  const users = await prisma.user.findMany({ where: { pushSubscriptions: { some: {} }, womenHealth: { isNot: null } }, select: { id: true, womenHealth: { select: { data: true } } } });
+  let sent = 0;
+  for (const u of users) {
+    try {
+      if (!readWomenSettings(openJson(u.womenHealth!.data)).remindPeriod) continue;
+      const { settings, logs } = await getCycle(u.id, 120);
+      if (!settings || settings.hormonal === "si") continue;
+      const last = periodStarts(settings, logs).at(-1);
+      if (last && (Date.parse(day) - Date.parse(last)) / 864e5 <= settings.avgLength + 7) continue;
+      if (await notifyOnce(u.id, `period:${toIsoDay(startOfIsoWeek(today()))}`, { title: "LifeOS", body: "Tienes un registro pendiente de actualizar en Recuperación.", url: "/recovery", tag: "period" })) sent++;
+    } catch (err) {
+      console.error(`[scheduler] recordatorio de ${u.id}:`, err);
+    }
+  }
+  return sent;
+}
+
 async function tick() {
+  g.__lifeosSchedulerLastTick = new Date();
   try {
     await pruneAuditJob();
     await runDailyDigestJob();
     await runRemindersJob();
+    await runPeriodReminderJob();
     const posted = await runSubscriptionsJob();
     const reports = await runWeeklyCoachJob();
     if (posted || reports) console.info(`[scheduler] ${posted} cobro(s) de suscripciones, ${reports} informe(s) del coach`);
@@ -178,7 +209,12 @@ async function tick() {
   }
 }
 
-const g = globalThis as unknown as { __lifeosScheduler?: NodeJS.Timeout };
+const g = globalThis as unknown as { __lifeosScheduler?: NodeJS.Timeout; __lifeosSchedulerLastTick?: Date };
+
+/** Para «Estado del servidor»: ¿está activo y cuándo pasó por última vez? */
+export function schedulerStatus() {
+  return { enabled: env().SCHEDULER_ENABLED, running: Boolean(g.__lifeosScheduler), lastTick: g.__lifeosSchedulerLastTick?.toISOString() ?? null };
+}
 
 /** Una pasada al arrancar (con 1 min de margen) y después cada hora. */
 export function startScheduler() {

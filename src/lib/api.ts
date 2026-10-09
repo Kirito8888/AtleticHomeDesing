@@ -53,6 +53,23 @@ export function errorResponse(err: unknown): Response {
   return NextResponse.json({ error: "Error interno" }, { status: 500 });
 }
 
+/**
+ * Cuerpo de un PATCH: valida y devuelve SOLO las claves que vienen. En zod 4,
+ * `.partial()` sigue aplicando los `.default()` y un parse normal pisaría con
+ * valores por defecto lo que no se envió (p. ej. la prioridad de una tarea).
+ */
+export async function parsePatchBody<T extends z.ZodType>(req: Request, schema: T): Promise<Partial<z.infer<T>>> {
+  let data: unknown;
+  try {
+    data = await req.json();
+  } catch {
+    throw new ApiError(400, "El cuerpo debe ser JSON válido");
+  }
+  const parsed = schema.parse(data) as Record<string, unknown>;
+  const keys = data && typeof data === "object" ? Object.keys(data) : [];
+  return Object.fromEntries(Object.entries(parsed).filter(([k]) => keys.includes(k))) as Partial<z.infer<T>>;
+}
+
 export async function parseBody<T extends z.ZodType>(req: Request, schema: T): Promise<z.infer<T>> {
   let data: unknown;
   try {

@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, today, toIsoDay } from "@/lib/dates";
 import { periodWindow } from "@/lib/finance/ledger";
-import { budgetsStatus, cashflow, listAccounts, spendingByCategory, sportExpenses, subscriptionsOverview } from "@/lib/finance/service";
+import { budgetsStatus, cashflow, listAccounts, spendingByCategory, sportExpenses, sportSeasonBalance, subscriptionsOverview } from "@/lib/finance/service";
 import { formatDate, formatEur } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -21,7 +21,7 @@ export default async function FinancePage() {
   const user = await pageUser();
   const now = today();
   const month = periodWindow("MONTHLY", now);
-  const [accounts, categories, budgets, flow, spending, subs, recent, importProfiles, sportSeasons, competitions] = await Promise.all([
+  const [accounts, categories, budgets, flow, spending, subs, recent, importProfiles, sportSeasons, competitions, sportBal] = await Promise.all([
     listAccounts(user.id),
     prisma.financialCategory.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true, kind: true } }),
     budgetsStatus(user.id, now),
@@ -41,6 +41,7 @@ export default async function FinancePage() {
       orderBy: { startAt: "asc" },
       select: { id: true, title: true, startAt: true },
     }),
+    sportSeasonBalance(user.id, toIsoDay(now)),
   ]);
   const money = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
   const netWorth = money.reduce((a, x) => a + x.balanceCents, 0);
@@ -197,9 +198,32 @@ export default async function FinancePage() {
 
         <Card className="gap-3 py-4 lg:col-span-2">
           <CardHeader className="px-4">
-            <CardTitle className="text-sm">Gastos deportivos por temporada</CardTitle>
+            <CardTitle className="text-sm">Temporada deportiva: becas y gastos</CardTitle>
           </CardHeader>
-          <CardContent className="px-4">
+          <CardContent className="grid gap-4 px-4">
+            {sportBal.some((b) => b.incomeCents > 0) ? (
+              <ul className="grid gap-2 text-sm" aria-label="Saldo deportivo por temporada">
+                {sportBal.slice(0, 3).map((b) => (
+                  <li key={b.season} className="grid gap-0.5">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                      <span className="font-medium">Temporada {b.season}</span>
+                      <span className={b.balanceCents < 0 ? "font-medium text-destructive tabular-nums" : "font-medium tabular-nums"}>Saldo {formatEur(b.balanceCents)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      Becas, premios y patrocinios {formatEur(b.incomeCents)} · gastos {formatEur(-b.expenseCents)}
+                    </p>
+                    {b.forecast ? (
+                      <p className={b.forecast.balanceCents < 0 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
+                        Previsión a fin de año al ritmo actual: gastos {formatEur(-b.forecast.expenseCents)} · saldo {formatEur(b.forecast.balanceCents)}
+                        {b.forecast.balanceCents < 0 ? ". Con lo cobrado no llega: busca otra ayuda o recorta." : ""}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">Marca con 🏅 tus ingresos deportivos (becas, premios, patrocinios) para ver el saldo de la temporada y la previsión.</p>
+            )}
             {sportSeasons.length ? (
               <div className="grid gap-4 sm:grid-cols-2" aria-label="Gastos deportivos">
                 {sportSeasons.slice(0, 4).map((s) => (
@@ -256,7 +280,7 @@ export default async function FinancePage() {
                         {t.kind === "TRANSFER" ? "⇄ " : amount > 0 ? "+" : ""}
                         {formatEur(amount)}
                       </span>
-                      {t.kind === "EXPENSE" ? <SportToggle id={t.id} sport={t.sport} /> : null}
+                      {t.kind === "EXPENSE" || t.kind === "INCOME" ? <SportToggle id={t.id} sport={t.sport} income={t.kind === "INCOME"} /> : null}
                       <DeleteTransaction id={t.id} />
                     </li>
                   );

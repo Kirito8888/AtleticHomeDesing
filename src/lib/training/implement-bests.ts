@@ -10,6 +10,8 @@ export type ImplementBests = {
   series: Array<{ date: string; markM: number }>;
   /** Solo competiciones (progresión de la temporada). */
   competitions: Array<{ date: string; markM: number }>;
+  /** Todos los intentos válidos (dispersión: consistencia). */
+  attempts: Array<{ date: string; markM: number }>;
 };
 
 const grams = (g: number) => (g >= 1000 ? `${String(g / 1000).replace(".", ",")} kg` : `${g} g`);
@@ -28,11 +30,12 @@ export function implementLabel(event: string, g: number | null): string {
  * distinto, y la mejor marca de cada día. Ordenados por nº de días con marca.
  */
 export function implementBests(rows: MarkRow[]): ImplementBests[] {
-  const by = new Map<string, { event: string; g: number | null; days: Map<string, { markM: number; isCompetition: boolean }> }>();
+  const by = new Map<string, { event: string; g: number | null; days: Map<string, { markM: number; isCompetition: boolean }>; all: Array<{ date: string; markM: number }> }>();
   for (const r of rows) {
     if (!(r.markM > 0)) continue;
     const key = implementKey(r.event, r.implementWeightG);
-    const entry = by.get(key) ?? { event: r.event, g: r.implementWeightG, days: new Map() };
+    const entry = by.get(key) ?? { event: r.event, g: r.implementWeightG, days: new Map(), all: [] as Array<{ date: string; markM: number }> };
+    entry.all.push({ date: r.date, markM: r.markM });
     const cur = entry.days.get(r.date);
     if (!cur || r.markM > cur.markM) entry.days.set(r.date, { markM: r.markM, isCompetition: r.isCompetition });
     by.set(key, entry);
@@ -46,6 +49,7 @@ export function implementBests(rows: MarkRow[]): ImplementBests[] {
         top: [...days].sort((a, b) => b.markM - a.markM || (a.date < b.date ? -1 : 1)).slice(0, 3),
         series: days.sort((a, b) => (a.date < b.date ? -1 : 1)).map(({ date, markM }) => ({ date, markM })),
         competitions: days.filter((d) => d.isCompetition).map(({ date, markM }) => ({ date, markM })),
+        attempts: [...e.all].sort((a, b) => (a.date < b.date ? -1 : 1)),
       };
     })
     .sort((a, b) => b.series.length - a.series.length || (a.label < b.label ? -1 : 1));

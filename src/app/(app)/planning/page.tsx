@@ -16,6 +16,11 @@ import { agendaForDay, tasksDuePerDay } from "@/lib/planning/agenda";
 import { planOverview } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
+import { getCycle } from "@/lib/health/cycle-service";
+import { predictedDays } from "@/lib/health/women";
+import { dataKeyConfigured } from "@/lib/security/data-key";
+import { fromMin, slotsOnDay } from "@/lib/study/schedule";
+import { listSlots } from "@/lib/study/schedule-service";
 
 export const metadata = { title: "Planificación · LifeOS" };
 
@@ -35,7 +40,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
   const prev = toIsoDay(new Date(Date.UTC(y, m - 2, 1))).slice(0, 7);
   const next = toIsoDay(new Date(Date.UTC(y, m, 1))).slice(0, 7);
 
-  const [cycles, events, sessions, allCycles, tasks, planMesos, variantDays] = await Promise.all([
+  const [cycles, events, sessions, allCycles, tasks, planMesos, variantDays, slots] = await Promise.all([
     prisma.trainingCycle.findMany({
       where: { userId: user.id, startDate: { lte: gridEnd }, endDate: { gte: gridStart } },
       orderBy: [{ level: "asc" }, { startDate: "asc" }],
@@ -54,6 +59,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
       orderBy: [{ date: { sort: "asc", nulls: "last" } }, { relDay: "asc" }],
       select: { id: true, variant: true, date: true, relDay: true, title: true, meso: { select: { code: true } } },
     }),
+    listSlots(user.id),
   ]);
   const variantItems: VariantDay[] = variantDays.map((d) => ({
     id: d.id,
@@ -64,9 +70,13 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
     title: d.title,
   }));
 
+  // Días previstos de regla o síntomas (solo para ella; cálculo local, nunca sale de aquí).
+  const cycleData = dataKeyConfigured() ? await getCycle(user.id, 200) : null;
+  const predicted = new Map(predictedDays(cycleData?.settings ?? null, cycleData?.logs ?? [], toIsoDay(gridStart), toIsoDay(gridEnd)).map((p) => [p.date, p]));
   const dueByDay = tasksDuePerDay(tasks);
   const selectedDay = typeof rawDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : null;
   const agenda = selectedDay ? agendaForDay(selectedDay, { sessions, events, tasks, cycles }) : null;
+  const daySlots = selectedDay ? slotsOnDay(slots, selectedDay) : [];
 
   const days: Date[] = [];
   for (let d = gridStart; d <= gridEnd; d = addDays(d, 1)) days.push(d);
@@ -123,6 +133,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
           const done = sessions.filter((s) => toIsoDay(s.date) === iso && s.status === "COMPLETED").length;
           const planned = sessions.filter((s) => toIsoDay(s.date) === iso && s.status === "PLANNED").length;
           const due = dueByDay.get(iso) ?? 0;
+          const exam = slots.some((x) => x.kind === "EXAM" && x.date === iso);
           return (
             <Link
               key={iso}
@@ -155,6 +166,12 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                 {done ? <span className="ml-auto text-[10px] text-muted-foreground" title="Sesiones completadas">✓{done > 1 ? done : ""}</span> : null}
                 {planned ? <span className="text-[10px] text-muted-foreground" title="Sesiones planificadas">○{planned > 1 ? planned : ""}</span> : null}
                 {due ? <span className="text-[10px] text-muted-foreground" title="Tareas que vencen">□{due > 1 ? due : ""}</span> : null}
+                {exam ? <span className="text-[10px] text-amber-700 dark:text-amber-400" title="Examen">✎</span> : null}
+                {predicted.get(iso) ? (
+                  <span className="text-[10px] text-rose-600 dark:text-rose-400" title={predicted.get(iso)!.period ? "Regla prevista" : "Síntomas previstos"}>
+                    {predicted.get(iso)!.period ? "●" : "◦"}
+                  </span>
+                ) : null}
               </div>
             </Link>
           );
@@ -162,9 +179,13 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
       </div>
 
       <p className="mt-2 text-xs text-muted-foreground">
-        ✓ sesión hecha · ○ planificada · □ tarea que vence. Toca un día para ver su detalle. ¿Sin plan?{" "}
+        ✓ sesión hecha · ○ planificada · □ tarea que vence · ✎ examen{predicted.size ? " · ● regla prevista · ◦ síntomas previstos (solo tú lo ves)" : ""}. Toca un día para ver su detalle. ¿Sin plan?{" "}
         <Link href="/study/plan" className="font-medium text-foreground underline underline-offset-2">
           Créalo con IA
+        </Link>{" "}
+        o{" "}
+        <Link href="/planning/plan/new" className="font-medium text-foreground underline underline-offset-2">
+          hazlo tú
         </Link>
         .
       </p>
@@ -218,6 +239,15 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                 })}
               </ul>
             ) : null}
+            {daySlots.length ? (
+              <ul className="grid gap-1" aria-label="Clases y exámenes del día">
+                {daySlots.map((c) => (
+                  <li key={c.id} className={c.kind === "EXAM" ? "font-medium" : "text-muted-foreground"}>
+                    {c.kind === "EXAM" ? "✎ Examen" : "Clase"} · {c.subject} · <span className="tabular-nums">{fromMin(c.startMin)}–{fromMin(c.endMin)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {agenda.tasks.length ? (
               <ul className="grid gap-1" aria-label="Tareas que vencen">
                 {agenda.tasks.map((t) => (
@@ -225,7 +255,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                 ))}
               </ul>
             ) : null}
-            {!agenda.sessions.length && !agenda.events.length && !agenda.tasks.length ? (
+            {!agenda.sessions.length && !agenda.events.length && !agenda.tasks.length && !daySlots.length ? (
               <p className="text-muted-foreground">Nada planificado este día.</p>
             ) : null}
           </CardContent>

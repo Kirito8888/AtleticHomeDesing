@@ -4,10 +4,20 @@ import type { Alert } from "@/lib/rules/engine";
 import { cn } from "@/lib/utils";
 
 /** Avisos de «Mis reglas» (pautas de prudencia, no diagnósticos). */
-export function RuleAlerts({ alerts, className }: { alerts: Alert[]; className?: string }) {
+export function RuleAlerts({
+  alerts,
+  className,
+  label = "Avisos de mis reglas",
+  link = { href: "/settings#mis-reglas", text: "Ajustar mis reglas" },
+}: {
+  alerts: Alert[];
+  className?: string;
+  label?: string;
+  link?: { href: string; text: string } | null;
+}) {
   if (!alerts.length) return null;
   return (
-    <section aria-label="Avisos de mis reglas" className={cn("mb-4 grid gap-2", className)}>
+    <section aria-label={label} className={cn("mb-4 grid gap-2", className)}>
       {alerts.map((a) => (
         <div
           key={a.id}
@@ -18,9 +28,11 @@ export function RuleAlerts({ alerts, className }: { alerts: Alert[]; className?:
           <p>{a.message}</p>
         </div>
       ))}
-      <Link href="/settings#mis-reglas" className="justify-self-end text-xs text-muted-foreground underline-offset-2 hover:underline">
-        Ajustar mis reglas
-      </Link>
+      {link ? (
+        <Link href={link.href} className="justify-self-end text-xs text-muted-foreground underline-offset-2 hover:underline">
+          {link.text}
+        </Link>
+      ) : null}
     </section>
   );
 }

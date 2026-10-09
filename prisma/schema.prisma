@@ -98,6 +98,18 @@ model User {
   exerciseAliases   ExerciseAlias[]
   calendarFeeds     CalendarFeed[]
   sharedReports     SharedReport[]
+  womenHealth       WomenHealth?
+  healthLogs        HealthLog[]
+  testResults       TestResult[]
+  returnProtocols   ReturnProtocol[]
+  classSlots        ClassSlot[]
+  studySessions     StudySession[]
+  habits            Habit[]
+  habitLogs         HabitLog[]
+  equipment         Equipment[]
+  hydrationLogs     HydrationLog[]
+  sessionComments   SessionComment[]       @relation("CommentAthlete")
+  authoredComments  SessionComment[]       @relation("CommentAuthor")
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -458,6 +470,8 @@ model TechnicalSession {
   videoTotal       Int?
   videoElbowOk     Int?
   videoHeadOk      Int?
+  // Condiciones a la hora de la sesión (Open-Meteo): { tempC, windMs, windDirDeg, rainMm, at }
+  conditions       Json?
 
   session  TrainingSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   attempts TechnicalAttempt[]
@@ -1433,7 +1447,8 @@ model Injury {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  protocol ReturnProtocol?
 
   @@index([userId, startedOn])
 }
@@ -1486,4 +1501,184 @@ model BankImportProfile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, name])
+}
+
+// =============================================================================
+// v1.5
+// =============================================================================
+
+/// Salud de la mujer (opcional): embarazo/posparto, umbrales y avisos. Dato de
+/// salud de categoría especial: `data` va cifrado, nunca a la IA ni al coach.
+model WomenHealth {
+  userId    String   @id
+  data      String // cifrado: { mode, postpartumSince, ppPhase, cleared, eaMin, ferritinMin, labEveryMonths, remindPeriod }
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Registros de salud cifrados (LEAF-Q, analíticas, suelo pélvico, descanso de la píldora,
+/// controles posparto). Solo la fecha va en claro: el tipo también va cifrado.
+model HealthLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  data      String // cifrado: { kind, ... }
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+/// Batería de tests físicos (30 m, salto horizontal, balón medicinal… o propios).
+model TestResult {
+  id             String   @id @default(cuid())
+  userId         String
+  testKey        String // clave del catálogo o «custom:<nombre normalizado>»
+  name           String
+  unit           String // s, m, cm, kg, reps…
+  higherIsBetter Boolean
+  value          Float
+  date           DateTime @db.Date
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, testKey, date])
+}
+
+/// Vuelta tras lesión por fases, con criterios para pasar de fase.
+model ReturnProtocol {
+  id        String   @id @default(cuid())
+  userId    String
+  injuryId  String   @unique
+  phases    Json // [{ name, criteria: [{ text, done }], maxPain }]
+  current   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  injury Injury @relation(fields: [injuryId], references: [id], onDelete: Cascade)
+}
+
+/// Horario de clases (semanal) y exámenes (fecha concreta).
+model ClassSlot {
+  id        String    @id @default(cuid())
+  userId    String
+  subject   String
+  kind      String // CLASS | EXAM
+  weekday   Int? // 0 = lunes … 6 = domingo (clases)
+  date      DateTime? @db.Date // exámenes
+  startMin  Int // minutos desde las 00:00
+  endMin    Int
+  validFrom DateTime? @db.Date
+  validTo   DateTime? @db.Date
+  location  String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Bloque de estudio (pomodoro) terminado.
+model StudySession {
+  id        String   @id @default(cuid())
+  userId    String
+  subject   String
+  date      DateTime @db.Date
+  minutes   Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+model Habit {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs HabitLog[]
+
+  @@index([userId])
+}
+
+model HabitLog {
+  id      String   @id @default(cuid())
+  userId  String
+  habitId String
+  date    DateTime @db.Date
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  @@unique([habitId, date])
+}
+
+/// Material (jabalinas, clavos…) con vida útil y aviso de reposición.
+model Equipment {
+  id               String    @id @default(cuid())
+  userId           String
+  name             String
+  kind             String // JAVELIN | SPIKES | SHOES | OTHER
+  implementWeightG Int? // jabalina: cuenta los lanzamientos con ese peso
+  purchasedOn      DateTime? @db.Date
+  lifeUses         Int? // sesiones (calzado) o lanzamientos (jabalina)
+  lifeMonths       Int?
+  extraUses        Int       @default(0) // usos anotados a mano
+  transactionId    String? // gasto de compra (opcional)
+  retired          Boolean   @default(false)
+  notes            String?
+  createdAt        DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Agua bebida (ml), varias anotaciones por día.
+model HydrationLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  ml        Int
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+/// Comentarios de la entrenadora (y respuestas del atleta) en una sesión.
+/// `sessionId` sin clave foránea: editar una sesión la recrea con el mismo id.
+model SessionComment {
+  id        String   @id @default(cuid())
+  sessionId String
+  athleteId String
+  authorId  String
+  body      String
+  createdAt DateTime @default(now())
+
+  athlete User @relation("CommentAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  author  User @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+}
+
+/// Copias de seguridad hechas por el servicio "backup" (lo escribe deploy/backup/backup.sh con psql).
+/// Solo sirve para enseñar la última copia en «Estado del servidor».
+model BackupRun {
+  id     String   @id @default(cuid())
+  at     DateTime @default(now())
+  ok     Boolean
+  detail String?
+
+  @@index([at])
 }
