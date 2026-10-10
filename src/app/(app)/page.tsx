@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { pageUser } from "@/lib/auth/page";
 import { getDashboard } from "@/lib/dashboard";
+import { prisma } from "@/lib/prisma";
 import { getPrefs } from "@/lib/rules/prefs-service";
 import { diffDays, today } from "@/lib/dates";
 import { formatDate, formatDuration, formatEur, formatNum, READINESS_LABEL, SESSION_TYPE_LABEL } from "@/lib/format";
@@ -37,7 +38,11 @@ function Widget({ title, icon: Icon, href, id, children, hide }: { title: string
 
 export default async function DashboardPage() {
   const user = await pageUser();
-  const [d, prefs] = await Promise.all([getDashboard(user.id), getPrefs(user.id)]);
+  const [d, prefs, onb] = await Promise.all([
+    getDashboard(user.id),
+    getPrefs(user.id),
+    prisma.user.findUnique({ where: { id: user.id }, select: { onboardedAt: true } }),
+  ]);
   const off = (m: string) => (prefs.hiddenModules as readonly string[]).includes(m);
   const readiness = d.recovery?.readinessScore ?? null;
   const rStatus = readinessStatus(readiness);
@@ -80,6 +85,11 @@ export default async function DashboardPage() {
         </Link>
       ) : null}
 
+      {onb && !onb.onboardedAt ? (
+        <Link href="/welcome" className="mb-4 block rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+          👋 <span className="font-medium">Configura LifeOS en 1 minuto</span>: elige tus módulos, tu perfil y cuándo no molestarte.
+        </Link>
+      ) : null}
       <OfflineDayCache paths={d.offlinePaths} />
       <Link
         href="/recovery"

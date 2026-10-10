@@ -306,7 +306,7 @@ export default async function FinancePage() {
           </CardContent>
         </Card>
 
-        <Card className="gap-3 py-4 lg:col-span-2">
+        <Card id="movimientos" className="gap-3 py-4 lg:col-span-2">
           <CardHeader className="px-4">
             <CardTitle className="text-sm">Últimos movimientos</CardTitle>
           </CardHeader>

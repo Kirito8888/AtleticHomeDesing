@@ -46,6 +46,8 @@ model User {
   // v1.7 · Cuenta de demostración (datos sintéticos): se borra sola al caducar
   demoAudience   String?
   demoExpiresAt  DateTime?
+  // v1.8 · primer uso guiado terminado (o descartado)
+  onboardedAt    DateTime?
   // Privacidad (v1.1): fecha en que el usuario autorizó enviar datos a Gemini (null = no)
   aiConsentAt    DateTime?
   // Seguridad (v1.2): 2FA TOTP. Secreto cifrado (AES-256-GCM, TOTP_ENCRYPTION_KEY);
@@ -147,6 +149,7 @@ model User {
   receipts               Receipt[]
   // v1.8
   pageUsage              PageUsage[]
+  trash                  TrashItem[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -1544,10 +1547,15 @@ model PushSubscription {
 /// Notificaciones ya enviadas (clave lógica, p. ej. "digest:2026-10-06"): evita
 /// repetirlas si el planificador se ejecuta varias veces o el contenedor se reinicia.
 model NotificationLog {
-  id     String   @id @default(cuid())
+  id     String    @id @default(cuid())
   userId String
   key    String
-  sentAt DateTime @default(now())
+  sentAt DateTime  @default(now())
+  // v1.8 · centro de notificaciones (lo enviado) y leídas
+  title  String?
+  body   String?
+  url    String?
+  readAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -2259,4 +2267,20 @@ model RateLimitHit {
 
   @@id([key, windowStart])
   @@index([windowStart])
+}
+
+/// v1.8 · Papelera (7 días): copia de lo borrado (sesión, comida o movimiento) para poder deshacer.
+/// Lo borrado se borra de verdad de su tabla: ninguna consulta tiene que filtrar nada.
+model TrashItem {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String // SESSION | MEAL | TRANSACTION
+  label     String
+  data      Json
+  files     String[] @default([]) // ficheros cifrados (justificantes) que se borran al vaciar
+  deletedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, deletedAt])
 }

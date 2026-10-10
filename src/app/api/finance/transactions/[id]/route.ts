@@ -1,15 +1,15 @@
 import { ApiError, parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { assertOwnEvent, sportTagSchema } from "@/lib/finance/service";
-import { deleteTransactionWithReceipts } from "@/lib/finance/season-service";
+import { trashTransaction } from "@/lib/account/trash";
 import { prisma } from "@/lib/prisma";
 
-/** Borra el asiento completo (las líneas caen en cascada; el trigger ve suma 0) y sus justificantes. */
+/** A la papelera (v1.8): el asiento se borra (líneas en cascada) y se guarda una copia 7 días para deshacer. */
 export const DELETE = route(async (_req, ctx: RouteContext<"/api/finance/transactions/[id]">) => {
   const user = await requireUser();
   const { id } = await ctx.params;
-  await deleteTransactionWithReceipts(user.id, id);
-  return { ok: true };
+  const { id: trashId } = await trashTransaction(user.id, id);
+  return { ok: true, trashId };
 });
 
 /** Marcar o desmarcar como gasto deportivo (y su competición). */

@@ -9,7 +9,7 @@ import { addHealthLog, saveWomenSettings } from "@/lib/health/women-service";
 import { prisma } from "@/lib/prisma";
 import { addWellbeing, parseWellbeing } from "@/lib/recovery/wellbeing-service";
 import { dataKeyConfigured } from "@/lib/security/data-key";
-import { createSessionSchema } from "@/lib/training/schemas";
+import { sessionInputFromSnapshot } from "@/lib/account/session-snapshot";
 import { createTrainingSession, recomputeDailyLoads } from "@/lib/training/service";
 
 /**
@@ -73,31 +73,9 @@ export async function restoreExport(userId: string, data: unknown) {
 
   // Sesiones: se vuelven a validar y a crear (recalcula TSS y marcas)
   for (const s of arr(get(data, "training", "sessions"))) {
-    const track = s.track as Row | null;
-    const tech = s.technical as Row | null;
-    const str = s.strength as Row | null;
-    const sets = arr(get(str, "sets")).flatMap((x) => {
-      const id = exMap.get(String(x.exerciseId)) ?? byName.get(String(get(x, "exercise", "name") ?? "").toLowerCase()) ?? (catalog.some((c) => c.id === x.exerciseId) ? String(x.exerciseId) : null);
-      return id ? [{ exerciseId: id, reps: x.reps, weightKg: x.weightKg, rpe: x.rpe, rir: x.rir, isWarmup: x.isWarmup, velocityMs: x.velocityMs, suggestedKg: x.suggestedKg }] : [];
-    });
-    const input = {
-      date: day(s.date),
-      type: s.type,
-      status: s.status,
-      title: s.title,
-      durationSec: s.durationSec,
-      sessionRpe: s.sessionRpe,
-      notes: s.notes,
-      feelings: s.feelings ?? null,
-      zoneFatigue: s.zoneFatigue ?? null,
-      tags: Array.isArray(s.tags) ? s.tags : [],
-      ...(track ? { track: { ...pick(track, Prisma.TrackSessionScalarFieldEnum, ["sessionId"]), intervals: arr(track.intervals).map((i) => pick(i, Prisma.TrackIntervalScalarFieldEnum, ["trackSessionId"])) } } : {}),
-      ...(tech ? { technical: { ...pick(tech, Prisma.TechnicalSessionScalarFieldEnum, ["sessionId", "bestMarkM", "conditions"]), attempts: arr(tech.attempts).map((a) => pick(a, Prisma.TechnicalAttemptScalarFieldEnum, ["technicalSessionId", "order"])) } } : {}),
-      ...(str ? { strength: { bodyWeightKg: str.bodyWeightKg ?? null, sets } } : {}),
-    };
-    const parsed = createSessionSchema.safeParse(JSON.parse(JSON.stringify(input, (_k, v) => (v === null ? undefined : v))));
+    const { date, parsed } = sessionInputFromSnapshot(s, (x) => exMap.get(String(x.exerciseId)) ?? byName.get(String(get(x, "exercise", "name") ?? "").toLowerCase()) ?? (catalog.some((c) => c.id === x.exerciseId) ? String(x.exerciseId) : null));
     if (!parsed.success) {
-      skipped.push(`sesión del ${input.date}`);
+      skipped.push(`sesión del ${date}`);
       continue;
     }
     await createTrainingSession(userId, null, parsed.data);

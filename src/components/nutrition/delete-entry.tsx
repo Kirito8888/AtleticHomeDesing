@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
+import { trashedToast } from "@/lib/trash-client";
 
 export function DeleteEntry({ id, name }: { id: string; name: string }) {
   const router = useRouter();
@@ -18,7 +19,8 @@ export function DeleteEntry({ id, name }: { id: string; name: string }) {
       aria-label={`Quitar ${name}`}
       onClick={async () => {
         try {
-          await api(`/api/nutrition/entries/${id}`, { method: "DELETE" });
+          const r = await api<{ trashId?: string }>(`/api/nutrition/entries/${id}`, { method: "DELETE" });
+          trashedToast(r.trashId, `${name} quitado`, () => router.refresh());
           router.refresh();
         } catch (e) {
           toast.error((e as Error).message);

@@ -21,6 +21,8 @@ export function PurgePrivateCache() {
             if (new URL(req.url).pathname !== "/offline") await cache.delete(req);
           }
         }
+        // v1.8 · ficheros compartidos sin usar (después: lo urgente son las páginas privadas)
+        await caches.delete("lifeos-share");
       } catch {
         // Sin acceso a Cache Storage (modo privado): no hay nada que borrar.
       }

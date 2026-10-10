@@ -132,7 +132,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
       <PageHeader title="Ajustes" />
       {welcome ? (
         <p role="status" className="mb-4 rounded-md border p-3 text-sm">
-          ¡Bienvenido/a! Completa tu perfil y tus umbrales: con ellos el TSS se calcula a partir de tu FC y tus ritmos.
+          ¡Bienvenido/a! Completa tu perfil y tus umbrales: con ellos el TSS se calcula a partir de tu FC y tus ritmos.{" "}
+          <Link href="/welcome" className="font-medium underline">
+            Empezar con la guía de 3 pasos
+          </Link>
         </p>
       ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
@@ -332,6 +335,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             <DemoAccounts accounts={demos.map((d) => ({ id: d.id, email: d.email, demoAudience: d.demoAudience, demoExpiresAt: d.demoExpiresAt!.toISOString() }))} />
           </Section>
         ) : null}
+        <Section title="Papelera" description="Sesiones, comidas y movimientos borrados en los últimos 7 días.">
+          <Link href="/settings/trash" className="text-sm font-medium underline underline-offset-4">
+            Abrir la papelera
+          </Link>
+        </Section>
         <Section title="Tus datos" description="Descarga una copia completa (JSON) o elimina tu cuenta.">
           <div className="grid gap-6">
             <div className="grid gap-2">

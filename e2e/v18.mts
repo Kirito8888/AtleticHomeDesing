@@ -122,6 +122,95 @@ await admin.context().close();
 await shot("01-ops");
 log("accesibilidad, módulos, letra y contraste, uso local, CSP, administración con segundo factor e integridad");
 
+// 2. Bloque B · Primer uso, papelera con «Deshacer», notificaciones, búsqueda, horas de silencio y compartir
+await go(B + "/");
+await page.getByRole("link", { name: /Configura LifeOS en 1 minuto/ }).click();
+await page.waitForURL(/\/welcome/);
+await checkA11y("/welcome");
+await page.getByLabel("Partes de LifeOS").getByRole("checkbox", { name: "Finanzas" }).click();
+await page.getByRole("button", { name: "Siguiente" }).click();
+await page.getByLabel("Cómo te llamas").fill("Alba V18");
+await page.getByLabel("Sexo").getByRole("radio", { name: "Mujer" }).click();
+await page.getByRole("button", { name: "Siguiente" }).click();
+await page.getByRole("button", { name: "Empezar" }).click();
+await page.waitForURL((u) => u.pathname === "/");
+await page.getByRole("heading", { name: /Hola, Alba/ }).waitFor();
+if (await page.getByRole("link", { name: /Configura LifeOS en 1 minuto/ }).count()) errors.push("la invitación de bienvenida sigue tras completarla");
+if (await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("link", { name: "Finanzas" }).count()) errors.push("Finanzas debía quedar oculto tras la bienvenida");
+await api("patch", "/api/settings/prefs", { hiddenModules: [] });
+
+// Papelera: sesión borrada y recuperada con «Deshacer»; comida borrada y recuperada desde Ajustes → Papelera
+const tagged = (await api("post", "/api/training/sessions", { date: madrid, type: "STRENGTH", status: "COMPLETED", title: "Salidas de tacos V18", durationMin: 40, rpe: 6, tags: ["reaccion"], strength: { sets: [] } })) as { id?: string };
+await go(`${B}/training/${tagged.id}`);
+page.once("dialog", (d) => void d.accept());
+await page.getByRole("button", { name: "Borrar" }).click();
+await page.waitForURL(/\/training$/);
+await page.getByRole("button", { name: "Deshacer" }).click();
+await toast(/Recuperado/);
+await go(`${B}/training/${tagged.id}`);
+await page.getByText("Salidas de tacos V18").first().waitFor();
+await api("post", "/api/nutrition/entries", { date: madrid, mealType: "LUNCH", customName: "Garbanzos V18", quantityG: 200, kcal: 280, proteinG: 15, carbsG: 40, fatG: 5 });
+await go(B + "/nutrition");
+await page.getByRole("button", { name: "Quitar Garbanzos V18" }).click();
+await toast(/Garbanzos V18 quitado/);
+await go(B + "/settings/trash");
+await checkA11y("/settings/trash");
+const trash = page.getByRole("list", { name: "Papelera" });
+await trash.getByText(/Garbanzos V18/).waitFor();
+await trash.getByRole("listitem").filter({ hasText: "Garbanzos V18" }).getByRole("button", { name: "Recuperar" }).click();
+await toast(/Recuperado: Garbanzos V18/);
+await go(B + "/nutrition");
+await page.getByRole("button", { name: "Quitar Garbanzos V18" }).waitFor();
+
+// Búsqueda por etiqueta del diario técnico
+await go(B + "/search?q=reaccion");
+await page.getByRole("heading", { name: "Etiqueta «reaccion»" }).waitFor();
+
+// Centro de notificaciones: el aviso de inicio de sesión queda en la campana aunque no haya push
+await go(B + "/");
+await page.getByRole("link", { name: /Notificaciones: \d+ sin leer/ }).first().click();
+await page.waitForURL(/\/notifications/);
+await page.getByRole("list", { name: "Notificaciones" }).getByText("Nuevo inicio de sesión en LifeOS").first().waitFor();
+await checkA11y("/notifications");
+await page.getByRole("link", { name: "Notificaciones", exact: true }).first().waitFor({ timeout: 15_000 });
+
+// Horas de silencio
+await go(B + "/settings");
+await page.getByLabel("Silencio desde").fill("23:00");
+await page.getByLabel("Hasta", { exact: true }).fill("07:00");
+await page.getByRole("button", { name: "Guardar horas de silencio" }).click();
+await toast(/Horas de silencio guardadas/);
+const prefs = (await (await page.request.get(B + "/api/settings/prefs")).json()) as { quietHours?: { from: string; to: string } | null };
+if (prefs.quietHours?.from !== "23:00" || prefs.quietHours?.to !== "07:00") errors.push(`horas de silencio: ${JSON.stringify(prefs.quietHours)}`);
+
+// Compartir con LifeOS: el service worker recibe el POST del sistema, /share propone el destino
+const ics = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART;VALUE=DATE:" + plusDays(madrid, 40).replaceAll("-", "") + "\r\nSUMMARY:Control federativo V18\r\nLOCATION:Valencia\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+await go(B + "/share");
+const viaSw = await page.evaluate(async (body) => {
+  const reg = await Promise.race([navigator.serviceWorker?.ready, new Promise((r) => setTimeout(r, 5000))]);
+  if (!reg || !navigator.serviceWorker.controller) return false;
+  const fd = new FormData();
+  fd.append("files", new File([body], "federacion.ics", { type: "text/calendar" }));
+  const r = await fetch("/share", { method: "POST", body: fd });
+  return r.ok && new URL(r.url).pathname === "/share";
+}, ics);
+if (!viaSw) {
+  // Sin service worker que controle la página (primera carga): se deja el fichero como lo haría él
+  await page.evaluate(async (body) => {
+    const c = await caches.open("lifeos-share");
+    await c.put("/__shared/0", new Response(body, { headers: { "content-type": "text/calendar", "x-name": "federacion.ics" } }));
+  }, ics);
+}
+await go(B + "/share");
+await page.getByRole("list", { name: "Ficheros compartidos" }).getByText("federacion.ics").waitFor();
+await checkA11y("/share");
+await page.getByRole("navigation", { name: "Qué hacer con el fichero" }).getByRole("link", { name: /Calendario de competiciones/ }).click();
+await page.getByRole("list", { name: "Competiciones encontradas" }).getByText(/Control federativo V18/).waitFor();
+await go(B + "/share");
+await page.getByText(/No hay nada compartido/).waitFor();
+await shot("02-uso");
+log(`primer uso, papelera con deshacer, búsqueda por etiqueta, notificaciones, horas de silencio y compartir (${viaSw ? "service worker" : "caché directa"})`);
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));

@@ -9,6 +9,7 @@ import { subscriptionAlerts } from "@/lib/finance/season-service";
 import { pruneExpiredDemos } from "@/lib/demo/service";
 import { backupAlert, checkIntegrity } from "@/lib/admin/ops";
 import { pruneRateLimits } from "@/lib/rate-limit-db";
+import { purgeTrash } from "@/lib/account/trash";
 import { prisma } from "@/lib/prisma";
 import { dueReminders, publicTitle } from "@/lib/push/reminders";
 import { deadlineState } from "@/lib/finance/trips";
@@ -95,6 +96,7 @@ export async function pruneAuditJob(now = new Date()): Promise<number> {
   await prisma.serverError.deleteMany({ where: { lastAt: { lt: daysAgo(now, d.SERVER_ERRORS) } } });
   await prisma.pageUsage.deleteMany({ where: { week: { lt: daysAgo(now, d.PAGE_USAGE) } } });
   await pruneRateLimits(now);
+  await purgeTrash(now);
   return count;
 }
 

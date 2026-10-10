@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import { SEASON_LINES, type SeasonLine } from "@/lib/finance/season";
 import { formatEur } from "@/lib/format";
+import { usePendingShared } from "@/lib/share-client";
 
 const toCents = (s: string) => Math.round(Number(s.replace(",", ".") || 0) * 100);
 const toEur = (c: number | undefined) => (c ? String(c / 100).replace(".", ",") : "");
@@ -60,6 +61,24 @@ export function Receipts({ transactionId, receipts }: { transactionId: string; r
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  // v1.8 · justificante llegado desde «Compartir»
+  const shared = usePendingShared("receipt");
+  async function attach(f: File | undefined) {
+    if (!f) return;
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.set("file", f);
+      await api(`/api/finance/transactions/${transactionId}/receipts`, { form });
+      toast.success("Justificante guardado (cifrado)");
+      router.refresh();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+      if (input.current) input.current.value = "";
+    }
+  }
   return (
     <span className="flex shrink-0 items-center gap-1">
       {receipts.map((r, i) => (
@@ -76,25 +95,14 @@ export function Receipts({ transactionId, receipts }: { transactionId: string; r
           className="sr-only"
           aria-label="Adjuntar justificante"
           disabled={busy}
-          onChange={async (e) => {
-            const f = e.target.files?.[0];
-            if (!f) return;
-            setBusy(true);
-            try {
-              const form = new FormData();
-              form.set("file", f);
-              await api(`/api/finance/transactions/${transactionId}/receipts`, { form });
-              toast.success("Justificante guardado (cifrado)");
-              router.refresh();
-            } catch (err) {
-              toast.error((err as Error).message);
-            } finally {
-              setBusy(false);
-              if (input.current) input.current.value = "";
-            }
-          }}
+          onChange={(e) => void attach(e.target.files?.[0])}
         />
       </label>
+      {shared.file ? (
+        <Button type="button" size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={busy} onClick={async () => attach((await shared.take()) ?? undefined)}>
+          Usar el compartido
+        </Button>
+      ) : null}
     </span>
   );
 }
