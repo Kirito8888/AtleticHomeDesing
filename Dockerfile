@@ -27,6 +27,8 @@ FROM deps AS migrate
 WORKDIR /app
 # Para `npm run user` (prisma/scripts/user-admin.ts): mismo hash que la app.
 COPY src/lib/auth/scrypt.ts src/lib/auth/constants.ts ./src/lib/auth/
+# v1.9: invitaciones (`npm run user -- invite`) con el mismo formato de token que la app
+COPY src/lib/security/share-token.ts ./src/lib/security/
 CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed"]
 
 # ---------- runner: imagen mínima de producción ----------
