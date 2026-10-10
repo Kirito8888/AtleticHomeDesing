@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/format";
 import { weekDays } from "@/lib/nutrition/planning";
 import { mealPlanWeek } from "@/lib/nutrition/planning-service";
 
-export const metadata = { title: "Plan de comidas · LifeOS" };
+export const metadata = { title: "Plan de comidas · Atlenza" };
 
 /** v1.7 · Plan semanal de comidas con tus recetas y la lista de la compra de la semana. */
 export default async function MealPlanPage({ searchParams }: PageProps<"/nutrition/plan">) {

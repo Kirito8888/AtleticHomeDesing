@@ -3,7 +3,7 @@
 //   BASE_URL=http://localhost:3000 npm run e2e
 // Variables: BASE_URL, CHROMIUM_PATH (opcional), SHOTS_DIR (capturas, opcional).
 import { mkdirSync } from "node:fs";
-import { Encoder, Profile } from "@garmin/fitsdk";
+import { buildFit } from "./fit-builder.mjs";
 import { chromium } from "playwright-core";
 
 const out = process.env.SHOTS_DIR ?? "e2e/screenshots";
@@ -27,6 +27,7 @@ await go(B + "/register");
 await page.fill("#name", "Bea Lanzadora");
 await page.fill("#email", email);
 await page.fill("#password", "contraseña-segura-1");
+await page.check("input[name=terms]");
 await Promise.all([page.waitForURL(/\/settings\?welcome=1/), page.click("button[type=submit]")]);
 log("registro → ajustes con bienvenida");
 
@@ -87,13 +88,12 @@ log("plantilla «Fuerza A» precarga el formulario");
 
 // Importar del reloj: FIT generado con el codificador oficial de Garmin (2,4 km en 10 min)
 const fitStart = new Date(Date.now() - 2 * 3600_000);
-const enc = new Encoder();
-enc.onMesg(Profile.MesgNum.FILE_ID, { type: "activity", manufacturer: "garmin", product: 1, timeCreated: fitStart, serialNumber: 9 });
-for (let i = 0; i <= 600; i++) {
-  enc.onMesg(Profile.MesgNum.RECORD, { timestamp: new Date(fitStart.getTime() + i * 1000), distance: i * 4, enhancedSpeed: 4, heartRate: 150 });
-}
-enc.onMesg(Profile.MesgNum.SESSION, { timestamp: new Date(fitStart.getTime() + 600_000), startTime: fitStart, sport: "running", totalTimerTime: 600, totalElapsedTime: 600, totalDistance: 2400, avgHeartRate: 150, maxHeartRate: 150 });
-const fitFile = { name: "carrera.fit", mimeType: "application/octet-stream", buffer: Buffer.from(enc.close()) };
+const fitBuffer = buildFit({
+  fileId: { manufacturer: "garmin", timeCreated: fitStart },
+  records: Array.from({ length: 601 }, (_, i) => ({ timestamp: new Date(fitStart.getTime() + i * 1000), distance: i * 4, enhancedSpeed: 4, heartRate: 150 })),
+  session: { timestamp: new Date(fitStart.getTime() + 600_000), startTime: fitStart, sport: "running", totalTimerTime: 600, totalElapsedTime: 600, totalDistance: 2400, avgHeartRate: 150, maxHeartRate: 150 },
+});
+const fitFile = { name: "carrera.fit", mimeType: "application/octet-stream", buffer: fitBuffer };
 await go(B + "/training/new");
 await page.getByText("Importar del reloj").click();
 await page.getByLabel("Fichero de actividad").setInputFiles(fitFile);
@@ -234,13 +234,13 @@ await agenda.getByRole("list", { name: "Eventos del día" }).getByText("Campeona
 await agenda.getByRole("list", { name: "Sesiones del día" }).locator("a").first().waitFor();
 log("calendario: el día muestra competición y sesiones");
 
-// 9. Dashboard y Astras AI
+// 9. Dashboard y Atlenza IA
 await go(B + "/");
 await page.getByText("Campeonato de España").waitFor();
 await page.getByRole("status").filter({ hasText: "Molestia activa en Rodilla (izquierda)" }).waitFor();
 await shot("09-dashboard");
 await go(B + "/study");
-await page.getByText(/La IA no está configurada/).waitFor();
+await page.getByText(/Aún no tienes una IA configurada/).waitFor();
 await go(B + "/settings");
 await page.getByRole("button", { name: "Activar notificaciones en este dispositivo" }).waitFor();
 await shot("10-study");

@@ -1,10 +1,10 @@
 # Contrato de encargado del tratamiento (art. 28 RGPD) — plantilla
 
-Entre **[responsable]** (en adelante, el Responsable) y **[encargado]** (en adelante, el Encargado), que [administra el servidor / da soporte técnico] de la instalación de LifeOS de [dominio].
+Entre **[responsable]** (en adelante, el Responsable) y **[encargado]** (en adelante, el Encargado), que [administra el servidor / da soporte técnico] de la instalación de Atlenza de [dominio].
 
-1. **Objeto:** el Encargado trata los datos personales de los usuarios de LifeOS solo para [administrar, mantener y hacer copias del servidor], siguiendo instrucciones documentadas del Responsable.
+1. **Objeto:** el Encargado trata los datos personales de los usuarios de Atlenza solo para [administrar, mantener y hacer copias del servidor], siguiendo instrucciones documentadas del Responsable.
 2. **Duración:** mientras dure el servicio. Al terminar, el Encargado devuelve o destruye los datos y las copias, y lo certifica.
-3. **Datos e interesados:** usuarios de LifeOS. Datos de cuenta, entrenamiento, recuperación, estudio, finanzas y **datos de salud** (categoría especial, cifrados).
+3. **Datos e interesados:** usuarios de Atlenza. Datos de cuenta, entrenamiento, recuperación, estudio, finanzas y **datos de salud** (categoría especial, cifrados).
 4. **Obligaciones del Encargado:**
    - confidencialidad, también de su personal;
    - medidas del art. 32, al menos las descritas en la EIPD;

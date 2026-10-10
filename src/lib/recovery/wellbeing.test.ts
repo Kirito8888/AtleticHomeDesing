@@ -24,7 +24,7 @@ describe("bienestar v1.7", () => {
     expect(t.alerts[0]).toMatch(/024/);
   });
 
-  it("escalas: QuickDASH y Aquiles", () => {
+  it("escalas propias: brazo y hombro, y Aquiles", () => {
     expect(quickDashScore(Array(11).fill(1))).toBe(0);
     expect(quickDashScore(Array(11).fill(5))).toBe(100);
     expect(quickDashScore([...Array(9).fill(3), null, null])).toBeNull();

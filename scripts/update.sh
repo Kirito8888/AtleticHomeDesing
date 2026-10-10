@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Actualiza LifeOS en el servidor con copia previa y vuelta atrás automática.
+# Actualiza Atlenza en el servidor con copia previa y vuelta atrás automática.
 #
 #   ./scripts/update.sh              # rama main
 #   BRANCH=otra ./scripts/update.sh

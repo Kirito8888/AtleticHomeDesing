@@ -4,7 +4,7 @@ import { enforceRateLimit, parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { inviteContact } from "@/lib/health/safety-service";
 
-/** Invitar a un contacto de confianza (otra cuenta de LifeOS) por su email. */
+/** Invitar a un contacto de confianza (otra cuenta de Atlenza) por su email. */
 export const POST = route(async (req) => {
   const user = await requireUser();
   enforceRateLimit("comment", user.id);

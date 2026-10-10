@@ -9,7 +9,7 @@ import { formatDate } from "@/lib/format";
 import type { Profile } from "@/lib/routine/profile";
 import { listRoutines } from "@/lib/routine/service";
 
-export const metadata = { title: "Crear mi rutina · LifeOS" };
+export const metadata = { title: "Crear mi rutina · Atlenza" };
 
 /** v1.7 · Crear una rutina con un cuestionario (sin IA) y ver lo que puedes lograr si la sigues. */
 export default async function RoutinePage() {

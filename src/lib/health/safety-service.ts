@@ -10,7 +10,7 @@ import { dataKeyConfigured, openJson, sealJson } from "@/lib/security/data-key";
 
 /**
  * «Entreno sola, con aviso»: sales con una hora prevista de vuelta y, si no marcas
- * «llegué» a tiempo, tus contactos de confianza (cuentas de LifeOS que aceptaron)
+ * «llegué» a tiempo, tus contactos de confianza (cuentas de Atlenza que aceptaron)
  * reciben un push. Sin SMS ni email: el servidor no tiene ese servicio.
  * La nota y la ubicación (solo si la compartes al salir) van cifradas.
  */
@@ -31,7 +31,7 @@ export async function inviteContact(userId: string, email: string) {
   if (!other || other.id === userId) throw new ApiError(404, "No se pudo enviar la invitación");
   await prisma.safetyContact.upsert({ where: { userId_contactId: { userId, contactId: other.id } }, create: { userId, contactId: other.id }, update: { status: "PENDING" } });
   await recordConsent(userId, "SAFETY", true);
-  await sendToUser(other.id, { title: "Te han elegido como contacto de confianza", body: "Acepta en LifeOS → Entreno sola para recibir el aviso si no llega a tiempo.", url: "/safety" });
+  await sendToUser(other.id, { title: "Te han elegido como contacto de confianza", body: "Acepta en Atlenza → Entreno sola para recibir el aviso si no llega a tiempo.", url: "/safety" });
 }
 
 /** El contacto acepta o rechaza; la dueña lo quita. */
@@ -80,7 +80,7 @@ export async function runSafetyJob(now = new Date(), send?: Parameters<typeof se
     for (const c of await activeContacts(t.userId)) {
       await sendToUser(c, { title: `¿Ha llegado ${who}?`, body: `Salió a las ${hhmm(t.startedAt)} y pensaba volver a las ${hhmm(t.dueAt)}; no ha marcado «llegué».${note}${where}`, url: "/safety", tag: `safety-${t.id}` }, send);
     }
-    await sendToUser(t.userId, { title: "¿Has llegado?", body: "Marca «llegué» en LifeOS: tus contactos ya han recibido el aviso.", url: "/safety", tag: `safety-${t.id}` }, send);
+    await sendToUser(t.userId, { title: "¿Has llegado?", body: "Marca «llegué» en Atlenza: tus contactos ya han recibido el aviso.", url: "/safety", tag: `safety-${t.id}` }, send);
     alerted++;
   }
   return alerted;

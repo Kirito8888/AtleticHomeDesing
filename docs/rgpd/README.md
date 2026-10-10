@@ -1,4 +1,4 @@
-# Documentación RGPD de una instalación de LifeOS
+# Documentación RGPD de una instalación de Atlenza
 
 **Uso personal (solo tú, o cuentas de prueba con datos inventados):** te cubre la exención doméstica del RGPD (art. 2.2.c) y no necesitas estos documentos. Aun así, conviene tenerlos preparados.
 

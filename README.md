@@ -1,4 +1,4 @@
-# LifeOS
+# Atlenza
 
 PWA personal para un atleta (pista, saltos y lanzamientos) que junta en una sola app:
 - **entrenamiento:** fuerza, técnica y carga (PMC), recuperación y planificación;
@@ -6,9 +6,16 @@ PWA personal para un atleta (pista, saltos y lanzamientos) que junta en una sola
 
 Pensada para el móvil y autoalojada en tu propio servidor.
 
-**Versión actual: v1.5**: salud de la mujer (disponibilidad energética, RED-S, analíticas, suelo pélvico, posparto; cifrado y fuera de la IA), carga y bienestar (Foster, Hooper, sueño, agua, VFC por CSV), vuelta tras lesión por fases, plan propio, tests físicos y VBT, horario de exámenes, pomodoro y hábitos, becas y material, comentarios de la entrenadora y estado del servidor. Ver [`CHANGELOG.md`](CHANGELOG.md).
+> **© 2026 David Ornelas Luna. Todos los derechos reservados.**
+> Este repositorio es público para que se pueda ver, pero **usar, instalar, copiar, modificar o
+> distribuir Atlenza requiere permiso previo y por escrito del autor**. Para pedirlo, abre una
+> [issue](https://github.com/Kirito8888/AtleticHomeDesing/issues). Condiciones completas en
+> [`LICENSE`](LICENSE); componentes de terceros en [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+> No es «open source»: es código visible con todos los derechos reservados.
 
-**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · PostgreSQL 17 + pgvector · Prisma 7 · pg-boss · Docker Compose · Google Gemini (opcional).
+**Versión actual: v1.9**: licencia y autoría, nombre Atlenza, acceso solo por invitación, IA con la clave de cada usuario (Gemini, OpenAI, Claude, Mistral, OpenRouter o un modelo local) y monitorización interna. Ver [`CHANGELOG.md`](CHANGELOG.md).
+
+**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · PostgreSQL 17 + pgvector · Prisma 7 · pg-boss · Docker Compose · IA de cada usuario (Gemini, compatible con OpenAI o Anthropic; opcional).
 
 ## Qué hace
 
@@ -20,7 +27,7 @@ Pensada para el móvil y autoalojada en tu propio servidor.
 | **Recuperación** | Sueño, VFC y FC en reposo → readiness; **control rápido** (squeeze, talón, salto); molestias y lesiones; **Mi ciclo** (opcional, cifrado) |
 | **Nutrición** | OpenFoodFacts y escáner de códigos de barras, comidas favoritas, **hidratos según el día del plan** |
 | **Finanzas** | Partida doble, presupuestos, suscripciones, importar extractos sin duplicados, **gastos deportivos por temporada** |
-| **Astras AI** | **Crear tu planificación** con un cuestionario sin escribir; chat sobre tus apuntes (RAG), flashcards, coach semanal. Solo con tu consentimiento |
+| **Atlenza IA** | **Crear tu planificación** con un cuestionario sin escribir; chat sobre tus apuntes (RAG), flashcards, coach semanal. Solo con tu consentimiento |
 | **Ajustes** | Mis reglas, 2FA, notificaciones y recordatorios, informe para la entrenadora, permisos del entrenador, exportar y borrar tus datos |
 
 ## Documentación

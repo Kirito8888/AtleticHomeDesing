@@ -1,4 +1,4 @@
-# LifeOS — Despliegue con Docker en Debian
+# Atlenza — Despliegue con Docker en Debian
 
 Guía de comandos para levantar la PWA en un servidor Debian 12 (bookworm) o 13 (trixie).
 Para la arquitectura interna, ver [`manual_backend.md`](manual_backend.md).
@@ -28,7 +28,7 @@ Internet ──HTTPS──► Caddy / NPM (:443) ──► web (Next.js, 127.0.0
 - **≥ 2 GB de RAM** (4 GB recomendados): el `next build` dentro de Docker consume ~1,5 GB. Con menos memoria, añade swap (§ 9).
 - ~5 GB de disco libres, más tus datos.
 - Un dominio apuntando a la IP del servidor (registro A/AAAA) para obtener HTTPS automático.
-- Opcional: una clave de Gemini (`GEMINI_API_KEY`) para Astras AI. Sin ella, todo lo demás funciona.
+- Opcional: una clave de Gemini (`GEMINI_API_KEY`) para Atlenza IA. Sin ella, todo lo demás funciona.
 
 ---
 
@@ -113,7 +113,7 @@ Valores a revisar:
 | `GEMINI_API_KEY` | Tu clave (opcional) |
 | `GEMINI_CHAT_MODEL` | Modelo de chat disponible en tu cuenta de Google AI |
 | `GEMINI_EMBEDDING_MODEL` / `GEMINI_EMBEDDING_DIM` | **No los cambies** tras subir apuntes: la columna es `vector(768)` y habría que re-vectorizar |
-| `OFF_USER_AGENT` | `"LifeOS/1.0 (tu-email@dominio.es)"` (OpenFoodFacts lo exige; entre comillas por los paréntesis) |
+| `OFF_USER_AGENT` | `"Atlenza/1.0 (tu-email@dominio.es)"` (OpenFoodFacts lo exige; entre comillas por los paréntesis) |
 | `UPLOAD_DIR` | `./uploads` (dentro del contenedor es `/app/uploads`, en un volumen) |
 
 `DATABASE_URL` no hace falta tocarla: `docker-compose.yml` la construye dentro de la red de Docker (`@db:5432`) a partir de `POSTGRES_*`.
@@ -198,7 +198,7 @@ sudo apt-get install -y fail2ban
 # 1. Logs del contenedor web en journald: en .env.production
 echo "WEB_LOG_DRIVER=journald" >> .env.production
 dc up -d web
-# 2. Filtro y jail de LifeOS
+# 2. Filtro y jail de Atlenza
 sudo cp deploy/fail2ban/filter.d/lifeos-auth.conf /etc/fail2ban/filter.d/
 sudo cp deploy/fail2ban/jail.d/lifeos.conf /etc/fail2ban/jail.d/
 sudo systemctl restart fail2ban
@@ -260,7 +260,13 @@ dc --profile tools run --rm migrate npm run user -- reset-password ana@correo.es
 dc --profile tools run --rm migrate npm run user -- unlock ana@correo.es           # tras 5 intentos fallidos
 dc --profile tools run --rm migrate npm run user -- set-role ana@correo.es COACH
 dc --profile tools run --rm migrate npm run user -- disable-2fa ana@correo.es      # perdió el móvil y los códigos
+# v1.9 · acceso solo con permiso
+dc --profile tools run --rm migrate npm run user -- invite ana@correo.es --role ATHLETE --days 7   # enlace de un solo uso
+dc --profile tools run --rm migrate npm run user -- suspend ana@correo.es          # no puede entrar; sus datos se conservan
+dc --profile tools run --rm migrate npm run user -- reactivate ana@correo.es
 ```
+
+Desde la v1.9, lo diario se hace en el **panel de administración** (`/admin`, con 2FA o llave): invitar, revocar invitaciones, suspender y reactivar cuentas y generar un **enlace de contraseña nueva** (1 hora, un solo uso) para quien la olvide. No hay emails: el enlace lo copias y se lo das por un canal privado.
 
 Cada usuario puede, en **Ajustes**: cambiar su contraseña y su email, activar la verificación en dos pasos, ver su actividad reciente, activar notificaciones, cerrar sesión en todos sus dispositivos, elegir qué ve su entrenador, descargar sus datos y borrar su cuenta.
 
@@ -292,6 +298,56 @@ dc --profile tools run --rm --build migrate
 dc up -d --build web
 docker image prune -f
 ```
+
+#### De v1.8 a v1.9 (Atlenza: uso solo con permiso, IA propia de cada usuario y vigilancia interna)
+
+**Lo que cambia para quien usa la app:**
+- El nombre visible pasa a ser **Atlenza**. No cambian la base de datos (`lifeos`), los volúmenes, las cookies ni las variables `LIFEOS_*`: no se pierde nada ni se cierra ninguna sesión.
+- **Condiciones de uso:** al entrar, cada cuenta (salvo ADMIN y demos) ve una pantalla para aceptarlas una vez.
+- **Registro solo por invitación** (si `ALLOW_REGISTRATION` no es `true`): desde el panel `/admin` o con `npm run user -- invite`. El enlace es de un solo uso y caduca.
+- **IA propia:** cada persona pone su clave en *Ajustes → IA* (Google, OpenAI o compatible, Anthropic o un modelo local). La clave del servidor `GEMINI_API_KEY` pasa a ser **opcional**: si la dejas, sirve de respaldo para quien no tenga la suya. Quien cambie de proveedor tiene que volver a dar el permiso de IA.
+
+**Antes de actualizar:**
+- **`AUTH_URL` debe ser la URL pública con https** (p. ej. `https://atlenza.tudominio.es`): con ella se construyen los enlaces de invitación y de contraseña nueva. Si está vacía, los enlaces salen relativos y tendrás que añadir el dominio a mano.
+- Lee la `LICENSE`: desde la v1.9 el programa es «todos los derechos reservados»; instalarlo requiere permiso escrito del autor.
+
+**Base de datos:**
+- Una migración: `v1_9_features`.
+- **Crea** las tablas `Invitation`, `PasswordReset` y `AiCredential`; añade `User.suspendedAt` y valores nuevos al registro de seguridad.
+- **Índice único parcial** para los ejercicios globales (`Exercise_global_name_key`). Si hubiera dos ejercicios globales con el mismo nombre (solo posible con dos *seeds* a la vez), sus series, marcas y alias pasan al más antiguo y el duplicado se borra. Es el único cambio que toca datos y se ha probado sobre una copia de la v1.8 con un duplicado provocado.
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh
+```
+
+**Variables nuevas** (todas opcionales):
+
+| Variable | Para qué |
+|---|---|
+| `AI_LOCAL_BASE_URLS` | URL de modelos locales que los usuarios pueden elegir, separadas por comas. Ej.: `http://ollama:11434/v1` si Ollama está en la misma red de Docker, o `http://host.docker.internal:11434/v1` si corre en el host (añade `extra_hosts: ["host.docker.internal:host-gateway"]` al servicio `web`). Cualquier otra URL que ponga un usuario debe ser https y pública. |
+| `TELEGRAM_BOT_TOKEN` y `TELEGRAM_ADMIN_CHAT_ID` | Avisos de la vigilancia interna por Telegram: copias fallidas, BD lenta, cola con fallos, poco disco o picos de errores, y cuándo se resuelven. Crea el bot con @BotFather; tu chat id sale en `https://api.telegram.org/bot<TOKEN>/getUpdates` tras escribirle. |
+
+**Vigilancia de la web caída** (la app no puede avisar si está caída). Añade al cron del usuario que despliega:
+
+```bash
+crontab -e
+# cada 5 minutos; avisa al segundo fallo seguido y cuando vuelve
+*/5 * * * * cd /opt/lifeos && sh scripts/watchdog.sh >/dev/null 2>&1
+```
+
+Lee `TELEGRAM_*`, `WEB_BIND` y `WEB_PORT` de `.env.production`. Sin Telegram configurado no envía nada.
+
+**Conexiones salientes nuevas:**
+- Las del proveedor de IA que elija cada usuario, solo con su permiso. Un modelo local no sale del servidor.
+- `api.telegram.org`, solo si configuras Telegram, y solo con el texto del aviso (sin datos de usuarios).
+
+**Comprobar que todo fue bien:**
+- `dc ps`: `web` y `db` **healthy**.
+- **Ajustes → Estado del servidor**: `v1.9.0` y la migración `20261115080000_v1_9_features`.
+- **`/admin` → Métricas y vigilancia**: «todo en orden» y, si configuraste Telegram, «Los avisos llegan por Telegram».
+- Prueba una invitación: créala en `/admin`, ábrela en una ventana privada y comprueba que pide aceptar las condiciones.
+- Si usas `scripts/watchdog.sh`, para la web un momento (`dc stop web`), espera 10 min y arráncala (`dc start web`): deben llegarte el aviso y la recuperación.
 
 #### De v1.7 a v1.8 (calidad, experiencia de uso y 12 funcionalidades)
 
@@ -340,7 +396,7 @@ cd /opt/lifeos
   - **«Revisar ahora»** de la integridad → «Todo en orden».
 - La **campana** aparece arriba; el aviso de tu último inicio de sesión ya está dentro.
 - **Ajustes → Notificaciones:** pon tus horas de silencio.
-- **Compartir con LifeOS:** en Android, reinstala la app desde Chrome (menú → «Instalar aplicación») para que aparezca en el menú «Compartir».
+- **Compartir con Atlenza:** en Android, reinstala la app desde Chrome (menú → «Instalar aplicación») para que aparezca en el menú «Compartir».
 
 #### De v1.6 a v1.7 (seguridad, privacidad, menos recursos y 30 funcionalidades)
 
@@ -456,7 +512,7 @@ cd /opt/lifeos
 - **Ajustes → Mis reglas:** tope de los kg del día, afinamiento (días y %), semáforo y plan de estudio;
 - **Recuperación → Salud de la mujer** (cribado óseo, enlace para tu médica, «Entreno sola» y su contacto);
 - **Entreno → Jabalina** (mínimas) y **Entreno → Prehab**;
-- **Astras AI → Exámenes y notas**; **Finanzas → Viajes y plazos**;
+- **Atlenza IA → Exámenes y notas**; **Finanzas → Viajes y plazos**;
 - **Ajustes → Calendario** si quieres tus clases y exámenes en el `.ics`.
 
 Detalles en [`docs/guia-usuario.md`](docs/guia-usuario.md).
@@ -493,7 +549,7 @@ Después, en la app (todo opcional):
 
 - **Ajustes → Mi pista** (coordenadas para el tiempo) y **Mis reglas** (monotonía, sueño, agua, VBT);
 - **Recuperación → Salud de la mujer** (si aplica);
-- **Astras AI → Horario y exámenes**;
+- **Atlenza IA → Horario y exámenes**;
 - **Entreno → Material**.
 
 Detalles en [`docs/guia-usuario.md`](docs/guia-usuario.md).
@@ -563,7 +619,7 @@ La migración `v1_1_security_privacy` solo **añade** columnas a `User` con valo
    ```
 3. Actualiza como siempre (`git pull` → `migrate` → `up -d --build web`).
 4. pgAdmin ya no arranca con `up`. Si estaba en marcha, páralo: `dc --profile pgadmin stop pgadmin`.
-5. **Astras AI queda desactivado** para todos hasta que cada usuario lo autorice en *Ajustes → Privacidad e IA*.
+5. **Atlenza IA queda desactivado** para todos hasta que cada usuario lo autorice en *Ajustes → Privacidad e IA*.
 
 ### Copias de seguridad (cifradas)
 
@@ -643,15 +699,15 @@ shred -u lifeos-backup.key            # no dejes la clave privada en el servidor
 | `required variable POSTGRES_USER is missing` | Falta `--env-file .env.production` | Usa el alias `dc` |
 | Tras iniciar sesión redirige a `localhost` u otro dominio | `AUTH_URL` no coincide con la URL pública | Corrígelo y ejecuta `dc up -d web` |
 | `password authentication failed` tras cambiar `POSTGRES_PASSWORD` | El volumen guarda la contraseña de la primera inicialización | Vuelve a la anterior o cámbiala dentro: `dc exec db psql -U lifeos -c "ALTER USER lifeos PASSWORD '…'"` |
-| Astras AI: "no está configurado" | Falta `GEMINI_API_KEY` | Añádela y ejecuta `dc up -d web` |
-| Astras AI: "Activa el consentimiento de IA" | El usuario no ha autorizado el envío a Gemini | *Ajustes → Privacidad e IA* |
+| Atlenza IA: "no está configurado" | Falta `GEMINI_API_KEY` | Añádela y ejecuta `dc up -d web` |
+| Atlenza IA: "Activa el consentimiento de IA" | El usuario no ha autorizado el envío a Gemini | *Ajustes → Privacidad e IA* |
 | Login: "Demasiados intentos" | 5 fallos seguidos en la cuenta (bloqueo de 15 min) o 10 intentos desde la misma IP en 15 min | Espera, o `npm run user -- unlock <email>` (§ 8). Si **todos** los usuarios ven el aviso a la vez, tu proxy no envía `X-Forwarded-For` y todos comparten IP |
 | `/register` dice "Registro cerrado" | `ALLOW_REGISTRATION=false` y ya existe algún usuario | Crea la cuenta con `npm run user -- create` |
 | Perdí el móvil con la app de 2FA y los códigos de recuperación | — | `npm run user -- disable-2fa <email>` (también cierra sus sesiones) |
 | "La verificación en dos pasos no está configurada" | Falta `TOTP_ENCRYPTION_KEY` | Añádela (`openssl rand -base64 32`) y `dc up -d web` |
 | No llegan notificaciones | Sin claves VAPID, permiso denegado en el navegador, o iPhone sin la PWA instalada | Ajustes → Notificaciones → *Enviar prueba*. En iOS (16.4+), instala la app en la pantalla de inicio |
 | `dc ps` muestra `web` como *unhealthy* | La app no llega a la BD | `dc logs --tail=100 web` y `curl http://127.0.0.1:3000/api/health` |
-| Apuntes en "Pendiente" para siempre | La cola de ingesta no arrancó | Busca `[jobs]` en `dc logs web`. Los fallidos se reintentan desde Astras AI → *Reintentar* |
+| Apuntes en "Pendiente" para siempre | La cola de ingesta no arrancó | Busca `[jobs]` en `dc logs web`. Los fallidos se reintentan desde Atlenza IA → *Reintentar* |
 | Importar extracto: "Importe no válido" en muchas líneas | Columna o formato decimal mal elegidos | En la vista previa, cambia *Importe* o *Decimales*. Guarda el formato para el próximo mes |
 | Gemini responde con error de modelo | `GEMINI_CHAT_MODEL` no está disponible en tu cuenta | Cambia a un modelo listado en Google AI Studio |
 | Buscador de alimentos: "resultados de tu caché local" | OpenFoodFacts no responde o devuelve 429 (~10 búsquedas/min) | Espera un minuto. Los productos ya consultados siguen disponibles |

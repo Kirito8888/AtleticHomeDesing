@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { pageUser } from "@/lib/auth/page";
 import { searchAll } from "@/lib/search";
 
-export const metadata = { title: "Buscar · LifeOS" };
+export const metadata = { title: "Buscar · Atlenza" };
 
 /** Búsqueda global: un formulario GET, sin JavaScript. */
 export default async function SearchPage({ searchParams }: PageProps<"/search">) {

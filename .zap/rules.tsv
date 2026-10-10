@@ -1,0 +1,10 @@
+# OWASP ZAP baseline (pasivo) en la CI. Formato: id<TAB>IGNORE|WARN|FAIL<TAB>(nombre).
+# Con -I los avisos (WARN) no rompen la CI: solo las reglas marcadas FAIL, que la app ya cumple.
+10020	FAIL	(Anti-clickjacking Header)
+10021	FAIL	(X-Content-Type-Options Header Missing)
+10038	FAIL	(Content Security Policy (CSP) Header Not Set)
+10098	FAIL	(Cross-Domain Misconfiguration)
+90022	FAIL	(Application Error Disclosure)
+10023	FAIL	(Information Disclosure - Debug Error Messages)
+# HTTP en la CI (sin TLS): HSTS solo tiene sentido detrás del proxy con https
+10035	IGNORE	(Strict-Transport-Security Header)

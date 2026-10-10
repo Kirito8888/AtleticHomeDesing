@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { adherence, PREHAB_TEMPLATES } from "@/lib/training/prehab";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Prehabilitación · LifeOS" };
+export const metadata = { title: "Prehabilitación · Atlenza" };
 
 export default async function PrehabPage() {
   const user = await pageUser();

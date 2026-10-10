@@ -8,7 +8,7 @@ import { seasonBudgetView } from "@/lib/finance/season-service";
 import { prisma } from "@/lib/prisma";
 import { assignmentAlert, type AssignmentStatus } from "@/lib/study/coursework";
 
-export const metadata = { title: "De un vistazo · LifeOS" };
+export const metadata = { title: "De un vistazo · Atlenza" };
 
 function Row({ label, href, children }: { label: string; href: string; children: React.ReactNode }) {
   return (

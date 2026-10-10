@@ -1,7 +1,7 @@
 // Importación de actividades de reloj/ciclocomputador: FIT (Garmin, Coros,
 // Polar, Suunto, Wahoo…), GPX (Strava y casi cualquier app) y TCX (Garmin
 // Connect, Polar Flow). Puro: recibe los bytes y devuelve un resumen; no toca la BD.
-import { Decoder, Stream } from "@garmin/fitsdk";
+import FitParser from "fit-file-parser";
 import { XMLParser } from "fast-xml-parser";
 
 import { localDay } from "@/lib/dates";
@@ -148,60 +148,69 @@ export function summarize(samples: Sample[]) {
 // FIT
 // ---------------------------------------------------------------------------
 
-const SEMICIRCLE = 180 / 2 ** 31;
+/**
+ * Lector FIT con licencia MIT (fit-file-parser). Comprueba el CRC, convierte semicírculos a grados
+ * y aplica escalas y offsets del perfil FIT; las unidades se piden en metros y m/s.
+ */
+function decodeFit(buf: Buffer) {
+  let out: { error?: string; data?: Record<string, unknown> } = {};
+  // parse() es síncrono: el callback se ejecuta antes de volver
+  new FitParser({ force: false, speedUnit: "m/s", lengthUnit: "m", mode: "list" }).parse(buf as never, (error, data) => {
+    out = { error, data: data as Record<string, unknown> | undefined };
+  });
+  return out;
+}
 
 function parseFit(buf: Buffer): ParsedActivity {
-  const stream = Stream.fromBuffer(buf);
-  const decoder = new Decoder(stream);
-  if (!decoder.isFIT()) throw new ImportError("No es un fichero FIT");
-  if (!decoder.checkIntegrity()) throw new ImportError("El fichero FIT está dañado o incompleto (CRC)");
-  const { messages, errors } = decoder.read({ mergeHeartRates: true });
-  if (errors.length) throw new ImportError(`No se pudo leer el FIT: ${String(errors[0])}`);
+  // Cabecera: tamaño (12 o 14) y la firma «.FIT» en los bytes 8–11
+  if (buf.length < 12 || buf.toString("ascii", 8, 12) !== ".FIT") throw new ImportError("No es un fichero FIT");
+  const { error, data } = decodeFit(buf);
+  if (error || !data) throw new ImportError(/crc/i.test(error ?? "") ? "El fichero FIT está dañado o incompleto (CRC)" : `No se pudo leer el FIT: ${error ?? "sin datos"}`);
 
   type R = Record<string, unknown>;
-  const records = (messages.recordMesgs ?? []) as R[];
-  const session = ((messages.sessionMesgs ?? []) as R[])[0];
-  const fileId = ((messages.fileIdMesgs ?? []) as R[])[0];
+  const records = (data.records ?? []) as R[];
+  const session = ((data.sessions ?? []) as R[])[0];
+  const fileId = ((data.file_ids ?? []) as R[])[0];
 
   const samples: Sample[] = records.map((r) => ({
     time: new Date(r.timestamp as string | Date),
-    lat: num(r.positionLat) != null ? num(r.positionLat)! * SEMICIRCLE : undefined,
-    lon: num(r.positionLong) != null ? num(r.positionLong)! * SEMICIRCLE : undefined,
-    altitude: num(r.enhancedAltitude) ?? num(r.altitude),
+    lat: num(r.position_lat) ?? undefined,
+    lon: num(r.position_long) ?? undefined,
+    altitude: num(r.enhanced_altitude) ?? num(r.altitude),
     distance: num(r.distance),
-    hr: num(r.heartRate),
+    hr: num(r.heart_rate),
     cadence: num(r.cadence),
-    speed: num(r.enhancedSpeed) ?? num(r.speed),
+    speed: num(r.enhanced_speed) ?? num(r.speed),
   }));
   const sum = summarize(samples);
 
   // El resumen de sesión del dispositivo manda (mide pausas y desnivel mejor);
   // si falta, se usa lo calculado de las muestras.
   const sport = (session?.sport as string | undefined) ?? null;
-  const subSport = (session?.subSport as string | undefined) ?? "";
-  const pool = num(session?.poolLength);
+  const subSport = (session?.sub_sport as string | undefined) ?? "";
+  const pool = num(session?.pool_length);
   const surface: ParsedActivity["surface"] =
     subSport === "track" ? "TRACK" : subSport === "treadmill" ? "TREADMILL" : subSport === "trail" ? "TRAIL"
-    : subSport === "lapSwimming" && pool ? (pool >= 45 ? "POOL_50" : "POOL_25") : subSport === "openWater" ? "OPEN_WATER" : null;
-  const startedAt = session?.startTime ? new Date(session.startTime as string) : sum.startedAt;
+    : subSport === "lap_swimming" && pool ? (pool >= 45 ? "POOL_50" : "POOL_25") : subSport === "open_water" ? "OPEN_WATER" : null;
+  const startedAt = session?.start_time ? new Date(session.start_time as string) : sum.startedAt;
   const manufacturer = typeof fileId?.manufacturer === "string" ? fileId.manufacturer : null;
 
   return {
     format: "FIT",
-    // "polarElectro" → "Polar Electro"
-    device: manufacturer ? manufacturer.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase()) : null,
+    // "polar_electro" → "Polar Electro"
+    device: manufacturer ? manufacturer.split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") : null,
     sport: subSport && subSport !== "generic" ? `${sport ?? ""}/${subSport}` : sport,
     modality: subSport === "track" && sport === "running" ? "RUN" : modalityOf(sport),
     surface,
     startedAt,
     date: localDay(startedAt),
-    elapsedSec: Math.round(num(session?.totalElapsedTime) ?? sum.elapsedSec),
-    movingSec: Math.round(num(session?.totalTimerTime) ?? sum.movingSec),
-    distanceM: num(session?.totalDistance) != null ? round(num(session?.totalDistance)!, 1) : sum.distanceM,
-    hrAvg: num(session?.avgHeartRate) ?? sum.hrAvg,
-    hrMax: num(session?.maxHeartRate) ?? sum.hrMax,
-    elevationGainM: num(session?.totalAscent) ?? sum.elevationGainM,
-    avgCadence: num(session?.avgRunningCadence) ?? num(session?.avgCadence) ?? sum.avgCadence,
+    elapsedSec: Math.round(num(session?.total_elapsed_time) ?? sum.elapsedSec),
+    movingSec: Math.round(num(session?.total_timer_time) ?? sum.movingSec),
+    distanceM: num(session?.total_distance) != null ? round(num(session?.total_distance)!, 1) : sum.distanceM,
+    hrAvg: num(session?.avg_heart_rate) ?? sum.hrAvg,
+    hrMax: num(session?.max_heart_rate) ?? sum.hrMax,
+    elevationGainM: num(session?.total_ascent) ?? sum.elevationGainM,
+    avgCadence: num(session?.avg_running_cadence) ?? num(session?.avg_cadence) ?? sum.avgCadence,
     samples: sum.samples,
   };
 }

@@ -16,7 +16,7 @@ import { IRON_TIPS, PERF_LABEL } from "@/lib/health/women-plus";
 import { womenEnabled, womenOverview } from "@/lib/health/women-service";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Salud de la mujer · LifeOS" };
+export const metadata = { title: "Salud de la mujer · Atlenza" };
 
 function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (

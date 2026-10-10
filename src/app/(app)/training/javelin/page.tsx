@@ -10,7 +10,7 @@ import { javelinSessions } from "@/lib/training/javelin-service";
 import { throwStats } from "@/lib/training/diary-service";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Análisis de jabalina · LifeOS" };
+export const metadata = { title: "Análisis de jabalina · Atlenza" };
 
 const REF_G = 800;
 const m = (x: number | null) => (x == null ? "—" : `${formatNum(x, 2)} m`);

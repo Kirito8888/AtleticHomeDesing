@@ -5,7 +5,7 @@ import { TrashList } from "@/components/settings/trash-list";
 import { listTrash, TRASH_DAYS } from "@/lib/account/trash";
 import { pageUser } from "@/lib/auth/page";
 
-export const metadata = { title: "Papelera · LifeOS" };
+export const metadata = { title: "Papelera · Atlenza" };
 
 /** v1.8 · Sesiones, comidas y movimientos borrados en los últimos 7 días. */
 export default async function TrashPage() {

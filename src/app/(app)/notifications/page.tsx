@@ -6,11 +6,11 @@ import { pageUser } from "@/lib/auth/page";
 import { listInbox } from "@/lib/push/inbox";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Notificaciones · LifeOS" };
+export const metadata = { title: "Notificaciones · Atlenza" };
 
 const when = (d: Date) => new Intl.DateTimeFormat("es-ES", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(d);
 
-/** v1.8 · Lo que LifeOS te ha avisado (60 días), aunque no tengas las notificaciones push activadas. */
+/** v1.8 · Lo que Atlenza te ha avisado (60 días), aunque no tengas las notificaciones push activadas. */
 export default async function NotificationsPage() {
   const user = await pageUser();
   const items = await listInbox(user.id);

@@ -60,7 +60,7 @@ export function AskData() {
         </div>
       ) : null}
       <p className="text-xs text-muted-foreground">
-        A Gemini solo le llega un resumen numérico de 8 semanas: sesiones, minutos, carga, lanzamientos, marcas, RM y tests. Nunca tu recuperación, tu ciclo, tus molestias, tus notas ni tu nombre.
+        A tu IA solo le llega un resumen numérico de 8 semanas: sesiones, minutos, carga, lanzamientos, marcas, RM y tests. Nunca tu recuperación, tu ciclo, tus molestias, tus notas ni tu nombre.
       </p>
     </div>
   );

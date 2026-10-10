@@ -21,7 +21,7 @@ import { cyclePredictions } from "@/lib/health/cycle-service";
 import { fromMin, slotsOnDay } from "@/lib/study/schedule";
 import { listSlots } from "@/lib/study/schedule-service";
 
-export const metadata = { title: "Planificación · LifeOS" };
+export const metadata = { title: "Planificación · Atlenza" };
 
 const WEEKDAYS = ["L", "M", "X", "J", "V", "S", "D"];
 const PRIORITY_RANK = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 } as const;

@@ -49,6 +49,10 @@ class TotpRequired extends CredentialsSignin {
 class TotpInvalid extends CredentialsSignin {
   code = "totp_invalid";
 }
+/** v1.9 · Cuenta suspendida por la administración (solo se dice a quien ya tiene la contraseña o la llave). */
+class AccountSuspended extends CredentialsSignin {
+  code = "suspended";
+}
 
 /** Suma un fallo a la cuenta; al llegar a MAX_FAILED_LOGINS la bloquea. Devuelve si quedó bloqueada. */
 async function registerFailure(user: { id: string; failedLogins: number }): Promise<boolean> {
@@ -102,6 +106,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           await recordEvent(user.id, locked ? "ACCOUNT_LOCKED" : "LOGIN_FAILED", ctx, "contraseña incorrecta");
           throw locked ? fail("locked", new TooManyAttempts()) : fail("credentials");
         }
+        if (user.suspendedAt) throw fail("suspended", new AccountSuspended());
 
         // Verificación en dos pasos. Pedir el código solo revela que la contraseña es
         // correcta a quien ya la tiene; los códigos erróneos cuentan para el bloqueo.
@@ -126,7 +131,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         await recordEvent(user.id, "LOGIN_SUCCESS", ctx);
         // Aviso de nuevo inicio de sesión a sus dispositivos (sin esperar: no retrasa el login).
         void sendToUser(user.id, {
-          title: "Nuevo inicio de sesión en LifeOS",
+          title: "Nuevo inicio de sesión en Atlenza",
           body: `Desde ${ctx.ip && ctx.ip !== "unknown" ? `la IP ${ctx.ip}` : "un dispositivo"}. Si no has sido tú, cambia la contraseña.`,
           url: "/settings",
           tag: "login",
@@ -162,8 +167,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new CredentialsSignin();
         if (user.lockedUntil && user.lockedUntil > new Date()) throw new TooManyAttempts();
+        if (user.suspendedAt) throw new AccountSuspended();
         await recordEvent(user.id, "PASSKEY_LOGIN", ctx);
-        void sendToUser(user.id, { title: "Nuevo inicio de sesión en LifeOS", body: "Con una llave de acceso. Si no has sido tú, revisa Ajustes → Seguridad.", url: "/settings", tag: "login" });
+        void sendToUser(user.id, { title: "Nuevo inicio de sesión en Atlenza", body: "Con una llave de acceso. Si no has sido tú, revisa Ajustes → Seguridad.", url: "/settings", tag: "login" });
         return { id: user.id, email: user.email, name: user.name, image: user.image, role: user.role, sessionVersion: user.sessionVersion };
       },
     }),
@@ -181,9 +187,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // en todos los dispositivos") o el usuario ya no existe, la sesión deja de valer.
       const current = await prisma.user.findUnique({
         where: { id: token.id },
-        select: { sessionVersion: true, role: true, email: true, name: true },
+        select: { sessionVersion: true, role: true, email: true, name: true, suspendedAt: true },
       });
-      if (!current || current.sessionVersion !== (token.sv ?? 1)) return null;
+      if (!current || current.sessionVersion !== (token.sv ?? 1) || current.suspendedAt) return null;
       token.role = current.role;
       token.email = current.email;
       token.name = current.name;

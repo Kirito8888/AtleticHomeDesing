@@ -3,7 +3,7 @@ import { connection } from "next/server";
 import { RETENTION_DEFAULTS, retentionDays } from "@/lib/privacy/retention";
 import { controller } from "@/lib/privacy/legal";
 
-export const metadata = { title: "Política de privacidad · LifeOS" };
+export const metadata = { title: "Política de privacidad · Atlenza" };
 
 /** v1.7 · Política de privacidad (arts. 13 y 14 RGPD; LOPDGDD). Los datos del responsable vienen del entorno. */
 export default async function PrivacyPolicy() {
@@ -15,7 +15,7 @@ export default async function PrivacyPolicy() {
       <h1>Política de privacidad</h1>
       {!c.name ? (
         <p>
-          Esta es una instalación personal de LifeOS. Mientras la use solo su titular para fines personales, el RGPD no se aplica (art. 2.2.c, exención doméstica). Si te han dado una cuenta, pide al titular sus datos de contacto: debe completarlos aquí.
+          Esta es una instalación personal de Atlenza. Mientras la use solo su titular para fines personales, el RGPD no se aplica (art. 2.2.c, exención doméstica). Si te han dado una cuenta, pide al titular sus datos de contacto: debe completarlos aquí.
         </p>
       ) : null}
       <h2>Responsable</h2>
@@ -37,7 +37,7 @@ export default async function PrivacyPolicy() {
       <ul>
         <li>Nadie, salvo lo que tú decidas: tu entrenador/a (solo lo que marques, nunca salud ni finanzas), enlaces temporales que creas (médica, fisio, entrenadora) y tu contacto de «Entreno sola».</li>
         <li>
-          Google (Gemini), solo si activas Astras AI: tus apuntes, preguntas y un resumen numérico sin nombre ni salud. Puede tratarlos fuera del Espacio Económico Europeo (Marco de Privacidad de Datos UE-EE. UU. y cláusulas contractuales tipo).
+          El proveedor de IA que tú elijas en Ajustes → IA (Google, OpenAI o compatible, Anthropic, o un modelo local de este servidor; si no eliges ninguno y el servidor tiene clave, Google Gemini), solo si activas Atlenza IA: tus apuntes, preguntas y un resumen numérico sin nombre ni salud. Un proveedor externo puede tratarlos fuera del Espacio Económico Europeo según sus propias condiciones y garantías; un modelo local no los saca del servidor. Tu clave de API se guarda cifrada y no se comparte.
         </li>
         <li>OpenFoodFacts y Open-Meteo reciben solo búsquedas de alimentos y coordenadas de tu pista, sin datos tuyos.</li>
       </ul>

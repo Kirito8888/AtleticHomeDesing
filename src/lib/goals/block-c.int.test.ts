@@ -81,7 +81,9 @@ describe.skipIf(!HAS_DB)("bloque C v1.8 (BD real)", () => {
     expect(await snoozeNotification(other, n.id)).toBe(false);
     const now = new Date();
     expect(await snoozeNotification(userId, n.id, 60, now)).toBe(true);
-    expect(await runSnoozedJob(new Date(now.getTime() + 30 * 60_000))).toBe(0);
+    // Antes de la hora no se reenvía (el total del job depende de otras filas de la BD: se mira la propia)
+    await runSnoozedJob(new Date(now.getTime() + 30 * 60_000));
+    expect((await prisma.notificationLog.findUniqueOrThrow({ where: { id: n.id } })).snoozeUntil).not.toBeNull();
     await runSnoozedJob(new Date(now.getTime() + 61 * 60_000));
     const after = await prisma.notificationLog.findUniqueOrThrow({ where: { id: n.id } });
     expect(after.snoozeUntil).toBeNull();

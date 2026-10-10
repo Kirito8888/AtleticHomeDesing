@@ -7,7 +7,7 @@ import { toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { getPrefs } from "@/lib/rules/prefs-service";
 
-export const metadata = { title: "Bienvenida · LifeOS" };
+export const metadata = { title: "Bienvenida · Atlenza" };
 
 /** v1.8 · Primer uso guiado (3 pasos, todo opcional y modificable en Ajustes). */
 export default async function WelcomePage() {
@@ -15,7 +15,7 @@ export default async function WelcomePage() {
   const [u, prefs] = await Promise.all([prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { name: true, athleteProfile: { select: { sex: true, birthDate: true, disciplines: true } } } }), getPrefs(user.id)]);
   return (
     <>
-      <PageHeader title="Bienvenida" description="Tres pasos para que LifeOS se adapte a ti. Todo se puede cambiar después." />
+      <PageHeader title="Bienvenida" description="Tres pasos para que Atlenza se adapte a ti. Todo se puede cambiar después." />
       <Card className="max-w-xl py-4">
         <CardContent className="px-4">
           <WelcomeWizard

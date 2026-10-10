@@ -16,7 +16,7 @@ const STEPS = ["Para qué", "Tú", "Avisos"] as const;
 type Discipline = keyof typeof DISCIPLINES;
 
 /**
- * v1.8 · Primer uso: qué partes de LifeOS vas a usar (el resto se oculta y se puede recuperar en
+ * v1.8 · Primer uso: qué partes de Atlenza vas a usar (el resto se oculta y se puede recuperar en
  * Ajustes → Módulos), tu perfil básico y las horas de silencio. Todo opcional.
  */
 export function WelcomeWizard({ initial }: { initial: { name: string; sex: "MALE" | "FEMALE" | "OTHER" | null; birthDate: string; disciplines: Discipline[]; hidden: ModuleKey[] } }) {
@@ -57,7 +57,7 @@ export function WelcomeWizard({ initial }: { initial: { name: string; sex: "MALE
       {step === 0 ? (
         <>
           <p>¿Qué vas a usar? Lo demás se oculta (sin borrar nada) y lo recuperas cuando quieras en Ajustes → Módulos.</p>
-          <MultiChips label="Partes de LifeOS" options={all.map((m) => ({ value: m, label: MODULE_LABEL[m] }))} value={modules} onChange={setModules} />
+          <MultiChips label="Partes de Atlenza" options={all.map((m) => ({ value: m, label: MODULE_LABEL[m] }))} value={modules} onChange={setModules} />
         </>
       ) : null}
       {step === 1 ? (

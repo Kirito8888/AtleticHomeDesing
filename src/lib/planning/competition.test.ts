@@ -38,7 +38,7 @@ describe("calendario .ics", () => {
     expect(icsText("A, B; C\\D\nE")).toBe("A\\, B\\; C\\\\D\\nE");
     const long = "SUMMARY:" + "á".repeat(80);
     expect(foldLine(long).split("\r\n ").every((l) => Buffer.byteLength(l) <= 75)).toBe(true);
-    const ics = buildIcs("LifeOS", [{ uid: "e1", title: "Control, Burgos", start: new Date("2026-10-10"), allDay: true, location: "Pista" }], new Date("2026-10-07T10:00:00Z"));
+    const ics = buildIcs("Atlenza", [{ uid: "e1", title: "Control, Burgos", start: new Date("2026-10-10"), allDay: true, location: "Pista" }], new Date("2026-10-07T10:00:00Z"));
     expect(ics).toContain("DTSTART;VALUE=DATE:20261010\r\nDTEND;VALUE=DATE:20261011");
     expect(ics).toContain("SUMMARY:Control\\, Burgos");
     expect(ics.endsWith("END:VCALENDAR\r\n")).toBe(true);

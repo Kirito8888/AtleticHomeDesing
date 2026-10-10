@@ -44,6 +44,7 @@ await go(B + "/register");
 await page.fill("#name", "Atleta Prueba");
 await page.fill("#email", `plan${Date.now()}@test.dev`);
 await page.fill("#password", "contraseña-segura-1");
+await page.check("input[name=terms]");
 await Promise.all([page.waitForURL(/\/settings\?welcome=1/), page.click("button[type=submit]")]);
 log("registro");
 

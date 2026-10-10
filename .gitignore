@@ -51,3 +51,6 @@ next-env.d.ts
 # Copias de seguridad locales (servicio backup)
 /backups/
 /backups-pre-update/
+
+# Informes de OWASP ZAP (CI)
+.zap/zap-report.*

@@ -9,7 +9,7 @@ import { formatDate } from "@/lib/format";
 import { fromMin, WEEKDAY_NAMES } from "@/lib/study/schedule";
 import { upcomingExamClashes } from "@/lib/study/schedule-service";
 
-export const metadata = { title: "Horario · LifeOS" };
+export const metadata = { title: "Horario · Atlenza" };
 
 export default async function SchedulePage() {
   const user = await pageUser();

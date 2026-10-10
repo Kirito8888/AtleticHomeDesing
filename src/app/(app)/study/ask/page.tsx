@@ -2,7 +2,7 @@ import { AskData } from "@/components/ai/ask-data";
 import { PageHeader } from "@/components/page-header";
 import { pageUser } from "@/lib/auth/page";
 
-export const metadata = { title: "Pregunta a tus datos · LifeOS" };
+export const metadata = { title: "Pregunta a tus datos · Atlenza" };
 
 export default async function AskPage() {
   await pageUser();

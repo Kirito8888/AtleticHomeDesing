@@ -2,12 +2,12 @@ import "server-only";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 
-import type { Content } from "@google/genai";
 import { extractText } from "unpdf";
 
 import { Prisma } from "@/generated/prisma/client";
 import { chunkDocument } from "@/lib/ai/chunking";
-import { embedTexts, generateText, toVectorLiteral } from "@/lib/ai/gemini";
+import { embedTexts, generateText, toVectorLiteral } from "@/lib/ai/llm";
+import type { EmbedTask } from "@/lib/ai/provider";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
@@ -101,17 +101,16 @@ export async function createDocumentFromUpload(userId: string, file: File, meta:
 }
 
 export interface ProcessDeps {
-  embed: (texts: string[]) => Promise<number[][]>;
-  /** Comprueba clave y consentimiento justo antes de enviar nada a Gemini. */
+  /** Vectores y etiqueta del modelo con la IA del usuario; null si su IA no tiene embeddings (búsqueda por texto). */
+  embed: (userId: string, texts: string[], task: EmbedTask) => Promise<{ vectors: number[][]; tag: string } | null>;
+  /** Comprueba IA disponible y consentimiento justo antes de enviar nada. */
   assertAllowed: (userId: string) => Promise<void>;
-  embedModel: () => string;
 }
 
-const defaultDeps: ProcessDeps = {
-  embed: (texts) => embedTexts(texts, "RETRIEVAL_DOCUMENT"),
-  assertAllowed: assertAiAllowed,
-  embedModel: () => `${env().GEMINI_EMBEDDING_MODEL}@${env().GEMINI_EMBEDDING_DIM}`,
-};
+const defaultDeps: ProcessDeps = { embed: embedTexts, assertAllowed: assertAiAllowed };
+
+/** Valor de embedModel de los documentos indexados solo para búsqueda por texto. */
+export const TEXT_ONLY = "texto";
 
 /**
  * Paso 2 (en segundo plano): extrae texto, trocea, vectoriza y guarda. Idempotente:
@@ -128,8 +127,8 @@ export async function processDocument(documentId: string, deps: ProcessDeps = de
     const buf = await readFile(doc.storagePath);
     const chunks = chunkDocument(await extractPages(buf, doc.mimeType));
     if (!chunks.length) throw new ApiError(422, "No se pudo extraer texto (¿PDF escaneado sin OCR?)");
-    const vectors = await deps.embed(chunks.map((c) => c.content));
-    if (vectors.length !== chunks.length) throw new ApiError(502, "Respuesta de embeddings incompleta");
+    const embedded = await deps.embed(doc.userId, chunks.map((c) => c.content), "RETRIEVAL_DOCUMENT");
+    if (embedded && embedded.vectors.length !== chunks.length) throw new ApiError(502, "Respuesta de embeddings incompleta");
 
     await prisma.$transaction(async (tx) => {
       await tx.documentChunk.deleteMany({ where: { documentId: doc.id } });
@@ -144,16 +143,16 @@ export async function processDocument(documentId: string, deps: ProcessDeps = de
         })),
       });
       // Prisma no soporta el tipo vector: el embedding se escribe con SQL parametrizado.
-      for (let i = 0; i < chunks.length; i++) {
+      for (let i = 0; embedded && i < chunks.length; i++) {
         await tx.$executeRaw`
-          UPDATE "DocumentChunk" SET embedding = ${toVectorLiteral(vectors[i])}::vector
+          UPDATE "DocumentChunk" SET embedding = ${toVectorLiteral(embedded.vectors[i])}::vector
           WHERE "documentId" = ${doc.id} AND "chunkIndex" = ${chunks[i].index}`;
       }
     }, { timeout: 120_000 });
 
     return prisma.studyDocument.update({
       where: { id: doc.id },
-      data: { status: "EMBEDDED", embedModel: deps.embedModel(), error: null },
+      data: { status: "EMBEDDED", embedModel: embedded?.tag ?? TEXT_ONLY, error: null },
       include: { _count: { select: { chunks: true } } },
     });
   } catch (err) {
@@ -173,25 +172,56 @@ export interface RetrievedChunk {
   score: number;
 }
 
-/** KNN por distancia coseno con el índice HNSW, filtrado por usuario (y documentos). */
-export async function searchChunks(userId: string, query: string, k = 6, documentIds?: string[]): Promise<RetrievedChunk[]> {
-  const [vector] = await embedTexts([query], "RETRIEVAL_QUERY");
-  const v = toVectorLiteral(vector);
+/**
+ * Fragmentos más relevantes. Los documentos vectorizados con el modelo actual del usuario se buscan
+ * por similitud (KNN coseno con el índice HNSW); el resto (IA sin embeddings, o vectorizados con otro
+ * modelo hasta que se reindexen) por texto completo en español. Siempre filtrado por usuario.
+ */
+export async function searchChunks(userId: string, query: string, k = 6, documentIds?: string[], deps: Pick<ProcessDeps, "embed"> = defaultDeps): Promise<RetrievedChunk[]> {
   const docFilter = documentIds?.length ? Prisma.sql`AND c."documentId" IN (${Prisma.join(documentIds)})` : Prisma.empty;
-  return prisma.$queryRaw<RetrievedChunk[]>`
+  const q = await deps.embed(userId, [query], "RETRIEVAL_QUERY");
+  const byVector = q
+    ? await prisma.$queryRaw<RetrievedChunk[]>`
+        SELECT c.id, c."documentId", d.title, c.page, c.content,
+               1 - (c.embedding <=> ${toVectorLiteral(q.vectors[0])}::vector) AS score
+        FROM "DocumentChunk" c
+        JOIN "StudyDocument" d ON d.id = c."documentId"
+        WHERE c."userId" = ${userId} AND c.embedding IS NOT NULL AND d."embedModel" = ${q.tag} ${docFilter}
+        ORDER BY c.embedding <=> ${toVectorLiteral(q.vectors[0])}::vector
+        LIMIT ${k}`
+    : [];
+  const sameModel = q ? Prisma.sql`AND d."embedModel" IS DISTINCT FROM ${q.tag}` : Prisma.empty;
+  // ts_rank normalizado (32: rank / (rank + 1)) y escalado para compararlo con la similitud coseno
+  const byText = await prisma.$queryRaw<RetrievedChunk[]>`
     SELECT c.id, c."documentId", d.title, c.page, c.content,
-           1 - (c.embedding <=> ${v}::vector) AS score
+           LEAST(1, 0.35 + ts_rank(to_tsvector('spanish', c.content), websearch_to_tsquery('spanish', ${query}), 32) * 2) AS score
     FROM "DocumentChunk" c
     JOIN "StudyDocument" d ON d.id = c."documentId"
-    WHERE c."userId" = ${userId} AND c.embedding IS NOT NULL ${docFilter}
-    ORDER BY c.embedding <=> ${v}::vector
+    WHERE c."userId" = ${userId} AND d.status = 'EMBEDDED' ${sameModel} ${docFilter}
+      AND to_tsvector('spanish', c.content) @@ websearch_to_tsquery('spanish', ${query})
+    ORDER BY score DESC
     LIMIT ${k}`;
+  return [...byVector, ...byText].sort((a, b) => Number(b.score) - Number(a.score)).slice(0, k);
 }
 
 /** Por debajo de esta similitud el fragmento se considera irrelevante. */
 const MIN_SCORE = 0.35;
 
-const STUDY_SYSTEM = `Eres Astras, tutor de estudio. Respondes en español.
+/**
+ * Documentos indexados con otro modelo (o solo por texto) cuando el usuario cambia de IA: se vuelven
+ * a procesar en segundo plano. Devuelve los ids para encolarlos.
+ */
+export async function documentsToReindex(userId: string, tag: string | null): Promise<string[]> {
+  const docs = await prisma.studyDocument.findMany({
+    where: { userId, status: { in: ["EMBEDDED", "FAILED"] }, NOT: { embedModel: tag ?? TEXT_ONLY } },
+    select: { id: true },
+  });
+  if (!docs.length) return [];
+  await prisma.studyDocument.updateMany({ where: { id: { in: docs.map((d) => d.id) } }, data: { status: "PENDING", error: null } });
+  return docs.map((d) => d.id);
+}
+
+const STUDY_SYSTEM = `Eres el tutor de estudio de Atlenza. Respondes en español.
 Reglas:
 - Responde SOLO con la información de los fragmentos de apuntes proporcionados.
 - Cita las fuentes con [n] usando el número del fragmento.
@@ -220,15 +250,12 @@ export async function askStudyQuestion(
         .join("\n\n---\n\n")
     : "(No hay fragmentos relevantes en los apuntes.)";
 
-  const contents: Content[] = [
-    ...history.reverse().map((m) => ({
-      role: m.role === "ASSISTANT" ? "model" : "user",
-      parts: [{ text: m.content }],
-    })),
-    { role: "user", parts: [{ text: `Fragmentos de apuntes:\n\n${context}\n\nPregunta: ${params.question}` }] },
+  const messages = [
+    ...history.reverse().map((m) => ({ role: m.role === "ASSISTANT" ? ("assistant" as const) : ("user" as const), text: m.content })),
+    { role: "user" as const, text: `Fragmentos de apuntes:\n\n${context}\n\nPregunta: ${params.question}` },
   ];
 
-  const answer = await generateText({ system: STUDY_SYSTEM, contents });
+  const answer = await generateText({ userId, system: STUDY_SYSTEM, messages });
   const citations = sources.map((s, i) => ({
     n: i + 1,
     chunkId: s.id,

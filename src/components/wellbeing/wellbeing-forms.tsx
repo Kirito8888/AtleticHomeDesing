@@ -125,7 +125,7 @@ export function MoodForm({ today }: { today: string }) {
 }
 
 type ScaleKind = "EVA" | "QUICKDASH" | "ACHILLES";
-/** 10 · Escalas: dolor (EVA 0-10), QuickDASH y Aquiles (adaptación VISA-A). */
+/** 10 · Escalas: dolor (EVA 0-10) y dos escalas propias no validadas (brazo y hombro, Aquiles). */
 export function ScaleForm({ today }: { today: string }) {
   const { busy, save } = useSave();
   const [scale, setScale] = useState<ScaleKind | null>("EVA");
@@ -148,7 +148,7 @@ export function ScaleForm({ today }: { today: string }) {
         label="Escala"
         options={[
           { value: "EVA" as const, label: "Dolor (EVA)" },
-          { value: "QUICKDASH" as const, label: "Brazo y hombro (QuickDASH)" },
+          { value: "QUICKDASH" as const, label: "Brazo y hombro" },
           { value: "ACHILLES" as const, label: "Aquiles" },
         ]}
         value={scale}
@@ -165,7 +165,7 @@ export function ScaleForm({ today }: { today: string }) {
         </>
       ) : null}
       {scale === "QUICKDASH" ? (
-        <ol className="grid gap-2" aria-label="Preguntas QuickDASH">
+        <ol className="grid gap-2" aria-label="Preguntas de brazo y hombro">
           <li className="text-xs text-muted-foreground">Última semana · 1 sin dificultad … 5 incapaz</li>
           {QUICKDASH_ITEMS.map((q, i) => (
             <li key={q} className="grid gap-1">

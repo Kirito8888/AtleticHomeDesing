@@ -28,7 +28,7 @@ export function relyingParty(requestOrigin?: string) {
   const base = env().AUTH_URL ?? requestOrigin;
   if (!base) throw new ApiError(503, "Falta AUTH_URL para las llaves de acceso");
   const u = new URL(base);
-  return { rpID: u.hostname, origin: u.origin, rpName: "LifeOS" };
+  return { rpID: u.hostname, origin: u.origin, rpName: "Atlenza" };
 }
 
 const nameSchema = z.string().trim().min(1).max(60);

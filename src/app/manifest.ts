@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "LifeOS",
-    short_name: "LifeOS",
+    name: "Atlenza",
+    short_name: "Atlenza",
     description: "Rendimiento atlético, recuperación, finanzas, nutrición y estudio con IA.",
     start_url: "/",
     display: "standalone",

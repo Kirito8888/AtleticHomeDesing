@@ -1,5 +1,8 @@
 # Contribuir
 
+> **Contribuciones externas:** Atlenza tiene todos los derechos reservados (ver [`LICENSE`](LICENSE)). No se aceptan aportaciones sin un acuerdo previo y por escrito con el autor. Esta guía es para el autor y las personas que autorice.
+
+
 Proyecto personal, pero con las reglas de uno serio: todo cambio pasa por la CI y lleva tests.
 
 ## Regla número uno: nunca datos personales en el repositorio
@@ -17,7 +20,7 @@ PLAN_ZIP=/ruta/fuera/del/repo/plan.zip npm run e2e:plan
 
 Los tests usan datos **sintéticos** generados en el propio test:
 - PDF: `src/test/pdf-fixture.ts` y `src/test/plan-fixtures.ts`;
-- FIT: con el SDK de Garmin;
+- FIT: con `fit-file-parser` (MIT); los ficheros de prueba se generan con `e2e/fit-builder.mjs`;
 - CSV y Norma 43: escritos a mano.
 
 ## Entorno

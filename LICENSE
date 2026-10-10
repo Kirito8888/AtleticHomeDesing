@@ -1,0 +1,110 @@
+ATLENZA — LICENCIA DE USO RESTRINGIDO (TODOS LOS DERECHOS RESERVADOS)
+
+Copyright © 2026 David Ornelas Luna. Todos los derechos reservados.
+
+La versión en español de esta licencia es la que prevalece. La traducción al
+inglés que sigue es solo informativa.
+
+1. TITULARIDAD
+   Este programa —su código fuente y objeto, su diseño, su interfaz, su
+   documentación y el nombre «Atlenza»— (el «Software») ha sido creado por
+   David Ornelas Luna (el «Autor»), que es el único titular de todos sus
+   derechos de explotación. Sus derechos morales, entre ellos el de ser
+   reconocido como autor, son irrenunciables e inalienables (art. 14 del Texto
+   Refundido de la Ley de Propiedad Intelectual, Real Decreto Legislativo
+   1/1996).
+
+2. QUÉ SE PERMITE SIN AUTORIZACIÓN
+   Únicamente ver el código en GitHub y hacer un «fork» dentro de GitHub, en la
+   medida en que lo exigen los Términos de Servicio de GitHub (sección D.5)
+   por estar el repositorio publicado como público. Nada más.
+
+3. QUÉ REQUIERE AUTORIZACIÓN PREVIA Y POR ESCRITO DEL AUTOR
+   Cualquier otro acto, en particular:
+   a) usar, ejecutar, instalar o desplegar el Software, total o parcialmente;
+   b) descargarlo o copiarlo fuera de GitHub;
+   c) modificarlo, traducirlo, adaptarlo o crear obras derivadas;
+   d) distribuirlo, publicarlo, sublicenciarlo, venderlo, alquilarlo o
+      prestarlo;
+   e) ofrecerlo a terceros como servicio, en red o de cualquier otra forma;
+   f) utilizarlo para entrenar, ajustar o evaluar modelos de inteligencia
+      artificial;
+   g) eliminar o alterar los avisos de autoría, licencia o marca.
+
+4. CÓMO PEDIR AUTORIZACIÓN
+   Abre una «issue» en https://github.com/Kirito8888/AtleticHomeDesing/issues
+   explicando quién eres y para qué quieres usarlo. Solo es válida la
+   autorización que el Autor dé por escrito. Salvo que diga otra cosa, es
+   personal, no exclusiva, intransferible, gratuita, limitada al uso indicado
+   y revocable en cualquier momento. Quien la reciba debe mantener este aviso
+   de licencia en cualquier copia autorizada.
+
+5. MARCA
+   «Atlenza» y sus logotipos no se licencian. No pueden usarse para
+   identificar otros productos ni sugerir vinculación con el Autor sin su
+   permiso por escrito.
+
+6. COMPONENTES DE TERCEROS
+   El Software usa bibliotecas y datos de terceros que se rigen por sus
+   propias licencias (ver THIRD_PARTY_NOTICES.md). Esta licencia no limita los
+   derechos que esas licencias conceden sobre dichos componentes.
+
+7. CONTRIBUCIONES
+   El Autor no acepta contribuciones (código, documentación, diseño) sin un
+   acuerdo previo y por escrito sobre sus derechos.
+
+8. SIN GARANTÍA Y RESPONSABILIDAD
+   El Software se ofrece «tal cual», sin garantía de ningún tipo. En la medida
+   máxima permitida por la ley, el Autor no responde de los daños derivados de
+   su uso. El Software no es un producto sanitario: la información de salud,
+   carga y recuperación es orientativa y no sustituye el consejo de
+   profesionales.
+
+9. LEY APLICABLE Y JURISDICCIÓN
+   Esta licencia se rige por la ley española. Para cualquier controversia, las
+   partes se someten a los Juzgados y Tribunales del domicilio del Autor, salvo
+   que la ley imponga otro fuero.
+
+10. NULIDAD PARCIAL
+    Si alguna cláusula fuera nula o inaplicable, el resto seguirá en vigor.
+
+-------------------------------------------------------------------------------
+
+ATLENZA — RESTRICTED USE LICENSE (ALL RIGHTS RESERVED)
+(English translation, for information only. The Spanish text prevails.)
+
+Copyright © 2026 David Ornelas Luna. All rights reserved.
+
+1. OWNERSHIP. This program — its source and object code, design, interface,
+   documentation and the name "Atlenza" (the "Software") — was created by
+   David Ornelas Luna (the "Author"), sole owner of all exploitation rights.
+   The Author's moral rights, including the right to be credited as author,
+   cannot be waived or transferred.
+2. PERMITTED WITHOUT AUTHORIZATION. Only viewing the code on GitHub and
+   forking it within GitHub, to the extent required by the GitHub Terms of
+   Service (section D.5) because the repository is public. Nothing else.
+3. REQUIRES THE AUTHOR'S PRIOR WRITTEN AUTHORIZATION. Any other act,
+   including: (a) using, running, installing or deploying the Software, in
+   whole or in part; (b) downloading or copying it outside GitHub;
+   (c) modifying, translating, adapting it or creating derivative works;
+   (d) distributing, publishing, sublicensing, selling, renting or lending it;
+   (e) offering it to third parties as a service, over a network or otherwise;
+   (f) using it to train, fine-tune or evaluate artificial intelligence models;
+   (g) removing or altering authorship, license or trademark notices.
+4. HOW TO REQUEST AUTHORIZATION. Open an issue at
+   https://github.com/Kirito8888/AtleticHomeDesing/issues. Only the Author's
+   written authorization is valid. Unless stated otherwise it is personal,
+   non-exclusive, non-transferable, free of charge, limited to the stated use
+   and revocable at any time, and this license notice must be kept in any
+   authorized copy.
+5. TRADEMARK. "Atlenza" and its logos are not licensed.
+6. THIRD-PARTY COMPONENTS are governed by their own licenses (see
+   THIRD_PARTY_NOTICES.md); this license does not restrict the rights those
+   licenses grant over them.
+7. CONTRIBUTIONS are not accepted without a prior written agreement on rights.
+8. NO WARRANTY. The Software is provided "as is", without warranty of any
+   kind; to the maximum extent permitted by law the Author is not liable for
+   damages arising from its use. It is not a medical device.
+9. GOVERNING LAW. Spanish law; courts of the Author's domicile, unless the law
+   mandates otherwise.
+10. SEVERABILITY. If any clause is void, the rest remains in force.

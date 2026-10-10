@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { gradeAverage } from "@/lib/study/exam-plan";
 import { examPlanView } from "@/lib/study/exam-plan-service";
 
-export const metadata = { title: "Exámenes y notas · LifeOS" };
+export const metadata = { title: "Exámenes y notas · Atlenza" };
 
 export default async function ExamsPage() {
   const user = await pageUser();

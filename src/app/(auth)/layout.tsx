@@ -7,7 +7,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
     <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
       <PurgePrivateCache />
       <div className="mb-6 flex items-center gap-2 text-2xl font-bold tracking-tight">
-        <Activity className="size-7" /> LifeOS
+        <Activity className="size-7" /> Atlenza
       </div>
       <div className="w-full max-w-sm">{children}</div>
     </main>

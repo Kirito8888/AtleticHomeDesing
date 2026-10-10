@@ -19,7 +19,7 @@ import { CARB_DAY_LABEL } from "@/lib/nutrition/carbs";
 import { WaterCard } from "@/components/nutrition/water-card";
 import { hydrationDay } from "@/lib/nutrition/hydration-service";
 
-export const metadata = { title: "Nutrición · LifeOS" };
+export const metadata = { title: "Nutrición · Atlenza" };
 
 export default async function NutritionPage({ searchParams }: PageProps<"/nutrition">) {
   const user = await pageUser();
@@ -148,6 +148,13 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
           })}
         {!day.entries.length ? <p className="text-sm text-muted-foreground">Nada registrado este día.</p> : null}
       </div>
+      <p className="mt-6 text-xs text-muted-foreground">
+        Datos de alimentos de{" "}
+        <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener" className="underline underline-offset-2">
+          Open Food Facts
+        </a>{" "}
+        (ODbL), © sus colaboradores.
+      </p>
     </>
   );
 }
