@@ -145,6 +145,8 @@ model User {
   assignments            Assignment[]
   seasonBudgets          SeasonBudget[]
   receipts               Receipt[]
+  // v1.8
+  pageUsage              PageUsage[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -2218,4 +2220,43 @@ model SubscriptionPriceChange {
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@index([subscriptionId, on])
+}
+
+// ---------- v1.8 ----------
+
+/// v1.8 · Uso local (opcional): cuántas veces se abre cada página por semana. Sin terceros.
+model PageUsage {
+  userId String
+  path   String // patrón de la ruta, sin ids (p. ej. /training/[id])
+  week   DateTime @db.Date // lunes
+  count  Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, path, week])
+  @@index([week])
+}
+
+/// v1.8 · Errores 500 e informes de la CSP, agregados (sin cuerpos ni datos personales).
+model ServerError {
+  id      String   @id @default(cuid())
+  key     String   @unique // tipo|ruta|mensaje recortado
+  kind    String // ERROR | CSP
+  path    String
+  message String
+  count   Int      @default(1)
+  firstAt DateTime @default(now())
+  lastAt  DateTime @default(now())
+
+  @@index([lastAt])
+}
+
+/// v1.8 · Límite de peticiones persistente (ventana fija): sobrevive a los reinicios.
+model RateLimitHit {
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@id([key, windowStart])
+  @@index([windowStart])
 }

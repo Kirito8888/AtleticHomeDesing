@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ageCategory, attemptSchedule, combinedWarmups, compareSessions, newCompetitions, parseCompetitionCsv, parseIcsEvents, seasonRecords, throwsByImplementWeek } from "./v17-training";
+import { ageCategory, attemptSchedule, combinedWarmups, compareSessions, newCompetitions, parseCompetitionCsv, parseIcsEvents, seasonRecords, throwsByImplementWeek } from "./competition-tools";
 
 describe("entreno v1.7", () => {
   it("lanzamientos por implemento y semana ISO", () => {

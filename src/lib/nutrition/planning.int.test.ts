@@ -22,7 +22,7 @@ describe.skipIf(!HAS_DB)("nutrición y estudio v1.7 (BD real)", () => {
   });
 
   it("plan semanal → lista de la compra sin duplicar; no se puede usar una receta ajena", async () => {
-    const svc = await import("./v17-service");
+    const svc = await import("./planning-service");
     const mk = (u: string, name: string) =>
       prisma.recipe.create({ data: { userId: u, name, servings: 2, items: [{ name: "Lentejas", grams: 200, kcal100: 350, protein100: 24, carbs100: 60, fat100: 1 }, { name: "Zanahoria", grams: 100, kcal100: 40, protein100: 1, carbs100: 9, fat100: 0 }] } });
     const mine = await mk(userId, "Lentejas");
@@ -40,14 +40,14 @@ describe.skipIf(!HAS_DB)("nutrición y estudio v1.7 (BD real)", () => {
   });
 
   it("sudoración", async () => {
-    const svc = await import("./v17-service");
+    const svc = await import("./planning-service");
     await svc.addSweatTest(userId, { date: "2026-10-10", minutes: 60, preKg: 70, postKg: 68.9, fluidMl: 500, urineMl: 100 });
     await expect(svc.addSweatTest(userId, { date: "2026-10-10", minutes: 60, preKg: 60, postKg: 65, fluidMl: 0, urineMl: 0 })).rejects.toThrow(/revisa/);
     expect((await svc.listSweatTests(userId))[0]).toMatchObject({ rateLh: 1.5, drinkMlPerH: 100 });
   });
 
   it("tarjetas a mano en el mismo SM-2 y trabajos con media", async () => {
-    const st = await import("@/lib/study/v17-service");
+    const st = await import("@/lib/study/coursework-service");
     const r = await st.addManualCards(userId, "Biología", null, [{ front: "ADN", back: "Ácido desoxirribonucleico" }, { front: "ARN", back: "Ácido ribonucleico" }]);
     await st.addManualCards(userId, "Biología", null, [{ front: "ATP", back: "Adenosín trifosfato" }]);
     expect(await prisma.flashcard.count({ where: { deckId: r.deckId } })).toBe(3);

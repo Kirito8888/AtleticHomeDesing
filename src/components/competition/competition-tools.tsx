@@ -8,7 +8,7 @@ import { Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
-import { attemptSchedule, combinedWarmups, type ImportedEvent, parseCompetitionCsv, parseIcsEvents } from "@/lib/training/v17-training";
+import { attemptSchedule, combinedWarmups, type ImportedEvent, parseCompetitionCsv, parseIcsEvents } from "@/lib/training/competition-tools";
 
 const hhmm = (m: number) => `${String(Math.floor((((m % 1440) + 1440) % 1440) / 60)).padStart(2, "0")}:${String(Math.round(((m % 60) + 60) % 60)).padStart(2, "0")}`;
 const toMin = (s: string) => (/^\d{2}:\d{2}$/.test(s) ? Number(s.slice(0, 2)) * 60 + Number(s.slice(3)) : null);

@@ -3,8 +3,8 @@ import { z } from "zod";
 import { parseBody, parseQuery, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { today, toIsoDay } from "@/lib/dates";
-import { seasonBudgetSchema } from "@/lib/finance/v17-finance";
-import { saveSeasonBudget, seasonBudgetView } from "@/lib/finance/v17-service";
+import { seasonBudgetSchema } from "@/lib/finance/season";
+import { saveSeasonBudget, seasonBudgetView } from "@/lib/finance/season-service";
 
 /** v1.7 · Presupuesto de la temporada deportiva (?season=AAAA) con previsión. */
 export const GET = route(async (req) => {

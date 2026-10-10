@@ -7,7 +7,7 @@ import { addDays, dateOnly, isoDate, toIsoDay } from "@/lib/dates";
 import { EXT, readSealed, removeSealed, sniffFile, writeSealed } from "@/lib/files/sealed-files";
 import { prisma } from "@/lib/prisma";
 
-import { priceAlerts, type SeasonBudgetInput, type SeasonLine, seasonForecast } from "./v17-finance";
+import { priceAlerts, type SeasonBudgetInput, type SeasonLine, seasonForecast } from "./season";
 
 type Posted = { postings: Array<{ amountCents: number; account: { type: string } }> };
 /** Importe del movimiento: lo que entra o sale de las cuentas de dinero. */

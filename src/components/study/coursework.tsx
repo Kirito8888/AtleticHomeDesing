@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
-import { ASSIGNMENT_STATUS, type AssignmentStatus } from "@/lib/study/v17-study";
+import { ASSIGNMENT_STATUS, type AssignmentStatus } from "@/lib/study/coursework";
 
 /** 22 · Tarjetas a mano (sin IA): una a una o pegando «pregunta | respuesta» por línea. */
 export function ManualCards({ decks }: { decks: string[] }) {

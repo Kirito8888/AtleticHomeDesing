@@ -12,7 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { studyWeek } from "@/lib/study/schedule";
 import { todayBlocks } from "@/lib/study/exam-plan-service";
 import { knownSubjects } from "@/lib/study/schedule-service";
-import { focusStats } from "@/lib/study/v17-service";
+import { focusStats } from "@/lib/study/coursework-service";
 
 export const metadata = { title: "Pomodoro · LifeOS" };
 

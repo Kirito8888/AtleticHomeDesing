@@ -126,6 +126,9 @@ rollback() {
 
 # 4. Imagen nueva ANTES de tocar nada: mientras se construye (varios minutos) la web
 #    actual sigue sirviendo, y si el build falla no se ha parado nada.
+# v1.8 · el commit queda dentro de la imagen (Estado del servidor avisa si hay uno más nuevo)
+GIT_SHA="$(git rev-parse HEAD 2>/dev/null || echo "")"
+export GIT_SHA
 log "Construyendo la imagen nueva (la web actual sigue funcionando)…"
 if ! dc build web; then
   [ "$PULL" = 1 ] && git checkout -q "$PREV_COMMIT"

@@ -1,8 +1,10 @@
 import "server-only";
+import { LIMITS } from "@/lib/rate-limit";
+import { rateLimitPersistent } from "@/lib/rate-limit-db";
 import { rm } from "node:fs/promises";
 import path from "node:path";
 
-import { ApiError, enforceRateLimit } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { env } from "@/lib/env";
 import { getCycle } from "@/lib/health/cycle-service";
@@ -16,7 +18,7 @@ import { listWellbeing } from "@/lib/recovery/wellbeing-service";
 
 /** Re-autenticación para operaciones sensibles. Limitada para no servir de oráculo de fuerza bruta. */
 export async function verifyCurrentPassword(userId: string, password: string): Promise<void> {
-  enforceRateLimit("passwordCheck", userId);
+  if (!(await rateLimitPersistent(`passwordCheck:${userId}`, LIMITS.passwordCheck.limit, LIMITS.passwordCheck.windowMs)).ok) throw new ApiError(429, "Demasiados intentos. Espera unos minutos.");
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
   if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
     throw new ApiError(403, "La contraseña actual no es correcta");

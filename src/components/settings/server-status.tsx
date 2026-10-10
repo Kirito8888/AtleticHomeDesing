@@ -55,6 +55,34 @@ export function ServerStatusView({ s }: { s: ServerStatus }) {
         }
         bad={backupOld || (s.backup != null && !s.backup.ok)}
       />
+      <Row
+        label="Versión del código"
+        value={
+          s.update?.newer
+            ? `Hay una versión nueva: «${s.update.latest!.message}» (${when(s.update.latest!.date)}). Actualiza con ./scripts/update.sh`
+            : s.commit
+              ? `${s.commit.slice(0, 7)}${s.update?.latest ? " · al día" : " · no se pudo consultar GitHub"}`
+              : "sin commit en la imagen (se rellena al actualizar con update.sh)"
+        }
+        bad={Boolean(s.update?.newer)}
+      />
+      <Row
+        label="Errores recientes"
+        value={
+          s.errors.length ? (
+            <ul className="grid gap-0.5 text-left text-xs" aria-label="Errores recientes">
+              {s.errors.map((e) => (
+                <li key={`${e.kind}${e.path}${e.message}`}>
+                  <span className="font-mono">{e.kind === "CSP" ? "CSP" : "500"} {e.path}</span> · {e.message} · ×{e.count} · {when(e.lastAt)}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            "ninguno"
+          )
+        }
+        bad={s.errors.some((e) => hoursAgo(e.lastAt) < 24)}
+      />
     </dl>
   );
 }

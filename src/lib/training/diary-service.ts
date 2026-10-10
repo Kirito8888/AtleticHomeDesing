@@ -4,7 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { addDays, dateOnly, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 
-import { type ImportedEvent, newCompetitions, seasonRecords, throwsByImplementWeek } from "./v17-training";
+import { type ImportedEvent, newCompetitions, seasonRecords, throwsByImplementWeek } from "./competition-tools";
 
 /** 2 · Diario técnico: sesiones técnicas con clave, foco, notas y etiquetas; búsqueda por texto y etiqueta. */
 export async function technicalDiary(userId: string, q: string | null, tag: string | null) {

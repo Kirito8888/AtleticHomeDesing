@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { assignmentAlert, focusBySlot, parseCardLines, subjectAverages } from "./v17-study";
+import { assignmentAlert, focusBySlot, parseCardLines, subjectAverages } from "./coursework";
 
 describe("estudio v1.7", () => {
   it("tarjetas pegadas como «pregunta | respuesta» o con tabulador", () => {

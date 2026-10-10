@@ -1,4 +1,5 @@
 import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
+import { rateLimitPersistent } from "@/lib/rate-limit-db";
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
@@ -8,7 +9,7 @@ import { verifyLogin } from "@/lib/auth/passkey";
 import { hashPassword, needsRehash, verifyAgainstDummy, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 import { sendToUser } from "@/lib/push/service";
-import { clientIp, LIMITS, rateLimit } from "@/lib/rate-limit";
+import { clientIp, LIMITS } from "@/lib/rate-limit";
 import { auditContext, recordEvent } from "@/lib/security/audit";
 import { authFailureLine, type AuthFailReason } from "@/lib/security/auth-log";
 import { verifySecondFactor } from "@/lib/security/totp";
@@ -83,7 +84,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           console.warn(authFailureLine(ip, reason));
           return err;
         };
-        if (!rateLimit(`login:${ip}`, LIMITS.login.limit, LIMITS.login.windowMs).ok) {
+        if (!(await rateLimitPersistent(`login:${ip}`, LIMITS.login.limit, LIMITS.login.windowMs)).ok) {
           throw fail("rate_limited", new TooManyAttempts());
         }
         const parsed = credentialsSchema.safeParse(raw);
@@ -148,7 +149,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ip = clientIp(request.headers);
         const ctx = auditContext(request.headers);
         // Contador propio: una firma de llave no se puede adivinar, así que no gasta los intentos de contraseña
-        if (!rateLimit(`passkey:${ip}`, LIMITS.login.limit, LIMITS.login.windowMs).ok) {
+        if (!(await rateLimitPersistent(`passkey:${ip}`, LIMITS.login.limit, LIMITS.login.windowMs)).ok) {
           console.warn(authFailureLine(ip, "rate_limited"));
           throw new TooManyAttempts();
         }

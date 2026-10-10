@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { CompetitionImport } from "@/components/competition/v17-competition";
+import { CompetitionImport } from "@/components/competition/competition-tools";
 import { PageHeader } from "@/components/page-header";
 import { EVENT_META, LEVEL_META, PHASE_LABEL, type EventType } from "@/components/planning/meta";
 import { PlanImportSheet } from "@/components/planning/plan-import-sheet";

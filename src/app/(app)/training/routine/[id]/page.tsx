@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/page-header";
-import { ProjectionChart } from "@/components/routine/projection-chart";
+import { ProjectionChart } from "@/components/charts/lazy";
 import { RetestForm } from "@/components/routine/retest-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

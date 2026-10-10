@@ -4,8 +4,8 @@ import { z } from "zod";
 import { parseBody, parseQuery, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { isoDate } from "@/lib/dates";
-import { mealPlanEntrySchema } from "@/lib/nutrition/v17-nutrition";
-import { addMealPlanEntry, mealPlanWeek } from "@/lib/nutrition/v17-service";
+import { mealPlanEntrySchema } from "@/lib/nutrition/planning";
+import { addMealPlanEntry, mealPlanWeek } from "@/lib/nutrition/planning-service";
 
 /** v1.7 · Plan semanal de comidas (?week=lunes). */
 export const GET = route(async (req) => {

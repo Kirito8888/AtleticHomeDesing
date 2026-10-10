@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { CoachPanel, type CoachReportView } from "@/components/study/coach-panel";
 import { DocumentsPanel } from "@/components/study/documents-panel";
 import { FlashcardReview } from "@/components/study/flashcard-review";
-import { ManualCards } from "@/components/v17/study-v17";
+import { ManualCards } from "@/components/study/coursework";
 import { StudyChat } from "@/components/study/study-chat";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";

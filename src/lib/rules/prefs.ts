@@ -89,6 +89,20 @@ export const prefsSchema = z.object({
   examHours: z.record(z.string().max(40), z.number().min(0).max(300)).default({}),
   /** v1.6 · añadir clases y exámenes (solo la asignatura) al calendario .ics. */
   icsStudy: z.boolean().default(false),
+  // v1.8
+  /** Contar (solo en esta instalación) qué páginas usas, para decidir qué sobra. */
+  usageStats: z.boolean().default(true),
+  /** Módulos ocultos en la navegación y el panel. */
+  hiddenModules: z.array(z.enum(["training", "recovery", "planning", "nutrition", "finance", "study"])).max(6).default([]),
+  /** Tamaño de letra (%) y contraste alto. */
+  fontScale: z.union([z.literal(100), z.literal(115), z.literal(130)]).default(100),
+  highContrast: z.boolean().default(false),
+  /** Horas sin notificaciones (salvo seguridad y «entreno sola»). */
+  quietHours: z.object({ from: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), to: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/) }).nullable().default(null),
+  /** Fondo de emergencia: meses de gasto que quieres cubrir. */
+  emergencyMonths: z.number().int().min(1).max(24).default(3),
+  /** Recordatorio del domingo para la revisión semanal. */
+  weeklyReviewPush: z.boolean().default(true),
   /** Mapeo del CSV de VFC y sueño (se recuerda para la próxima importación). */
   hrvCsvMapping: z
     .object({

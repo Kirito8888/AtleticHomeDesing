@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { AttemptSheet } from "@/components/competition/attempt-sheet";
 import { CompetitionChecklist } from "@/components/competition/checklist";
-import { AttemptSimulator, CombinedWarmups } from "@/components/competition/v17-competition";
+import { AttemptSimulator, CombinedWarmups } from "@/components/competition/competition-tools";
 import { WarmupTimer } from "@/components/competition/warmup-timer";
 import { TaperCard } from "@/components/competition/taper-card";
 import { CompMeals } from "@/components/competition/comp-meals";

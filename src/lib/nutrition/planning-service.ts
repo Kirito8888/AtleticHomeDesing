@@ -5,7 +5,7 @@ import { addDays, dateOnly, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 
 import { recipeSchema } from "./kitchen";
-import { type PlanMeal, planDayMacros, shoppingFromPlan, type SweatTest, sweatRate } from "./v17-nutrition";
+import { type PlanMeal, planDayMacros, shoppingFromPlan, type SweatTest, sweatRate } from "./planning";
 
 const items = (r: { name: string; servings: number; items: unknown }) => recipeSchema.safeParse({ name: r.name, servings: r.servings, items: r.items }).data?.items ?? [];
 

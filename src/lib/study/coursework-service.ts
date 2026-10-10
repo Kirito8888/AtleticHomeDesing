@@ -6,7 +6,7 @@ import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 
-import { assignmentAlert, type AssignmentStatus, type assignmentSchema, focusBySlot, subjectAverages } from "./v17-study";
+import { assignmentAlert, type AssignmentStatus, type assignmentSchema, focusBySlot, subjectAverages } from "./coursework";
 
 /** 22 · Tarjetas a mano en un mazo (se crea si no existe). Se repasan con el mismo SM-2. */
 export async function addManualCards(userId: string, deck: string, subject: string | null, cards: Array<{ front: string; back: string }>) {

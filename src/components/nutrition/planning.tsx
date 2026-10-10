@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
 import { formatDate } from "@/lib/format";
-import { PLAN_MEALS, type PlanMeal } from "@/lib/nutrition/v17-nutrition";
+import { PLAN_MEALS, type PlanMeal } from "@/lib/nutrition/planning";
 
 function useRun() {
   const router = useRouter();

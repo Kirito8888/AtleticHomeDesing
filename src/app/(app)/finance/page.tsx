@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { BankImport, type ImportProfile } from "@/components/finance/bank-import";
-import { CashflowChart } from "@/components/finance/cashflow-chart";
+import { CashflowChart } from "@/components/charts/lazy";
 import { DeleteTransaction, ManageFinance, QuickTransaction, RunSubscriptionsButton, SportToggle } from "@/components/finance/finance-forms";
 import { PageHeader } from "@/components/page-header";
 import { Stat } from "@/components/stat";
@@ -15,9 +15,9 @@ import { periodWindow } from "@/lib/finance/ledger";
 import { budgetsStatus, cashflow, listAccounts, spendingByCategory, sportExpenses, sportSeasonBalance, subscriptionsOverview } from "@/lib/finance/service";
 import { formatDate, formatEur } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
-import { PriceAlerts, Receipts, SeasonBudgetForm, SubscriptionAmount } from "@/components/v17/finance-v17";
-import { SEASON_LINES, type SeasonLine } from "@/lib/finance/v17-finance";
-import { seasonBudgetView, subscriptionAlerts } from "@/lib/finance/v17-service";
+import { PriceAlerts, Receipts, SeasonBudgetForm, SubscriptionAmount } from "@/components/finance/season";
+import { SEASON_LINES, type SeasonLine } from "@/lib/finance/season";
+import { seasonBudgetView, subscriptionAlerts } from "@/lib/finance/season-service";
 
 export const metadata = { title: "Finanzas · LifeOS" };
 
