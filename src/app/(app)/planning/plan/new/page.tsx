@@ -3,7 +3,7 @@ import { ManualPlanForm } from "@/components/planning/manual-plan";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
 
-export const metadata = { title: "Plan propio · LifeOS" };
+export const metadata = { title: "Plan propio · Atlenza" };
 
 export default async function NewManualPlanPage() {
   await pageUser();

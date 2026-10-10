@@ -64,7 +64,7 @@ export async function recordEvent(userId: string, type: SecurityEventType, ctx: 
     console.error("[audit] no se pudo registrar", type, err);
   }
   const alert = ALERTS[type];
-  if (alert) void sendToUser(userId, { title: "LifeOS · seguridad", body: `${alert} Si no has sido tú, revisa Ajustes → Seguridad.`, url: "/settings", tag: `sec-${type}` }).catch(() => undefined);
+  if (alert) void sendToUser(userId, { title: "Atlenza · seguridad", body: `${alert} Si no has sido tú, revisa Ajustes → Seguridad.`, url: "/settings", tag: `sec-${type}` }).catch(() => undefined);
 }
 
 /** Días que se conserva el registro (por defecto; RETENTION_AUDIT_DAYS lo cambia). */

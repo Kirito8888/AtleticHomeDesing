@@ -2,6 +2,8 @@
   "name": "lifeos",
   "version": "1.8.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "David Ornelas Luna (https://github.com/Kirito8888)",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -25,10 +27,10 @@
     "e2e:v16": "tsx e2e/v16.mts",
     "e2e:v17": "tsx e2e/v17.mts",
     "budget": "node scripts/bundle-budget.mjs",
-    "e2e:v18": "tsx e2e/v18.mts"
+    "e2e:v18": "tsx e2e/v18.mts",
+    "notices": "node scripts/third-party-notices.mjs"
   },
   "dependencies": {
-    "@garmin/fitsdk": "21.217.0",
     "@google/genai": "2.27.0",
     "@node-rs/argon2": "2.2.0",
     "@prisma/adapter-pg": "7.10.0",
@@ -39,6 +41,7 @@
     "clsx": "^2.1.1",
     "fast-xml-parser": "5.11.2",
     "fflate": "0.8.3",
+    "fit-file-parser": "6.1.2",
     "lucide-react": "^1.52.0",
     "next": "16.3.8",
     "next-auth": "5.0.0-beta.32",

@@ -1,8 +1,8 @@
-# LifeOS — Guía de uso
+# Atlenza — Guía de uso
 
 Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servidor, ver [`manual_docker_debian.md`](../manual_docker_debian.md); para saber cómo funciona por dentro, [`arquitectura.md`](arquitectura.md) y [`manual_backend.md`](../manual_backend.md).
 
-**Navegación.** En el móvil, la barra inferior tiene **Inicio · Entreno · Plan · Nutrición · Astras AI**. **Recuperación, Finanzas y Ajustes** están en el menú ☰ de arriba a la derecha, y la lupa 🔍 abre la **búsqueda** (sesiones, ejercicios, días del plan, tareas y apuntes). En el ordenador, todo está en la barra lateral.
+**Navegación.** En el móvil, la barra inferior tiene **Inicio · Entreno · Plan · Nutrición · Atlenza IA**. **Recuperación, Finanzas y Ajustes** están en el menú ☰ de arriba a la derecha, y la lupa 🔍 abre la **búsqueda** (sesiones, ejercicios, días del plan, tareas y apuntes). En el ordenador, todo está en la barra lateral.
 
 **Instalarla como app.** Ábrela por HTTPS, abre el menú del navegador y elige «Añadir a pantalla de inicio» (Safari: Compartir → Añadir a pantalla de inicio). Las notificaciones en iPhone solo funcionan así.
 
@@ -14,7 +14,7 @@ Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servid
 2. **Ajustes → Umbrales fisiológicos:** FC máxima, FC de reposo, LTHR y ritmo umbral, cada uno con su fecha de inicio. Cada sesión se calcula con los umbrales vigentes ese día, así que actualizarlos no reescribe el pasado.
 3. **Ajustes → Objetivo nutricional diario:** kcal y macros.
 4. **Ajustes → Verificación en dos pasos:** actívala y guarda los 10 códigos de recuperación en tu gestor de contraseñas.
-5. Si quieres, **Planificación → Importar plan** (ver abajo), o **Astras AI → Crear plan** si no tienes uno.
+5. Si quieres, **Planificación → Importar plan** (ver abajo), o **Atlenza IA → Crear plan** si no tienes uno.
 6. **Ajustes → Mis reglas:** revisa los umbrales de los avisos (vienen con valores genéricos).
 
 ## Inicio
@@ -66,7 +66,7 @@ Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servid
 
 ### Importar tu planificación
 
-Sirve para tener en LifeOS el plan de la temporada que tienes en PDF («M5 · Acumulación II · día a día», etc.).
+Sirve para tener en Atlenza el plan de la temporada que tienes en PDF («M5 · Acumulación II · día a día», etc.).
 
 1. **Planificación → botón de subir (Importar plan)**, arriba a la derecha.
 2. Elige el **.zip** del plan, o varios PDF «día a día». Tarda unos segundos en leerlo.
@@ -158,9 +158,9 @@ En el calendario o en Inicio, toca una competición:
 - **Gastos deportivos:** al crear un gasto, activa «Gasto deportivo» y, si quieres, elige la competición; o toca 🏅 en un movimiento ya guardado. La tarjeta los suma por temporada y por competición.
 - **Becas y saldo de la temporada:** activa «Ingreso deportivo» en una beca, premio o patrocinio (o 🏅 en el movimiento). La tarjeta muestra ingresos frente a gastos deportivos, el saldo y la previsión a fin de año al ritmo actual.
 
-## Astras AI: crear tu planificación
+## Atlenza IA: crear tu planificación
 
-**Astras AI → Crear plan.** Requiere la IA activada (Ajustes → Privacidad e IA) y la clave de Gemini en el servidor.
+**Atlenza IA → Crear plan.** Requiere la IA activada (Ajustes → Privacidad e IA) y la clave de Gemini en el servidor.
 
 1. **Cuestionario sin escribir:** objetivo, disciplina, nivel, edad, qué días y cuántos minutos, duración (4–12 semanas) y fecha de inicio, **dónde entrenas cada día** y **con qué material**, molestias y ejercicios que prefieres evitar, intensidad y estilo.
 2. **Seguridad:** si marcas dolor en el pecho, mareos, una condición cardíaca, embarazo o posparto reciente, o una cirugía en los últimos 6 meses, **no se genera el plan**: consulta antes con un profesional sanitario.
@@ -178,7 +178,7 @@ Al terminar cada semana, **«¿Cómo fue?»** (fácil / bien / duro + dolor) aju
 
 Lo que se envía a Gemini: solo tus respuestas del cuestionario (incluidas las zonas con molestias que marques; las lesiones activas vienen marcadas y puedes quitarlas). Nunca tu ciclo, tus registros de recuperación, tus notas ni tu nombre.
 
-## Astras AI (estudio)
+## Atlenza IA (estudio)
 
 Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta que la autorizas, porque envía texto a Google Gemini.
 
@@ -193,12 +193,12 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
 ## Novedades de la v1.8 (dónde está cada cosa)
 
 **Para empezar**
-- **Bienvenida** (te la ofrece el panel): elige qué partes de LifeOS usas, tu perfil y las horas sin avisos. Todo se cambia después en Ajustes.
+- **Bienvenida** (te la ofrece el panel): elige qué partes de Atlenza usas, tu perfil y las horas sin avisos. Todo se cambia después en Ajustes.
 - **Ajustes → Módulos:** oculta lo que no uses. No se borra nada.
 - **Ajustes → Accesibilidad:** letra más grande y contraste alto.
 
 **Avisos**
-- **Campana** (arriba): todo lo que LifeOS te ha avisado en los últimos 60 días, aunque no tengas el push activado.
+- **Campana** (arriba): todo lo que Atlenza te ha avisado en los últimos 60 días, aunque no tengas el push activado.
 - **«Recordar en 1 h»** en cada aviso, desde la campana o desde la notificación del móvil.
 - **Ajustes → Notificaciones:** horas de silencio. Los avisos de seguridad y de «entreno sola» llegan siempre.
 
@@ -206,8 +206,8 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
 - Al borrar una sesión, una comida o un movimiento sale **«Deshacer»** durante unos segundos.
 - Después, **Ajustes → Papelera** lo guarda 7 días.
 
-**Compartir con LifeOS** (con la app instalada, en Android)
-- Desde el correo, el navegador o la galería: «Compartir» → LifeOS.
+**Compartir con Atlenza** (con la app instalada, en Android)
+- Desde el correo, el navegador o la galería: «Compartir» → Atlenza.
 - Te propone qué hacer según el fichero:
   - calendario de la federación → competiciones;
   - PDF o zip del plan → importar el plan;
@@ -277,7 +277,7 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
 **Recuperación → Bienestar**
 - **Diario de sueño:** horas en la cama, latencia, despertares, calidad, cafeína (te dice cuánta te quedaba al acostarte) e higiene, con consejos.
 - **Ánimo y estrés:** con tendencia de 7 días. Si el ánimo sigue bajo, te anima a hablarlo; la **línea 024** atiende 24 h.
-- **Escalas:** EVA (dolor), QuickDASH (brazo y hombro) y Aquiles. Sirven para ver tu tendencia, no son un diagnóstico.
+- **Escalas:** EVA (dolor) y dos escalas propias de Atlenza (brazo y hombro, Aquiles). No son cuestionarios validados: sirven para ver tu tendencia, no son un diagnóstico.
 - **Movilidad sugerida** según la fatiga por zona de tu última sesión. El umbral es el del semáforo, en Mis reglas.
 - **Respiración guiada:** caja, 4-7-8 para dormir, coherencia y activación antes de competir.
 
@@ -299,7 +299,7 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
   2. apunta lo que bebiste;
   3. sabrás tus litros por hora y cuánto beber para no perder más del 2 %.
 
-**Astras AI (estudio)**
+**Atlenza IA (estudio)**
 - **Flashcards:** «Crear tarjetas a mano (sin IA)»; pega varias como `pregunta | respuesta`.
 - **Trabajos y entregas:** avisos («en 2 días y sin empezar»), estado, nota y media ponderada.
 - **Pomodoro:** «Cuándo te concentras mejor», con tus franjas de los últimos 60 días.
@@ -353,7 +353,7 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
 - **Enlace para tu médica:** 7 días, revocable.
 - **Hierro:** marca «Fe» al anotar comidas ricas en hierro; verás cuántos días de la semana llegas.
 - **Entreno sola, con aviso** (Salud de la mujer → «Entreno sola» → Abrir):
-  1. Invita a tu contacto por su email de LifeOS; tiene que aceptarlo desde su cuenta.
+  1. Invita a tu contacto por su email de Atlenza; tiene que aceptarlo desde su cuenta.
   2. Al salir, elige cuánto tardas y pulsa «Salgo». Al volver, pulsa «Llegué».
   3. Si se pasa la hora, tu contacto recibe un push. Solo push: sin SMS ni email, y tu contacto necesita la app instalada con notificaciones.
 
@@ -362,7 +362,7 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
 - **Recetas:** ingredientes con sus macros por 100 g (o búscalos en OpenFoodFacts) → macros por ración. «Anotar hoy» o «A favoritas».
 - **Comida del día de competición:** en el modo competición, lo que toca ahora sale resaltado. «Editar» cambia la plantilla para todas.
 
-**Astras AI → Exámenes y notas**
+**Atlenza IA → Exámenes y notas**
 - **Plan hasta el examen:** pon las horas que quieres para cada examen (salen del horario) y pulsa «Generar plan de estudio». Reparte bloques descontando clases y días de entreno; la víspera, solo esa asignatura. Si no da tiempo, te dice cuánto falta. Cada pomodoro tacha los bloques del día de esa asignatura.
 - **Notas y créditos:** media ponderada, créditos aprobados y pendientes.
 

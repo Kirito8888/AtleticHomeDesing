@@ -8,7 +8,7 @@ import { knownSubjects } from "@/lib/study/schedule-service";
 import { assignmentsView } from "@/lib/study/coursework-service";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Trabajos y entregas · LifeOS" };
+export const metadata = { title: "Trabajos y entregas · Atlenza" };
 
 /** v1.7 · Trabajos y entregas con avisos, estado y nota media ponderada. */
 export default async function AssignmentsPage() {

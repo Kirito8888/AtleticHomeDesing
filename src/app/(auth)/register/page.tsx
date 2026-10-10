@@ -5,7 +5,7 @@ import { RegisterForm } from "@/components/auth-forms";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { registrationOpen } from "@/lib/auth/users";
 
-export const metadata = { title: "Crear cuenta · LifeOS" };
+export const metadata = { title: "Crear cuenta · Atlenza" };
 
 export default async function RegisterPage() {
   await connection();
@@ -14,7 +14,7 @@ export default async function RegisterPage() {
     <Card>
       <CardHeader>
         <CardTitle>Registro cerrado</CardTitle>
-        <CardDescription>Esta instalación de LifeOS no admite cuentas nuevas.</CardDescription>
+        <CardDescription>Esta instalación de Atlenza no admite cuentas nuevas.</CardDescription>
       </CardHeader>
       <CardContent className="grid gap-3 text-sm text-muted-foreground">
         <p>Pide al administrador que te cree una cuenta.</p>

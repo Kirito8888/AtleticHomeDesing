@@ -13,7 +13,7 @@ import { SupplementCalendar } from "@/components/nutrition/planning";
 import { addDays, startOfIsoWeek } from "@/lib/dates";
 import { supplementWeek } from "@/lib/nutrition/planning";
 
-export const metadata = { title: "Citas y suplementos · LifeOS" };
+export const metadata = { title: "Citas y suplementos · Atlenza" };
 
 const when = (d: Date) => new Intl.DateTimeFormat("es-ES", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(d);
 
@@ -76,7 +76,7 @@ export default async function HealthAdminPage() {
           </CardHeader>
           <CardContent className="grid gap-3 px-4 text-sm">
             <p className="rounded-md border border-amber-500/50 bg-amber-500/5 p-2 text-xs">
-              LifeOS no sabe si un suplemento está permitido. Compruébalo en la lista de prohibiciones de la AMA/WADA y con tu médico antes de competir: la responsabilidad es del deportista.
+              Atlenza no sabe si un suplemento está permitido. Compruébalo en la lista de prohibiciones de la AMA/WADA y con tu médico antes de competir: la responsabilidad es del deportista.
             </p>
             {view.length ? (
               <ul className="grid gap-2" aria-label="Suplementos">

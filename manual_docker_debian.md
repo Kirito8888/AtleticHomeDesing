@@ -1,4 +1,4 @@
-# LifeOS — Despliegue con Docker en Debian
+# Atlenza — Despliegue con Docker en Debian
 
 Guía de comandos para levantar la PWA en un servidor Debian 12 (bookworm) o 13 (trixie).
 Para la arquitectura interna, ver [`manual_backend.md`](manual_backend.md).
@@ -28,7 +28,7 @@ Internet ──HTTPS──► Caddy / NPM (:443) ──► web (Next.js, 127.0.0
 - **≥ 2 GB de RAM** (4 GB recomendados): el `next build` dentro de Docker consume ~1,5 GB. Con menos memoria, añade swap (§ 9).
 - ~5 GB de disco libres, más tus datos.
 - Un dominio apuntando a la IP del servidor (registro A/AAAA) para obtener HTTPS automático.
-- Opcional: una clave de Gemini (`GEMINI_API_KEY`) para Astras AI. Sin ella, todo lo demás funciona.
+- Opcional: una clave de Gemini (`GEMINI_API_KEY`) para Atlenza IA. Sin ella, todo lo demás funciona.
 
 ---
 
@@ -113,7 +113,7 @@ Valores a revisar:
 | `GEMINI_API_KEY` | Tu clave (opcional) |
 | `GEMINI_CHAT_MODEL` | Modelo de chat disponible en tu cuenta de Google AI |
 | `GEMINI_EMBEDDING_MODEL` / `GEMINI_EMBEDDING_DIM` | **No los cambies** tras subir apuntes: la columna es `vector(768)` y habría que re-vectorizar |
-| `OFF_USER_AGENT` | `"LifeOS/1.0 (tu-email@dominio.es)"` (OpenFoodFacts lo exige; entre comillas por los paréntesis) |
+| `OFF_USER_AGENT` | `"Atlenza/1.0 (tu-email@dominio.es)"` (OpenFoodFacts lo exige; entre comillas por los paréntesis) |
 | `UPLOAD_DIR` | `./uploads` (dentro del contenedor es `/app/uploads`, en un volumen) |
 
 `DATABASE_URL` no hace falta tocarla: `docker-compose.yml` la construye dentro de la red de Docker (`@db:5432`) a partir de `POSTGRES_*`.
@@ -198,7 +198,7 @@ sudo apt-get install -y fail2ban
 # 1. Logs del contenedor web en journald: en .env.production
 echo "WEB_LOG_DRIVER=journald" >> .env.production
 dc up -d web
-# 2. Filtro y jail de LifeOS
+# 2. Filtro y jail de Atlenza
 sudo cp deploy/fail2ban/filter.d/lifeos-auth.conf /etc/fail2ban/filter.d/
 sudo cp deploy/fail2ban/jail.d/lifeos.conf /etc/fail2ban/jail.d/
 sudo systemctl restart fail2ban
@@ -340,7 +340,7 @@ cd /opt/lifeos
   - **«Revisar ahora»** de la integridad → «Todo en orden».
 - La **campana** aparece arriba; el aviso de tu último inicio de sesión ya está dentro.
 - **Ajustes → Notificaciones:** pon tus horas de silencio.
-- **Compartir con LifeOS:** en Android, reinstala la app desde Chrome (menú → «Instalar aplicación») para que aparezca en el menú «Compartir».
+- **Compartir con Atlenza:** en Android, reinstala la app desde Chrome (menú → «Instalar aplicación») para que aparezca en el menú «Compartir».
 
 #### De v1.6 a v1.7 (seguridad, privacidad, menos recursos y 30 funcionalidades)
 
@@ -456,7 +456,7 @@ cd /opt/lifeos
 - **Ajustes → Mis reglas:** tope de los kg del día, afinamiento (días y %), semáforo y plan de estudio;
 - **Recuperación → Salud de la mujer** (cribado óseo, enlace para tu médica, «Entreno sola» y su contacto);
 - **Entreno → Jabalina** (mínimas) y **Entreno → Prehab**;
-- **Astras AI → Exámenes y notas**; **Finanzas → Viajes y plazos**;
+- **Atlenza IA → Exámenes y notas**; **Finanzas → Viajes y plazos**;
 - **Ajustes → Calendario** si quieres tus clases y exámenes en el `.ics`.
 
 Detalles en [`docs/guia-usuario.md`](docs/guia-usuario.md).
@@ -493,7 +493,7 @@ Después, en la app (todo opcional):
 
 - **Ajustes → Mi pista** (coordenadas para el tiempo) y **Mis reglas** (monotonía, sueño, agua, VBT);
 - **Recuperación → Salud de la mujer** (si aplica);
-- **Astras AI → Horario y exámenes**;
+- **Atlenza IA → Horario y exámenes**;
 - **Entreno → Material**.
 
 Detalles en [`docs/guia-usuario.md`](docs/guia-usuario.md).
@@ -563,7 +563,7 @@ La migración `v1_1_security_privacy` solo **añade** columnas a `User` con valo
    ```
 3. Actualiza como siempre (`git pull` → `migrate` → `up -d --build web`).
 4. pgAdmin ya no arranca con `up`. Si estaba en marcha, páralo: `dc --profile pgadmin stop pgadmin`.
-5. **Astras AI queda desactivado** para todos hasta que cada usuario lo autorice en *Ajustes → Privacidad e IA*.
+5. **Atlenza IA queda desactivado** para todos hasta que cada usuario lo autorice en *Ajustes → Privacidad e IA*.
 
 ### Copias de seguridad (cifradas)
 
@@ -643,15 +643,15 @@ shred -u lifeos-backup.key            # no dejes la clave privada en el servidor
 | `required variable POSTGRES_USER is missing` | Falta `--env-file .env.production` | Usa el alias `dc` |
 | Tras iniciar sesión redirige a `localhost` u otro dominio | `AUTH_URL` no coincide con la URL pública | Corrígelo y ejecuta `dc up -d web` |
 | `password authentication failed` tras cambiar `POSTGRES_PASSWORD` | El volumen guarda la contraseña de la primera inicialización | Vuelve a la anterior o cámbiala dentro: `dc exec db psql -U lifeos -c "ALTER USER lifeos PASSWORD '…'"` |
-| Astras AI: "no está configurado" | Falta `GEMINI_API_KEY` | Añádela y ejecuta `dc up -d web` |
-| Astras AI: "Activa el consentimiento de IA" | El usuario no ha autorizado el envío a Gemini | *Ajustes → Privacidad e IA* |
+| Atlenza IA: "no está configurado" | Falta `GEMINI_API_KEY` | Añádela y ejecuta `dc up -d web` |
+| Atlenza IA: "Activa el consentimiento de IA" | El usuario no ha autorizado el envío a Gemini | *Ajustes → Privacidad e IA* |
 | Login: "Demasiados intentos" | 5 fallos seguidos en la cuenta (bloqueo de 15 min) o 10 intentos desde la misma IP en 15 min | Espera, o `npm run user -- unlock <email>` (§ 8). Si **todos** los usuarios ven el aviso a la vez, tu proxy no envía `X-Forwarded-For` y todos comparten IP |
 | `/register` dice "Registro cerrado" | `ALLOW_REGISTRATION=false` y ya existe algún usuario | Crea la cuenta con `npm run user -- create` |
 | Perdí el móvil con la app de 2FA y los códigos de recuperación | — | `npm run user -- disable-2fa <email>` (también cierra sus sesiones) |
 | "La verificación en dos pasos no está configurada" | Falta `TOTP_ENCRYPTION_KEY` | Añádela (`openssl rand -base64 32`) y `dc up -d web` |
 | No llegan notificaciones | Sin claves VAPID, permiso denegado en el navegador, o iPhone sin la PWA instalada | Ajustes → Notificaciones → *Enviar prueba*. En iOS (16.4+), instala la app en la pantalla de inicio |
 | `dc ps` muestra `web` como *unhealthy* | La app no llega a la BD | `dc logs --tail=100 web` y `curl http://127.0.0.1:3000/api/health` |
-| Apuntes en "Pendiente" para siempre | La cola de ingesta no arrancó | Busca `[jobs]` en `dc logs web`. Los fallidos se reintentan desde Astras AI → *Reintentar* |
+| Apuntes en "Pendiente" para siempre | La cola de ingesta no arrancó | Busca `[jobs]` en `dc logs web`. Los fallidos se reintentan desde Atlenza IA → *Reintentar* |
 | Importar extracto: "Importe no válido" en muchas líneas | Columna o formato decimal mal elegidos | En la vista previa, cambia *Importe* o *Decimales*. Guarda el formato para el próximo mes |
 | Gemini responde con error de modelo | `GEMINI_CHAT_MODEL` no está disponible en tu cuenta | Cambia a un modelo listado en Google AI Studio |
 | Buscador de alimentos: "resultados de tu caché local" | OpenFoodFacts no responde o devuelve 429 (~10 búsquedas/min) | Espera un minuto. Los productos ya consultados siguen disponibles |

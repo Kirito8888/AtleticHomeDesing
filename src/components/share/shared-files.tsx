@@ -22,7 +22,7 @@ export function SharedFiles() {
   if (!files.length) {
     return (
       <p role="status" className="text-sm text-muted-foreground">
-        No hay nada compartido. Desde otra app, pulsa «Compartir» y elige LifeOS (con la app instalada en la pantalla de inicio).
+        No hay nada compartido. Desde otra app, pulsa «Compartir» y elige Atlenza (con la app instalada en la pantalla de inicio).
       </p>
     );
   }
@@ -53,7 +53,7 @@ export function SharedFiles() {
         </nav>
       ) : (
         <p role="status" className="text-sm">
-          LifeOS no sabe qué hacer con este tipo de fichero.
+          Atlenza no sabe qué hacer con este tipo de fichero.
         </p>
       )}
       <Button

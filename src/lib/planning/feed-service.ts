@@ -63,5 +63,5 @@ export async function feedIcs(token: string): Promise<string | null> {
     ...events.map((e) => ({ uid: `e-${e.id}`, title: e.title, start: e.startAt, end: e.endAt, allDay: e.allDay, location: e.location })),
     ...study,
   ];
-  return buildIcs("LifeOS · Entrenos y competiciones", list);
+  return buildIcs("Atlenza · Entrenos y competiciones", list);
 }

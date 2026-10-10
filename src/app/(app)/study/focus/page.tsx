@@ -14,7 +14,7 @@ import { todayBlocks } from "@/lib/study/exam-plan-service";
 import { knownSubjects } from "@/lib/study/schedule-service";
 import { focusStats } from "@/lib/study/coursework-service";
 
-export const metadata = { title: "Pomodoro · LifeOS" };
+export const metadata = { title: "Pomodoro · Atlenza" };
 
 const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ""}`.trim() : `${m} min`);
 

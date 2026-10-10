@@ -110,12 +110,12 @@ export async function runAdminOpsJob(now = new Date(), weekday = madridWeekday()
   let sent = 0;
   const day = toIsoDay(today());
   const backup = await backupAlert(now);
-  if (backup) for (const a of admins) if (await notifyOnce(a.id, `backup-alert:${day}`, { title: "LifeOS · copias", body: backup, url: "/settings#servidor", tag: "backup-alert" })) sent++;
+  if (backup) for (const a of admins) if (await notifyOnce(a.id, `backup-alert:${day}`, { title: "Atlenza · copias", body: backup, url: "/settings#servidor", tag: "backup-alert" })) sent++;
   if (weekday === 0) {
     const r = await checkIntegrity();
     if (!r.ok)
       for (const a of admins)
-        if (await notifyOnce(a.id, `integrity:${day}`, { title: "LifeOS · revisión semanal", body: `Integridad: ${r.orphanFiles} ficheros sin registro, ${r.missingFiles} registros sin fichero, ${r.sessionsNoTss} sesiones sin TSS, ${r.staleLoads} cargas sin actualizar.`, url: "/settings#servidor", tag: "integrity" })) sent++;
+        if (await notifyOnce(a.id, `integrity:${day}`, { title: "Atlenza · revisión semanal", body: `Integridad: ${r.orphanFiles} ficheros sin registro, ${r.missingFiles} registros sin fichero, ${r.sessionsNoTss} sesiones sin TSS, ${r.staleLoads} cargas sin actualizar.`, url: "/settings#servidor", tag: "integrity" })) sent++;
   }
   return sent;
 }
@@ -155,7 +155,7 @@ export async function runDailyDigestJob(hour = madridHour()): Promise<number> {
     if (rises.length) parts.push(`${rises.map((r) => r.name).join(", ")} te cobra más que antes`);
     if (!parts.length) continue;
     const ok = await notifyOnce(u.id, `digest:${toIsoDay(day)}`, {
-      title: "Tu día en LifeOS",
+      title: "Tu día en Atlenza",
       body: parts.join(" · ").replace(/^./, (c) => c.toUpperCase()),
       url: u.trainingSessions.length ? "/training" : "/finance",
       tag: "digest",
@@ -227,14 +227,14 @@ export async function runPeriodReminderJob(hour = madridHour(), weekday = madrid
       // v1.6 · salud ósea: pocas sesiones con impacto esta semana
       if (ws.remindImpact && ws.boneImpactMin > 0) {
         const impact = await prisma.trainingSession.count({ where: { userId: u.id, status: "COMPLETED", type: { in: ["TRACK", "TECHNICAL", "MIXED"] }, date: { gte: addDays(today(), -6) } } });
-        if (impact < ws.boneImpactMin && (await notifyOnce(u.id, `impact:${toIsoDay(startOfIsoWeek(today()))}`, { title: "LifeOS", body: "Esta semana ha habido poco trabajo con impacto (saltos o carrera).", url: "/recovery/women#hueso", tag: "impact" }))) sent++;
+        if (impact < ws.boneImpactMin && (await notifyOnce(u.id, `impact:${toIsoDay(startOfIsoWeek(today()))}`, { title: "Atlenza", body: "Esta semana ha habido poco trabajo con impacto (saltos o carrera).", url: "/recovery/women#hueso", tag: "impact" }))) sent++;
       }
       if (!ws.remindPeriod) continue;
       const { settings, logs } = await getCycle(u.id, 120);
       if (!settings || settings.hormonal === "si") continue;
       const last = periodStarts(settings, logs).at(-1);
       if (last && (Date.parse(day) - Date.parse(last)) / 864e5 <= settings.avgLength + 7) continue;
-      if (await notifyOnce(u.id, `period:${toIsoDay(startOfIsoWeek(today()))}`, { title: "LifeOS", body: "Tienes un registro pendiente de actualizar en Recuperación.", url: "/recovery", tag: "period" })) sent++;
+      if (await notifyOnce(u.id, `period:${toIsoDay(startOfIsoWeek(today()))}`, { title: "Atlenza", body: "Tienes un registro pendiente de actualizar en Recuperación.", url: "/recovery", tag: "period" })) sent++;
     } catch (err) {
       console.error(`[scheduler] recordatorio de ${u.id}:`, err);
     }
@@ -242,7 +242,7 @@ export async function runPeriodReminderJob(hour = madridHour(), weekday = madrid
   return sent;
 }
 
-/** v1.8 · Revisión semanal: el domingo desde las 18 h, a quien la tiene activada y ha usado LifeOS esa semana. */
+/** v1.8 · Revisión semanal: el domingo desde las 18 h, a quien la tiene activada y ha usado Atlenza esa semana. */
 export async function runWeeklyReviewJob(hour = madridHour(), weekday = madridWeekday()): Promise<number> {
   if (weekday !== 6 || hour < 18) return 0;
   const monday = startOfIsoWeek(today());
@@ -271,7 +271,7 @@ export async function runAppointmentReminders(now = new Date()): Promise<number>
   for (const a of appts) {
     const hour = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(a.at);
     const what = a.kind === "PHYSIO" ? "Fisio" : a.kind === "DOCTOR" ? "Médico/a" : "Cita";
-    if (await notifyOnce(a.userId, `appt:${a.id}`, { title: "LifeOS", body: `Mañana: ${what} a las ${hour}${a.place ? ` (${a.place})` : ""}.`, url: "/recovery/health", tag: `appt-${a.id}` })) sent++;
+    if (await notifyOnce(a.userId, `appt:${a.id}`, { title: "Atlenza", body: `Mañana: ${what} a las ${hour}${a.place ? ` (${a.place})` : ""}.`, url: "/recovery/health", tag: `appt-${a.id}` })) sent++;
   }
   return sent;
 }
@@ -289,7 +289,7 @@ export async function runDeadlineReminders(now = new Date()): Promise<number> {
     const st = deadlineState({ dueOn: toIsoDay(d.dueOn), remindDays: d.remindDays, done: d.done }, day);
     if (!st.remindNow) continue;
     const when = st.daysLeft === 0 ? "hoy" : st.daysLeft === 1 ? "mañana" : `en ${st.daysLeft} días`;
-    if (await notifyOnce(d.userId, `deadline:${d.id}:${toIsoDay(d.dueOn)}`, { title: "LifeOS · plazo", body: `${d.title}: vence ${when}.`, url: "/finance/trips", tag: `deadline-${d.id}` })) sent++;
+    if (await notifyOnce(d.userId, `deadline:${d.id}:${toIsoDay(d.dueOn)}`, { title: "Atlenza · plazo", body: `${d.title}: vence ${when}.`, url: "/finance/trips", tag: `deadline-${d.id}` })) sent++;
   }
   return sent;
 }

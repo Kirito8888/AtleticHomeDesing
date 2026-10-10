@@ -14,7 +14,7 @@ import { formatDate, formatDuration, formatNum, formatPace, SESSION_TYPE_LABEL, 
 import { prisma } from "@/lib/prisma";
 import { cyclePredictions } from "@/lib/health/cycle-service";
 
-export const metadata = { title: "Entrenamiento · LifeOS" };
+export const metadata = { title: "Entrenamiento · Atlenza" };
 
 export default async function TrainingPage() {
   const user = await pageUser();

@@ -126,7 +126,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         await recordEvent(user.id, "LOGIN_SUCCESS", ctx);
         // Aviso de nuevo inicio de sesión a sus dispositivos (sin esperar: no retrasa el login).
         void sendToUser(user.id, {
-          title: "Nuevo inicio de sesión en LifeOS",
+          title: "Nuevo inicio de sesión en Atlenza",
           body: `Desde ${ctx.ip && ctx.ip !== "unknown" ? `la IP ${ctx.ip}` : "un dispositivo"}. Si no has sido tú, cambia la contraseña.`,
           url: "/settings",
           tag: "login",
@@ -163,7 +163,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!user) throw new CredentialsSignin();
         if (user.lockedUntil && user.lockedUntil > new Date()) throw new TooManyAttempts();
         await recordEvent(user.id, "PASSKEY_LOGIN", ctx);
-        void sendToUser(user.id, { title: "Nuevo inicio de sesión en LifeOS", body: "Con una llave de acceso. Si no has sido tú, revisa Ajustes → Seguridad.", url: "/settings", tag: "login" });
+        void sendToUser(user.id, { title: "Nuevo inicio de sesión en Atlenza", body: "Con una llave de acceso. Si no has sido tú, revisa Ajustes → Seguridad.", url: "/settings", tag: "login" });
         return { id: user.id, email: user.email, name: user.name, image: user.image, role: user.role, sessionVersion: user.sessionVersion };
       },
     }),

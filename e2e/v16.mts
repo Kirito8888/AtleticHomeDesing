@@ -283,7 +283,7 @@ const exported = await (await page.request.get(B + "/api/account/export")).text(
 const restEmail = `restore-v16-${Date.now()}@test.dev`;
 const rest = await login(restEmail, newUser(restEmail));
 await rest.goto(B + "/settings");
-await rest.getByLabel("Exportación de LifeOS (JSON)").setInputFiles({ name: "lifeos.json", mimeType: "application/json", buffer: Buffer.from(exported) });
+await rest.getByLabel("Exportación de Atlenza (JSON)").setInputFiles({ name: "lifeos.json", mimeType: "application/json", buffer: Buffer.from(exported) });
 rest.once("dialog", (d) => d.accept());
 await rest.getByRole("button", { name: "Restaurar en esta cuenta" }).click();
 await rest.getByText(/\d+ sesiones/).first().waitFor();

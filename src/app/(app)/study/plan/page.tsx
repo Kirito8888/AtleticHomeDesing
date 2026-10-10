@@ -10,7 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { activeInjuries } from "@/lib/recovery/injuries";
 import { womenMode } from "@/lib/health/women-service";
 
-export const metadata = { title: "Crear mi planificación · LifeOS" };
+export const metadata = { title: "Crear mi planificación · Atlenza" };
 
 function ageBand(birth: Date | null | undefined): keyof typeof AGE_BANDS | null {
   if (!birth) return null;
@@ -18,7 +18,7 @@ function ageBand(birth: Date | null | undefined): keyof typeof AGE_BANDS | null 
   return age < 18 ? "u18" : age < 30 ? "18-29" : age < 40 ? "30-39" : age < 50 ? "40-49" : age < 60 ? "50-59" : "60+";
 }
 
-/** Astras AI → Crear planificación: cuestionario sin escribir → plan con Gemini (borrador). */
+/** Atlenza IA → Crear planificación: cuestionario sin escribir → plan con Gemini (borrador). */
 export default async function CreatePlanPage() {
   const user = await pageUser();
   const now = today();

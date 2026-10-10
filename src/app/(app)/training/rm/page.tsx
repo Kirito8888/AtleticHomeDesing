@@ -10,7 +10,7 @@ import { currentRms, unlinkedPlanExercises } from "@/lib/training/rm-service";
 import { exerciseOptions } from "@/lib/training/session-queries";
 import { loadVelocityProfile } from "@/lib/training/vbt";
 
-export const metadata = { title: "Mis RM · LifeOS" };
+export const metadata = { title: "Mis RM · Atlenza" };
 
 /** Tabla de RM, importación desde el plan, serie de test, APRE, enlace de ejercicios del plan y perfil carga-velocidad. */
 export default async function RmPage() {

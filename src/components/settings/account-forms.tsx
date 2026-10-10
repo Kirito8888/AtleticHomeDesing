@@ -145,7 +145,7 @@ export function AiConsentToggle({ initial, configured }: { initial: boolean; con
             try {
               await api("/api/account/ai-consent", { method: "PUT", body: { enabled: value } });
               setEnabled(value);
-              toast.success(value ? "Astras AI activado" : "Astras AI desactivado");
+              toast.success(value ? "Atlenza IA activado" : "Atlenza IA desactivado");
               router.refresh();
             } catch (e) {
               toast.error((e as Error).message);

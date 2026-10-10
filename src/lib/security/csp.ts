@@ -10,7 +10,7 @@ export function generateNonce(): string {
  * - style-src 'unsafe-inline': Recharts, sonner y las barras de progreso usan
  *   atributos style; un nonce no cubre atributos. El riesgo de CSS inyectado es
  *   muy inferior al de scripts, que sí quedan bloqueados.
- * - connect-src 'self': el navegador solo habla con LifeOS; Gemini y Open Food
+ * - connect-src 'self': el navegador solo habla con Atlenza; Gemini y Open Food
  *   Facts se llaman desde el servidor.
  */
 export function buildCsp(nonce: string, opts: { dev: boolean; https: boolean }): string {

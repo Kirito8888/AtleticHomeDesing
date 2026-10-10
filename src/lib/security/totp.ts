@@ -13,7 +13,7 @@ import {
 } from "@/lib/security/recovery-codes";
 import { openAny, seal } from "@/lib/security/secret-box";
 
-const ISSUER = "LifeOS";
+const ISSUER = "Atlenza";
 
 function encryptionKey(): string {
   const key = env().TOTP_ENCRYPTION_KEY;

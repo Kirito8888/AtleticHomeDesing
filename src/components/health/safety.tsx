@@ -131,7 +131,7 @@ export function ContactsCard({ contacts, watching }: { contacts: ContactLink[]; 
             if (email.trim() && (await call("/api/safety/contacts", { body: { email } }, "Invitación enviada"))) setEmail("");
           }}
         >
-          <Input type="email" aria-label="Email de tu contacto" placeholder="email de su cuenta de LifeOS" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input type="email" aria-label="Email de tu contacto" placeholder="email de su cuenta de Atlenza" value={email} onChange={(e) => setEmail(e.target.value)} />
           <Button type="submit" variant="outline" disabled={busy}>
             Invitar
           </Button>

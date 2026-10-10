@@ -8,13 +8,13 @@ export const NAV_ITEMS = [
   { href: "/planning", label: "Plan", icon: CalendarDays, mobile: true, module: "planning" },
   { href: "/nutrition", label: "Nutrición", icon: Apple, mobile: true, module: "nutrition" },
   { href: "/finance", label: "Finanzas", icon: Wallet, mobile: false, module: "finance" },
-  { href: "/study", label: "Astras AI", icon: Brain, mobile: true, module: "study" },
+  { href: "/study", label: "Atlenza IA", icon: Brain, mobile: true, module: "study" },
   { href: "/goals", label: "Objetivos", icon: Target, mobile: false, module: null },
   { href: "/settings", label: "Ajustes", icon: Settings, mobile: false, module: null },
 ] as const;
 
 export type ModuleKey = NonNullable<(typeof NAV_ITEMS)[number]["module"]>;
-export const MODULE_LABEL: Record<ModuleKey, string> = { training: "Entreno", recovery: "Recuperación", planning: "Planificación", nutrition: "Nutrición", finance: "Finanzas", study: "Astras AI (estudio)" };
+export const MODULE_LABEL: Record<ModuleKey, string> = { training: "Entreno", recovery: "Recuperación", planning: "Planificación", nutrition: "Nutrición", finance: "Finanzas", study: "Atlenza IA (estudio)" };
 
 /** Navegación sin los módulos ocultos; en la barra inferior, si se ocultan principales, entran otros. */
 export function visibleNav(hidden: readonly string[]) {

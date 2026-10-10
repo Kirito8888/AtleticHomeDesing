@@ -1,4 +1,4 @@
-# LifeOS — Manual del backend
+# Atlenza — Manual del backend
 
 Arquitectura, flujos de datos, matemáticas de carga y arquitectura RAG.
 Para el despliegue, ver [`manual_docker_debian.md`](manual_docker_debian.md).
@@ -534,7 +534,7 @@ Reglas:
 
 ---
 
-## 5. Astras AI (Gemini, `@google/genai`)
+## 5. Atlenza IA (Gemini, `@google/genai`)
 
 **Consentimiento.** Nada sale hacia Google sin permiso explícito del dueño de los datos: `User.aiConsentAt` (interruptor en *Ajustes → Privacidad e IA*, `PUT /api/account/ai-consent`). `assertAiAllowed(userId)` (`src/lib/ai/guard.ts`) se ejecuta al principio de la subida y del proceso de apuntes, `askStudyQuestion`, `generateFlashcards` y `generateWeeklyCoachReport`. En el coach cuenta el consentimiento del **atleta**, aunque el informe lo pida su entrenador.
 

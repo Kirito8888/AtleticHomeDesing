@@ -18,10 +18,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LifeOS",
+  title: "Atlenza",
   description: "Rendimiento atlético, recuperación, finanzas, nutrición y estudio con IA.",
-  applicationName: "LifeOS",
-  appleWebApp: { capable: true, title: "LifeOS", statusBarStyle: "black-translucent" },
+  applicationName: "Atlenza",
+  appleWebApp: { capable: true, title: "Atlenza", statusBarStyle: "black-translucent" },
   icons: { icon: "/icons/icon.svg", apple: "/icons/apple-touch-icon.png" },
 };
 

@@ -14,7 +14,7 @@ import { toIsoDay } from "@/lib/dates";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
-export const metadata = { title: "Astras AI · LifeOS" };
+export const metadata = { title: "Atlenza IA · Atlenza" };
 
 export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   const user = await pageUser();
@@ -40,7 +40,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   return (
     <>
       <PageHeader
-        title="Astras AI"
+        title="Atlenza IA"
         description="Estudio con tus apuntes, coach de rendimiento y planes de entrenamiento (Gemini)"
         action={
           <div className="flex gap-2">
@@ -75,7 +75,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
         </p>
       ) : !aiConsent ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          Astras AI está desactivado: tus apuntes y tu resumen semanal solo se envían a Google Gemini si lo autorizas en{" "}
+          Atlenza IA está desactivado: tus apuntes y tu resumen semanal solo se envían a Google Gemini si lo autorizas en{" "}
           <Link href="/settings" className="font-medium text-foreground underline underline-offset-4">
             Ajustes → Privacidad e IA
           </Link>

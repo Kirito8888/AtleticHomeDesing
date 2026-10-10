@@ -124,10 +124,10 @@ log("accesibilidad, módulos, letra y contraste, uso local, CSP, administración
 
 // 2. Bloque B · Primer uso, papelera con «Deshacer», notificaciones, búsqueda, horas de silencio y compartir
 await go(B + "/");
-await page.getByRole("link", { name: /Configura LifeOS en 1 minuto/ }).click();
+await page.getByRole("link", { name: /Configura Atlenza en 1 minuto/ }).click();
 await page.waitForURL(/\/welcome/);
 await checkA11y("/welcome");
-await page.getByLabel("Partes de LifeOS").getByRole("checkbox", { name: "Finanzas" }).click();
+await page.getByLabel("Partes de Atlenza").getByRole("checkbox", { name: "Finanzas" }).click();
 await page.getByRole("button", { name: "Siguiente" }).click();
 await page.getByLabel("Cómo te llamas").fill("Alba V18");
 await page.getByLabel("Sexo").getByRole("radio", { name: "Mujer" }).click();
@@ -135,7 +135,7 @@ await page.getByRole("button", { name: "Siguiente" }).click();
 await page.getByRole("button", { name: "Empezar" }).click();
 await page.waitForURL((u) => u.pathname === "/");
 await page.getByRole("heading", { name: /Hola, Alba/ }).waitFor();
-if (await page.getByRole("link", { name: /Configura LifeOS en 1 minuto/ }).count()) errors.push("la invitación de bienvenida sigue tras completarla");
+if (await page.getByRole("link", { name: /Configura Atlenza en 1 minuto/ }).count()) errors.push("la invitación de bienvenida sigue tras completarla");
 if (await page.getByRole("navigation", { name: "Navegación principal" }).getByRole("link", { name: "Finanzas" }).count()) errors.push("Finanzas debía quedar oculto tras la bienvenida");
 await api("patch", "/api/settings/prefs", { hiddenModules: [] });
 
@@ -170,7 +170,7 @@ await page.getByRole("heading", { name: "Etiqueta «reaccion»" }).waitFor();
 await go(B + "/");
 await page.getByRole("link", { name: /Notificaciones: \d+ sin leer/ }).first().click();
 await page.waitForURL(/\/notifications/);
-await page.getByRole("list", { name: "Notificaciones" }).getByText("Nuevo inicio de sesión en LifeOS").first().waitFor();
+await page.getByRole("list", { name: "Notificaciones" }).getByText("Nuevo inicio de sesión en Atlenza").first().waitFor();
 await checkA11y("/notifications");
 await page.getByRole("link", { name: "Notificaciones", exact: true }).first().waitFor({ timeout: 15_000 });
 
@@ -183,7 +183,7 @@ await toast(/Horas de silencio guardadas/);
 const prefs = (await (await page.request.get(B + "/api/settings/prefs")).json()) as { quietHours?: { from: string; to: string } | null };
 if (prefs.quietHours?.from !== "23:00" || prefs.quietHours?.to !== "07:00") errors.push(`horas de silencio: ${JSON.stringify(prefs.quietHours)}`);
 
-// Compartir con LifeOS: el service worker recibe el POST del sistema, /share propone el destino
+// Compartir con Atlenza: el service worker recibe el POST del sistema, /share propone el destino
 const ics = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART;VALUE=DATE:" + plusDays(madrid, 40).replaceAll("-", "") + "\r\nSUMMARY:Control federativo V18\r\nLOCATION:Valencia\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
 await go(B + "/share");
 const viaSw = await page.evaluate(async (body) => {

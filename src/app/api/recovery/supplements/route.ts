@@ -4,7 +4,7 @@ import { dateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { supplementSchema } from "@/lib/recovery/health-admin";
 
-/** Suplementos (solo su dueño). LifeOS no dice si algo está permitido. */
+/** Suplementos (solo su dueño). Atlenza no dice si algo está permitido. */
 export const GET = route(async () => {
   const user = await requireUser();
   return prisma.supplement.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" } });

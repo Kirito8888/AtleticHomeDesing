@@ -7,7 +7,7 @@ import { listDeadlines, listTrips, unlinkedExpenses } from "@/lib/finance/trips-
 import { formatEur } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
-export const metadata = { title: "Viajes y plazos · LifeOS" };
+export const metadata = { title: "Viajes y plazos · Atlenza" };
 
 export default async function TripsPage() {
   const user = await pageUser();

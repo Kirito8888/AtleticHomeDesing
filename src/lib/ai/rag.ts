@@ -191,7 +191,7 @@ export async function searchChunks(userId: string, query: string, k = 6, documen
 /** Por debajo de esta similitud el fragmento se considera irrelevante. */
 const MIN_SCORE = 0.35;
 
-const STUDY_SYSTEM = `Eres Astras, tutor de estudio. Respondes en español.
+const STUDY_SYSTEM = `Eres el tutor de estudio de Atlenza. Respondes en español.
 Reglas:
 - Responde SOLO con la información de los fragmentos de apuntes proporcionados.
 - Cita las fuentes con [n] usando el número del fragmento.

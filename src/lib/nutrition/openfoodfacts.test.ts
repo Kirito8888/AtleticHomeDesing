@@ -50,13 +50,13 @@ describe("cliente OFF", () => {
     const fetchImpl = vi.fn().mockResolvedValue(
       jsonResponse({ count: 2, products: [hacendadoYogur, { code: "2" }] }),
     );
-    const off = createOffClient({ baseUrl: "https://es.openfoodfacts.org/", userAgent: "LifeOS/test", fetchImpl });
+    const off = createOffClient({ baseUrl: "https://es.openfoodfacts.org/", userAgent: "Atlenza/test", fetchImpl });
     const r = await off.search("hacendado yogur");
     expect(r.products).toHaveLength(1);
     const [url, init] = fetchImpl.mock.calls[0];
     expect(String(url)).toMatch(/^https:\/\/es\.openfoodfacts\.org\/cgi\/search\.pl\?/);
     expect(String(url)).toContain("search_terms=hacendado+yogur");
-    expect(init.headers["User-Agent"]).toBe("LifeOS/test");
+    expect(init.headers["User-Agent"]).toBe("Atlenza/test");
   });
 
   it("product devuelve 404 tipado cuando OFF responde status 0", async () => {
