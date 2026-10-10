@@ -7,6 +7,7 @@ import { dateOnly, isoDate } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { createSessionSchema } from "@/lib/training/schemas";
 import { createTrainingSession } from "@/lib/training/service";
+import { notFromStrava } from "@/lib/strava/policy";
 
 const listQuery = z.object({
   athleteId: z.string().optional(),
@@ -27,6 +28,8 @@ export const GET = route(async (req) => {
       type: q.type,
       status: q.status,
       date: { gte: q.from ? dateOnly(q.from) : undefined, lte: q.to ? dateOnly(q.to) : undefined },
+      // v1.10 · Lo importado de Strava solo lo ve su dueño
+      ...(userId !== user.id ? notFromStrava : {}),
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     take: q.limit,

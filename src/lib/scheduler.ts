@@ -22,6 +22,7 @@ import { runSafetyJob } from "@/lib/health/safety-service";
 import { runWatchJob } from "@/lib/admin/watch";
 import { pollTelegram } from "@/lib/telegram/link";
 import { runCatalogSyncJob } from "@/lib/nutrition/catalog-sync";
+import { runStravaSyncJob } from "@/lib/strava/service";
 import { readWomenSettings } from "@/lib/health/women";
 import { dataKeyConfigured, openJson } from "@/lib/security/data-key";
 
@@ -313,6 +314,9 @@ async function tick() {
     const posted = await runSubscriptionsJob();
     const reports = await runWeeklyCoachJob();
     if (posted || reports) console.info(`[scheduler] ${posted} cobro(s) de suscripciones, ${reports} informe(s) del coach`);
+    // v1.10 · Actividades nuevas de Strava de quien lo haya conectado
+    const strava = await runStravaSyncJob();
+    if (strava) console.info(`[scheduler] ${strava} actividad(es) importadas de Strava`);
     // v1.10 · Catálogo de alimentos (OFF): unas 50 páginas por hora como mucho, al final de la pasada
     const sync = await runCatalogSyncJob();
     if (sync.pages) console.info(`[scheduler] catálogo de alimentos: ${sync.products} productos en ${sync.pages} página(s)`);

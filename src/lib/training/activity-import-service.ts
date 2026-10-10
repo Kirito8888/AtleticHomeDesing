@@ -26,6 +26,11 @@ export async function previewActivity(userId: string, buf: Buffer) {
     if (err instanceof ImportError) throw new ApiError(422, err.message);
     throw new ApiError(422, "No se pudo leer el fichero de actividad");
   }
+  return previewParsed(userId, a);
+}
+
+/** v1.10 · Igual, a partir de una actividad ya leída (FIT/GPX/TCX o la API de Strava). */
+export async function previewParsed(userId: string, a: ParsedActivity) {
   const thresholds = await thresholdsAt(userId, new Date(`${a.date}T00:00:00Z`));
   const zoneMax = thresholds?.hrMax ?? a.hrMax;
   const km = a.distanceM ? ` ${(a.distanceM / 1000).toFixed(1).replace(".", ",")} km` : "";
@@ -36,7 +41,7 @@ export async function previewActivity(userId: string, buf: Buffer) {
     status: "COMPLETED",
     title: `${MODALITY_LABEL[a.modality]}${km}`,
     durationSec: a.elapsedSec,
-    notes: `Importado de ${a.format}${a.device ? ` (${a.device})` : ""}`,
+    notes: `Importado de ${a.format}${a.device ? ` (${a.device})` : ""}`.slice(0, 2000),
     track: {
       modality: a.modality,
       surface: a.surface,
