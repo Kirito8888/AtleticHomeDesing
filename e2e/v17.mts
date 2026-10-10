@@ -214,7 +214,7 @@ await noOverflow("/planning/competition");
 await go(B + "/planning");
 await page.getByText("Importar calendario de competiciones (.ics o CSV)").click();
 const ics = `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nDTSTART;VALUE=DATE:${plusDays(madrid, 30).replaceAll("-", "")}\r\nSUMMARY:Control federativo E2E\r\nLOCATION:Burgos\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
-await page.getByLabel("Calendario de competiciones (.ics o CSV)").setInputFiles({ name: "fed.ics", mimeType: "text/calendar", buffer: Buffer.from(ics) });
+await page.getByLabel(/^Calendario de competiciones/).setInputFiles({ name: "fed.ics", mimeType: "text/calendar", buffer: Buffer.from(ics) });
 await page.getByLabel("Competiciones encontradas").getByText(/Control federativo E2E/).waitFor();
 await page.getByRole("button", { name: "Añadir 1 al calendario" }).click();
 await toast(/1 competiciones añadidas/);
