@@ -6,6 +6,8 @@ import pkg from "../../../package.json";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { schedulerStatus } from "@/lib/scheduler";
+import { recentServerErrors } from "@/lib/admin/server-errors";
+import { updateInfo } from "@/lib/admin/ops";
 
 const safe = async <T>(fn: () => Promise<T>): Promise<T | null> => {
   try {
@@ -47,6 +49,7 @@ export async function serverStatus() {
     }),
   ]);
   const lastOk = await safe(() => prisma.backupRun.findFirst({ where: { ok: true }, orderBy: { at: "desc" }, select: { at: true } }));
+  const [errors, update] = await Promise.all([safe(() => recentServerErrors(10)), safe(() => updateInfo())]);
   return {
     version: pkg.version,
     node: process.version,
@@ -57,6 +60,10 @@ export async function serverStatus() {
     scheduler: schedulerStatus(),
     uploads: disk,
     backup: backup ? { at: backup.at.toISOString(), ok: backup.ok, detail: backup.detail, lastOkAt: lastOk?.at.toISOString() ?? null } : null,
+    // v1.8
+    commit: process.env.GIT_SHA || null,
+    update,
+    errors: (errors ?? []).map((e) => ({ kind: e.kind, path: e.path, message: e.message, count: e.count, lastAt: e.lastAt.toISOString() })),
   };
 }
 export type ServerStatus = Awaited<ReturnType<typeof serverStatus>>;

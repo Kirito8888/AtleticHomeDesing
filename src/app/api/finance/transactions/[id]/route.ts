@@ -1,7 +1,7 @@
 import { ApiError, parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { assertOwnEvent, sportTagSchema } from "@/lib/finance/service";
-import { deleteTransactionWithReceipts } from "@/lib/finance/v17-service";
+import { deleteTransactionWithReceipts } from "@/lib/finance/season-service";
 import { prisma } from "@/lib/prisma";
 
 /** Borra el asiento completo (las líneas caen en cascada; el trigger ve suma 0) y sus justificantes. */

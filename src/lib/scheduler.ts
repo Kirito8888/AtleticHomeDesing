@@ -5,8 +5,10 @@ import { addDays, dateOnly, localDay, startOfIsoWeek, today, toIsoDay } from "@/
 import { formatEur } from "@/lib/format";
 import { env } from "@/lib/env";
 import { runDueSubscriptions } from "@/lib/finance/service";
-import { subscriptionAlerts } from "@/lib/finance/v17-service";
+import { subscriptionAlerts } from "@/lib/finance/season-service";
 import { pruneExpiredDemos } from "@/lib/demo/service";
+import { backupAlert, checkIntegrity } from "@/lib/admin/ops";
+import { pruneRateLimits } from "@/lib/rate-limit-db";
 import { prisma } from "@/lib/prisma";
 import { dueReminders, publicTitle } from "@/lib/push/reminders";
 import { deadlineState } from "@/lib/finance/trips";
@@ -89,7 +91,31 @@ export async function pruneAuditJob(now = new Date()): Promise<number> {
   await prisma.webAuthnChallenge.deleteMany({ where: { expiresAt: { lt: now } } });
   // v1.7 · cuentas demo caducadas (datos sintéticos)
   await pruneExpiredDemos(now);
+  // v1.8 · errores agregados, uso local y ventanas del límite de peticiones
+  await prisma.serverError.deleteMany({ where: { lastAt: { lt: daysAgo(now, d.SERVER_ERRORS) } } });
+  await prisma.pageUsage.deleteMany({ where: { week: { lt: daysAgo(now, d.PAGE_USAGE) } } });
+  await pruneRateLimits(now);
   return count;
+}
+
+/**
+ * v1.8 · Avisos a la administración: copia de seguridad fallida o vieja (una vez al día) y revisión
+ * de integridad semanal (los lunes, solo si encuentra algo). Por push a las cuentas ADMIN.
+ */
+export async function runAdminOpsJob(now = new Date(), weekday = madridWeekday()): Promise<number> {
+  const admins = await prisma.user.findMany({ where: { role: "ADMIN", pushSubscriptions: { some: {} } }, select: { id: true } });
+  if (!admins.length) return 0;
+  let sent = 0;
+  const day = toIsoDay(today());
+  const backup = await backupAlert(now);
+  if (backup) for (const a of admins) if (await notifyOnce(a.id, `backup-alert:${day}`, { title: "LifeOS · copias", body: backup, url: "/settings#servidor", tag: "backup-alert" })) sent++;
+  if (weekday === 0) {
+    const r = await checkIntegrity();
+    if (!r.ok)
+      for (const a of admins)
+        if (await notifyOnce(a.id, `integrity:${day}`, { title: "LifeOS · revisión semanal", body: `Integridad: ${r.orphanFiles} ficheros sin registro, ${r.missingFiles} registros sin fichero, ${r.sessionsNoTss} sesiones sin TSS, ${r.staleLoads} cargas sin actualizar.`, url: "/settings#servidor", tag: "integrity" })) sent++;
+  }
+  return sent;
 }
 
 /** Hora local de Madrid (0–23). */
@@ -256,6 +282,7 @@ async function tick() {
     await runPeriodReminderJob();
     await runAppointmentReminders();
     await runDeadlineReminders();
+    await runAdminOpsJob();
     const posted = await runSubscriptionsJob();
     const reports = await runWeeklyCoachJob();
     if (posted || reports) console.info(`[scheduler] ${posted} cobro(s) de suscripciones, ${reports} informe(s) del coach`);

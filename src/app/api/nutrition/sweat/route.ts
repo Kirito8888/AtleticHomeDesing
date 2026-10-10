@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 
 import { parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
-import { sweatTestSchema } from "@/lib/nutrition/v17-nutrition";
-import { addSweatTest, listSweatTests } from "@/lib/nutrition/v17-service";
+import { sweatTestSchema } from "@/lib/nutrition/planning";
+import { addSweatTest, listSweatTests } from "@/lib/nutrition/planning-service";
 
 /** v1.7 · Pruebas de tasa de sudoración. */
 export const GET = route(async () => {

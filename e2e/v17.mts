@@ -50,6 +50,16 @@ const newUser = (email: string, role = "ATHLETE") => {
   if (!pw) throw new Error(`no se pudo crear ${email}`);
   return pw;
 };
+// v1.8: la administración exige 2FA o una llave de acceso → llave con autenticador virtual
+const addPasskey = async (p: import("playwright-core").Page) => {
+  const cdp = await p.context().newCDPSession(p);
+  await cdp.send("WebAuthn.enable");
+  await cdp.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+  await p.goto(B + "/settings");
+  await p.getByLabel("Nombre de la llave").fill("Llave de administración");
+  await p.getByRole("button", { name: "Añadir llave" }).click();
+  await p.getByLabel("Mis llaves de acceso").getByText("Llave de administración").waitFor();
+};
 const login = async (email: string, pw: string) => {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "es-ES", extraHTTPHeaders: { "x-forwarded-for": "198.51.100.171" } });
   const p = await c.newPage();
@@ -357,6 +367,7 @@ await shot("08-finance-glance");
 
 const adminEmail = `v17admin${Date.now()}@test.dev`;
 const admin = await login(adminEmail, newUser(adminEmail, "ADMIN"));
+await addPasskey(admin);
 await admin.goto(B + "/settings");
 await admin.getByRole("radiogroup", { name: "Tipo de público" }).getByRole("radio", { name: "Lanzador" }).click();
 await admin.getByRole("button", { name: "Crear cuenta demo" }).click();

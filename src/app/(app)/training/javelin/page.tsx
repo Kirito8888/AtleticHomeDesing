@@ -7,7 +7,7 @@ import { formatDate, formatNum, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { competitionForecast, conditionsEffect, cueStats, implementEquivalence, minimumStatus, progressionByImplement } from "@/lib/training/javelin-insights";
 import { javelinSessions } from "@/lib/training/javelin-service";
-import { throwStats } from "@/lib/training/v17-service";
+import { throwStats } from "@/lib/training/diary-service";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Análisis de jabalina · LifeOS" };

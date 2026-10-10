@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Activity, LogOut, Menu, Search } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
-import { NAV_ITEMS } from "@/components/layout/nav-items";
+import { visibleNav } from "@/components/layout/nav-items";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -15,10 +15,10 @@ function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+function NavLinks({ pathname, onNavigate, items }: { pathname: string; onNavigate?: () => void; items: ReturnType<typeof visibleNav>["all"] }) {
   return (
     <nav className="grid gap-1">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+      {items.map(({ href, label, icon: Icon }) => (
         <Link
           key={href}
           href={href}
@@ -48,8 +48,9 @@ function LogoutButton() {
 }
 
 /** Barra lateral (≥ md) + barra superior y navegación inferior (móvil). */
-export function AppNav({ userName }: { userName: string | null }) {
+export function AppNav({ userName, hidden = [], bell }: { userName: string | null; hidden?: readonly string[]; bell?: React.ReactNode }) {
   const pathname = usePathname();
+  const nav = visibleNav(hidden);
   return (
     <>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col border-r bg-background p-3 md:flex">
@@ -59,11 +60,14 @@ export function AppNav({ userName }: { userName: string | null }) {
         <form role="search" action="/search" className="mb-3 px-1">
           <input name="q" type="search" aria-label="Buscar" placeholder="Buscar…" className="h-9 w-full rounded-md border bg-transparent px-3 text-sm" />
         </form>
-        <NavLinks pathname={pathname} />
+        <NavLinks pathname={pathname} items={nav.all} />
         <div className="mt-auto grid gap-1 border-t pt-3">
           <div className="flex items-center justify-between px-3">
             <span className="truncate text-sm text-muted-foreground">{userName}</span>
-            <ThemeToggle />
+            <span className="flex items-center">
+              {bell}
+              <ThemeToggle />
+            </span>
           </div>
           <LogoutButton />
         </div>
@@ -79,6 +83,7 @@ export function AppNav({ userName }: { userName: string | null }) {
               <Search />
             </Link>
           </Button>
+          {bell}
           <ThemeToggle />
           <Sheet>
             <SheetTrigger asChild>
@@ -88,7 +93,7 @@ export function AppNav({ userName }: { userName: string | null }) {
             </SheetTrigger>
             <SheetContent>
               <SheetTitle>{userName ?? "Menú"}</SheetTitle>
-              <NavLinks pathname={pathname} />
+              <NavLinks pathname={pathname} items={nav.all} />
               <LogoutButton />
             </SheetContent>
           </Sheet>
@@ -97,9 +102,10 @@ export function AppNav({ userName }: { userName: string | null }) {
 
       <nav
         aria-label="Navegación principal"
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid border-t bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+        style={{ gridTemplateColumns: `repeat(${nav.mobile.length}, minmax(0, 1fr))` }}
       >
-        {NAV_ITEMS.filter((i) => i.mobile).map(({ href, label, icon: Icon }) => (
+        {nav.mobile.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}

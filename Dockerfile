@@ -49,6 +49,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
+# v1.8: commit de esta imagen (lo pasa update.sh) para avisar de versiones nuevas en Estado del servidor.
+# Al final para no invalidar la caché de las capas anteriores.
+ARG GIT_SHA=""
+ENV GIT_SHA=${GIT_SHA}
+
 USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]

@@ -9,7 +9,7 @@ import { Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
-import { SEASON_LINES, type SeasonLine } from "@/lib/finance/v17-finance";
+import { SEASON_LINES, type SeasonLine } from "@/lib/finance/season";
 import { formatEur } from "@/lib/format";
 
 const toCents = (s: string) => Math.round(Number(s.replace(",", ".") || 0) * 100);

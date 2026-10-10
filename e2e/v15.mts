@@ -307,6 +307,16 @@ const newUser = (email: string, role: string) => {
   if (!pw) throw new Error(`no se pudo crear ${email}`);
   return pw;
 };
+// v1.8: la administración exige 2FA o una llave de acceso → llave con autenticador virtual
+const addPasskey = async (p: import("playwright-core").Page) => {
+  const cdp = await p.context().newCDPSession(p);
+  await cdp.send("WebAuthn.enable");
+  await cdp.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+  await p.goto(B + "/settings");
+  await p.getByLabel("Nombre de la llave").fill("Llave de administración");
+  await p.getByRole("button", { name: "Añadir llave" }).click();
+  await p.getByLabel("Mis llaves de acceso").getByText("Llave de administración").waitFor();
+};
 const login = async (email: string, pw: string) => {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "es-ES" });
   const p = await c.newPage();
@@ -342,6 +352,10 @@ log("comentario de la entrenadora y respuesta del atleta");
 if ((await page.request.get(B + "/api/admin/status")).status() !== 403) errors.push("estado del servidor: un atleta no debe verlo");
 const adminEmail = `admin-v15-${Date.now()}@test.dev`;
 const admin = await login(adminEmail, newUser(adminEmail, "ADMIN"));
+await admin.goto(B + "/settings#servidor");
+await admin.getByText(/Para administrar el servidor activa antes/).waitFor();
+if ((await admin.request.get(B + "/api/admin/status")).status() !== 403) errors.push("estado del servidor: un admin sin segundo factor no debe verlo");
+await addPasskey(admin);
 await admin.goto(B + "/settings#servidor");
 const status = admin.getByLabel("Estado del servidor");
 await status.getByText(/Base de datos/).waitFor();

@@ -1,6 +1,6 @@
 import { route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
-import { deleteMealPlanEntry } from "@/lib/nutrition/v17-service";
+import { deleteMealPlanEntry } from "@/lib/nutrition/planning-service";
 
 export const DELETE = route(async (_req, ctx: RouteContext<"/api/nutrition/plan/[id]">) => {
   const user = await requireUser();

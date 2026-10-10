@@ -55,7 +55,7 @@
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: oklch(0.5 0 0); /* v1.8: ≥ 4,5:1 también sobre fondos grises (WCAG AA) */
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -93,7 +93,7 @@
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted-foreground: oklch(0.74 0 0); /* v1.8: ≥ 4,5:1 sobre fondos grises */
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
@@ -109,6 +109,20 @@
   --series-2: #d95926;
   --series-3: #199e70;
   --chart-grid: #2e2e2b;
+}
+
+/* v1.8 · Contraste alto (Ajustes → Accesibilidad): texto secundario y bordes más marcados */
+html.hc {
+  --muted-foreground: oklch(0.32 0 0);
+  --border: oklch(0.55 0 0);
+  --input: oklch(0.5 0 0);
+  --ring: oklch(0.35 0 0);
+}
+html.hc.dark {
+  --muted-foreground: oklch(0.88 0 0);
+  --border: oklch(1 0 0 / 45%);
+  --input: oklch(1 0 0 / 50%);
+  --ring: oklch(0.85 0 0);
 }
 
 @layer base {

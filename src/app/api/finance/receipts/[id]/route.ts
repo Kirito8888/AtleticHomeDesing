@@ -1,6 +1,6 @@
 import { route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
-import { deleteReceipt, readReceipt } from "@/lib/finance/v17-service";
+import { deleteReceipt, readReceipt } from "@/lib/finance/season-service";
 
 type Ctx = RouteContext<"/api/finance/receipts/[id]">;
 

@@ -1,10 +1,10 @@
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DeleteButton, SweatForm } from "@/components/v17/nutrition-v17";
+import { DeleteButton, SweatForm } from "@/components/nutrition/planning";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
 import { formatDate, formatNum } from "@/lib/format";
-import { listSweatTests } from "@/lib/nutrition/v17-service";
+import { listSweatTests } from "@/lib/nutrition/planning-service";
 
 export const metadata = { title: "Tasa de sudoración · LifeOS" };
 

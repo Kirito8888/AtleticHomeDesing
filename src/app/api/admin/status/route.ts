@@ -1,10 +1,9 @@
-import { ApiError, route } from "@/lib/api";
+import { route } from "@/lib/api";
 import { serverStatus } from "@/lib/admin/status";
-import { requireUser } from "@/lib/auth/session";
+import { requireAdmin } from "@/lib/auth/admin";
 
 /** Estado del servidor (solo admin). */
 export const GET = route(async () => {
-  const user = await requireUser();
-  if (user.role !== "ADMIN") throw new ApiError(403, "Solo para administración");
+  await requireAdmin();
   return serverStatus();
 });

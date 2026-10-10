@@ -14,7 +14,7 @@ const PDF = Buffer.from("%PDF-1.4\n% justificante sintético\n");
 
 describe.skipIf(!HAS_DB)("finanzas y demo v1.7 (BD real)", () => {
   let prisma: typeof import("@/lib/prisma").prisma;
-  let svc: typeof import("./v17-service");
+  let svc: typeof import("./season-service");
   let userId: string;
   let other: string;
   let dir: string;
@@ -26,7 +26,7 @@ describe.skipIf(!HAS_DB)("finanzas y demo v1.7 (BD real)", () => {
     process.env.UPLOAD_DIR = dir;
     vi.resetModules();
     prisma = (await import("@/lib/prisma")).prisma;
-    svc = await import("./v17-service");
+    svc = await import("./season-service");
     const t = Date.now();
     userId = (await prisma.user.create({ data: { email: `fi1-${t}@test.dev` } })).id;
     other = (await prisma.user.create({ data: { email: `fi2-${t}@test.dev` } })).id;

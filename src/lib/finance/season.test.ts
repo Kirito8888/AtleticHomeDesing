@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { priceAlerts, seasonForecast } from "./v17-finance";
+import { priceAlerts, seasonForecast } from "./season";
 
 describe("finanzas v1.7", () => {
   it("previsión de la temporada: la mayor entre ritmo actual y calendario de competiciones", () => {

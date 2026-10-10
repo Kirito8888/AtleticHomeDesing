@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { planDayMacros, shoppingFromPlan, supplementWeek, sweatRate } from "./v17-nutrition";
+import { planDayMacros, shoppingFromPlan, supplementWeek, sweatRate } from "./planning";
 
 const rice = { name: "Arroz", grams: 300, kcal100: 350, protein100: 7, carbs100: 78, fat100: 1 };
 const chicken = { name: "Pollo", grams: 400, kcal100: 120, protein100: 23, carbs100: 0, fat100: 2 };

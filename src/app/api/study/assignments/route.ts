@@ -3,8 +3,8 @@ import { NextResponse } from "next/server";
 import { parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { today, toIsoDay } from "@/lib/dates";
-import { assignmentSchema } from "@/lib/study/v17-study";
-import { assignmentsView, createAssignment } from "@/lib/study/v17-service";
+import { assignmentSchema } from "@/lib/study/coursework";
+import { assignmentsView, createAssignment } from "@/lib/study/coursework-service";
 
 /** v1.7 · Trabajos y entregas. */
 export const GET = route(async () => {

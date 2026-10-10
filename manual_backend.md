@@ -299,7 +299,7 @@ rulesToday(userId, día)                                      src/lib/rules/rule
   - tope de mejora por test.
 - `generateRoutine` produce un `AiPlan` válido para `validateAiPlan`: bloques de 3 semanas + descarga, respetando material, zonas y «evitar».
 
-**Entreno y competición** (`training/v17-training.ts`, puro):
+**Entreno y competición** (`training/competition-tools.ts`, puro):
 - `throwsByImplementWeek`, `seasonRecords` + `ageCategory` (RFEA: edad cumplida en el año);
 - `attemptSchedule` (tras la 3.ª ronda se supone que pasas, a mitad de la mejora);
 - `combinedWarmups`, `compareSessions`;
@@ -322,18 +322,18 @@ rulesToday(userId, día)                                      src/lib/rules/rule
 - `health/health-report.ts`: tipo `ANNUAL` (12 meses: entreno, molestias, recuperación, bienestar y, si procede, el cuerpo médico).
 
 **Nutrición y estudio:**
-- `nutrition/v17-nutrition.ts`:
+- `nutrition/planning.ts`:
   - `shoppingFromPlan` (escala por `servings / recipe.servings` y reutiliza `shoppingFromFavorites`);
   - `planDayMacros`;
   - `sweatRate` (`(pre − post + bebido − orina) / h`; litros por hora para no pasar del 2 % del peso);
   - `supplementWeek` (`Supplement.days`, 1 = lunes; `SupplementLog` único por día).
-- `study/v17-study.ts`:
+- `study/coursework.ts`:
   - `parseCardLines` (las tarjetas a mano usan el mismo `Flashcard` y SM-2);
   - `assignmentAlert`, `subjectAverages`;
   - `focusBySlot` (inicio = `createdAt − minutos`, en hora de Madrid).
 
 **Finanzas:**
-- `finance/v17-finance.ts`:
+- `finance/season.ts`:
   - `seasonForecast` = máx(lineal con ≥ 30 días, gastado + competiciones pendientes × coste medio);
   - `priceAlerts`: cargos de 60 días por `subscriptionId` o por nombre normalizado (sin tildes) que superan el importe guardado.
 - `SubscriptionPriceChange` se registra al editar el importe (`PATCH /api/finance/subscriptions/[id]`).
