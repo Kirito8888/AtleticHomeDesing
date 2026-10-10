@@ -34,7 +34,7 @@ export function RestoreForm() {
   }
   return (
     <div className="grid gap-2 text-sm">
-      <Input type="file" accept="application/json,.json" aria-label="Exportación de LifeOS (JSON)" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+      <Input type="file" accept="application/json,.json" aria-label="Exportación de Atlenza (JSON)" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
       <Button type="button" variant="outline" disabled={busy || !file} onClick={go}>
         Restaurar en esta cuenta
       </Button>

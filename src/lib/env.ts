@@ -62,7 +62,7 @@ const schema = z.object({
   GEMINI_EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),
   GEMINI_EMBEDDING_DIM: z.coerce.number().int().positive().default(768),
   OFF_BASE_URL: z.string().url().default("https://es.openfoodfacts.org"),
-  OFF_USER_AGENT: z.string().default("LifeOS/0.1"),
+  OFF_USER_AGENT: z.string().default("Atlenza/1.9 (uso personal)"),
   UPLOAD_DIR: z.string().default("./uploads"),
 });
 

@@ -1,6 +1,6 @@
 # Plan de respuesta a incidentes de seguridad
 
-Qué hacer si sospechas que alguien ha entrado en LifeOS o en el servidor, o que se han filtrado datos. Está pensado para una instalación personal en un Debian con Docker.
+Qué hacer si sospechas que alguien ha entrado en Atlenza o en el servidor, o que se han filtrado datos. Está pensado para una instalación personal en un Debian con Docker.
 
 > **Marco legal.** Mientras la app la uses solo tú, te cubre la exención doméstica del RGPD (art. 2.2.c), y la obligación de notificar no se aplica.
 >
@@ -42,7 +42,7 @@ Señales que da la propia app:
   3. Estado del servidor → «Volver a cifrar».
   4. Quita las `*_PREVIOUS`.
 - **Revisa** usuarios (`npm run user -- list`), llaves de acceso, vínculos de entrenador y contactos de «Entreno sola».
-- **Actualiza** el sistema (`sudo apt update && sudo apt upgrade`), Docker y LifeOS (`./scripts/update.sh`).
+- **Actualiza** el sistema (`sudo apt update && sudo apt upgrade`), Docker y Atlenza (`./scripts/update.sh`).
 
 ## 4. Recuperar
 - Si dudas de la integridad de la BD, restaura la última copia buena (manual § 8 «Restaurar»). Las copias van cifradas con `age` y se prueban cada día.

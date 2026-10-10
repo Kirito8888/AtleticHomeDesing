@@ -6,7 +6,7 @@ import { today, toIsoDay } from "@/lib/dates";
 import { recipeMacros, recipeSchema } from "@/lib/nutrition/kitchen";
 import { prisma } from "@/lib/prisma";
 
-export const metadata = { title: "Recetas · LifeOS" };
+export const metadata = { title: "Recetas · Atlenza" };
 
 export default async function RecipesPage() {
   const user = await pageUser();

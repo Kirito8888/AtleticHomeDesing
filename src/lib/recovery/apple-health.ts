@@ -1,6 +1,6 @@
 // Apple Health (export.xml) → sueño y FC en reposo por día (v1.6). Puro y por trozos:
 // el fichero se lee en el navegador y solo se envían los totales diarios.
-// La VFC de Apple es SDNN, no rMSSD: no se mezcla con la de LifeOS.
+// La VFC de Apple es SDNN, no rMSSD: no se mezcla con la de Atlenza.
 
 export type DayAgg = { date: string; sleepMin: number; restingHr: number | null };
 export type AppleState = { buf: string; days: Map<string, { sleepMin: number; rhr: number[] }>; records: number };

@@ -26,6 +26,8 @@ jobs:
       - run: npm ci
       # Vulnerabilidades altas en dependencias de producción (las de desarrollo no llegan a la imagen).
       - run: npm audit --omit=dev --audit-level=high
+      # Atlenza · solo licencias admitidas en producción (sin propietarias ni copyleft fuerte)
+      - run: node scripts/third-party-notices.mjs --check
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test

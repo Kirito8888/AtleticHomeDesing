@@ -14,7 +14,7 @@ import { recordEvent, type AuditContext } from "@/lib/security/audit";
 export const CONSENT_TEXT = {
   AI: {
     version: "2026-10",
-    label: "Astras AI (Google Gemini)",
+    label: "Atlenza IA (Google Gemini)",
     text: "Envío a Google (Gemini) de tus apuntes, un resumen numérico de tus entrenos sin nombre ni datos de salud y tus preguntas, para responderte. Google puede tratarlos fuera del Espacio Económico Europeo (transferencia internacional amparada en el Marco de Privacidad de Datos UE-EE. UU. y cláusulas contractuales tipo). Puedes retirarlo cuando quieras; no afecta a lo ya enviado.",
   },
   HEALTH: {

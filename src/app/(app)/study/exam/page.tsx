@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { prisma } from "@/lib/prisma";
 
-export const metadata = { title: "Examen simulado · LifeOS" };
+export const metadata = { title: "Examen simulado · Atlenza" };
 
 /** v1.8 · Examen simulado con las flashcards (sin IA). */
 export default async function MockExamPage() {

@@ -84,7 +84,7 @@ export function PushSettings({ configured, publicKey, devices }: { configured: b
       </ul>
       {support === "unsupported" ? (
         <p className="text-muted-foreground">
-          Este navegador no admite notificaciones push. En iPhone (iOS 16.4+) solo funcionan con LifeOS instalada en la pantalla de inicio.
+          Este navegador no admite notificaciones push. En iPhone (iOS 16.4+) solo funcionan con Atlenza instalada en la pantalla de inicio.
         </p>
       ) : support === "denied" ? (
         <p className="text-muted-foreground">Has bloqueado las notificaciones para este sitio: permítelas en los ajustes del navegador.</p>

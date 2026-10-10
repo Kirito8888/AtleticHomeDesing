@@ -7,7 +7,7 @@ import { compareSessions } from "@/lib/training/competition-tools";
 import { recentSessionsForPick, sessionForCompare } from "@/lib/training/diary-service";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Comparar sesiones · LifeOS" };
+export const metadata = { title: "Comparar sesiones · Atlenza" };
 
 /** v1.7 · Comparador de dos sesiones: duración, RPE, carga, marca, lanzamientos y volumen. */
 export default async function ComparePage({ searchParams }: PageProps<"/training/compare">) {

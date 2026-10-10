@@ -122,7 +122,7 @@ describe.skipIf(!HAS_DB)("ingesta de apuntes en segundo plano (BD real)", () => 
 
   it("la cola pg-boss procesa un documento encolado", async () => {
     const doc = await newDoc("cola.pdf", makePdf(book.slice(0, 10)));
-    // Cola propia: si hay un servidor de LifeOS en marcha contra la misma BD, su
+    // Cola propia: si hay un servidor de Atlenza en marcha contra la misma BD, su
     // trabajador no debe llevarse este documento (lo procesaría con Gemini real).
     const q = `ingest-test-${Date.now()}`;
     await queue.startIngestWorker(deps, q);

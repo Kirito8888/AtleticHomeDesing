@@ -107,7 +107,7 @@ export async function runSnoozedJob(now = new Date(), send?: Sender): Promise<nu
     // Primero se quita la marca: dos pasadas a la vez no la duplican
     const claimed = await prisma.notificationLog.updateMany({ where: { id: n.id, snoozeUntil: { not: null } }, data: { snoozeUntil: null, readAt: null, sentAt: now } });
     if (!claimed.count) continue;
-    await sendToUser(n.userId, { title: n.title ?? "LifeOS", body: n.body ?? "", url: n.url ?? undefined, tag: `snooze-${n.id}` }, send, { logged: true, logId: n.id });
+    await sendToUser(n.userId, { title: n.title ?? "Atlenza", body: n.body ?? "", url: n.url ?? undefined, tag: `snooze-${n.id}` }, send, { logged: true, logId: n.id });
   }
   return due.length;
 }

@@ -54,7 +54,7 @@ h1{font-size:1.4rem;margin:.2rem 0}h2{font-size:1.1rem;margin-top:1.6rem}
 table{border-collapse:collapse;width:100%;font-size:.9rem;display:block;overflow-x:auto}th,td{border-bottom:1px solid #ddd;padding:4px 8px;text-align:left;white-space:nowrap}
 .muted{color:#666;font-size:.85rem}
 @media (prefers-color-scheme:dark){body{background:#111;color:#eee}th,td{border-color:#333}.muted{color:#aaa}}
-</style></head><body><h1>${esc(title)}: ${esc(who)}</h1><p class="muted">Enlace de solo lectura compartido por la propia persona; caduca el ${esc(expires)}. Datos registrados por ella en LifeOS: orientativos, no son un informe clínico.</p>${body}</body></html>`;
+</style></head><body><h1>${esc(title)}: ${esc(who)}</h1><p class="muted">Enlace de solo lectura compartido por la propia persona; caduca el ${esc(expires)}. Datos registrados por ella en Atlenza: orientativos, no son un informe clínico.</p>${body}</body></html>`;
 const table = (head: string[], rows: string[][]) =>
   rows.length ? `<table><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table>` : `<p class="muted">Sin datos.</p>`;
 
@@ -228,7 +228,7 @@ export async function healthReportHtml(token: string, now = new Date()): Promise
   const r = await prisma.healthReport.findUnique({ where: { tokenHash: hashShareToken(token) }, include: { user: { select: { name: true } } } });
   if (!r || r.revokedAt || r.expiresAt <= now || (await isRestricted(r.userId))) return null;
   const today = toIsoDay(now);
-  const who = r.user.name ?? "LifeOS";
+  const who = r.user.name ?? "Atlenza";
   const expires = toIsoDay(r.expiresAt);
   const kind = r.kind as HealthReportKind;
   const body = kind === "MEDICAL" ? await medicalBody(r.userId, today) : kind === "ANNUAL" ? await annualBody(r.userId, today) : await physioBody(r.userId, today);

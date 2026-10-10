@@ -1,38 +1,27 @@
-import { Encoder, Profile } from "@garmin/fitsdk";
 import { describe, expect, it } from "vitest";
 
+import { buildFit } from "../../../e2e/fit-builder.mjs";
 import { haversine, hrZoneSeconds, ImportError, parseActivity } from "./activity-import";
 
-// Ficheros de prueba generados con el codificador oficial de Garmin (FIT SDK)
-// imitando lo que escribe cada marca: con o sin resumen de sesión, con distancia
-// del dispositivo o solo GPS, speed vs enhancedSpeed.
+// Ficheros de prueba generados con el codificador del paquete fit-file-parser (MIT, ver
+// e2e/fit-builder.mjs) imitando lo que escribe cada marca: con o sin resumen de sesión, con
+// distancia del dispositivo o solo GPS, speed vs enhancedSpeed.
 const START = new Date("2026-10-05T06:30:00Z"); // 08:30 en Madrid
 const DEG_PER_M = 1 / 111_195; // metros → grados de latitud
 const SC = 2 ** 31 / 180; // grados → semicírculos
 
-/** onMesg con un objeto plano (los tipos del SDK son estrictos por mensaje). */
-const put = (e: Encoder, mesgNum: number, mesg: Record<string, unknown>) => e.onMesg(mesgNum, mesg as never);
-
-function fit(build: (e: Encoder) => void): Buffer {
-  const e = new Encoder();
-  build(e);
-  return Buffer.from(e.close());
-}
-
 /** Garmin: carrera en pista con resumen de sesión completo. */
 const garminTrack = () =>
-  fit((e) => {
-    put(e, Profile.MesgNum.FILE_ID, { type: "activity", manufacturer: "garmin", product: 4315, timeCreated: START, serialNumber: 1 });
-    for (let i = 0; i <= 600; i++) {
-      put(e, Profile.MesgNum.RECORD, {
-        timestamp: new Date(START.getTime() + i * 1000),
-        distance: i * 4,
-        enhancedSpeed: 4,
-        heartRate: 150 + (i % 10),
-        cadence: 88,
-      });
-    }
-    put(e, Profile.MesgNum.SESSION, {
+  buildFit({
+    fileId: { manufacturer: "garmin", product: 4315, timeCreated: START },
+    records: Array.from({ length: 601 }, (_, i) => ({
+      timestamp: new Date(START.getTime() + i * 1000),
+      distance: i * 4,
+      enhancedSpeed: 4,
+      heartRate: 150 + (i % 10),
+      cadence: 88,
+    })),
+    session: {
       timestamp: new Date(START.getTime() + 600_000),
       startTime: START,
       sport: "running",
@@ -42,40 +31,38 @@ const garminTrack = () =>
       totalDistance: 2400,
       avgHeartRate: 154,
       maxHeartRate: 159,
-      avgRunningCadence: 88,
-    });
+      avgCadence: 88,
+    },
   });
 
 /** Estilo Coros: solo registros (sin resumen) y una pausa de 2 min en medio. */
-const corosNoSession = () =>
-  fit((e) => {
-    put(e, Profile.MesgNum.FILE_ID, { type: "activity", manufacturer: "coros", product: 1, timeCreated: START, serialNumber: 2 });
-    let t = 0;
-    let d = 0;
-    for (let i = 0; i < 300; i++) {
-      // 300 s corriendo a 3 m/s, pausa de 120 s, otros 300 s
-      if (i === 150) t += 120;
-      put(e, Profile.MesgNum.RECORD, { timestamp: new Date(START.getTime() + t * 1000), distance: d, heartRate: i < 150 ? 140 : 160 });
-      t += 2;
-      d += 6;
-    }
-  });
+const corosNoSession = () => {
+  const records = [];
+  let t = 0;
+  let d = 0;
+  for (let i = 0; i < 300; i++) {
+    // 300 s corriendo a 3 m/s, pausa de 120 s, otros 300 s
+    if (i === 150) t += 120;
+    records.push({ timestamp: new Date(START.getTime() + t * 1000), distance: d, heartRate: i < 150 ? 140 : 160 });
+    t += 2;
+    d += 6;
+  }
+  return buildFit({ fileId: { manufacturer: "coros", timeCreated: START }, records });
+};
 
 /** Estilo Polar: bici, sin distancia en los registros (solo GPS), speed (no enhanced). */
 const polarGpsOnly = () =>
-  fit((e) => {
-    put(e, Profile.MesgNum.FILE_ID, { type: "activity", manufacturer: "polarElectro", product: 1, timeCreated: START, serialNumber: 3 });
-    for (let i = 0; i <= 300; i++) {
-      put(e, Profile.MesgNum.RECORD, {
-        timestamp: new Date(START.getTime() + i * 1000),
-        positionLat: Math.round((40.4 + i * 8 * DEG_PER_M) * SC), // 8 m/s hacia el norte
-        positionLong: Math.round(-3.7 * SC),
-        speed: 8,
-        altitude: 600 + (i < 150 ? i * 0.2 : 30 - (i - 150) * 0.2),
-        heartRate: 130,
-      });
-    }
-    put(e, Profile.MesgNum.SESSION, { timestamp: new Date(START.getTime() + 300_000), startTime: START, sport: "cycling", totalTimerTime: 300, totalElapsedTime: 300 });
+  buildFit({
+    fileId: { manufacturer: "polarElectro", timeCreated: START },
+    records: Array.from({ length: 301 }, (_, i) => ({
+      timestamp: new Date(START.getTime() + i * 1000),
+      positionLat: Math.round((40.4 + i * 8 * DEG_PER_M) * SC), // 8 m/s hacia el norte
+      positionLong: Math.round(-3.7 * SC),
+      speed: 8,
+      altitude: 600 + (i < 150 ? i * 0.2 : 30 - (i - 150) * 0.2),
+      heartRate: 130,
+    })),
+    session: { timestamp: new Date(START.getTime() + 300_000), startTime: START, sport: "cycling", totalTimerTime: 300, totalElapsedTime: 300 },
   });
 
 const gpx = (pts: string) => `<?xml version="1.0" encoding="UTF-8"?>

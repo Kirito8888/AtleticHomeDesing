@@ -175,7 +175,7 @@ export const coachReportSchema = z.object({
   dataGaps: z.array(z.string()).max(5).describe("Datos que faltan y limitan el análisis"),
 });
 
-export const COACH_SYSTEM_PROMPT = `Eres el Coach de Rendimiento de LifeOS: preparador físico de atletismo
+export const COACH_SYSTEM_PROMPT = `Eres el Coach de Rendimiento de Atlenza: preparador físico de atletismo
 (velocidad, fondo, saltos y lanzamientos como la jabalina) y de fuerza. Respondes en español.
 
 Recibes un snapshot JSON de la semana de un atleta. Analiza la relación entre CARGA

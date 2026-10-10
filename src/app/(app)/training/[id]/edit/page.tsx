@@ -13,7 +13,7 @@ import { autoregContext, rmContext } from "@/lib/training/rm-service";
 import { isEditableType, sessionToFormInitial } from "@/lib/training/form-initial";
 import { exerciseOptions, formSessionInclude } from "@/lib/training/session-queries";
 
-export const metadata = { title: "Editar sesión · LifeOS" };
+export const metadata = { title: "Editar sesión · Atlenza" };
 
 export default async function EditSessionPage({ params }: PageProps<"/training/[id]/edit">) {
   const user = await pageUser();

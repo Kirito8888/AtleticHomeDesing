@@ -23,7 +23,7 @@ import { TripPlace } from "@/components/competition/trip-place";
 import { diffDays } from "@/lib/dates";
 import { dayForecast, forecastTips } from "@/lib/weather";
 
-export const metadata = { title: "Competición · LifeOS" };
+export const metadata = { title: "Competición · Atlenza" };
 
 /** Modo competición: cuenta atrás, checklist de la bolsa y hoja de intentos. */
 export default async function CompetitionPage({ params }: PageProps<"/planning/competition/[id]">) {

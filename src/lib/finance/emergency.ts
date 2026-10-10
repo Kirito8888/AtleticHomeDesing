@@ -2,7 +2,7 @@
 export type MonthFlow = { month: string; incomeCents: number; expenseCents: number };
 
 export function emergencyFund(closedMonths: MonthFlow[], liquidCents: number, targetMonths: number) {
-  // Solo meses con movimientos: un mes vacío (antes de empezar a usar LifeOS) no es «gasto 0»
+  // Solo meses con movimientos: un mes vacío (antes de empezar a usar Atlenza) no es «gasto 0»
   const used = closedMonths.filter((m) => m.incomeCents || m.expenseCents);
   if (!used.length) return null;
   const avgExpense = Math.round(used.reduce((a, m) => a + m.expenseCents, 0) / used.length);

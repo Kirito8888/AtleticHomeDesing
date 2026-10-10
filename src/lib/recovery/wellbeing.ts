@@ -82,8 +82,10 @@ export function moodTrend(rows: MoodEntry[], today: string) {
 
 // 10 · Escalas -----------------------------------------------------------------------------------
 /**
- * QuickDASH (11 ítems, 1-5): puntuación = (media − 1) × 25, de 0 (sin limitación) a 100. Hace falta
- * contestar al menos 10. Textos resumidos: para uso clínico, la versión validada en español.
+ * Brazo y hombro: escala propia de Atlenza (no es un cuestionario validado ni reproduce ninguno).
+ * 11 preguntas de 1 a 5; puntuación = (media − 1) × 25, de 0 (sin limitación) a 100, con al menos 10
+ * respondidas. El identificador interno «QUICKDASH» se mantiene por compatibilidad con los datos.
+ * Para uso clínico, usa con tu profesional un cuestionario validado.
  */
 export const QUICKDASH_ITEMS = [
   "Abrir un bote nuevo o apretado",
@@ -105,8 +107,8 @@ export function quickDashScore(answers: Array<number | null>): number | null {
 }
 
 /**
- * Tendón de Aquiles: 8 preguntas inspiradas en el VISA-A, cada una de 0 a 10 (10 = sin problema),
- * escaladas a 0-100. No es el cuestionario validado: sirve para ver tu tendencia.
+ * Tendón de Aquiles: escala propia de Atlenza, 8 preguntas de 0 a 10 (10 = sin problema), escaladas
+ * a 0-100. No es ni reproduce un cuestionario validado: sirve para ver tu tendencia.
  */
 export const ACHILLES_ITEMS = [
   "Rigidez del Aquiles al levantarte (10 = ninguna)",
@@ -133,8 +135,8 @@ export type ScaleEntry = z.infer<typeof scaleEntrySchema>;
 
 export function scaleScore(e: ScaleEntry): { score: number | null; label: string; higherIsBetter: boolean } {
   if (e.scale === "EVA") return { score: e.score, label: `Dolor (EVA) ${e.area}`, higherIsBetter: false };
-  if (e.scale === "QUICKDASH") return { score: quickDashScore(e.answers), label: "Brazo, hombro y mano (QuickDASH)", higherIsBetter: false };
-  return { score: achillesScore(e.answers), label: "Aquiles (adaptación VISA-A)", higherIsBetter: true };
+  if (e.scale === "QUICKDASH") return { score: quickDashScore(e.answers), label: "Brazo, hombro y mano (escala propia)", higherIsBetter: false };
+  return { score: achillesScore(e.answers), label: "Aquiles (escala propia)", higherIsBetter: true };
 }
 
 // 11 · Movilidad sugerida por zona ---------------------------------------------------------------

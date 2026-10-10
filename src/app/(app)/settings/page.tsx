@@ -49,7 +49,7 @@ import { readPrefs } from "@/lib/rules/prefs";
 import { auditIntegrity, recentEvents } from "@/lib/security/audit";
 import { totpStatus } from "@/lib/security/totp";
 
-export const metadata = { title: "Ajustes · LifeOS" };
+export const metadata = { title: "Ajustes · Atlenza" };
 
 const EVENT_LABEL: Record<string, string> = {
   LOGIN_SUCCESS: "Inicio de sesión",
@@ -234,7 +234,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             </Link>
           ) : null}
         </Section>
-        <Section id="informe" title="Informe para la entrenadora" description="Un enlace de solo lectura para quien no usa LifeOS.">
+        <Section id="informe" title="Informe para la entrenadora" description="Un enlace de solo lectura para quien no usa Atlenza.">
           <CoachReport
             periods={reportPeriods}
             active={reports.map((r) => ({ id: r.id, from: toIsoDay(r.from), to: toIsoDay(r.to), includeInjuries: r.includeInjuries, expiresAt: toIsoDay(r.expiresAt) }))}
@@ -314,7 +314,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               : `El registro de actividad se ha alterado (${integrity.reason}). Alguien ha tocado la base de datos: sigue el plan de incidentes.`}
           </p>
         </Section>
-        <Section title="Privacidad e IA" description="Astras AI usa Google Gemini. Sin tu permiso no se envía nada.">
+        <Section title="Privacidad e IA" description="Atlenza IA usa Google Gemini. Sin tu permiso no se envía nada.">
           <AiConsentToggle initial={me.aiConsentAt != null} configured={Boolean(env().GEMINI_API_KEY)} />
           <Link href="/settings/privacy" className="mt-3 inline-block text-sm font-medium underline underline-offset-4">
             Privacidad y derechos (consentimientos, limitar el tratamiento, plazos)
@@ -382,6 +382,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             </div>
             <DeleteAccountForm />
           </div>
+        </Section>
+        <Section id="acerca" title="Acerca de" description="Autoría, licencia y datos de terceros.">
+          <Link href="/about" className="text-sm underline underline-offset-2">
+            Atlenza · © 2026 David Ornelas Luna · licencia y atribuciones
+          </Link>
         </Section>
       </div>
     </>

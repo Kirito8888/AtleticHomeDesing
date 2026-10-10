@@ -22,7 +22,7 @@ const str = (f: FormData, k: string) => String(f.get(k) ?? "");
 
 function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
   const download = () => {
-    const blob = new Blob([`Códigos de recuperación de LifeOS (cada uno vale una vez)\n\n${codes.join("\n")}\n`], { type: "text/plain" });
+    const blob = new Blob([`Códigos de recuperación de Atlenza (cada uno vale una vez)\n\n${codes.join("\n")}\n`], { type: "text/plain" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = "lifeos-codigos-recuperacion.txt";

@@ -6,7 +6,7 @@ import { today, toIsoDay } from "@/lib/dates";
 import { formatDate, formatNum } from "@/lib/format";
 import { listSweatTests } from "@/lib/nutrition/planning-service";
 
-export const metadata = { title: "Tasa de sudoración · LifeOS" };
+export const metadata = { title: "Tasa de sudoración · Atlenza" };
 
 /** v1.7 · Tasa de sudoración: cuánto pierdes por hora y cuánto beber para no pasar del 2 %. */
 export default async function SweatPage() {

@@ -24,7 +24,7 @@ import { PriceAlerts, Receipts, SeasonBudgetForm, SubscriptionAmount } from "@/c
 import { SEASON_LINES, type SeasonLine } from "@/lib/finance/season";
 import { seasonBudgetView, subscriptionAlerts } from "@/lib/finance/season-service";
 
-export const metadata = { title: "Finanzas · LifeOS" };
+export const metadata = { title: "Finanzas · Atlenza" };
 
 const INTERVAL_LABEL = { WEEKLY: "semana", MONTHLY: "mes", QUARTERLY: "trimestre", YEARLY: "año" } as const;
 

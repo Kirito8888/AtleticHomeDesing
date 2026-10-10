@@ -5,7 +5,7 @@ import { pageUser } from "@/lib/auth/page";
 import { safetyOverview } from "@/lib/health/safety-service";
 import { pushConfigured } from "@/lib/push/service";
 
-export const metadata = { title: "Entreno sola · LifeOS" };
+export const metadata = { title: "Entreno sola · Atlenza" };
 
 const hhmm = (iso: string) => new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(new Date(iso));
 
@@ -49,7 +49,7 @@ export default async function SafetyPage() {
         </Card>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">
-        Tu contacto necesita una cuenta en LifeOS con las notificaciones activadas. No se envían SMS ni emails. La nota y la ubicación van cifradas y solo se envían si salta el aviso.
+        Tu contacto necesita una cuenta en Atlenza con las notificaciones activadas. No se envían SMS ni emails. La nota y la ubicación van cifradas y solo se envían si salta el aviso.
       </p>
     </>
   );

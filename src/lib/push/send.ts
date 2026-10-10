@@ -56,7 +56,7 @@ export const generateVapidKeys = () => webpush.generateVAPIDKeys();
 /**
  * Servicios de push reales de los navegadores. El servidor hace POST al
  * endpoint de cada suscripción: sin esta lista, un usuario podría registrar
- * cualquier URL y usar LifeOS para lanzar peticiones a terceros (SSRF).
+ * cualquier URL y usar Atlenza para lanzar peticiones a terceros (SSRF).
  */
 const PUSH_HOSTS = [
   /^fcm\.googleapis\.com$/, // Chrome, Edge (Android), Brave, Opera…

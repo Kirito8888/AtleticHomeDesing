@@ -6,7 +6,7 @@ import { formatNum, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { compareSeasons } from "@/lib/training/seasons";
 
-export const metadata = { title: "Temporadas · LifeOS" };
+export const metadata = { title: "Temporadas · Atlenza" };
 
 const COMPETITION_THROWS = 6;
 

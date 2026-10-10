@@ -1,4 +1,4 @@
-// LifeOS service worker — mínimo y conservador.
+// Atlenza service worker — mínimo y conservador.
 // - /_next/static e /icons: cache-first (ficheros con hash, inmutables).
 // - Navegación: network-first; sin red, la última versión cacheada de esa página
 //   o la página /offline.
@@ -101,14 +101,14 @@ self.addEventListener("message", (event) => {
 
 // Notificaciones push (src/lib/push). El servidor envía {title, body, url, tag}.
 self.addEventListener("push", (event) => {
-  let msg = { title: "LifeOS", body: "" };
+  let msg = { title: "Atlenza", body: "" };
   try {
     msg = event.data ? event.data.json() : msg;
   } catch {
     msg.body = event.data ? event.data.text() : "";
   }
   event.waitUntil(
-    self.registration.showNotification(msg.title || "LifeOS", {
+    self.registration.showNotification(msg.title || "Atlenza", {
       body: msg.body,
       tag: msg.tag,
       icon: "/icons/icon-192.png",
@@ -120,7 +120,7 @@ self.addEventListener("push", (event) => {
   );
 });
 
-// Al tocarla: enfocar una pestaña de LifeOS (o abrir una) en la ruta indicada.
+// Al tocarla: enfocar una pestaña de Atlenza (o abrir una) en la ruta indicada.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   if (event.action === "snooze" && event.notification.data?.logId) {

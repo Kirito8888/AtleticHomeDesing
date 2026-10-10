@@ -26,7 +26,7 @@ export const APPOINTMENT_LABEL = { PHYSIO: "Fisio", DOCTOR: "Médico/a", OTHER: 
 
 /**
  * Antes de competir: suplementos activos sin comprobar en la lista oficial en los últimos `days` días.
- * LifeOS no dice si algo está permitido: solo recuerda comprobarlo.
+ * Atlenza no dice si algo está permitido: solo recuerda comprobarlo.
  */
 export function supplementsToCheck(
   list: Array<{ id: string; name: string; endedOn: string | null; checkedOn: string | null }>,

@@ -26,7 +26,7 @@ import { getPrefs } from "@/lib/rules/prefs-service";
 import { dailySrpe, fosterWeek } from "@/lib/training/load-metrics";
 import { type FatigueZone, zoneTrend } from "@/lib/training/zone-fatigue";
 
-export const metadata = { title: "Recuperación · LifeOS" };
+export const metadata = { title: "Recuperación · Atlenza" };
 
 const PART_LABEL: Record<ReadinessComponent, string> = {
   hrv: "VFC vs tu línea base",

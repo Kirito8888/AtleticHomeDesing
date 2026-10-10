@@ -99,7 +99,7 @@ export default async function DashboardPage() {
 
       {onb && !onb.onboardedAt ? (
         <Link href="/welcome" className="mb-4 block rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
-          👋 <span className="font-medium">Configura LifeOS en 1 minuto</span>: elige tus módulos, tu perfil y cuándo no molestarte.
+          👋 <span className="font-medium">Configura Atlenza en 1 minuto</span>: elige tus módulos, tu perfil y cuándo no molestarte.
         </Link>
       ) : null}
       {focus || reviewDue ? (

@@ -33,7 +33,7 @@ export function foldLine(line: string): string {
 }
 
 export function buildIcs(name: string, events: IcsEvent[], now = new Date()): string {
-  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//LifeOS//Calendario//ES", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", `X-WR-CALNAME:${icsText(name)}`, "X-WR-TIMEZONE:Europe/Madrid"];
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Atlenza//Calendario//ES", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", `X-WR-CALNAME:${icsText(name)}`, "X-WR-TIMEZONE:Europe/Madrid"];
   for (const e of events) {
     lines.push("BEGIN:VEVENT", `UID:${e.uid}@lifeos`, `DTSTAMP:${stamp(now)}`);
     if (e.allDay) {

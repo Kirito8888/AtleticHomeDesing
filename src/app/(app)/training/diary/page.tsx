@@ -7,7 +7,7 @@ import { pageUser } from "@/lib/auth/page";
 import { formatDate, formatNum, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { technicalDiary } from "@/lib/training/diary-service";
 
-export const metadata = { title: "Diario técnico · LifeOS" };
+export const metadata = { title: "Diario técnico · Atlenza" };
 
 /** v1.7 · Diario técnico: claves, foco, notas y etiquetas de cada sesión técnica, con búsqueda. */
 export default async function DiaryPage({ searchParams }: PageProps<"/training/diary">) {

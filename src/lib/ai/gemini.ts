@@ -9,7 +9,7 @@ let client: GoogleGenAI | undefined;
 
 export function gemini(): GoogleGenAI {
   const key = env().GEMINI_API_KEY;
-  if (!key) throw new ApiError(503, "Astras AI no está configurado (falta GEMINI_API_KEY)");
+  if (!key) throw new ApiError(503, "Atlenza IA no está configurado (falta GEMINI_API_KEY)");
   client ??= new GoogleGenAI({ apiKey: key });
   return client;
 }

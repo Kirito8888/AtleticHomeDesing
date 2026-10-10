@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { summarizeTests } from "@/lib/training/physical-tests";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Tests físicos · LifeOS" };
+export const metadata = { title: "Tests físicos · Atlenza" };
 
 export default async function TestsPage() {
   const user = await pageUser();

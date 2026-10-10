@@ -1,7 +1,7 @@
 # Evaluación de impacto (EIPD, art. 35 RGPD) — plantilla
 
 ## 1. Descripción del tratamiento
-LifeOS en un servidor propio: registro de entrenamiento, salud (incluido el ciclo menstrual), estudio y finanzas de sus usuarios. [Número de usuarios previsto, quiénes son.]
+Atlenza en un servidor propio: registro de entrenamiento, salud (incluido el ciclo menstrual), estudio y finanzas de sus usuarios. [Número de usuarios previsto, quiénes son.]
 
 ## 2. Necesidad y proporcionalidad
 - **Minimización:**

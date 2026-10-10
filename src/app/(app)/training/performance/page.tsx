@@ -17,7 +17,7 @@ import { getPrefs } from "@/lib/rules/prefs-service";
 import { getPerformanceSeries } from "@/lib/training/service";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Rendimiento · LifeOS" };
+export const metadata = { title: "Rendimiento · Atlenza" };
 
 const RANGES = [30, 90, 365] as const;
 
