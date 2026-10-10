@@ -20,7 +20,8 @@ export function DisplayPrefs({ fontScale, highContrast }: { fontScale: number; h
 export function UsageBeacon({ enabled }: { enabled: boolean }) {
   const pathname = usePathname();
   useEffect(() => {
-    if (!enabled || typeof navigator.sendBeacon !== "function") return;
+    // Sin conexión (página guardada por el service worker) no se intenta: solo daría un error en consola
+    if (!enabled || typeof navigator.sendBeacon !== "function" || !navigator.onLine) return;
     navigator.sendBeacon("/api/usage", new Blob([JSON.stringify({ path: pathname })], { type: "application/json" }));
   }, [enabled, pathname]);
   return null;
