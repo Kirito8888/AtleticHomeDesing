@@ -6,6 +6,8 @@
 //   npm run user -- unlock <email>
 //   npm run user -- set-role <email> <ATHLETE|COACH|ADMIN>
 //   npm run user -- disable-2fa <email>     (si se pierde el móvil y los códigos de recuperación)
+//   npm run user -- invite [email] [--role ATHLETE|COACH] [--days 7]   (v1.9: enlace de invitación)
+//   npm run user -- suspend <email> | reactivate <email>                (v1.9: quitar o devolver el acceso)
 //
 // En Docker:  docker compose --profile tools run --rm migrate npm run user -- list
 //
@@ -16,6 +18,8 @@ import { config } from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 import { PrismaClient } from "../../src/generated/prisma/client";
+import { TERMS_VERSION } from "../../src/lib/auth/constants";
+import { newShareToken } from "../../src/lib/security/share-token";
 import { generatePassword, hashPassword } from "../../src/lib/auth/scrypt";
 
 config({ path: [".env.local", ".env"], quiet: true });
@@ -30,7 +34,10 @@ function usage(): never {
   npm run user -- reset-password <email>
   npm run user -- unlock <email>
   npm run user -- set-role <email> <ATHLETE|COACH|ADMIN>
-  npm run user -- disable-2fa <email>`);
+  npm run user -- disable-2fa <email>
+  npm run user -- invite [email] [--role ATHLETE|COACH] [--days 7]
+  npm run user -- suspend <email>
+  npm run user -- reactivate <email>`);
   process.exit(2);
 }
 
@@ -87,10 +94,38 @@ async function main() {
             role: role(flag(args, "role"), "ATHLETE"),
             passwordHash: await hashPassword(password),
             athleteProfile: { create: {} },
+            // --accept-terms: solo para pruebas automáticas (la persona real las acepta al entrar)
+            ...(args.includes("--accept-terms")
+              ? { consents: { create: [{ purpose: "TERMS", version: TERMS_VERSION, granted: true }, { purpose: "PRIVACY", version: TERMS_VERSION, granted: true }] } }
+              : {}),
           },
         });
         console.log("Usuario creado.");
         printPassword(email, password);
+        break;
+      }
+      case "invite": {
+        // v1.9 · Invitación de un solo uso (el registro está cerrado). El email es opcional.
+        const admin = await prisma.user.findFirst({ where: { role: "ADMIN" }, orderBy: { createdAt: "asc" }, select: { id: true } });
+        if (!admin) throw new Error("Crea antes una cuenta ADMIN (npm run user -- create <email> --role ADMIN)");
+        const target = email && !email.startsWith("--") ? email : null;
+        const r = role(flag(args, "role"), "ATHLETE");
+        if (r === "ADMIN") usage();
+        const days = Math.min(30, Math.max(1, Number(flag(args, "days") ?? 7) || 7));
+        const { token, hash } = newShareToken();
+        await prisma.invitation.create({ data: { tokenHash: hash, email: target, role: r, createdById: admin.id, expiresAt: new Date(Date.now() + days * 864e5) } });
+        const base = (process.env.AUTH_URL ?? "").replace(/\/$/, "");
+        console.log(`\n  Invitación${target ? ` para ${target}` : ""} (${days} días, un solo uso):\n  ${base}/register?invite=${token}\n\nSolo se muestra ahora. Envíala por un canal privado.\n`);
+        break;
+      }
+      case "suspend":
+      case "reactivate": {
+        if (!email) usage();
+        await prisma.user.update({
+          where: { email },
+          data: cmd === "suspend" ? { suspendedAt: new Date(), sessionVersion: { increment: 1 } } : { suspendedAt: null, failedLogins: 0, lockedUntil: null },
+        });
+        console.log(cmd === "suspend" ? "Acceso suspendido (sus sesiones se han cerrado)." : "Acceso reactivado.");
         break;
       }
       case "reset-password": {

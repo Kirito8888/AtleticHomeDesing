@@ -44,7 +44,7 @@ const api = async (method: "post" | "put" | "patch" | "delete", url: string, dat
 
 const user = (...a: string[]) => execFileSync("npm", ["run", "-s", "user", "--", ...a], { encoding: "utf8" });
 const newUser = (email: string, role = "ATHLETE") => {
-  const pw = user("create", email, "--name", "Amiga", "--role", role).match(/Contraseña: (\S+)/)?.[1];
+  const pw = user("create", email, "--name", "Amiga", "--role", role, "--accept-terms").match(/Contraseña: (\S+)/)?.[1];
   if (!pw) throw new Error(`no se pudo crear ${email}`);
   return pw;
 };
@@ -64,6 +64,7 @@ await go(B + "/register");
 await page.fill("#name", "Atleta Prueba");
 await page.fill("#email", myEmail);
 await page.fill("#password", "contraseña-segura-1");
+await page.check("input[name=terms]");
 await Promise.all([page.waitForURL(/\/settings\?welcome=1/), page.click("button[type=submit]")]);
 await page.selectOption("#p-sex", "FEMALE");
 await page.getByRole("button", { name: "Guardar perfil" }).click();

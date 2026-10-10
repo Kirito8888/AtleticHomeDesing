@@ -48,6 +48,8 @@ model User {
   demoExpiresAt  DateTime?
   // v1.8 · primer uso guiado terminado (o descartado)
   onboardedAt    DateTime?
+  // v1.9 · acceso suspendido por la administración (no puede entrar; sus sesiones caen)
+  suspendedAt    DateTime?
   // Privacidad (v1.1): fecha en que el usuario autorizó enviar datos a Gemini (null = no)
   aiConsentAt    DateTime?
   // Seguridad (v1.2): 2FA TOTP. Secreto cifrado (AES-256-GCM, TOTP_ENCRYPTION_KEY);
@@ -153,6 +155,9 @@ model User {
   weeklyReviews          WeeklyReview[]
   goals                  Goal[]
   categoryRules          CategoryRule[]
+  invitationsCreated     Invitation[]           @relation("InvitationCreatedBy")
+  passwordResets         PasswordReset[]
+  aiCredential           AiCredential?
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -180,6 +185,7 @@ enum SecurityEventType {
   RECOVERY_CODE_USED
   DATA_EXPORTED
   AI_CONSENT_CHANGED
+  AI_PROVIDER_CHANGED
   COACH_SCOPES_CHANGED
   // v1.7
   PASSKEY_ADDED
@@ -189,6 +195,13 @@ enum SecurityEventType {
   DATA_RESTORED
   CONSENT_CHANGED
   PRIVACY_REQUEST
+  // v1.9
+  INVITATION_CREATED
+  ACCOUNT_SUSPENDED
+  ACCOUNT_REACTIVATED
+  PASSWORD_RESET_ISSUED
+  PASSWORD_RESET_USED
+  TERMS_ACCEPTED
 }
 
 /// Registro de auditoría visible por el usuario (Ajustes → Actividad). Se borra con la cuenta
@@ -2354,4 +2367,57 @@ model CategoryRule {
   category FinancialCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([userId, pattern])
+}
+
+/// v1.9 · Invitación de un solo uso: solo quien la recibe puede crear cuenta (registro cerrado).
+/// En la BD solo se guarda el SHA-256 del token.
+model Invitation {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  email       String? // si se indica, solo vale para ese email
+  role        UserRole  @default(ATHLETE)
+  note        String?
+  createdById String
+  expiresAt   DateTime
+  usedAt      DateTime?
+  usedById    String?
+  createdAt   DateTime  @default(now())
+
+  createdBy User @relation("InvitationCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+/// v1.9 · Enlace de un solo uso (1 h) para poner una contraseña nueva, generado por la administración
+/// (no hay email). Solo se guarda el SHA-256 del token.
+model PasswordReset {
+  id          String    @id @default(cuid())
+  userId      String
+  tokenHash   String    @unique
+  createdById String?
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// v1.9 · IA propia de cada usuario: proveedor, modelo y su clave cifrada (DATA_ENCRYPTION_KEY).
+/// La clave nunca se devuelve entera (solo `keyHint`) ni se exporta.
+model AiCredential {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  provider       String // GEMINI | OPENAI (cualquier API compatible: OpenAI, Mistral, Groq, OpenRouter, DeepSeek, Ollama…) | ANTHROPIC
+  baseUrl        String? // solo OPENAI; p. ej. http://ollama:11434/v1 para un modelo local
+  model          String
+  embeddingModel String? // vacío = los apuntes se buscan por texto
+  keySealed      String? // null en modelos locales sin clave
+  keyHint        String? // últimos 4 caracteres, para reconocerla
+  verifiedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

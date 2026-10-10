@@ -21,7 +21,10 @@ export default async function LegalNotice() {
         Atlenza es una herramienta personal de registro y análisis del entrenamiento, la salud, el estudio y las finanzas. Sus avisos (carga, molestias, ciclo, cribados) son pautas de prudencia, no diagnósticos médicos: ante cualquier duda, consulta con un profesional sanitario.
       </p>
       <p>Las estimaciones y proyecciones (marcas, progreso, previsiones) son orientativas y dependen de tus propios datos; no son una promesa de resultado.</p>
-      <p>El código es software libre en GitHub; cada instalación es responsabilidad de quien la administra.</p>
+      <p>
+        El software Atlenza es obra de David Ornelas Luna (© 2026, todos los derechos reservados) y solo puede usarse con su autorización por escrito (ver la{" "}
+        <a href="https://github.com/Kirito8888/AtleticHomeDesing/blob/main/LICENSE">licencia</a> y las <a href="/legal/condiciones">condiciones de uso</a>). Cada instalación autorizada es responsabilidad de quien la administra.
+      </p>
     </article>
   );
 }

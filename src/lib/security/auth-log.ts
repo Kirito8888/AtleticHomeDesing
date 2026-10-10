@@ -2,7 +2,7 @@
 // (deploy/fail2ban/filter.d/lifeos-auth.conf). Si cambias el texto, cambia el filtro
 // y su test (auth-log.test.ts).
 
-export type AuthFailReason = "credentials" | "locked" | "rate_limited" | "totp";
+export type AuthFailReason = "credentials" | "locked" | "rate_limited" | "totp" | "suspended";
 
 export function authFailureLine(ip: string, reason: AuthFailReason): string {
   // La IP viene de X-Forwarded-For: se limpia para que no pueda inyectar texto en el log.

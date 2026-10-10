@@ -4,7 +4,7 @@ import { auth } from "@/auth";
 import { buildCsp, generateNonce } from "@/lib/security/csp";
 
 /** Páginas de acceso: con sesión iniciada no tiene sentido verlas. */
-const AUTH_PATHS = ["/login", "/register"];
+const AUTH_PATHS = ["/login", "/register", "/reset"];
 /** Accesibles sin sesión. */
 const PUBLIC_PATHS = [...AUTH_PATHS, "/offline", "/legal"];
 

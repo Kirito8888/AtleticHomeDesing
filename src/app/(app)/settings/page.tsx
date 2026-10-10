@@ -383,6 +383,13 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             <DeleteAccountForm />
           </div>
         </Section>
+        {me.role === "ADMIN" ? (
+          <Section id="administracion" title="Administración" description="Invitar personas, suspender cuentas y enlaces de contraseña nueva.">
+            <Link href="/admin" className="text-sm font-medium underline underline-offset-2">
+              Abrir el panel de administración
+            </Link>
+          </Section>
+        ) : null}
         <Section id="acerca" title="Acerca de" description="Autoría, licencia y datos de terceros.">
           <Link href="/about" className="text-sm underline underline-offset-2">
             Atlenza · © 2026 David Ornelas Luna · licencia y atribuciones
