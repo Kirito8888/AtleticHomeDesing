@@ -162,6 +162,7 @@ model User {
   telegramLink           TelegramLink?
   telegramLinkCodes      TelegramLinkCode[]
   ownFoods               FoodProduct[]      @relation("OwnFoods")
+  stravaLink             StravaLink?
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -209,6 +210,8 @@ enum SecurityEventType {
   // v1.10
   TELEGRAM_LINKED
   TELEGRAM_UNLINKED
+  STRAVA_LINKED
+  STRAVA_UNLINKED
 }
 
 /// Registro de auditoría visible por el usuario (Ajustes → Actividad). Se borra con la cuenta
@@ -437,6 +440,11 @@ model TrainingSession {
   strength        StrengthSession?
   personalRecords PersonalRecord[]
 
+  // v1.10 · origen externo (p. ej. STRAVA) e id allí: sin duplicados; lo de Strava no va a la IA ni a la entrenadora
+  source        String?
+  externalId    String?
+
+  @@unique([userId, externalId])
   @@unique([userId, clientId])
   @@index([userId, date])
   @@index([cycleId])
@@ -2483,4 +2491,18 @@ model CatalogSyncState {
   finishedAt DateTime?
   error      String?
   updatedAt  DateTime  @updatedAt
+}
+
+/// v1.10 · Cuenta de Strava conectada (OAuth). Los tokens van cifrados (DATA_ENCRYPTION_KEY).
+model StravaLink {
+  userId      String    @id
+  athleteId   String    @unique // id del atleta en Strava
+  tokenSealed String // { access, refresh, expiresAt } cifrado
+  scope       String?
+  lastSyncAt  DateTime?
+  syncedUntil DateTime? // fecha de la última actividad importada (para pedir solo las nuevas)
+  lastError   String?
+  createdAt   DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

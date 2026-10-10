@@ -9,6 +9,8 @@
 
 ALTER TYPE "SecurityEventType" ADD VALUE 'TELEGRAM_LINKED';
 ALTER TYPE "SecurityEventType" ADD VALUE 'TELEGRAM_UNLINKED';
+ALTER TYPE "SecurityEventType" ADD VALUE 'STRAVA_LINKED';
+ALTER TYPE "SecurityEventType" ADD VALUE 'STRAVA_UNLINKED';
 
 -- AlterTable
 ALTER TABLE "FoodProduct" ADD COLUMN     "b12Per100g" DOUBLE PRECISION,
@@ -27,6 +29,10 @@ ADD COLUMN     "magnesiumMg" DOUBLE PRECISION,
 ADD COLUMN     "potassiumMg" DOUBLE PRECISION,
 ADD COLUMN     "sodiumMg" DOUBLE PRECISION,
 ADD COLUMN     "vitDUg" DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "TrainingSession" ADD COLUMN     "externalId" TEXT,
+ADD COLUMN     "source" TEXT;
 
 -- CreateTable
 CREATE TABLE "TelegramLink" (
@@ -63,6 +69,20 @@ CREATE TABLE "CatalogSyncState" (
     CONSTRAINT "CatalogSyncState_pkey" PRIMARY KEY ("brand")
 );
 
+-- CreateTable
+CREATE TABLE "StravaLink" (
+    "userId" TEXT NOT NULL,
+    "athleteId" TEXT NOT NULL,
+    "tokenSealed" TEXT NOT NULL,
+    "scope" TEXT,
+    "lastSyncAt" TIMESTAMP(3),
+    "syncedUntil" TIMESTAMP(3),
+    "lastError" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "StravaLink_pkey" PRIMARY KEY ("userId")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "TelegramLink_chatId_key" ON "TelegramLink"("chatId");
 
@@ -73,7 +93,13 @@ CREATE UNIQUE INDEX "TelegramLinkCode_codeHash_key" ON "TelegramLinkCode"("codeH
 CREATE INDEX "TelegramLinkCode_userId_idx" ON "TelegramLinkCode"("userId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "StravaLink_athleteId_key" ON "StravaLink"("athleteId");
+
+-- CreateIndex
 CREATE INDEX "FoodProduct_ownerId_idx" ON "FoodProduct"("ownerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "TrainingSession_userId_externalId_key" ON "TrainingSession"("userId", "externalId");
 
 -- AddForeignKey
 ALTER TABLE "FoodProduct" ADD CONSTRAINT "FoodProduct_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -83,4 +109,7 @@ ALTER TABLE "TelegramLink" ADD CONSTRAINT "TelegramLink_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "TelegramLinkCode" ADD CONSTRAINT "TelegramLinkCode_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StravaLink" ADD CONSTRAINT "StravaLink_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

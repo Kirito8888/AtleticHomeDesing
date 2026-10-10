@@ -34,6 +34,8 @@ import { serverStatus } from "@/lib/admin/status";
 import { PushSettings } from "@/components/settings/push-settings";
 import { TelegramSettings } from "@/components/settings/telegram-settings";
 import { telegramStatus } from "@/lib/telegram/link";
+import { StravaSettings } from "@/components/settings/strava-settings";
+import { stravaStatus } from "@/lib/strava/service";
 import { ReminderSettings } from "@/components/settings/reminder-settings";
 import { RulesForm } from "@/components/settings/rules-form";
 import { TwoFactorSettings } from "@/components/settings/two-factor";
@@ -104,7 +106,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const status = adminOk ? await serverStatus() : null;
   const demos = adminOk ? await listDemoAccounts() : [];
   const usage = await usageSummary(user.id);
-  const { welcome } = await searchParams;
+  const { welcome, strava: stravaParam } = await searchParams;
   const todayIso = toIsoDay(today());
   const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed, reports, passkeys, integrity] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { athleteProfile: true } }),
@@ -132,6 +134,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const prefs = readPrefs(p?.prefs);
   const aiView = await credentialView(user.id);
   const tgStatus = await telegramStatus(user.id);
+  const stravaSt = await stravaStatus(user.id);
   const isDemo = Boolean(me.demoExpiresAt);
   const aiProviderName = aiView.own?.label ?? (aiView.serverFallback ? "Google Gemini" : "la IA que configures");
 
@@ -322,6 +325,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               ? `Registro íntegro: ${integrity.checked} eventos encadenados sin cambios.`
               : `El registro de actividad se ha alterado (${integrity.reason}). Alguien ha tocado la base de datos: sigue el plan de incidentes.`}
           </p>
+        </Section>
+        <Section id="strava" title="Strava" description="Importa tus actividades de Strava (carrera, bici, natación…) como sesiones.">
+          <StravaSettings status={{ ...stravaSt, connectedAt: stravaSt.connectedAt?.toISOString() ?? null, lastSyncAt: stravaSt.lastSyncAt?.toISOString() ?? null }} result={typeof stravaParam === "string" ? stravaParam : undefined} />
         </Section>
         <Section id="ia" title="IA" description="Usa tu propia IA: Google, OpenAI o compatible, Anthropic o un modelo local. Sin tu permiso no se envía nada.">
           {isDemo ? (
