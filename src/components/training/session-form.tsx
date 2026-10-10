@@ -58,6 +58,7 @@ export function SessionForm({
   const [minutes, setMinutes] = useState(initial?.minutes ?? "");
   const [rpe, setRpe] = useState<number | null>(initial?.rpe ?? null);
   const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [tags, setTags] = useState((initial?.tags ?? []).join(", "));
   const [feelings, setFeelings] = useState<FeelingValue[]>(initial?.feelings ?? []);
   const [zones, setZones] = useState<Partial<Record<FatigueZone, number>>>(initial?.zoneFatigue ?? {});
   const [planned, setPlanned] = useState(initial?.planned ?? false);
@@ -80,6 +81,7 @@ export function SessionForm({
       durationSec: minutes && !Number.isNaN(durationMin) ? Math.round(durationMin * 60) : null,
       sessionRpe: rpe,
       notes: notes || null,
+      tags: tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 10),
       feelings: planned || !feelings.length ? null : feelings,
       zoneFatigue: planned || !Object.keys(zones).length ? null : zones,
     };
@@ -247,6 +249,9 @@ export function SessionForm({
 
       <Field label="Notas" htmlFor="notes">
         <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Sensaciones, molestias, condiciones…" />
+      </Field>
+      <Field label="Etiquetas (diario técnico)" htmlFor="tags" hint="Separadas por comas: salida, bloqueo, viento…">
+        <Input id="tags" value={tags} maxLength={200} onChange={(e) => setTags(e.target.value)} placeholder="bloqueo, brazo largo" />
       </Field>
 
       <label className="flex items-center gap-2 text-sm">

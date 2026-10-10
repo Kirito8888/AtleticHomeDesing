@@ -90,6 +90,15 @@ export default async function TrainingPage() {
       />
 
       <nav aria-label="Más de entrenamiento" className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        <Link href="/training/routine" className="underline underline-offset-4">
+          Crear mi rutina
+        </Link>
+        <Link href="/training/diary" className="underline underline-offset-4">
+          Diario técnico
+        </Link>
+        <Link href="/training/compare" className="underline underline-offset-4">
+          Comparar sesiones
+        </Link>
         <Link href="/training/javelin" className="underline underline-offset-4">
           Análisis de jabalina
         </Link>

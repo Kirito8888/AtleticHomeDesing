@@ -43,6 +43,18 @@ export async function loginAction(_prev: FormState, form: FormData): Promise<For
   }
 }
 
+/** v1.7 · Entrar con una llave de acceso (la firma ya la hizo el navegador). */
+export async function passkeyLoginAction(challengeId: string, response: string, callbackUrl: string): Promise<FormState> {
+  try {
+    await signIn("passkey", { challengeId, response, redirectTo: safeCallback(callbackUrl) });
+    return {};
+  } catch (err) {
+    if (err instanceof CredentialsSignin && err.code === "rate_limited") return { error: TOO_MANY };
+    if (err instanceof AuthError) return { error: "No se reconoce esa llave de acceso en esta cuenta o en este sitio." };
+    throw err;
+  }
+}
+
 export async function registerAction(_prev: FormState, form: FormData): Promise<FormState> {
   const ip = clientIp(await headers());
   if (!rateLimit(`register:${ip}`, LIMITS.register.limit, LIMITS.register.windowMs).ok) return { error: TOO_MANY };

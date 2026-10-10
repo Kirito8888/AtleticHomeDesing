@@ -1,9 +1,11 @@
+import type { AuthenticationResponseJSON } from "@simplewebauthn/server";
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 
 import type { UserRole } from "@/generated/prisma/enums";
-import { verifyAgainstDummy, verifyPassword } from "@/lib/auth/password";
+import { verifyLogin } from "@/lib/auth/passkey";
+import { hashPassword, needsRehash, verifyAgainstDummy, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 import { sendToUser } from "@/lib/push/service";
 import { clientIp, LIMITS, rateLimit } from "@/lib/rate-limit";
@@ -16,6 +18,18 @@ const credentialsSchema = z.object({
   password: z.string().min(1).max(200),
   // Segundo factor (opcional): TOTP de 6 dígitos o código de recuperación.
   code: z.string().trim().max(32).optional(),
+});
+
+const passkeySchema = z.object({
+  challengeId: z.string().min(1).max(40),
+  response: z.string().max(20_000).transform((v, ctx) => {
+    try {
+      return JSON.parse(v) as AuthenticationResponseJSON;
+    } catch {
+      ctx.addIssue({ code: "custom", message: "respuesta no válida" });
+      return z.NEVER;
+    }
+  }),
 });
 
 /** Intentos fallidos seguidos antes de bloquear la cuenta. */
@@ -104,6 +118,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (user.failedLogins || user.lockedUntil) {
           await prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null } });
         }
+        // v1.7: hash antiguo (scrypt) → Argon2id, aprovechando que tenemos la contraseña en claro ahora
+        if (needsRehash(user.passwordHash)) {
+          await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(parsed.data.password) } }).catch(() => undefined);
+        }
         await recordEvent(user.id, "LOGIN_SUCCESS", ctx);
         // Aviso de nuevo inicio de sesión a sus dispositivos (sin esperar: no retrasa el login).
         void sendToUser(user.id, {
@@ -120,6 +138,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           role: user.role,
           sessionVersion: user.sessionVersion,
         };
+      },
+    }),
+    // v1.7 · Entrar con una llave de acceso (passkey). Cuenta como segundo factor: no pide el código 2FA.
+    Credentials({
+      id: "passkey",
+      credentials: { challengeId: { type: "text" }, response: { type: "text" } },
+      async authorize(raw, request) {
+        const ip = clientIp(request.headers);
+        const ctx = auditContext(request.headers);
+        // Contador propio: una firma de llave no se puede adivinar, así que no gasta los intentos de contraseña
+        if (!rateLimit(`passkey:${ip}`, LIMITS.login.limit, LIMITS.login.windowMs).ok) {
+          console.warn(authFailureLine(ip, "rate_limited"));
+          throw new TooManyAttempts();
+        }
+        const parsed = passkeySchema.safeParse(raw);
+        const userId = parsed.success ? await verifyLogin(parsed.data.challengeId, parsed.data.response, new URL(request.url).origin).catch(() => null) : null;
+        if (!userId) {
+          console.warn(authFailureLine(ip, "credentials"));
+          throw new CredentialsSignin();
+        }
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new CredentialsSignin();
+        if (user.lockedUntil && user.lockedUntil > new Date()) throw new TooManyAttempts();
+        await recordEvent(user.id, "PASSKEY_LOGIN", ctx);
+        void sendToUser(user.id, { title: "Nuevo inicio de sesión en LifeOS", body: "Con una llave de acceso. Si no has sido tú, revisa Ajustes → Seguridad.", url: "/settings", tag: "login" });
+        return { id: user.id, email: user.email, name: user.name, image: user.image, role: user.role, sessionVersion: user.sessionVersion };
       },
     }),
   ],

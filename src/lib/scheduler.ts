@@ -5,12 +5,14 @@ import { addDays, dateOnly, localDay, startOfIsoWeek, today, toIsoDay } from "@/
 import { formatEur } from "@/lib/format";
 import { env } from "@/lib/env";
 import { runDueSubscriptions } from "@/lib/finance/service";
+import { subscriptionAlerts } from "@/lib/finance/v17-service";
+import { pruneExpiredDemos } from "@/lib/demo/service";
 import { prisma } from "@/lib/prisma";
 import { dueReminders, publicTitle } from "@/lib/push/reminders";
 import { deadlineState } from "@/lib/finance/trips";
 import { notifyOnce } from "@/lib/push/service";
 import { readPrefs } from "@/lib/rules/prefs";
-import { AUDIT_RETENTION_DAYS } from "@/lib/security/audit";
+import { daysAgo, retentionDays } from "@/lib/privacy/retention";
 import { periodStarts } from "@/lib/health/cycle";
 import { getCycle } from "@/lib/health/cycle-service";
 import { runSafetyJob } from "@/lib/health/safety-service";
@@ -72,14 +74,21 @@ export async function runWeeklyCoachJob(): Promise<number> {
   return generated;
 }
 
-/** Minimización de datos: el registro de auditoría se conserva AUDIT_RETENTION_DAYS días. */
-export async function pruneAuditJob(): Promise<number> {
-  const { count } = await prisma.securityEvent.deleteMany({
-    where: { createdAt: { lt: new Date(Date.now() - AUDIT_RETENTION_DAYS * 24 * 60 * 60_000) } },
-  });
-  await prisma.notificationLog.deleteMany({ where: { sentAt: { lt: new Date(Date.now() - 60 * 24 * 60 * 60_000) } } });
-  // Enlaces del informe para la entrenadora ya caducados
-  await prisma.sharedReport.deleteMany({ where: { expiresAt: { lt: new Date() } } });
+/**
+ * Minimización de datos (v1.7: plazos de conservación configurables, src/lib/privacy/retention.ts).
+ * Se ejecuta en cada pasada; borrar lo ya borrado no cuesta nada.
+ */
+export async function pruneAuditJob(now = new Date()): Promise<number> {
+  const d = retentionDays(process.env);
+  const { count } = await prisma.securityEvent.deleteMany({ where: { createdAt: { lt: daysAgo(now, d.AUDIT) } } });
+  await prisma.notificationLog.deleteMany({ where: { sentAt: { lt: daysAgo(now, d.NOTIFICATIONS) } } });
+  await prisma.sharedReport.deleteMany({ where: { expiresAt: { lt: daysAgo(now, d.EXPIRED_LINKS) } } });
+  await prisma.healthReport.deleteMany({ where: { OR: [{ expiresAt: { lt: daysAgo(now, d.EXPIRED_LINKS) } }, { revokedAt: { lt: daysAgo(now, d.EXPIRED_LINKS) } }] } });
+  await prisma.safetyTrip.deleteMany({ where: { endedAt: { lt: daysAgo(now, d.SAFETY_TRIPS) } } });
+  await prisma.privacyRequest.deleteMany({ where: { resolvedAt: { lt: daysAgo(now, d.PRIVACY_REQUESTS) } } });
+  await prisma.webAuthnChallenge.deleteMany({ where: { expiresAt: { lt: now } } });
+  // v1.7 · cuentas demo caducadas (datos sintéticos)
+  await pruneExpiredDemos(now);
   return count;
 }
 
@@ -113,6 +122,9 @@ export async function runDailyDigestJob(hour = madridHour()): Promise<number> {
     if (u.subscriptions.length) {
       parts.push(`mañana se cobra ${u.subscriptions.map((s) => `${s.name} ${formatEur(s.amountCents)}`).join(", ")}`);
     }
+    // v1.7 · subidas de precio detectadas en los cargos (una vez al día, mientras no se actualice el importe)
+    const rises = (await subscriptionAlerts(u.id, toIsoDay(day))).charged;
+    if (rises.length) parts.push(`${rises.map((r) => r.name).join(", ")} te cobra más que antes`);
     if (!parts.length) continue;
     const ok = await notifyOnce(u.id, `digest:${toIsoDay(day)}`, {
       title: "Tu día en LifeOS",

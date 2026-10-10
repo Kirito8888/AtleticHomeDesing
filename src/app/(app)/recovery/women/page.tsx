@@ -3,14 +3,14 @@ import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/page-header";
 import { LabForm, LabTable, PelvicForm, PillBreakForm, PostpartumCard, ScreenForm, WomenSettingsForm } from "@/components/recovery/women-panel";
-import { BoneForm, HealthReportLinks } from "@/components/recovery/women-extra";
+import { BoneForm, HealthReportLinks, MenoForm } from "@/components/recovery/women-extra";
 import { RuleAlerts } from "@/components/rules/rule-alerts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
 import { getCycle } from "@/lib/health/cycle-service";
-import { PELVIC_SYMPTOMS } from "@/lib/health/women";
+import { CONTRACEPTION, contraceptionNote, MENO_SYMPTOMS, menopauseTips, PELVIC_SYMPTOMS } from "@/lib/health/women";
 import { listHealthReports } from "@/lib/health/health-report";
 import { IRON_TIPS, PERF_LABEL } from "@/lib/health/women-plus";
 import { womenEnabled, womenOverview } from "@/lib/health/women-service";
@@ -164,6 +164,39 @@ export default async function WomenHealthPage() {
             </Link>
           </p>
         </Section>
+
+        {o.settings.contraception !== "NONE" || o.settings.menopause !== "NONE" ? (
+          <Section title="Anticoncepción y etapa" id="etapa">
+            <div className="grid gap-3 text-sm">
+              {o.settings.contraception !== "NONE" ? (
+                <p>
+                  <span className="font-medium">{CONTRACEPTION[o.settings.contraception]}</span>
+                  {o.settings.contraceptionSince ? ` desde el ${formatDate(o.settings.contraceptionSince)}` : ""}.{" "}
+                  <span className="text-muted-foreground">{contraceptionNote(o.settings.contraception)}</span>
+                </p>
+              ) : null}
+              {o.settings.menopause !== "NONE" ? (
+                <>
+                  <ul className="grid gap-1 text-xs" aria-label="Pautas de la menopausia">
+                    {menopauseTips(o.settings.menopause).map((t) => (
+                      <li key={t}>· {t}</li>
+                    ))}
+                  </ul>
+                  <MenoForm today={day} />
+                  {o.meno.length ? (
+                    <ul className="grid gap-1 text-xs text-muted-foreground">
+                      {o.meno.map((m) => (
+                        <li key={m.id}>
+                          {m.date}: {m.symptoms.map((x) => MENO_SYMPTOMS[x]).join(", ")}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          </Section>
+        ) : null}
 
         <Section title="Suelo pélvico">
           <div className="grid gap-3">

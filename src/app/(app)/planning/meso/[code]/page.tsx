@@ -55,7 +55,7 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
   const isAi = meso.source === "AI";
   const isManual = meso.source === "MANUAL";
   const meta = (meso.meta ?? {}) as { warnings?: string[]; model?: string };
-  const overlap = (isAi || isManual) && meso.status === "DRAFT" ? await overlapDays(user.id, meso.id, toIsoDay(meso.startDate), toIsoDay(meso.endDate)) : 0;
+  const overlap = (isAi || isManual || meso.source === "ROUTINE") && meso.status === "DRAFT" ? await overlapDays(user.id, meso.id, toIsoDay(meso.startDate), toIsoDay(meso.endDate)) : 0;
   // Última semana ya terminada sin valorar (planes con IA activos).
   const todayIso = toIsoDay(today());
   const pendingWeek = isAi && meso.status === "ACTIVE"
@@ -106,6 +106,17 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
               ) : null}
               {pendingWeek ? <WeekFeedback code={meso.code} week={pendingWeek} /> : null}
               <p className="text-xs text-muted-foreground">Generado por IA: es una propuesta. Si algo te duele o no encaja, ajústalo o consulta con tu entrenador/a.</p>
+            </CardContent>
+          </Card>
+        ) : null}
+        {meso.source === "ROUTINE" ? (
+          <Card className="gap-3 py-4">
+            <CardHeader className="px-4">
+              <CardTitle className="text-sm">Rutina del cuestionario</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 px-4">
+              <AiPlanActions code={meso.code} status={meso.status} overlapDays={overlap} canRegenerate={false} />
+              <p className="text-xs text-muted-foreground">Creada con tus respuestas y tus tests, sin IA. Cada día tiene versión suave para los días flojos.</p>
             </CardContent>
           </Card>
         ) : null}

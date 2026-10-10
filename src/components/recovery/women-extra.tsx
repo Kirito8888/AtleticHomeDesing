@@ -4,10 +4,11 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Field } from "@/components/form/chips";
+import { Field, MultiChips } from "@/components/form/chips";
 import { Stepper } from "@/components/form/stepper";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
+import { MENO_SYMPTOMS, type MenoSymptom } from "@/lib/health/women";
 
 /** Salud ósea: fracturas de estrés previas y raciones de calcio al día (cifrado). */
 export function BoneForm({ today, initial }: { today: string; initial: { stressFractures: number; calciumServings: number } | null }) {
@@ -43,10 +44,38 @@ export function BoneForm({ today, initial }: { today: string; initial: { stressF
   );
 }
 
+/** v1.7 · Síntomas de la peri o posmenopausia del día. */
+export function MenoForm({ today }: { today: string }) {
+  const router = useRouter();
+  const [symptoms, setSymptoms] = useState<MenoSymptom[]>([]);
+  const [busy, setBusy] = useState(false);
+  async function save() {
+    setBusy(true);
+    try {
+      await api("/api/health/women/log", { body: { kind: "MENO", date: today, symptoms } });
+      toast.success("Síntomas guardados");
+      setSymptoms([]);
+      router.refresh();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="grid gap-3">
+      <MultiChips label="Síntomas de hoy" options={(Object.keys(MENO_SYMPTOMS) as MenoSymptom[]).map((k) => ({ value: k, label: MENO_SYMPTOMS[k] }))} value={symptoms} onChange={setSymptoms} />
+      <Button type="button" variant="outline" disabled={busy || !symptoms.length} onClick={save}>
+        Guardar síntomas de hoy
+      </Button>
+    </div>
+  );
+}
+
 type Active = { id: string; expiresAt: string };
 
 /** Enlace temporal (7 días, revocable) para la médica o el fisio. */
-export function HealthReportLinks({ kind, active, label }: { kind: "MEDICAL" | "PHYSIO"; active: Active[]; label: string }) {
+export function HealthReportLinks({ kind, active, label }: { kind: "MEDICAL" | "PHYSIO" | "ANNUAL"; active: Active[]; label: string }) {
   const router = useRouter();
   const [url, setUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);

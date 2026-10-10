@@ -3,6 +3,7 @@ import "server-only";
 import { addDays, today, toIsoDay } from "@/lib/dates";
 import { SESSION_TYPE_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { assertNotRestricted, isRestricted } from "@/lib/privacy/service";
 import { getPrefs } from "@/lib/rules/prefs-service";
 import { hashShareToken, isShareToken, newShareToken } from "@/lib/security/share-token";
 import { studyIcsEvents } from "@/lib/study/exam-plan";
@@ -16,6 +17,7 @@ import { buildIcs, type IcsEvent } from "./ics";
  * Solo títulos, fechas y lugar: ni notas, ni marcas, ni datos de salud.
  */
 export async function createFeed(userId: string): Promise<string> {
+  await assertNotRestricted(userId, "crear enlaces para compartir");
   const { token, hash } = newShareToken();
   await prisma.$transaction([prisma.calendarFeed.deleteMany({ where: { userId } }), prisma.calendarFeed.create({ data: { userId, tokenHash: hash } })]);
   return token;
@@ -37,7 +39,7 @@ const cleanTitle = (t: string) => t.replace(/\s*\(versión suave\)\s*/gi, " ").t
 export async function feedIcs(token: string): Promise<string | null> {
   if (!isShareToken(token)) return null;
   const feed = await prisma.calendarFeed.findUnique({ where: { tokenHash: hashShareToken(token) }, select: { id: true, userId: true } });
-  if (!feed) return null;
+  if (!feed || (await isRestricted(feed.userId))) return null;
   const now = today();
   const [sessions, events] = await Promise.all([
     prisma.trainingSession.findMany({

@@ -6,7 +6,8 @@
 #   ./scripts/update.sh --no-pull    # reconstruye el código actual (sin git pull)
 #
 # Pasos: copia de la BD → etiqueta la imagen actual como :previous → git pull →
-# migraciones → reconstruye web → espera al healthcheck. Si no queda "healthy",
+# construye la imagen nueva (con la web vieja en marcha) → migraciones → cambia la web
+# (limpiando contenedores sobrantes) → espera al healthcheck. Si no queda "healthy",
 # vuelve al commit y a la imagen anteriores. Las migraciones son aditivas, así
 # que la versión anterior funciona con la BD ya migrada.
 set -euo pipefail
@@ -32,11 +33,11 @@ fi
 
 # Espera a que el contenedor web esté "healthy" (healthcheck de docker-compose.yml).
 wait_healthy() {
-  local id status waited=0
+  local svc="${1:-web}" id status waited=0
   while [ "$waited" -lt "$HEALTH_TIMEOUT" ]; do
-    id="$(dc ps -q web)"
+    id="$(dc ps -q "$svc")"
     status="$( [ -n "$id" ] && docker inspect -f '{{.State.Health.Status}}' "$id" 2>/dev/null || echo starting)"
-    [ "${LIFEOS_SIMULATE_UNHEALTHY:-0}" = 1 ] && status=unhealthy # solo para probar la vuelta atrás
+    [ "$svc" = web ] && [ "${LIFEOS_SIMULATE_UNHEALTHY:-0}" = 1 ] && status=unhealthy # solo para probar la vuelta atrás
     case "$status" in
       healthy) return 0 ;;
       unhealthy) return 1 ;;
@@ -45,6 +46,33 @@ wait_healthy() {
     waited=$((waited + 5))
   done
   return 1
+}
+
+# Contenedores del servicio web que no son el canónico (<proyecto>-web-1): restos de una
+# recreación interrumpida (p. ej. «1a2b3c_lifeos-web-1»). Hacen fallar `up` con «Conflict».
+clean_web() {
+  local project canonical id name
+  project="$(docker compose --env-file "$ENV_FILE" config --format json 2>/dev/null | sed -n 's/^ *"name": *"\([^"]*\)".*/\1/p' | head -1)"
+  project="${project:-${COMPOSE_PROJECT_NAME:-lifeos}}"
+  canonical="${project}-web-1"
+  for id in $(docker ps -aq --filter "label=com.docker.compose.project=$project" --filter "label=com.docker.compose.service=web"); do
+    name="$(docker inspect -f '{{.Name}}' "$id" | sed 's#^/##')"
+    if [ "$name" != "$canonical" ]; then
+      log "Quito un contenedor web sobrante: $name"
+      docker rm -f "$id" >/dev/null || true
+    fi
+  done
+}
+
+# Arranca la web con la imagen ya construida. Si choca el nombre, limpia y reintenta una vez.
+up_web() {
+  clean_web
+  if ! dc up -d --no-build --force-recreate web; then
+    log "El arranque falló; limpio contenedores web y lo reintento una vez…"
+    dc rm -sf web >/dev/null 2>&1 || true
+    clean_web
+    dc up -d --no-build --force-recreate web
+  fi
 }
 
 PREV_COMMIT="$(git rev-parse HEAD)"
@@ -86,7 +114,7 @@ rollback() {
   [ "$PULL" = 1 ] && git checkout -q "$PREV_COMMIT"
   if [ "$HAVE_PREVIOUS" = 1 ]; then
     docker image tag lifeos-web:previous lifeos-web:latest
-    dc up -d --no-build web
+    up_web || true
     if LIFEOS_SIMULATE_UNHEALTHY=0 wait_healthy; then
       log "Vuelta atrás completada: la versión anterior está en marcha."
     else
@@ -96,13 +124,38 @@ rollback() {
   die "Actualización fallida. Revisa: docker compose --env-file $ENV_FILE logs --tail=100 web"
 }
 
-# 4. Migraciones (aditivas) y 5. web nueva
-dc --profile tools run --rm --build migrate || rollback
-dc up -d --build web || rollback
+# 4. Imagen nueva ANTES de tocar nada: mientras se construye (varios minutos) la web
+#    actual sigue sirviendo, y si el build falla no se ha parado nada.
+log "Construyendo la imagen nueva (la web actual sigue funcionando)…"
+if ! dc build web; then
+  [ "$PULL" = 1 ] && git checkout -q "$PREV_COMMIT"
+  die "El build falló: no se ha cambiado nada (la versión anterior sigue en marcha)."
+fi
 
-# 6. Healthcheck
+# 4b. Base de datos: si cambió su configuración (imagen fijada, memoria, ajustes de Postgres), Compose
+#     la recrea con los mismos datos (volumen); si no cambió, no la toca. Si no vuelve sana, se
+#     restaura la configuración anterior antes de seguir.
+log "Aplicando la configuración de la base de datos (si cambió, se reinicia unos segundos)…"
+if ! { dc up -d --no-build db && wait_healthy db; }; then
+  [ "$PULL" = 1 ] && git checkout -q "$PREV_COMMIT"
+  dc up -d --no-build db || true
+  wait_healthy db || true
+  die "La base de datos no arrancó con la configuración nueva: se ha vuelto a la anterior (revisa 'dc logs db')."
+fi
+
+# 5. Migraciones (aditivas) y 6. web nueva (solo se para la vieja aquí, unos segundos)
+dc --profile tools run --rm --build migrate || rollback
+up_web || rollback
+
+# 7. Healthcheck
 log "Esperando al healthcheck (máx. ${HEALTH_TIMEOUT}s)…"
 wait_healthy || rollback
+
+# 8. Copias: si el servicio de copias está en marcha, se reconstruye con la versión nueva
+if dc --profile backup ps --services --status running 2>/dev/null | grep -qx backup; then
+  log "Actualizando el servicio de copias…"
+  dc --profile backup up -d --build backup || log "Aviso: no se pudo actualizar el servicio de copias (la web ya está actualizada)."
+fi
 
 docker image prune -f >/dev/null || true
 log "Actualizado correctamente a $(git log --oneline -1)"

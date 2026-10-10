@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/client-api";
+import { sendOrQueue } from "@/lib/offline/outbox";
 import { formatNum } from "@/lib/format";
 
 /** Agua del día con un toque (+250 / +500 ml). */
@@ -16,7 +17,14 @@ export function WaterCard({ date, ml, target, hot, hasSession, maxTemp }: { date
   async function call(init: { method?: string; body?: unknown }, url = "/api/nutrition/water") {
     setBusy(true);
     try {
-      await api(url, init);
+      // Sumar agua funciona sin conexión (bandeja); quitar no
+      if (!init.method && init.body) {
+        if ((await sendOrQueue(url, init.body, `Agua +${(init.body as { ml: number }).ml} ml`)) === "queued") {
+          // Sin red no se puede refrescar la página: se queda como está
+          toast.success("Sin conexión: el agua se apuntará al volver la cobertura");
+          return;
+        }
+      } else await api(url, init);
       router.refresh();
     } catch (e) {
       toast.error((e as Error).message);

@@ -1,9 +1,11 @@
 "use client";
 
+import { startAuthentication } from "@simplewebauthn/browser";
+import { KeyRound } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 
-import { loginAction, registerAction, type FormState } from "@/app/(auth)/actions";
+import { loginAction, passkeyLoginAction, registerAction, type FormState } from "@/app/(auth)/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -30,6 +32,28 @@ export function LoginForm({ callbackUrl, canRegister = false }: { callbackUrl?: 
     startTransition(() => action(data));
   };
   const needCode = Boolean(state.needCode);
+  const [pk, setPk] = useState<FormState>({});
+  const [pkBusy, setPkBusy] = useState(false);
+  // v1.7 · Entrar con llave de acceso: reto del servidor → el dispositivo firma → Auth.js comprueba
+  async function passkey() {
+    setPkBusy(true);
+    setPk({});
+    try {
+      const res = await fetch("/api/passkeys/login-options", { method: "POST" });
+      if (!res.ok) throw new Error(res.status === 429 ? "Demasiados intentos. Espera unos minutos." : "No se pudo iniciar");
+      const { challengeId, options } = await res.json();
+      const response = await startAuthentication({ optionsJSON: options });
+      const r = await passkeyLoginAction(challengeId, JSON.stringify(response), callbackUrl ?? "/");
+      if (r.error) setPk(r);
+    } catch (err) {
+      const e = err as Error;
+      // NEXT_REDIRECT llega como error: es el login correcto
+      if (e.message?.includes("NEXT_REDIRECT")) throw err;
+      setPk({ error: e.name === "NotAllowedError" ? "Cancelado o sin llave en este dispositivo." : e.message });
+    } finally {
+      setPkBusy(false);
+    }
+  }
   return (
     <Card>
       <CardHeader>
@@ -69,6 +93,23 @@ export function LoginForm({ callbackUrl, canRegister = false }: { callbackUrl?: 
           <Button type="submit" size="lg" disabled={pending}>
             {pending ? "Comprobando…" : needCode ? "Verificar" : "Entrar"}
           </Button>
+          {!needCode ? (
+            <>
+              <Button type="button" variant="outline" size="lg" onClick={passkey} disabled={pkBusy}>
+                <KeyRound /> Entrar con llave de acceso
+              </Button>
+              <ErrorText state={pk} />
+            </>
+          ) : null}
+          <p className="text-center text-xs text-muted-foreground">
+            <Link href="/legal/privacidad" className="underline underline-offset-2">
+              Privacidad
+            </Link>{" "}
+            ·{" "}
+            <Link href="/legal/aviso" className="underline underline-offset-2">
+              Aviso legal
+            </Link>
+          </p>
           {canRegister && !needCode && (
             <p className="text-center text-sm text-muted-foreground">
               ¿Sin cuenta?{" "}

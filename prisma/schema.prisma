@@ -43,6 +43,9 @@ model User {
   failedLogins   Int       @default(0)
   lockedUntil    DateTime?
   sessionVersion Int       @default(1)
+  // v1.7 · Cuenta de demostración (datos sintéticos): se borra sola al caducar
+  demoAudience   String?
+  demoExpiresAt  DateTime?
   // Privacidad (v1.1): fecha en que el usuario autorizó enviar datos a Gemini (null = no)
   aiConsentAt    DateTime?
   // Seguridad (v1.2): 2FA TOTP. Secreto cifrado (AES-256-GCM, TOTP_ENCRYPTION_KEY);
@@ -59,75 +62,89 @@ model User {
   coaching  CoachAthlete[] @relation("CoachLinks")
   coachedBy CoachAthlete[] @relation("AthleteLinks")
 
-  athleteProfile    AthleteProfile?
-  thresholds        ThresholdHistory[]
-  trainingSessions  TrainingSession[]
-  plannedSessions   TrainingSession[]      @relation("PlannedBy")
-  personalRecords   PersonalRecord[]
-  dailyLoads        DailyLoad[]
-  recoveryMetrics   RecoveryMetrics[]
-  customExercises   Exercise[]
-  trainingCycles    TrainingCycle[]
-  calendarEvents    CalendarEvent[]
-  tasks             Task[]
-  financialAccounts FinancialAccount[]
-  financialCats     FinancialCategory[]
-  transactions      FinancialTransaction[]
-  budgets           Budget[]
-  subscriptions     Subscription[]
-  macros            Macros[]
-  nutritionGoals    NutritionGoal[]
-  studyDocuments    StudyDocument[]
-  chatThreads       ChatThread[]
-  flashcardDecks    FlashcardDeck[]
-  coachReports      CoachReport[]
-  recoveryCodes     RecoveryCode[]
-  securityEvents    SecurityEvent[]
-  sessionTemplates  SessionTemplate[]
-  mealTemplates     MealTemplate[]
-  injuries          Injury[]
-  pushSubscriptions PushSubscription[]
-  notificationLogs  NotificationLog[]
-  bankProfiles      BankImportProfile[]
-  planMesos         PlanMeso[]
-  planDays          PlanDay[]
-  planFeedback      PlanFeedback[]
-  cycleProfile      CycleProfile?
-  cycleLogs         CycleLog[]
-  oneRepMaxes       OneRepMax[]
-  exerciseAliases   ExerciseAlias[]
-  calendarFeeds     CalendarFeed[]
-  sharedReports     SharedReport[]
-  womenHealth       WomenHealth?
-  healthLogs        HealthLog[]
-  testResults       TestResult[]
-  returnProtocols   ReturnProtocol[]
-  classSlots        ClassSlot[]
-  studySessions     StudySession[]
-  habits            Habit[]
-  habitLogs         HabitLog[]
-  equipment         Equipment[]
-  hydrationLogs     HydrationLog[]
-  sessionComments   SessionComment[]       @relation("CommentAthlete")
-  authoredComments  SessionComment[]       @relation("CommentAuthor")
+  athleteProfile         AthleteProfile?
+  thresholds             ThresholdHistory[]
+  trainingSessions       TrainingSession[]
+  plannedSessions        TrainingSession[]      @relation("PlannedBy")
+  personalRecords        PersonalRecord[]
+  dailyLoads             DailyLoad[]
+  recoveryMetrics        RecoveryMetrics[]
+  customExercises        Exercise[]
+  trainingCycles         TrainingCycle[]
+  calendarEvents         CalendarEvent[]
+  tasks                  Task[]
+  financialAccounts      FinancialAccount[]
+  financialCats          FinancialCategory[]
+  transactions           FinancialTransaction[]
+  budgets                Budget[]
+  subscriptions          Subscription[]
+  macros                 Macros[]
+  nutritionGoals         NutritionGoal[]
+  studyDocuments         StudyDocument[]
+  chatThreads            ChatThread[]
+  flashcardDecks         FlashcardDeck[]
+  coachReports           CoachReport[]
+  recoveryCodes          RecoveryCode[]
+  securityEvents         SecurityEvent[]
+  sessionTemplates       SessionTemplate[]
+  mealTemplates          MealTemplate[]
+  injuries               Injury[]
+  pushSubscriptions      PushSubscription[]
+  notificationLogs       NotificationLog[]
+  bankProfiles           BankImportProfile[]
+  planMesos              PlanMeso[]
+  planDays               PlanDay[]
+  planFeedback           PlanFeedback[]
+  cycleProfile           CycleProfile?
+  cycleLogs              CycleLog[]
+  oneRepMaxes            OneRepMax[]
+  exerciseAliases        ExerciseAlias[]
+  calendarFeeds          CalendarFeed[]
+  sharedReports          SharedReport[]
+  womenHealth            WomenHealth?
+  healthLogs             HealthLog[]
+  testResults            TestResult[]
+  returnProtocols        ReturnProtocol[]
+  classSlots             ClassSlot[]
+  studySessions          StudySession[]
+  habits                 Habit[]
+  habitLogs              HabitLog[]
+  equipment              Equipment[]
+  hydrationLogs          HydrationLog[]
+  sessionComments        SessionComment[]       @relation("CommentAthlete")
+  authoredComments       SessionComment[]       @relation("CommentAuthor")
   // v1.6
-  healthReports     HealthReport[]
-  safetyContacts    SafetyContact[]        @relation("SafetyOwner")
-  safetyWatching    SafetyContact[]        @relation("SafetyContactUser")
-  safetyTrips       SafetyTrip[]
-  minimums          Minimum[]
-  weekTemplates     WeekTemplate[]
-  prehabRoutines    PrehabRoutine[]
-  prehabLogs        PrehabLog[]
-  bodyMeasures      BodyMeasure[]
-  supplements       Supplement[]
-  appointments      Appointment[]
-  recipes           Recipe[]
-  shoppingItems     ShoppingItem[]
-  studyPlanBlocks   StudyPlanBlock[]
-  grades            Grade[]
-  trips             Trip[]
-  deadlines         Deadline[]
+  healthReports          HealthReport[]
+  safetyContacts         SafetyContact[]        @relation("SafetyOwner")
+  safetyWatching         SafetyContact[]        @relation("SafetyContactUser")
+  safetyTrips            SafetyTrip[]
+  minimums               Minimum[]
+  weekTemplates          WeekTemplate[]
+  prehabRoutines         PrehabRoutine[]
+  prehabLogs             PrehabLog[]
+  bodyMeasures           BodyMeasure[]
+  supplements            Supplement[]
+  appointments           Appointment[]
+  recipes                Recipe[]
+  shoppingItems          ShoppingItem[]
+  studyPlanBlocks        StudyPlanBlock[]
+  grades                 Grade[]
+  trips                  Trip[]
+  deadlines              Deadline[]
+  passkeys               Passkey[]
+  // v1.7 · Limitación del tratamiento (art. 18): sin IA, sin acceso del entrenador y sin enlaces compartidos
+  processingRestrictedAt DateTime?
+  consents               Consent[]
+  privacyRequests        PrivacyRequest[]
+  routines               RoutineProfile[]
+  wellbeing              WellbeingLog[]
+  injuryPhotos           InjuryPhoto[]
+  mealPlan               MealPlanEntry[]
+  supplementLogs         SupplementLog[]
+  sweatTests             SweatTest[]
+  assignments            Assignment[]
+  seasonBudgets          SeasonBudget[]
+  receipts               Receipt[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -156,6 +173,14 @@ enum SecurityEventType {
   DATA_EXPORTED
   AI_CONSENT_CHANGED
   COACH_SCOPES_CHANGED
+  // v1.7
+  PASSKEY_ADDED
+  PASSKEY_REMOVED
+  PASSKEY_LOGIN
+  SHARE_LINK_CREATED
+  DATA_RESTORED
+  CONSENT_CHANGED
+  PRIVACY_REQUEST
 }
 
 /// Registro de auditoría visible por el usuario (Ajustes → Actividad). Se borra con la cuenta
@@ -168,6 +193,10 @@ model SecurityEvent {
   userAgent String?
   detail    String?
   createdAt DateTime          @default(now())
+  // v1.7: cadena por usuario (HMAC con una clave derivada de AUTH_SECRET) para detectar
+  // registros borrados o cambiados. prevHash = hash del evento anterior de ese usuario.
+  prevHash  String?
+  hash      String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -365,6 +394,8 @@ model TrainingSession {
   feelings      Json?
   // v1.6: fatiga por zona al cerrar { hombro: 0-10, … } y id del cliente (registro sin conexión, idempotente)
   zoneFatigue   Json?
+  // v1.7 · etiquetas del diario técnico («salida», «bloqueo», «viento»…)
+  tags          String[]      @default([])
   clientId      String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -910,6 +941,7 @@ model FinancialTransaction {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   postings     Posting[]
+  receipts     Receipt[]
 
   @@unique([userId, importHash])
   @@index([userId, date])
@@ -981,10 +1013,11 @@ model Subscription {
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
-  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account      FinancialAccount       @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  category     FinancialCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  user         User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      FinancialAccount          @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category     FinancialCategory?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   transactions FinancialTransaction[]
+  priceChanges SubscriptionPriceChange[]
 
   @@index([userId, nextChargeDate])
 }
@@ -1480,6 +1513,7 @@ model Injury {
 
   user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   protocol ReturnProtocol?
+  photos   InjuryPhoto[]
 
   @@index([userId, startedOn])
 }
@@ -1840,9 +1874,12 @@ model Supplement {
   endedOn   DateTime? @db.Date
   checkedOn DateTime? @db.Date // última vez que se comprobó en la lista oficial
   notes     String?
+  /// v1.7 · días de la semana en que se toma (1 = lunes … 7 = domingo); vacío = sin calendario
+  days      Int[]     @default([])
   createdAt DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  logs SupplementLog[]
 
   @@index([userId])
 }
@@ -1870,7 +1907,8 @@ model Recipe {
   items     Json
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planned MealPlanEntry[]
 
   @@unique([userId, name])
 }
@@ -1949,4 +1987,235 @@ model Deadline {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, dueOn])
+}
+
+/// v1.7 · Llave de acceso (WebAuthn / passkey). Solo la clave pública: la privada nunca sale del dispositivo.
+model Passkey {
+  id           String    @id @default(cuid())
+  userId       String
+  credentialId String    @unique // base64url
+  publicKey    Bytes
+  counter      Int       @default(0)
+  transports   String[]
+  name         String
+  backedUp     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// v1.7 · Reto WebAuthn de un solo uso (registro o inicio de sesión), caduca en 5 min.
+model WebAuthnChallenge {
+  id        String   @id @default(cuid())
+  userId    String? // null en el inicio de sesión sin usuario (llave detectable)
+  kind      String // REGISTER | LOGIN
+  challenge String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+/// v1.7 · Historial de consentimientos (art. 7 RGPD: hay que poder demostrarlos). Solo se añaden filas.
+model Consent {
+  id        String   @id @default(cuid())
+  userId    String
+  purpose   String // AI | HEALTH | COACH | SAFETY | PUSH
+  version   String // versión del texto informativo aceptado
+  granted   Boolean
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose, createdAt])
+}
+
+/// v1.7 · Ejercicio de derechos (arts. 15-22 RGPD): qué se pidió y cuándo se atendió.
+model PrivacyRequest {
+  id         String    @id @default(cuid())
+  userId     String
+  right      String // ACCESS | RECTIFICATION | ERASURE | RESTRICTION | PORTABILITY | OBJECTION
+  detail     String?
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// v1.7 · Rutina creada con el cuestionario (perfil, objetivos y tests) y su plan (PlanMeso, source ROUTINE).
+model RoutineProfile {
+  id        String   @id @default(cuid())
+  userId    String
+  mesoCode  String
+  answers   Json
+  profile   Json
+  createdAt DateTime @default(now())
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tests RoutineTest[]
+
+  @@index([userId, createdAt])
+}
+
+/// v1.7 · Resultado de un test (el inicial y los retests) para la curva real frente a la proyectada.
+model RoutineTest {
+  id        String   @id @default(cuid())
+  userId    String
+  routineId String
+  metric    String // pushups | squats60 | plankSec | km1Sec | walk6Meters | sitStand30
+  value     Float
+  date      DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  routine RoutineProfile @relation(fields: [routineId], references: [id], onDelete: Cascade)
+
+  @@index([routineId, metric, date])
+}
+
+/// v1.7 · Diario de bienestar: sueño, ánimo y estrés, escalas de dolor. Cifrado como la salud de la mujer.
+model WellbeingLog {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  data      String // cifrado: { kind: SLEEP | MOOD | SCALE, ... }
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+/// v1.7 · Foto de una molestia o lesión: el fichero va cifrado (AES-256-GCM) en UPLOAD_DIR.
+model InjuryPhoto {
+  id        String   @id @default(cuid())
+  userId    String
+  injuryId  String
+  path      String
+  mime      String
+  takenOn   DateTime @db.Date
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  injury Injury @relation(fields: [injuryId], references: [id], onDelete: Cascade)
+
+  @@index([userId, injuryId])
+}
+
+/// v1.7 · Plan semanal de comidas: una receta propia en un día y una comida.
+model MealPlanEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  mealType  MealType
+  recipeId  String
+  servings  Float    @default(1)
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+/// v1.7 · Toma de un suplemento en un día (calendario sin dosis).
+model SupplementLog {
+  id           String   @id @default(cuid())
+  userId       String
+  supplementId String
+  date         DateTime @db.Date
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  supplement Supplement @relation(fields: [supplementId], references: [id], onDelete: Cascade)
+
+  @@unique([supplementId, date])
+  @@index([userId, date])
+}
+
+/// v1.7 · Prueba de tasa de sudoración (peso antes y después, líquido bebido y orina).
+model SweatTest {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  minutes   Int
+  preKg     Float
+  postKg    Float
+  fluidMl   Int      @default(0)
+  urineMl   Int      @default(0)
+  tempC     Float?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+/// v1.7 · Trabajos y entregas de clase.
+model Assignment {
+  id        String   @id @default(cuid())
+  userId    String
+  subject   String
+  title     String
+  dueOn     DateTime @db.Date
+  status    String   @default("TODO") // TODO | DOING | DONE
+  weightPct Int? // peso en la nota de la asignatura
+  grade     Float?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, dueOn])
+}
+
+/// v1.7 · Presupuesto de la temporada deportiva (año natural): previsto por concepto y coste medio por competición.
+model SeasonBudget {
+  id                  String   @id @default(cuid())
+  userId              String
+  season              Int
+  lines               Json // { license, gear, travel, entries, physio, other } en céntimos
+  perCompetitionCents Int      @default(0)
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, season])
+}
+
+/// v1.7 · Justificante de un gasto: el fichero va cifrado (AES-256-GCM) en UPLOAD_DIR.
+model Receipt {
+  id            String   @id @default(cuid())
+  userId        String
+  transactionId String
+  path          String
+  mime          String
+  createdAt     DateTime @default(now())
+
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction FinancialTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, transactionId])
+}
+
+/// v1.7 · Cambio de precio de una suscripción (para avisar de subidas).
+model SubscriptionPriceChange {
+  id             String    @id @default(cuid())
+  subscriptionId String
+  fromCents      Int
+  toCents        Int
+  on             DateTime  @db.Date
+  source         String    @default("EDIT") // EDIT | CHARGE
+  seenAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, on])
 }

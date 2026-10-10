@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { CoachPanel, type CoachReportView } from "@/components/study/coach-panel";
 import { DocumentsPanel } from "@/components/study/documents-panel";
 import { FlashcardReview } from "@/components/study/flashcard-review";
+import { ManualCards } from "@/components/v17/study-v17";
 import { StudyChat } from "@/components/study/study-chat";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -64,6 +65,9 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
         <Link href="/study/exams" className="underline underline-offset-4">
           Exámenes y notas
         </Link>
+        <Link href="/study/assignments" className="underline underline-offset-4">
+          Trabajos y entregas
+        </Link>
       </nav>
       {!aiConfigured ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
@@ -104,7 +108,10 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
           <StudyChat threads={threads} aiEnabled={aiEnabled && docs.some((d) => d.status === "EMBEDDED")} />
         </TabsContent>
         <TabsContent value="cards">
-          <FlashcardReview decks={decks.map((d) => ({ id: d.id, name: d.name, total: d._count.cards, due: due.find((x) => x.deckId === d.id)?._count._all ?? 0 }))} />
+          <div className="grid gap-4">
+            <FlashcardReview decks={decks.map((d) => ({ id: d.id, name: d.name, total: d._count.cards, due: due.find((x) => x.deckId === d.id)?._count._all ?? 0 }))} />
+            <ManualCards decks={decks.map((d) => d.name)} />
+          </div>
         </TabsContent>
         <TabsContent value="coach">
           <CoachPanel

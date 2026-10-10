@@ -12,7 +12,9 @@ export const supplementSchema = z.object({
   endedOn: isoDate.nullish(),
   notes: z.string().trim().max(300).nullish(),
 });
-export const supplementPatchSchema = z.object({ checkedOn: isoDate.nullable(), endedOn: isoDate.nullable(), notes: z.string().trim().max(300).nullable() }).partial();
+export const supplementPatchSchema = z
+  .object({ checkedOn: isoDate.nullable(), endedOn: isoDate.nullable(), notes: z.string().trim().max(300).nullable(), days: z.array(z.number().int().min(1).max(7)).max(7) })
+  .partial();
 
 export const appointmentSchema = z.object({
   kind: z.enum(["PHYSIO", "DOCTOR", "OTHER"]),

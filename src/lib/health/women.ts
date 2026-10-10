@@ -44,6 +44,12 @@ export const womenSettingsSchema = z.object({
   boneImpactMin: z.number().int().min(0).max(14).default(2),
   /** Recordatorio semanal si no hubo trabajo con impacto. */
   remindImpact: z.boolean().default(false),
+  // v1.7
+  /** Anticoncepción (cambia cómo se leen el ciclo y el patrón ciclo–rendimiento). */
+  contraception: z.enum(["NONE", "PILL_COMBINED", "PILL_PROGESTIN", "IUD_HORMONAL", "IUD_COPPER", "IMPLANT", "RING_PATCH", "INJECTION", "OTHER"]).default("NONE"),
+  contraceptionSince: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().default(null),
+  /** Etapa: perimenopausia o menopausia (cambia avisos y recomendaciones). */
+  menopause: z.enum(["NONE", "PERI", "POST"]).default("NONE"),
 });
 export type WomenSettings = z.infer<typeof womenSettingsSchema>;
 export const readWomenSettings = (raw: unknown): WomenSettings => {
@@ -83,6 +89,52 @@ export const PELVIC_SYMPTOMS = {
 } as const;
 export type PelvicSymptom = keyof typeof PELVIC_SYMPTOMS;
 
+// v1.7 · Anticoncepción y menopausia
+export const CONTRACEPTION = {
+  NONE: "Ninguna / no hormonal",
+  PILL_COMBINED: "Píldora combinada",
+  PILL_PROGESTIN: "Píldora solo de progestágeno",
+  IUD_HORMONAL: "DIU hormonal",
+  IUD_COPPER: "DIU de cobre",
+  IMPLANT: "Implante",
+  RING_PATCH: "Anillo o parche",
+  INJECTION: "Inyección",
+  OTHER: "Otra",
+} as const;
+export type Contraception = keyof typeof CONTRACEPTION;
+
+/** Qué cambia en tus datos según la anticoncepción (orientativo; no sustituye a tu ginecóloga). */
+export function contraceptionNote(c: Contraception): string | null {
+  if (c === "PILL_COMBINED" || c === "RING_PATCH")
+    return "Con anticoncepción hormonal combinada no hay un ciclo natural: la «regla» de la semana de descanso es un sangrado por deprivación. La predicción y el patrón ciclo–rendimiento comparan días con y sin síntomas, no fases.";
+  if (c === "PILL_PROGESTIN" || c === "IUD_HORMONAL" || c === "IMPLANT" || c === "INJECTION")
+    return "Con progestágeno el sangrado puede ser irregular o desaparecer: la regla ausente no es una señal de alarma por sí sola mientras lo uses, pero sí el resto del cribado de RED-S.";
+  if (c === "IUD_COPPER") return "El DIU de cobre no cambia tus hormonas: tu ciclo es natural, aunque las reglas pueden ser más abundantes (vigila la ferritina).";
+  return null;
+}
+
+export const MENO_SYMPTOMS = {
+  hotFlashes: "Sofocos",
+  nightSweats: "Sudores nocturnos",
+  sleep: "Duermo peor",
+  jointPain: "Dolor articular",
+  mood: "Cambios de ánimo",
+  irregular: "Reglas irregulares",
+} as const;
+export type MenoSymptom = keyof typeof MENO_SYMPTOMS;
+
+/** Pautas para la peri y posmenopausia (prudencia, no tratamiento). */
+export function menopauseTips(stage: "NONE" | "PERI" | "POST"): string[] {
+  if (stage === "NONE") return [];
+  return [
+    "Fuerza 2-3 días por semana con cargas que cuesten: es lo que mejor protege músculo y hueso.",
+    "Algo de impacto (saltos suaves, carrera, lanzamientos) si no hay contraindicación: el hueso responde al impacto.",
+    "Proteína suficiente en cada comida (≈ 1,2-1,6 g/kg/día) y calcio y vitamina D según tu analítica.",
+    "Si los sofocos o el sueño te quitan el descanso, habla con tu médica: hay opciones de tratamiento.",
+    ...(stage === "PERI" ? ["Las reglas pueden volverse irregulares: la predicción del ciclo será menos fiable."] : []),
+  ];
+}
+
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 export const healthLogSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("SCREEN"), date: isoDate, answers: z.partialRecord(z.enum(Object.keys(SCREEN_QUESTIONS) as [ScreenKey, ...ScreenKey[]]), z.boolean()) }),
@@ -96,6 +148,8 @@ export const healthLogSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("PILL_BREAK"), date: isoDate, days: z.number().int().min(1).max(10) }),
   // v1.6: cribado de salud ósea (fracturas de estrés previas y raciones de calcio al día)
   z.object({ kind: z.literal("BONE"), date: isoDate, stressFractures: z.number().int().min(0).max(20), calciumServings: z.number().min(0).max(10) }),
+  // v1.7: síntomas de la peri y posmenopausia
+  z.object({ kind: z.literal("MENO"), date: isoDate, symptoms: z.array(z.enum(Object.keys(MENO_SYMPTOMS) as [MenoSymptom, ...MenoSymptom[]])).min(1).max(6) }),
 ]);
 export type HealthLogEntry = z.infer<typeof healthLogSchema>;
 
