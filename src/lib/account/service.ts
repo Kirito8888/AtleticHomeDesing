@@ -11,6 +11,8 @@ import { dataKeyConfigured, openJson } from "@/lib/security/data-key";
 import { type AuditContext, recordEvent } from "@/lib/security/audit";
 import { getWomen } from "@/lib/health/women-service";
 import { recordConsent } from "@/lib/privacy/service";
+import { toIsoDay } from "@/lib/dates";
+import { listWellbeing } from "@/lib/recovery/wellbeing-service";
 
 /** Re-autenticación para operaciones sensibles. Limitada para no servir de oráculo de fuerza bruta. */
 export async function verifyCurrentPassword(userId: string, password: string): Promise<void> {
@@ -174,6 +176,24 @@ export async function exportAccount(userId: string) {
     prisma.trip.findMany({ where }),
     prisma.deadline.findMany({ where, orderBy: { dueOn: "asc" } }),
   ]);
+  // v1.7: llaves de acceso (solo nombre y fechas), consentimientos, derechos, rutinas, bienestar (descifrado),
+  // fotos y justificantes (solo metadatos: los ficheros cifrados no van en el JSON), plan de comidas,
+  // tomas de suplementos, sudoración, trabajos, presupuesto de temporada y cambios de precio
+  const [passkeys, consents, privacyRequests, routines, wellbeing, injuryPhotos, mealPlan, supplementLogs, sweatTests, assignments, seasonBudgets, receipts, priceChanges] = await Promise.all([
+    prisma.passkey.findMany({ where, select: { name: true, createdAt: true, lastUsedAt: true, backedUp: true } }),
+    prisma.consent.findMany({ where, orderBy: { createdAt: "asc" }, omit: { userId: true } }),
+    prisma.privacyRequest.findMany({ where, orderBy: { createdAt: "asc" }, omit: { userId: true } }),
+    prisma.routineProfile.findMany({ where, include: { tests: { orderBy: { date: "asc" } } } }),
+    dataKeyConfigured() ? listWellbeing(userId, toIsoDay(new Date()), 36500) : Promise.resolve(null),
+    prisma.injuryPhoto.findMany({ where, select: { id: true, injuryId: true, mime: true, takenOn: true, createdAt: true } }),
+    prisma.mealPlanEntry.findMany({ where, orderBy: { date: "asc" }, include: { recipe: { select: { name: true } } } }),
+    prisma.supplementLog.findMany({ where, orderBy: { date: "asc" }, select: { supplementId: true, date: true, supplement: { select: { name: true } } } }),
+    prisma.sweatTest.findMany({ where, orderBy: { date: "asc" } }),
+    prisma.assignment.findMany({ where, orderBy: { dueOn: "asc" } }),
+    prisma.seasonBudget.findMany({ where }),
+    prisma.receipt.findMany({ where, select: { id: true, transactionId: true, mime: true, createdAt: true } }),
+    prisma.subscriptionPriceChange.findMany({ where: { subscription: { userId } }, orderBy: { on: "asc" } }),
+  ]);
   // Lo cifrado (nota y ubicación de «entreno sola») se entrega descifrado a su dueña, o se omite sin clave
   const safetyTripsOut = safetyTrips.map(({ data, ...t }) => ({ ...t, details: data && dataKeyConfigured() ? openJson(data) : null }));
   const safetyContactsOut = safetyContacts.map((c) => ({ status: c.status, createdAt: c.createdAt, role: c.userId === userId ? "MY_CONTACT" : "I_AM_CONTACT", person: c.userId === userId ? c.contact : c.owner }));
@@ -197,6 +217,7 @@ export async function exportAccount(userId: string) {
       minimums,
       weekTemplates,
       prehabRoutines,
+      routines,
     },
     recovery: { metrics: recoveryMetrics, injuries, returnProtocols, menstrualCycle: cycle, womenHealth: women ? { settings: women.settings, logs: women.logs } : null,
       bodyMeasures,
@@ -204,14 +225,18 @@ export async function exportAccount(userId: string) {
       appointments,
       healthReports,
       safety: { contacts: safetyContactsOut, trips: safetyTripsOut },
+      wellbeing,
+      injuryPhotos,
+      supplementLogs: supplementLogs.map((l) => ({ supplementId: l.supplementId, supplement: l.supplement.name, date: l.date })),
     },
     planning: { calendarEvents, tasks, importedPlan: planMesos },
-    finance: { accounts: financialAccounts, categories: financialCategories, transactions, budgets, subscriptions, trips, deadlines },
-    nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration, recipes, shopping },
-    study: { documents: studyDocuments, chatThreads, flashcardDecks, classSlots, sessions: studySessions, habits, planBlocks: studyPlanBlocks, grades },
+    finance: { accounts: financialAccounts, categories: financialCategories, transactions, budgets, subscriptions, trips, deadlines, seasonBudgets, receipts, priceChanges },
+    nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration, recipes, shopping, mealPlan: mealPlan.map(({ recipe, ...m }) => ({ ...m, recipeName: recipe.name })), sweatTests },
+    study: { documents: studyDocuments, chatThreads, flashcardDecks, classSlots, sessions: studySessions, habits, planBlocks: studyPlanBlocks, grades, assignments },
     coach: { reports: coachReports, links: coachLinks, sharedReports },
     calendarFeeds,
-    security: { events: securityEvents },
+    security: { events: securityEvents, passkeys },
+    privacy: { consents, requests: privacyRequests },
   };
 }
 

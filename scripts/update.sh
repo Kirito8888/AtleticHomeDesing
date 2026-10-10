@@ -33,11 +33,11 @@ fi
 
 # Espera a que el contenedor web esté "healthy" (healthcheck de docker-compose.yml).
 wait_healthy() {
-  local id status waited=0
+  local svc="${1:-web}" id status waited=0
   while [ "$waited" -lt "$HEALTH_TIMEOUT" ]; do
-    id="$(dc ps -q web)"
+    id="$(dc ps -q "$svc")"
     status="$( [ -n "$id" ] && docker inspect -f '{{.State.Health.Status}}' "$id" 2>/dev/null || echo starting)"
-    [ "${LIFEOS_SIMULATE_UNHEALTHY:-0}" = 1 ] && status=unhealthy # solo para probar la vuelta atrás
+    [ "$svc" = web ] && [ "${LIFEOS_SIMULATE_UNHEALTHY:-0}" = 1 ] && status=unhealthy # solo para probar la vuelta atrás
     case "$status" in
       healthy) return 0 ;;
       unhealthy) return 1 ;;
@@ -132,6 +132,17 @@ if ! dc build web; then
   die "El build falló: no se ha cambiado nada (la versión anterior sigue en marcha)."
 fi
 
+# 4b. Base de datos: si cambió su configuración (imagen fijada, memoria, ajustes de Postgres), Compose
+#     la recrea con los mismos datos (volumen); si no cambió, no la toca. Si no vuelve sana, se
+#     restaura la configuración anterior antes de seguir.
+log "Aplicando la configuración de la base de datos (si cambió, se reinicia unos segundos)…"
+if ! { dc up -d --no-build db && wait_healthy db; }; then
+  [ "$PULL" = 1 ] && git checkout -q "$PREV_COMMIT"
+  dc up -d --no-build db || true
+  wait_healthy db || true
+  die "La base de datos no arrancó con la configuración nueva: se ha vuelto a la anterior (revisa 'dc logs db')."
+fi
+
 # 5. Migraciones (aditivas) y 6. web nueva (solo se para la vieja aquí, unos segundos)
 dc --profile tools run --rm --build migrate || rollback
 up_web || rollback
@@ -139,6 +150,12 @@ up_web || rollback
 # 7. Healthcheck
 log "Esperando al healthcheck (máx. ${HEALTH_TIMEOUT}s)…"
 wait_healthy || rollback
+
+# 8. Copias: si el servicio de copias está en marcha, se reconstruye con la versión nueva
+if dc --profile backup ps --services --status running 2>/dev/null | grep -qx backup; then
+  log "Actualizando el servicio de copias…"
+  dc --profile backup up -d --build backup || log "Aviso: no se pudo actualizar el servicio de copias (la web ya está actualizada)."
+fi
 
 docker image prune -f >/dev/null || true
 log "Actualizado correctamente a $(git log --oneline -1)"
