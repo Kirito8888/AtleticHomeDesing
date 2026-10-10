@@ -1,9 +1,11 @@
-// E2E de la v1.9 en un móvil de 390 px (app con ALLOW_REGISTRATION=true y LIFEOS_FAKE_AI=1;
+// E2E de la v1.9 en un móvil de 390 px (app con ALLOW_REGISTRATION=true, LIFEOS_FAKE_AI=1 y
+// AI_LOCAL_BASE_URLS=http://127.0.0.1:39999/v1, donde esta suite levanta una IA simulada;
 // necesita DATABASE_URL para crear cuentas con `npm run user`).
 //   BASE_URL=http://localhost:3000 npm run e2e:v19
 // El registro con invitación y el registro cerrado se prueban en security.mjs (con ALLOW_REGISTRATION=false).
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
+import { createServer } from "node:http";
 
 import { chromium, type Page } from "playwright-core";
 
@@ -175,6 +177,71 @@ if (await admin.getByLabel("Cuentas").getByRole("listitem").filter({ hasText: "(
 }
 await shot(admin, "02-cuentas");
 log("suspender expulsa y bloquea el acceso; reactivar lo devuelve; nunca la propia cuenta");
+
+// 4. IA propia: modelo local autorizado por la administración (servidor simulado compatible con OpenAI
+//    en AI_LOCAL_BASE_URLS), consentimiento con el nombre del proveedor, apuntes indexados y tutor.
+const AI_PORT = Number(process.env.E2E_AI_PORT ?? 39999);
+const AI_KEY = "sk-e2e-local-0123456789KLMN";
+const aiSeen: Array<{ path: string; auth: string; body: string }> = [];
+const mock = createServer((req, res) => {
+  let raw = "";
+  req.on("data", (c) => (raw += c));
+  req.on("end", () => {
+    aiSeen.push({ path: req.url ?? "", auth: String(req.headers.authorization ?? ""), body: raw });
+    res.setHeader("content-type", "application/json");
+    if (req.headers.authorization !== `Bearer ${AI_KEY}`) {
+      res.statusCode = 401;
+      return res.end('{"error":{"message":"bad key"}}');
+    }
+    const body = JSON.parse(raw || "{}") as { input?: string[] };
+    if (req.url?.endsWith("/embeddings")) {
+      return res.end(JSON.stringify({ data: (body.input ?? []).map((_, i) => ({ index: i, embedding: Array.from({ length: 768 }, (_, j) => (j === 0 ? 1 : j === 1 ? 0.5 : 0)) })) }));
+    }
+    res.end(JSON.stringify({ choices: [{ message: { content: "Según tus apuntes, la glucólisis anaeróbica produce lactato [1]." } }] }));
+  });
+});
+await new Promise<void>((r) => mock.listen(AI_PORT, "127.0.0.1", r));
+{
+  const p = athlete;
+  await go(p, "/settings#ia");
+  await p.getByRole("status", { name: "IA en uso" }).waitFor();
+  await checkA11y(p, "/settings (IA)");
+  await p.selectOption("#ai-provider", "OPENAI");
+  await p.selectOption("#ai-service", `http://127.0.0.1:${AI_PORT}/v1`);
+  await p.fill("#ai-model", "llama3.1");
+  await p.fill("#ai-embed", "nomic-embed-text");
+  await p.fill("#ai-key", AI_KEY);
+  await p.getByRole("button", { name: "Guardar y probar" }).click();
+  await p.getByRole("status", { name: "IA en uso" }).getByText(/modelo local de este servidor · llama3\.1/).waitFor({ timeout: 30_000 });
+  if ((await p.content()).includes(AI_KEY)) errors.push("la clave de la IA aparece en la página");
+  const view = await (await p.request.get(B + "/api/account/ai-provider")).text();
+  if (view.includes(AI_KEY) || !view.includes("KLMN")) errors.push("la API de la IA propia muestra la clave o no muestra su pista");
+  await p.getByLabel("Permitir enviar datos a modelo local de este servidor").click();
+  await p.getByText("Atlenza IA activado").first().waitFor();
+
+  const up = await p.request.post(B + "/api/ai/documents", {
+    multipart: { file: { name: "metabolismo.txt", mimeType: "text/plain", buffer: Buffer.from("La glucólisis anaeróbica produce lactato durante los esfuerzos intensos.\n\n".repeat(20)) }, title: "Metabolismo V19" },
+  });
+  if (!up.ok()) errors.push(`subir apuntes: ${up.status()} ${(await up.text()).slice(0, 160)}`);
+  const docId = ((await up.json().catch(() => ({}))) as { id?: string }).id;
+  let status = "PENDING";
+  for (let i = 0; i < 60 && docId && !["EMBEDDED", "FAILED"].includes(status); i++) {
+    await p.waitForTimeout(500);
+    const docs = (await (await p.request.get(B + "/api/ai/documents")).json()) as Array<{ id: string; status: string; error: string | null }>;
+    const d = docs.find((x) => x.id === docId);
+    status = d?.status ?? "?";
+    if (status === "FAILED") errors.push(`indexar apuntes: ${d?.error}`);
+  }
+  if (status !== "EMBEDDED") errors.push(`los apuntes no se indexaron (${status})`);
+  const ask = await p.request.post(B + "/api/ai/study/chat", { data: { question: "¿Qué produce la glucólisis?" } });
+  const answer = (await ask.json().catch(() => ({}))) as { message?: { content?: string; citations?: unknown[] } };
+  if (!answer.message?.content?.includes("lactato") || !answer.message.citations?.length) errors.push(`tutor: ${ask.status()} ${JSON.stringify(answer).slice(0, 200)}`);
+  if (!aiSeen.some((s) => s.path === "/v1/embeddings") || !aiSeen.some((s) => s.body.includes("¿Qué produce la glucólisis?"))) errors.push("los datos no llegaron al proveedor del usuario");
+  if (aiSeen.some((s) => s.auth !== `Bearer ${AI_KEY}`)) errors.push("alguna llamada a la IA sin la clave del usuario");
+  await shot(p, "03-ia-propia");
+  log("IA propia (modelo local): se prueba al guardar, la clave no se muestra, consentimiento con su nombre, apuntes indexados y tutor con citas");
+}
+mock.close();
 
 await browser.close();
 if (errors.length) {

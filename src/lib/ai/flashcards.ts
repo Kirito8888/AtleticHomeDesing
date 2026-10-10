@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 
-import { generateJson } from "@/lib/ai/gemini";
+import { generateJson } from "@/lib/ai/llm";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { sm2 } from "@/lib/ai/sm2";
 import { ApiError } from "@/lib/api";
@@ -52,6 +52,7 @@ export async function generateFlashcards(userId: string, params: { documentId: s
     .map((c) => c.content)
     .join("\n\n");
   const { data } = await generateJson(cardsSchema, {
+    userId,
     system: SYSTEM,
     prompt: `Genera exactamente ${params.count} flashcards del documento "${doc.title}".\n\nTEXTO:\n${source}`,
     temperature: 0.5,

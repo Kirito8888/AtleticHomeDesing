@@ -2,10 +2,10 @@ import "server-only";
 
 import { z } from "zod";
 
-import { generateJson, generateText } from "@/lib/ai/gemini";
+import { generateJson, generateText } from "@/lib/ai/llm";
 import { assertAiAllowed } from "@/lib/ai/guard";
+import { aiAvailable } from "@/lib/ai/provider";
 import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
-import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { weekOf } from "@/lib/rules/engine";
 import { loadRuleInputs } from "@/lib/rules/rules-service";
@@ -73,7 +73,7 @@ export async function askTrainingData(userId: string, question: string): Promise
     };
   }
   await assertAiAllowed(userId);
-  const r = await generateText({ system: ASK_SYSTEM, contents: [{ role: "user", parts: [{ text: `DATOS:\n${JSON.stringify(data)}\n\nPREGUNTA: ${question}` }] }], temperature: 0.2 });
+  const r = await generateText({ userId, system: ASK_SYSTEM, messages: [{ role: "user", text: `DATOS:\n${JSON.stringify(data)}\n\nPREGUNTA: ${question}` }], temperature: 0.2 });
   return { answer: r.text, model: r.model };
 }
 
@@ -86,10 +86,10 @@ export type VoiceDraft = { durationMin: number | null; rpe: number | null; block
 export async function voiceToDraft(userId: string, text: string): Promise<VoiceDraft> {
   let spoken: Spoken;
   let source: VoiceDraft["source"] = "local";
-  const consent = await prisma.user.findUnique({ where: { id: userId }, select: { aiConsentAt: true } });
-  if (!fakeAi() && consent?.aiConsentAt && env().GEMINI_API_KEY) {
+  const consent = await prisma.user.findUnique({ where: { id: userId }, select: { aiConsentAt: true, processingRestrictedAt: true } });
+  if (!fakeAi() && consent?.aiConsentAt && !consent.processingRestrictedAt && (await aiAvailable(userId))) {
     try {
-      spoken = (await generateJson(spokenSchema, { system: VOICE_SYSTEM, prompt: text, temperature: 0 })).data;
+      spoken = (await generateJson(spokenSchema, { userId, system: VOICE_SYSTEM, prompt: text, temperature: 0 })).data;
       source = "ia";
     } catch {
       spoken = parseSpoken(text);

@@ -57,7 +57,11 @@ const schema = z.object({
   VAPID_SUBJECT: z.string().regex(/^(mailto:|https:\/\/)/, "VAPID_SUBJECT debe empezar por mailto: o https://").optional(),
   // Cuota de almacenamiento de apuntes por usuario.
   UPLOAD_QUOTA_MB: z.coerce.number().int().positive().default(200),
+  // v1.9 · Opcional: clave de Gemini del servidor, de respaldo para quien no tenga su propia IA (Ajustes → IA).
   GEMINI_API_KEY: z.string().optional(),
+  // v1.9 · URL de modelos locales que los usuarios pueden elegir (Ollama, LM Studio, vLLM…), separadas por comas.
+  // p. ej. http://ollama:11434/v1. Cualquier otra URL debe ser https y pública.
+  AI_LOCAL_BASE_URLS: z.string().optional(),
   GEMINI_CHAT_MODEL: z.string().default("gemini-2.5-flash"),
   GEMINI_EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),
   GEMINI_EMBEDDING_DIM: z.coerce.number().int().positive().default(768),

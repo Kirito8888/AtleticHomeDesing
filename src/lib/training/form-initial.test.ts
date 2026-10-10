@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { blocksToSets } from "@/components/training/strength-logger";
+
 import { isEditableType, sessionToFormInitial, templateToFormInitial } from "./form-initial";
 
 const base = {
@@ -25,6 +27,21 @@ describe("sessionToFormInitial", () => {
       ["sq", 2],
       ["dl", 1],
     ]);
+  });
+
+  it("v1.9 · editar no pierde RIR, tempo, descanso, fallo, notas, VBT ni kg sugeridos; repetir solo arrastra tempo y descanso", () => {
+    const stored = { exerciseId: "sq", reps: 5, weightKg: 100, rpe: 8, rir: 2, isWarmup: false, isFailure: true, tempo: "3-1-X-0", restSec: 180, velocityMs: 0.62, suggestedKg: 102.5, notes: "rodilla bien" };
+    const edit = sessionToFormInitial({ ...base, strength: { sets: [stored] } });
+    expect(blocksToSets(edit.blocks!)).toEqual([{ exerciseId: "sq", reps: 5, weightKg: 100, rpe: 8, rir: 2, isWarmup: false, isFailure: true, tempo: "3-1-X-0", restSec: 180, velocityMs: 0.62, suggestedKg: 102.5, notes: "rodilla bien" }]);
+    // Si cambia el RPE, el RIR guardado ya no vale
+    const changed = edit.blocks!.map((b) => ({ ...b, sets: b.sets.map((x) => ({ ...x, rpe: 9 })) }));
+    expect(blocksToSets(changed)[0]).not.toHaveProperty("rir");
+    const repeat = sessionToFormInitial({ ...base, strength: { sets: [stored] } }, {}, { repeat: true });
+    const [r] = blocksToSets(repeat.blocks!);
+    expect(r).toMatchObject({ tempo: "3-1-X-0", restSec: 180 });
+    expect(r).not.toHaveProperty("rir");
+    expect(r).not.toHaveProperty("notes");
+    expect(r).not.toHaveProperty("isFailure");
   });
 
   it("conserva las centésimas de los sprints y usa ids negativos en intentos", () => {

@@ -44,6 +44,8 @@ export const LIMITS = {
   aiUpload: { limit: 10, windowMs: 60 * 60_000 },
   photoUpload: { limit: 30, windowMs: 60 * 60_000 },
   aiGenerate: { limit: 10, windowMs: 60 * 60_000 },
+  /** v1.9 · Guardar o probar la IA propia (cada intento llama al proveedor). */
+  aiProvider: { limit: 20, windowMs: 60 * 60_000 },
   export: { limit: 5, windowMs: 60 * 60_000 },
   import: { limit: 30, windowMs: 60 * 60_000 },
   planImport: { limit: 20, windowMs: 60 * 60_000 },

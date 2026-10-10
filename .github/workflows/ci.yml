@@ -98,7 +98,8 @@ jobs:
       - name: Smoke de la UI (registro abierto)
         run: |
           # LIFEOS_FAKE_AI=1: planes con IA simulados (la CI no tiene clave de Gemini)
-          LIFEOS_FAKE_AI=1 ALLOW_REGISTRATION=true PORT=3000 node .next/standalone/server.js > server-open.log 2>&1 &
+          # v1.9: AI_LOCAL_BASE_URLS = IA simulada que levanta e2e:v19 (un «modelo local» autorizado)
+          LIFEOS_FAKE_AI=1 AI_LOCAL_BASE_URLS=http://127.0.0.1:39999/v1 ALLOW_REGISTRATION=true PORT=3000 node .next/standalone/server.js > server-open.log 2>&1 &
           SERVER=$!
           for i in $(seq 60); do curl -sf -o /dev/null http://localhost:3000/login && break; sleep 1; done
           npm run e2e
