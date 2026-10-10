@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Field } from "@/components/form/chips";
+import { OcrFill } from "@/components/ocr-fill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
@@ -145,5 +146,25 @@ export function DeleteOwnFood({ id, name }: { id: string; name: string }) {
     >
       Borrar
     </Button>
+  );
+}
+
+/** v1.10 · «Leer la etiqueta» (OCR del servidor) + formulario del alimento propio con lo leído. */
+export function OwnFoodWithLabel() {
+  const [draft, setDraft] = useState<OwnFoodDraft | undefined>();
+  return (
+    <div className="grid gap-3">
+      <OcrFill<{ values: Record<string, number>; found: number }>
+        endpoint="/api/ocr/label"
+        accept="image/*"
+        label="Leer la etiqueta con la cámara"
+        onResult={(r) => {
+          if (!r.found) return toast.error("No he podido leer la tabla nutricional: rellénala a mano");
+          setDraft((d) => ({ ...d, ...r.values }));
+          toast.success(`He leído ${r.found} valores: revísalos antes de guardar`);
+        }}
+      />
+      <OwnFoodForm draft={draft} onSaved={() => setDraft(undefined)} />
+    </div>
   );
 }
