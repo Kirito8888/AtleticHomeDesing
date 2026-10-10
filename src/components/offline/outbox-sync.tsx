@@ -25,7 +25,7 @@ export function OutboxSync() {
       try {
         const r = await flush();
         if (r.sent) {
-          toast.success(`${r.sent} sesión(es) guardada(s) sin conexión ya enviadas`);
+          toast.success(`${r.sent} registro(s) guardado(s) sin conexión ya enviados`);
           router.refresh();
         }
         for (const x of r.rejected) toast.error(`No se pudo guardar «${x.label}»: ${x.error}`);
@@ -49,7 +49,7 @@ export function OutboxSync() {
   if (!count) return null;
   return (
     <p role="status" className="mb-3 flex items-center gap-2 rounded-md border border-dashed p-2 text-sm text-muted-foreground">
-      <CloudOff className="size-4" /> {count} sesión(es) sin enviar: se mandan solas al volver la conexión.
+      <CloudOff className="size-4" /> {count} registro(s) sin enviar: se mandan solos al volver la conexión.
     </p>
   );
 }

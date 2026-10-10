@@ -7,6 +7,7 @@ import { cycleLogSchema, cycleSettingsSchema } from "@/lib/health/cycle";
 import { logCycleDay, saveCycleSettings } from "@/lib/health/cycle-service";
 import { addHealthLog, saveWomenSettings } from "@/lib/health/women-service";
 import { prisma } from "@/lib/prisma";
+import { addWellbeing, parseWellbeing } from "@/lib/recovery/wellbeing-service";
 import { dataKeyConfigured } from "@/lib/security/data-key";
 import { createSessionSchema } from "@/lib/training/schemas";
 import { createTrainingSession, recomputeDailyLoads } from "@/lib/training/service";
@@ -17,10 +18,12 @@ import { createTrainingSession, recomputeDailyLoads } from "@/lib/training/servi
  * mínimas, semanas tipo y prehabilitación; recuperación, molestias, antropometría, suplementos y citas;
  * ciclo y salud de la mujer (se vuelven a cifrar con la clave de este servidor); calendario y tareas;
  * comidas, agua, objetivos, recetas y lista de la compra; horario, estudio, plan de estudio, notas y
- * hábitos; plazos.
+ * hábitos; plazos. v1.7: etiquetas de las sesiones, tomas de suplementos, plan de comidas, sudoración,
+ * trabajos, presupuesto de temporada y diario de bienestar (se vuelve a cifrar).
  * No entra: finanzas (asientos con cuentas) ni viajes, apuntes, chats y flashcards (los ficheros no van
  * en la exportación), planes importados o con IA, vínculos con el coach o de «entreno sola» ni enlaces
- * compartidos.
+ * compartidos; tampoco rutinas del cuestionario (van con su plan), llaves de acceso (son de este
+ * dispositivo y servidor), consentimientos (se vuelven a dar) ni fotos o justificantes (sus ficheros).
  */
 type Row = Record<string, unknown>;
 const arr = (v: unknown): Row[] => (Array.isArray(v) ? (v as Row[]) : []);
@@ -87,6 +90,7 @@ export async function restoreExport(userId: string, data: unknown) {
       notes: s.notes,
       feelings: s.feelings ?? null,
       zoneFatigue: s.zoneFatigue ?? null,
+      tags: Array.isArray(s.tags) ? s.tags : [],
       ...(track ? { track: { ...pick(track, Prisma.TrackSessionScalarFieldEnum, ["sessionId"]), intervals: arr(track.intervals).map((i) => pick(i, Prisma.TrackIntervalScalarFieldEnum, ["trackSessionId"])) } } : {}),
       ...(tech ? { technical: { ...pick(tech, Prisma.TechnicalSessionScalarFieldEnum, ["sessionId", "bestMarkM", "conditions"]), attempts: arr(tech.attempts).map((a) => pick(a, Prisma.TechnicalAttemptScalarFieldEnum, ["technicalSessionId", "order"])) } } : {}),
       ...(str ? { strength: { bodyWeightKg: str.bodyWeightKg ?? null, sets } } : {}),
@@ -117,13 +121,48 @@ export async function restoreExport(userId: string, data: unknown) {
     ["mínimas", get(data, "training", "minimums"), Prisma.MinimumScalarFieldEnum, (d) => prisma.minimum.create({ data: d as never })],
     ["semanas tipo", get(data, "training", "weekTemplates"), Prisma.WeekTemplateScalarFieldEnum, (d) => prisma.weekTemplate.create({ data: d as never })],
     ["antropometría", get(data, "recovery", "bodyMeasures"), Prisma.BodyMeasureScalarFieldEnum, (d) => prisma.bodyMeasure.create({ data: d as never })],
-    ["suplementos", get(data, "recovery", "supplements"), Prisma.SupplementScalarFieldEnum, (d) => prisma.supplement.create({ data: d as never })],
     ["citas", get(data, "recovery", "appointments"), Prisma.AppointmentScalarFieldEnum, (d) => prisma.appointment.create({ data: d as never })],
-    ["recetas", get(data, "nutrition", "recipes"), Prisma.RecipeScalarFieldEnum, (d) => prisma.recipe.create({ data: d as never })],
     ["lista de la compra", get(data, "nutrition", "shopping"), Prisma.ShoppingItemScalarFieldEnum, (d) => prisma.shoppingItem.create({ data: d as never })],
     ["notas", get(data, "study", "grades"), Prisma.GradeScalarFieldEnum, (d) => prisma.grade.create({ data: d as never })],
     ["plazos", get(data, "finance", "deadlines"), Prisma.DeadlineScalarFieldEnum, (d) => prisma.deadline.create({ data: d as never })],
+    // v1.7
+    ["pruebas de sudoración", get(data, "nutrition", "sweatTests"), Prisma.SweatTestScalarFieldEnum, (d) => prisma.sweatTest.create({ data: d as never })],
+    ["trabajos y entregas", get(data, "study", "assignments"), Prisma.AssignmentScalarFieldEnum, (d) => prisma.assignment.create({ data: d as never })],
+    ["presupuestos de temporada", get(data, "finance", "seasonBudgets"), Prisma.SeasonBudgetScalarFieldEnum, (d) => prisma.seasonBudget.create({ data: d as never })],
   ];
+  // Suplementos y recetas: se guardan los ids nuevos para enlazar tomas y plan de comidas (v1.7)
+  const suppMap = new Map<string, string>();
+  for (const r of arr(get(data, "recovery", "supplements"))) {
+    const created = await prisma.supplement.create({ data: { ...pick(r, Prisma.SupplementScalarFieldEnum), userId } as never, select: { id: true } }).catch(() => null);
+    if (created) {
+      suppMap.set(String(r.id), created.id);
+      add("suplementos");
+    } else skipped.push("suplementos");
+  }
+  const suppLogs = arr(get(data, "recovery", "supplementLogs")).flatMap((l) => {
+    const supplementId = suppMap.get(String(l.supplementId));
+    return supplementId && day(l.date) ? [{ userId, supplementId, date: dateOnly(day(l.date)!) }] : [];
+  });
+  if (suppLogs.length) add("tomas de suplementos", (await prisma.supplementLog.createMany({ data: suppLogs, skipDuplicates: true })).count);
+  const recipeMap = new Map<string, string>();
+  for (const r of arr(get(data, "nutrition", "recipes"))) {
+    const created = await prisma.recipe.create({ data: { ...pick(r, Prisma.RecipeScalarFieldEnum), userId } as never, select: { id: true } }).catch(() => null);
+    if (created) {
+      recipeMap.set(String(r.id), created.id);
+      add("recetas");
+    } else skipped.push("recetas");
+  }
+  for (const m of arr(get(data, "nutrition", "mealPlan"))) {
+    const recipeId = recipeMap.get(String(m.recipeId));
+    if (!recipeId || !day(m.date)) {
+      skipped.push("plan de comidas");
+      continue;
+    }
+    await prisma.mealPlanEntry.create({ data: { userId, recipeId, date: dateOnly(day(m.date)!), mealType: m.mealType as never, servings: Number(m.servings) || 1 } }).then(
+      () => add("plan de comidas"),
+      () => skipped.push("plan de comidas"),
+    );
+  }
   // Clases y exámenes: se guardan los ids nuevos para enlazar los bloques del plan de estudio
   const slotMap = new Map<string, string>();
   for (const r of arr(get(data, "study", "classSlots"))) {
@@ -177,6 +216,17 @@ export async function restoreExport(userId: string, data: unknown) {
       if (p.success) {
         await logCycleDay(userId, p.data);
         add("días del ciclo");
+      }
+    }
+    // v1.7 · diario de bienestar: venía descifrado; se valida y se vuelve a cifrar
+    for (const w of arr(get(data, "recovery", "wellbeing"))) {
+      try {
+        const { id: _wid, ...entry } = w;
+        void _wid;
+        await addWellbeing(userId, parseWellbeing(entry));
+        add("bienestar");
+      } catch {
+        skipped.push("bienestar");
       }
     }
     const wh = get(data, "recovery", "womenHealth");

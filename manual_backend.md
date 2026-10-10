@@ -243,6 +243,123 @@ rulesToday(userId, día)                                      src/lib/rules/rule
 - `account/restore.ts`: valida `lifeos-export/2`, exige cuenta vacía, recrea sesiones con `createTrainingSession` y vuelve a cifrar lo de salud con la clave del servidor.
 - `coach/compare.ts`: carga 7 días, cumplimiento 14 y mejor marca 30, cada dato solo con su permiso.
 
+### 3.1h Novedades de la v1.7
+
+**Reglas transversales:**
+- La rutina del cuestionario se guarda como **borrador** (`saveDraftPlan` con `source: "ROUTINE"`, códigos RT1, RT2…) y solo se activa con `activateAiPlan`.
+- Todo lo de salud nuevo se cifra con `sealJson` o `sealBytes` (`security/data-key.ts`, `security/secret-box.ts`) y pasa por `ensureHealthConsent`.
+- Nada de ello llega a `ai/*`, al coach ni a los enlaces compartidos.
+
+**Seguridad:**
+- `auth/scrypt.ts`:
+  - Argon2id (`@node-rs/argon2`, m = 19 MiB, t = 2);
+  - `verifyPassword` acepta `$argon2` y scrypt antiguo;
+  - `needsRehash` hace que `auth.ts` vuelva a guardar el hash al acertar.
+- `auth/passkey.ts`:
+  - WebAuthn con `@simplewebauthn/server` 13;
+  - retos de un solo uso en `WebAuthnChallenge` (5 min);
+  - segundo proveedor Credentials `passkey` con su propio límite por IP;
+  - eventos `PASSKEY_*`.
+- `security/audit-chain.ts`:
+  - `hash = HMAC(HKDF(AUTH_SECRET), prevHash | evento)`;
+  - `recordEvent` encadena dentro de una transacción con `pg_advisory_xact_lock`;
+  - `auditIntegrity` recorre la cadena;
+  - `ALERTS` envía un push en los eventos sensibles.
+- Rotación de claves:
+  - `openAny` prueba la clave actual y la `*_PREVIOUS`;
+  - `security/rotate.ts → reencryptAll` recifra filas (`CycleProfile`, `CycleLog`, `WomenHealth`, `HealthLog`, `WellbeingLog`, `SafetyTrip`, 2FA) y ficheros (fotos y justificantes);
+  - es idempotente y va por lotes.
+- `files/sealed-files.ts`:
+  - ficheros por usuario en `UPLOAD_DIR/<usuario>/…` como `iv(12) | tag(16) | cifrado`, con modo 600;
+  - en la BD solo la ruta relativa, con `userFile` protegido contra `..`;
+  - `sniffFile` comprueba la firma real (JPEG, PNG, WebP, PDF);
+  - borrar la cuenta borra la carpeta, y `purgeUser` hace lo mismo sin contraseña (demos).
+
+**Privacidad:**
+- `privacy/service.ts`:
+  - `Consent` (propósito, versión y concedido o retirado, como historial);
+  - `PrivacyRequest`;
+  - `User.processingRestrictedAt`.
+- `assertNotRestricted` corta:
+  - `ai/guard.ts`;
+  - `resolveAthleteId` (coach);
+  - la creación de enlaces;
+  - el servido de `.ics`, informes e informes de salud.
+- `privacy/retention.ts`:
+  - días por defecto, sobrescribibles con `RETENTION_*_DAYS`;
+  - `pruneAuditJob` borra según ellos, y también las demo caducadas.
+- `privacy/legal.ts`: páginas `/legal/*` desde `LEGAL_*` (en `PUBLIC_PATHS` del proxy).
+
+**Rutinas** (`routine/`, puro salvo `service.ts`):
+- `buildProfile`: nivel y arquetipo, bandas por test con cortes ajustados por edad y sexo, y `blocked` si hay PAR-Q.
+- `project(key, base, nivel, días, semanas)`:
+  - `base · (1 ± g·k·(1 − e^(−t/τ)))`, con `g = GAIN[nivel] · TEST_GAIN[test] · frequencyFactor(días)`;
+  - `k` = 1 para la línea esperada, 0,55 y 1,35 para la franja;
+  - `τ` = 10, 16 o 22 semanas;
+  - tope de mejora por test.
+- `generateRoutine` produce un `AiPlan` válido para `validateAiPlan`: bloques de 3 semanas + descarga, respetando material, zonas y «evitar».
+
+**Entreno y competición** (`training/v17-training.ts`, puro):
+- `throwsByImplementWeek`, `seasonRecords` + `ageCategory` (RFEA: edad cumplida en el año);
+- `attemptSchedule` (tras la 3.ª ronda se supone que pasas, a mitad de la mejora);
+- `combinedWarmups`, `compareSessions`;
+- `parseIcsEvents` (RFC 5545, líneas plegadas), `parseCompetitionCsv` y `newCompetitions` (sin duplicar por fecha y nombre).
+
+**Salud:**
+- `recovery/wellbeing.ts`:
+  - `hoursInBed`;
+  - `caffeineAtBed` (vida media 5 h);
+  - `sleepTips`;
+  - `moodTrend` (7 días frente a las 3 semanas previas; aviso con la línea 024);
+  - `quickDashScore` (media − 1) × 25 con ≥ 10 respuestas;
+  - `achillesScore` (adaptación, 0–100);
+  - `mobilityFor` (umbral `lightZoneAmber`);
+  - `breathingPhase`.
+- `WellbeingLog.data` va cifrado. `InjuryPhoto` tiene FK a `Injury`: al borrar la molestia, `deleteInjury` borra los ficheros.
+- `health/women.ts`:
+  - `contraception`, `contraceptionSince` y `menopause` en los ajustes (cifrados);
+  - registro `MENO` en `HealthLog`.
+- `health/health-report.ts`: tipo `ANNUAL` (12 meses: entreno, molestias, recuperación, bienestar y, si procede, el cuerpo médico).
+
+**Nutrición y estudio:**
+- `nutrition/v17-nutrition.ts`:
+  - `shoppingFromPlan` (escala por `servings / recipe.servings` y reutiliza `shoppingFromFavorites`);
+  - `planDayMacros`;
+  - `sweatRate` (`(pre − post + bebido − orina) / h`; litros por hora para no pasar del 2 % del peso);
+  - `supplementWeek` (`Supplement.days`, 1 = lunes; `SupplementLog` único por día).
+- `study/v17-study.ts`:
+  - `parseCardLines` (las tarjetas a mano usan el mismo `Flashcard` y SM-2);
+  - `assignmentAlert`, `subjectAverages`;
+  - `focusBySlot` (inicio = `createdAt − minutos`, en hora de Madrid).
+
+**Finanzas:**
+- `finance/v17-finance.ts`:
+  - `seasonForecast` = máx(lineal con ≥ 30 días, gastado + competiciones pendientes × coste medio);
+  - `priceAlerts`: cargos de 60 días por `subscriptionId` o por nombre normalizado (sin tildes) que superan el importe guardado.
+- `SubscriptionPriceChange` se registra al editar el importe (`PATCH /api/finance/subscriptions/[id]`).
+- `Receipt` (máx. 5 por movimiento, 5 MB) se borra con el movimiento.
+
+**Plataforma:**
+- `offline/outbox.ts → sendOrQueue`: agua (`POST`), hábitos (con `done` fijo: `toggleHabit(…, done)` es idempotente) y comidas.
+- Con un envío en cola no se llama a `router.refresh()`: sin red recargaría la página.
+- `/glance`: una consulta pequeña por bloque, sin gráficas.
+- `demo/audiences.ts`: series sintéticas con PRNG de semilla (mulberry32).
+- `demo/service.ts`:
+  - crea el usuario con `demoAudience` y `demoExpiresAt`, en el dominio reservado `.invalid`;
+  - inserta sesiones, recuperación y agua, y recalcula con `recomputeSessionsTss` (TSS, PMC y readiness);
+  - crea la rutina del cuestionario;
+  - como mucho 10 demo a la vez.
+
+**Operación:**
+- `prisma.ts`: pool `DB_POOL_MAX` (5) e inactividad de 30 s.
+- `next.config.ts`: `outputFileTracingExcludes` y `turbopackIgnore` en las rutas de `UPLOAD_DIR`, para que el standalone no copie el proyecto.
+- `docker-compose.yml`: límites de memoria y CPU, ajustes de Postgres por `command`, y `web` de solo lectura sin capacidades.
+- `update.sh`:
+  - build antes de migrar;
+  - `dc up -d db` si cambió su configuración;
+  - limpieza de huérfanos y reintento;
+  - actualización del servicio de copias.
+
 ### 3.2 Recuperación
 
 ```
@@ -647,13 +764,29 @@ npm run e2e:v16      # v1.6 en 390 px: mujeres (patrón, predicción, cribado ó
                      #   sola), kg del día, afinamiento, recolocar, semáforo, semanas tipo, temporadas, prehab,
                      #   antropometría, jabalina, Apple Health, mapa del dolor, citas, sin conexión, restaurar,
                      #   panel multiatleta, cocina, plan de estudio, notas, .ics, viajes y plazos
+npm run e2e:v17      # v1.7 en 390 px (usa `npm run user`: necesita DATABASE_URL): llave de acceso con
+                     #   autenticador virtual, privacidad y limitación, rutina del cuestionario y proyección,
+                     #   diario técnico, comparador, simulador, importar calendario, bienestar, fotos cifradas,
+                     #   anticoncepción y menopausia, informe anual, plan de comidas, sudoración, suplementos,
+                     #   tarjetas a mano, trabajos, presupuesto de temporada, justificante, subida de precio,
+                     #   agua sin conexión, «De un vistazo» y cuenta demo (con una cuenta ADMIN)
 npm run e2e:security # registro cerrado, límites por IP, bloqueo de cuenta, revocación de sesiones y caché,
                      #   2FA (erróneos, reutilizados, recuperación), auditoría, permisos del coach,
                      #   consentimiento IA, editar sesión, exportación y borrado de cuenta
                      #   (servidor recién arrancado con ALLOW_REGISTRATION=false y DATABASE_URL)
 ```
 
-La CI (`.github/workflows/ci.yml`) ejecuta `npm audit` (producción), lint, tipos, tests y build; Semgrep (reglas propias de `.semgrep.yml`, bloqueantes); tests de integración y ambos E2E contra PostgreSQL + pgvector; y el **stack Docker real**: healthcheck, copia cifrada con restauración comprobada y `scripts/update.sh` con vuelta atrás forzada. Un test (`src/test/api-auth.test.ts`) falla si alguna ruta `/api` nueva no llama a `requireUser()`. Los E2E fallan ante cualquier error de consola, lo que incluye violaciones de la CSP.
+La CI (`.github/workflows/ci.yml`) ejecuta:
+- `npm audit` (producción), lint, tipos, tests y build;
+- Semgrep (reglas propias de `.semgrep.yml`, bloqueantes; desde PyPI);
+- los tests de integración y todos los E2E contra PostgreSQL + pgvector;
+- el **stack Docker real**:
+  - healthcheck;
+  - Trivy y SBOM;
+  - copia cifrada con restauración comprobada;
+  - `scripts/update.sh` con contenedor huérfano, límites de la BD y vuelta atrás forzada.
+
+Las imágenes de Docker Hub pasan por el espejo `mirror.gcr.io`, para no chocar con el límite de descargas anónimas de los runners. Un test (`src/test/api-auth.test.ts`) falla si alguna ruta `/api` nueva no llama a `requireUser()`. Los E2E fallan ante cualquier error de consola, lo que incluye violaciones de la CSP.
 
 **Sin probar contra los servicios reales:**
 

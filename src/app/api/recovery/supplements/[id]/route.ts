@@ -4,7 +4,7 @@ import { dateOnly } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { supplementPatchSchema } from "@/lib/recovery/health-admin";
 
-/** Marcar como comprobado en la lista oficial, darlo por terminado o anotar. */
+/** Marcar como comprobado en la lista oficial, darlo por terminado, anotar o fijar sus días (v1.7). */
 export const PATCH = route(async (req, ctx: RouteContext<"/api/recovery/supplements/[id]">) => {
   const user = await requireUser();
   const { id } = await ctx.params;
@@ -13,6 +13,7 @@ export const PATCH = route(async (req, ctx: RouteContext<"/api/recovery/suppleme
     ...("checkedOn" in p ? { checkedOn: p.checkedOn ? dateOnly(p.checkedOn) : null } : {}),
     ...("endedOn" in p ? { endedOn: p.endedOn ? dateOnly(p.endedOn) : null } : {}),
     ...("notes" in p ? { notes: p.notes } : {}),
+    ...(p.days ? { days: [...new Set(p.days)].sort() } : {}),
   };
   const { count } = await prisma.supplement.updateMany({ where: { id, userId: user.id }, data });
   if (!count) throw new ApiError(404, "Suplemento no encontrado");

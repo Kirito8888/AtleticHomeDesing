@@ -11,7 +11,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import { formatNum } from "@/lib/format";
+import { Select } from "@/components/ui/select";
 import {
+  CONTRACEPTION,
+  type Contraception,
   LAB_MARKERS,
   type LabMarker,
   PELVIC_ROUTINE,
@@ -171,6 +174,36 @@ export function WomenSettingsForm({ initial }: { initial: WomenSettings }) {
           En este modo no se generan planes con IA ni se muestran los avisos de peso y de tope de lanzamientos. Sigue las pautas de tu médica o matrona.
         </p>
       ) : null}
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="Anticoncepción" htmlFor="w-contra">
+          <Select id="w-contra" value={s.contraception} onChange={(e) => set({ contraception: e.target.value as Contraception })}>
+            {(Object.keys(CONTRACEPTION) as Contraception[]).map((k) => (
+              <option key={k} value={k}>
+                {CONTRACEPTION[k]}
+              </option>
+            ))}
+          </Select>
+        </Field>
+        {s.contraception !== "NONE" ? (
+          <Field label="Desde" htmlFor="w-contra-since">
+            <Input id="w-contra-since" type="date" className="w-full min-w-0" value={s.contraceptionSince ?? ""} onChange={(e) => set({ contraceptionSince: e.target.value || null })} />
+          </Field>
+        ) : (
+          <span />
+        )}
+      </div>
+      <Field label="Etapa">
+        <Chips
+          label="Etapa"
+          options={[
+            { value: "NONE" as const, label: "Ninguna" },
+            { value: "PERI" as const, label: "Perimenopausia" },
+            { value: "POST" as const, label: "Posmenopausia" },
+          ]}
+          value={s.menopause}
+          onChange={(v) => v && set({ menopause: v })}
+        />
+      </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Disponibilidad energética: avisar por debajo de" hint="kcal/kg de masa libre de grasa">
           <Stepper label="Umbral de disponibilidad energética" value={s.eaMin} onChange={(v) => v != null && set({ eaMin: v })} min={15} max={45} />

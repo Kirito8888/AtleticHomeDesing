@@ -19,6 +19,8 @@ export interface SessionFormInitial {
   minutes: string;
   rpe: number | null;
   notes: string;
+  /** v1.7 · etiquetas del diario técnico. */
+  tags?: string[];
   planned: boolean;
   /** Sensaciones al cerrar: molestias por zona. */
   feelings?: Array<{ area: BodyAreaName; side: "LEFT" | "RIGHT" | "BOTH" | null; pain: number }>;
@@ -38,6 +40,7 @@ interface StoredSession {
   durationSec: number | null;
   sessionRpe: number | null;
   notes: string | null;
+  tags?: string[];
   feelings?: unknown;
   zoneFatigue?: unknown;
   status: string;
@@ -97,6 +100,7 @@ export function sessionToFormInitial(s: StoredSession, overrides: Partial<Sessio
     minutes: s.durationSec != null ? String(Math.round(s.durationSec / 60)) : "",
     rpe: s.sessionRpe,
     notes: s.notes ?? "",
+    tags: s.tags ?? [],
     planned: s.status === "PLANNED",
     feelings: readFeelings(s.feelings),
     zoneFatigue: (() => {

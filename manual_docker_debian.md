@@ -273,7 +273,16 @@ cd /opt/lifeos
 ./scripts/update.sh
 ```
 
-Hace, en orden: copia de la BD (cifrada si `BACKUP_AGE_RECIPIENT` está definido y tienes `age`, en `./backups-pre-update/`) → guarda la imagen actual como `lifeos-web:previous` → `git pull` de `main` → migraciones → reconstruye `web` → espera a que el healthcheck diga *healthy*. **Si algo falla, vuelve sola a la versión anterior** y te dice qué mirar. Las migraciones son siempre aditivas, así que la versión anterior funciona con la BD ya migrada.
+Hace, en orden:
+1. Copia de la BD, en `./backups-pre-update/` (cifrada si `BACKUP_AGE_RECIPIENT` está definido y tienes `age`).
+2. Guarda la imagen actual como `lifeos-web:previous`.
+3. `git pull` de `main`.
+4. Construye la imagen nueva **con la web vieja aún funcionando**.
+5. Aplica la configuración de la BD si cambió.
+6. Migraciones.
+7. Arranca la `web` nueva.
+8. Espera a que el healthcheck diga *healthy*.
+9. Actualiza el servicio de copias si está en marcha. **Si algo falla, vuelve sola a la versión anterior** y te dice qué mirar. Las migraciones son siempre aditivas, así que la versión anterior funciona con la BD ya migrada.
 
 A mano (equivalente, sin vuelta atrás automática):
 
@@ -283,6 +292,100 @@ dc --profile tools run --rm --build migrate
 dc up -d --build web
 docker image prune -f
 ```
+
+#### De v1.6 a v1.7 (seguridad, privacidad, menos recursos y 30 funcionalidades)
+
+**Base de datos:**
+- Una migración, **solo aditiva**: `v1_7_features`.
+- **Crea** tablas: `Passkey`, `WebAuthnChallenge`, `Consent`, `PrivacyRequest`, `RoutineProfile`, `RoutineTest`, `WellbeingLog`, `InjuryPhoto`, `MealPlanEntry`, `SupplementLog`, `SweatTest`, `Assignment`, `SeasonBudget`, `Receipt` y `SubscriptionPriceChange`.
+- **Añade columnas opcionales:**
+  - huella encadenada del registro de actividad;
+  - etiquetas de la sesión;
+  - días de cada suplemento;
+  - limitación del tratamiento;
+  - marca de cuenta demo.
+- No borra ni cambia datos. Se ha probado sobre una copia de una BD v1.6 con datos: usuarios, sesiones y plan idénticos antes y después, y sin diferencias con el esquema.
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh
+```
+
+**Qué hace `update.sh` en la v1.7:**
+1. Copia previa de la BD.
+2. `git pull`.
+3. **Construye la imagen nueva con la web vieja aún funcionando.** Si el build falla, no toca nada.
+4. **Aplica la configuración nueva de la base de datos:**
+   - la imagen pasa de `pgvector/pgvector:pg17` a la fijada `0.8.7-pg17-bookworm` (misma versión 17: los datos valen tal cual);
+   - entran el límite de memoria y los ajustes de Postgres;
+   - por eso **la BD se reinicia una vez, unos segundos**;
+   - si no arranca, vuelve a la configuración anterior y se detiene.
+5. Migraciones.
+6. Web nueva. Antes borra los contenedores `web` huérfanos que provocaron el «Conflict» de la v1.6.
+7. Healthcheck, con vuelta atrás automática si falla.
+8. Si el servicio de copias está en marcha, lo reconstruye: ahora incluye `rsync` y `ssh`.
+
+**Variables:** **ninguna obligatoria.** Todas tienen un valor por defecto prudente para un servidor pequeño. Si quieres, añádelas a `.env.production`:
+
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `WEB_MEM` / `WEB_HEAP_MB` / `WEB_CPUS` | `1g` / `640` / `1.5` | Límite de la web. Si la máquina tiene 2 GB o menos, prueba con `768m` / `480`. |
+| `DB_MEM` / `DB_CPUS` | `768m` / `1.0` | Límite de Postgres. |
+| `PG_SHARED_BUFFERS`, `PG_EFFECTIVE_CACHE`, `PG_WORK_MEM`, `PG_MAINTENANCE_WORK_MEM`, `PG_MAX_CONNECTIONS`, `PG_SLOW_MS` | `128MB`, `384MB`, `4MB`, `64MB`, `30`, `1000` | Ajustes de Postgres. Con `PG_SLOW_MS`, las consultas de más de 1 s quedan en `dc logs db`. |
+| `DB_POOL_MAX` | `5` | Conexiones de la app a la BD (deben ser menos que `PG_MAX_CONNECTIONS`). |
+| `BACKUP_KEEP_MONTHS` | `12` | Meses que se guarda la copia del día 1 de cada mes. |
+| `BACKUP_REMOTE` + `BACKUP_SSH_KEY_FILE` | vacío | Copia fuera del servidor (más abajo). |
+| `RETENTION_AUDIT_DAYS`, `RETENTION_SAFETY_TRIPS_DAYS`, `RETENTION_NOTIFICATIONS_DAYS`, `RETENTION_EXPIRED_LINKS_DAYS`, `RETENTION_PRIVACY_REQUESTS_DAYS` | 180, 90, 60, 30, 1095 | Plazos de conservación (borrado automático diario). |
+| `LEGAL_NAME`, `LEGAL_EMAIL`, `LEGAL_NIF`, `LEGAL_ADDRESS` | vacío | Responsable que aparece en `/legal/privacidad` y `/legal/aviso`. Sin ellas, esas páginas lo dicen. |
+| `DATA_ENCRYPTION_KEY_PREVIOUS`, `TOTP_ENCRYPTION_KEY_PREVIOUS` | vacío | **Solo al rotar claves** (más abajo). |
+
+**Antes de actualizar, tres cosas:**
+- **Llaves de acceso (passkeys):**
+  - solo funcionan con **HTTPS** y con `AUTH_URL` igual a tu dirección pública exacta (p. ej. `https://tuapp.duckdns.org`, sin barra final);
+  - si `AUTH_URL` sigue en `http://localhost:3000`, la contraseña funciona igual, pero las llaves no.
+- **Contenedor `web` de solo lectura:**
+  - solo escribe en `/tmp`, en la caché de Next (en memoria) y en el volumen de subidas;
+  - si has añadido a mano otros volúmenes o rutas de escritura al servicio `web`, revísalos.
+- **Primera entrada tras actualizar:** tu contraseña se vuelve a guardar sola con Argon2id. No tienes que hacer nada.
+
+**Copia fuera del servidor (opcional, recomendado):**
+1. Crea una clave solo para esto:
+   ```bash
+   ssh-keygen -t ed25519 -N "" -f /opt/lifeos/backup_ssh_key
+   ```
+2. Copia `backup_ssh_key.pub` al `~/.ssh/authorized_keys` de la otra máquina (un NAS, otro VPS…).
+3. En `.env.production`:
+   ```bash
+   BACKUP_REMOTE=usuario@otra-maquina:/ruta/copias-lifeos
+   BACKUP_SSH_KEY_FILE=/opt/lifeos/backup_ssh_key
+   ```
+4. Reinicia el servicio:
+   ```bash
+   dc --profile backup up -d --build backup
+   dc --profile backup logs --tail 5 backup   # debe decir que envió las copias
+   ```
+- Las copias ya van cifradas con `age`: la otra máquina no puede leerlas.
+
+**Rotar las claves de cifrado (cuando quieras, no hace falta para actualizar):**
+1. Mueve la clave actual a `DATA_ENCRYPTION_KEY_PREVIOUS` (y, si la usas, `TOTP_ENCRYPTION_KEY` a `TOTP_ENCRYPTION_KEY_PREVIOUS`).
+2. Pon una nueva (`openssl rand -base64 32`) y ejecuta `dc up -d web`.
+3. **Ajustes → Estado del servidor → «Volver a cifrar con la clave nueva»**. Debe salir 0 «sin poder abrir».
+4. Quita las `*_PREVIOUS` y ejecuta otra vez `dc up -d web`.
+- **Guarda la clave nueva en tu gestor de contraseñas antes de borrar la vieja.**
+
+**Comprobar que todo fue bien:**
+- `dc ps`: `web` y `db` deben salir **healthy**.
+- **Ajustes → Estado del servidor** debe decir:
+  - `v1.7.0`;
+  - base de datos OK;
+  - última migración `v1_7_features`.
+- **Ajustes → Actividad reciente** debe decir «Registro íntegro».
+- **Ajustes → Llaves de acceso:** añade la del móvil.
+- **Ajustes → Privacidad y derechos:** revisa consentimientos y plazos.
+- Si quieres ver cómo la usaría otra persona: **Estado del servidor → Cuentas de demostración**. Se borran solas a los 30 días.
+- Uso de recursos: `docker stats --no-stream` (la columna LIMIT ya no debe decir el total de la máquina).
+
+Detalles en [`docs/guia-usuario.md`](docs/guia-usuario.md). Si otras personas van a usar tu servidor, tienes las plantillas RGPD en [`docs/rgpd/`](docs/rgpd/) y el plan de incidentes en [`docs/seguridad-incidentes.md`](docs/seguridad-incidentes.md).
 
 #### De v1.5 a v1.6 (mujeres, kg del día, plan inteligente, jabalina, salud, cocina, estudio, viajes…)
 
@@ -363,7 +466,7 @@ cd /opt/lifeos
 
 Después, en la app: **Ajustes → Mis reglas** (umbrales de los avisos) y, si quieres, **Ajustes → Notificaciones → recordatorios**, **Calendario en el móvil** e **Informe para la entrenadora**. Detalles en [`docs/guia-usuario.md`](docs/guia-usuario.md).
 
-> **Desde v1.2 o v1.1:** las migraciones son acumulativas y aditivas: `update.sh` (o el procedimiento a mano de v1.1) aplica v1.3, v1.4, v1.5 y v1.6 juntas.
+> **Desde v1.2 o v1.1:** las migraciones son acumulativas y aditivas: `update.sh` (o el procedimiento a mano de v1.1) aplica v1.3, v1.4, v1.5, v1.6 y v1.7 juntas.
 
 #### De v1.2 a v1.3 (importar la planificación)
 

@@ -83,12 +83,15 @@ export async function habitsToday(userId: string, today: string) {
 }
 
 /** Marca o desmarca un hábito en un día. Devuelve si queda hecho. */
-export async function toggleHabit(userId: string, habitId: string, day: string): Promise<boolean> {
+/** Sin `done`, alterna; con `done` (v1.7, envíos sin conexión), deja ese estado: repetirlo no lo invierte. */
+export async function toggleHabit(userId: string, habitId: string, day: string, done?: boolean): Promise<boolean> {
   const habit = await prisma.habit.findFirst({ where: { id: habitId, userId }, select: { id: true } });
   if (!habit) throw new ApiError(404, "Hábito no encontrado");
   const date = dateOnly(day);
-  const { count } = await prisma.habitLog.deleteMany({ where: { habitId, date } });
-  if (count) return false;
+  if (done === false || done === undefined) {
+    const { count } = await prisma.habitLog.deleteMany({ where: { habitId, date } });
+    if (count || done === false) return false;
+  }
   await prisma.habitLog.upsert({ where: { habitId_date: { habitId, date } }, create: { userId, habitId, date }, update: {} });
   return true;
 }

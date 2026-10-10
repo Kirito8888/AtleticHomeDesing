@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/client-api";
+import { sendOrQueue } from "@/lib/offline/outbox";
 import { formatNum } from "@/lib/format";
 
 interface Food {
@@ -89,11 +90,11 @@ export function AddFoodSheet({ date }: { date: string }) {
   async function add(body: Record<string, unknown>) {
     setBusy(true);
     try {
-      await api("/api/nutrition/entries", { body: { date, mealType: meal, ...body } });
-      toast.success("Añadido");
+      const r = await sendOrQueue("/api/nutrition/entries", { date, mealType: meal, ...body }, `Comida: ${String(body.customName ?? picked?.name ?? "alimento")}`);
+      toast.success(r === "queued" ? "Sin conexión: se añadirá al volver la cobertura" : "Añadido");
       setPicked(null);
       setOpen(false);
-      router.refresh();
+      if (r === "sent") router.refresh();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

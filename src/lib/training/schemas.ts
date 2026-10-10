@@ -138,6 +138,8 @@ const common = {
   /** v1.6 · fatiga por zona (0–10) al terminar; id del cliente para el registro sin conexión. */
   zoneFatigue: zoneFatigueSchema.nullish(),
   clientId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/).nullish(),
+  /** v1.7 · etiquetas del diario técnico. */
+  tags: z.array(z.string().trim().toLowerCase().min(1).max(30)).max(10).nullish(),
 };
 
 export const createSessionSchema = z.discriminatedUnion("type", [

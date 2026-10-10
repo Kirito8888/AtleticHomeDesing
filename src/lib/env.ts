@@ -33,6 +33,22 @@ const schema = z.object({
     .string()
     .refine((v) => Buffer.from(v, "base64").length === 32, "DATA_ENCRYPTION_KEY debe ser 32 bytes en base64 (openssl rand -base64 32)")
     .optional(),
+  // v1.7 · Rotación: la clave ANTERIOR, solo mientras se vuelve a cifrar todo con la nueva
+  // (Estado del servidor → «Volver a cifrar con la clave nueva»). Después, se quita.
+  DATA_ENCRYPTION_KEY_PREVIOUS: z
+    .string()
+    .refine((v) => Buffer.from(v, "base64").length === 32, "DATA_ENCRYPTION_KEY_PREVIOUS debe ser 32 bytes en base64")
+    .optional(),
+  TOTP_ENCRYPTION_KEY_PREVIOUS: z
+    .string()
+    .refine((v) => Buffer.from(v, "base64").length === 32, "TOTP_ENCRYPTION_KEY_PREVIOUS debe ser 32 bytes en base64")
+    .optional(),
+  // v1.7 · Datos del responsable para la política de privacidad y el aviso legal (públicos en
+  // /legal/…). Sin ellos, las páginas dicen que es una instalación personal sin terceros.
+  LEGAL_NAME: z.string().max(120).optional(),
+  LEGAL_EMAIL: z.string().email().optional(),
+  LEGAL_NIF: z.string().max(20).optional(),
+  LEGAL_ADDRESS: z.string().max(200).optional(),
   // Notificaciones push (Web Push / VAPID). Generar con: npx web-push generate-vapid-keys
   // Sin ellas la app funciona igual, solo sin notificaciones.
   VAPID_PUBLIC_KEY: z.string().optional(),

@@ -6,7 +6,7 @@ import { buildCsp, generateNonce } from "@/lib/security/csp";
 /** Páginas de acceso: con sesión iniciada no tiene sentido verlas. */
 const AUTH_PATHS = ["/login", "/register"];
 /** Accesibles sin sesión. */
-const PUBLIC_PATHS = [...AUTH_PATHS, "/offline"];
+const PUBLIC_PATHS = [...AUTH_PATHS, "/offline", "/legal"];
 
 const matches = (pathname: string, list: string[]) => list.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 

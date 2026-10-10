@@ -3,6 +3,7 @@ import "server-only";
 import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { ensureHealthConsent, recordConsent } from "@/lib/privacy/service";
 import { pickPatch } from "@/lib/rules/prefs";
 import { dataKeyConfigured, openJson, sealJson } from "@/lib/security/data-key";
 
@@ -46,6 +47,7 @@ export async function getWomen(userId: string) {
 }
 
 export async function saveWomenSettings(userId: string, patch: unknown): Promise<WomenSettings> {
+  await ensureHealthConsent(userId);
   const cur = (await getWomen(userId)).settings;
   const next = womenSettingsSchema.parse({ ...cur, ...pickPatch(womenSettingsSchema.partial(), patch) });
   const data = sealJson(next);
@@ -69,6 +71,8 @@ export async function deleteWomenData(userId: string) {
     prisma.womenHealth.deleteMany({ where: { userId } }),
     prisma.healthReport.deleteMany({ where: { userId, kind: "MEDICAL" } }),
   ]);
+  // Sin datos de salud ya no hay nada que consentir: retirado (art. 7.3)
+  if (!(await prisma.cycleProfile.count({ where: { userId } }))) await recordConsent(userId, "HEALTH", false);
 }
 
 /** ¿Se muestra la sección? Perfil de mujer o ya hay datos, y el servidor puede cifrar. */
@@ -115,6 +119,7 @@ export async function womenOverview(userId: string, today: string) {
   const screen = lastScreen ? { date: lastScreen.date, ...screenResult(lastScreen.answers) } : null;
   const labs = logs.filter((l): l is Extract<HealthLogEntry, { kind: "LAB" }> & { id: string } => l.kind === "LAB");
   const pelvic = logs.filter((l): l is Extract<HealthLogEntry, { kind: "PELVIC" }> & { id: string } => l.kind === "PELVIC");
+  const meno = logs.filter((l): l is Extract<HealthLogEntry, { kind: "MENO" }> & { id: string } => l.kind === "MENO");
   const pp = settings.mode === "POSTPARTUM" ? postpartumStatus(settings, today) : null;
   const predicted = predictedDays(cycle.settings, cycle.logs, today, toIsoDay(addDays(day, 21)), learnedPrediction(cycle.settings, cycle.logs, today, toIsoDay(addDays(day, 21)), settings.symptomProbMin));
   const clashes = keySessionClashes(predicted, [
@@ -185,6 +190,7 @@ export async function womenOverview(userId: string, today: string) {
     labs: labSeries(labs),
     labEntries: labs,
     pelvic: pelvic.slice(-10).reverse(),
+    meno: meno.slice(-10).reverse(),
     pillBreaks: logs.filter((l) => l.kind === "PILL_BREAK").slice(-6).reverse(),
     postpartum: pp,
     predicted,

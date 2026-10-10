@@ -2,6 +2,7 @@ import "server-only";
 
 import { addDays, dateOnly, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { ensureHealthConsent, recordConsent } from "@/lib/privacy/service";
 import { dataKeyConfigured, openJson, sealJson } from "@/lib/security/data-key";
 
 import { type CycleLogEntry, cyclePhase, type CycleSettings, suggestLight } from "./cycle";
@@ -25,6 +26,7 @@ export async function getCycle(userId: string, days = 400) {
 
 export async function saveCycleSettings(userId: string, settings: CycleSettings) {
   const data = sealJson(settings);
+  await ensureHealthConsent(userId);
   await prisma.cycleProfile.upsert({ where: { userId }, create: { userId, data }, update: { data } });
 }
 
@@ -40,6 +42,8 @@ export async function logCycleDay(userId: string, entry: CycleLogEntry) {
 
 export async function deleteCycleData(userId: string) {
   await prisma.$transaction([prisma.cycleLog.deleteMany({ where: { userId } }), prisma.cycleProfile.deleteMany({ where: { userId } })]);
+  // Sin datos de salud ya no hay nada que consentir: retirado (art. 7.3)
+  if (!(await prisma.womenHealth.count({ where: { userId } }))) await recordConsent(userId, "HEALTH", false);
 }
 
 /** Fase de hoy y si conviene la versión suave (null si no usa esta función). */

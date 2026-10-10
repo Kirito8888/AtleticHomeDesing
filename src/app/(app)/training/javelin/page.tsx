@@ -3,10 +3,11 @@ import { DeleteMinimum, MinimumForm } from "@/components/training/minimums";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
-import { formatDate, formatNum } from "@/lib/format";
+import { formatDate, formatNum, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { competitionForecast, conditionsEffect, cueStats, implementEquivalence, minimumStatus, progressionByImplement } from "@/lib/training/javelin-insights";
 import { javelinSessions } from "@/lib/training/javelin-service";
+import { throwStats } from "@/lib/training/v17-service";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Análisis de jabalina · LifeOS" };
@@ -29,7 +30,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default async function JavelinPage() {
   const user = await pageUser();
   const day = toIsoDay(today());
-  const [sessions, minimums] = await Promise.all([javelinSessions(user.id), prisma.minimum.findMany({ where: { userId: user.id }, orderBy: { deadline: { sort: "asc", nulls: "last" } } })]);
+  const [sessions, minimums, stats] = await Promise.all([
+    javelinSessions(user.id),
+    prisma.minimum.findMany({ where: { userId: user.id }, orderBy: { deadline: { sort: "asc", nulls: "last" } } }),
+    throwStats(user.id, day),
+  ]);
   const cues = cueStats(sessions);
   const eq = implementEquivalence(sessions, REF_G);
   const prog = progressionByImplement(sessions);
@@ -134,6 +139,60 @@ export default async function JavelinPage() {
           ) : (
             <p className="text-muted-foreground">Aún no hay sesiones con condiciones registradas (pon tu pista en Ajustes → Mi pista).</p>
           )}
+        </Section>
+        <Section title="Lanzamientos por implemento y semana">
+          {stats.byWeek.weeks.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs tabular-nums" aria-label="Lanzamientos por semana">
+                <thead className="text-muted-foreground">
+                  <tr>
+                    <th className="py-1 text-left font-normal">Semana</th>
+                    {stats.byWeek.implements.map((i) => (
+                      <th key={i} className="py-1 text-right font-normal">
+                        {i}
+                      </th>
+                    ))}
+                    <th className="py-1 text-right font-normal">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stats.byWeek.weeks.map((w) => (
+                    <tr key={w.week} className="border-t">
+                      <td className="py-1">{formatDate(w.week, { day: "numeric", month: "short" })}</td>
+                      {stats.byWeek.implements.map((i) => (
+                        <td key={i} className="py-1 text-right">
+                          {w.byImplement[i] ?? ""}
+                        </td>
+                      ))}
+                      <td className="py-1 text-right font-medium">{w.total}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">Sin lanzamientos en las últimas 12 semanas.</p>
+          )}
+        </Section>
+        <Section title="Récords por temporada y categoría">
+          {stats.records.length ? (
+            <ul className="grid gap-1" aria-label="Récords por temporada">
+              {stats.records.map((r) => (
+                <li key={`${r.season}-${r.event}-${r.implementWeightG}`} className="flex justify-between gap-2">
+                  <span>
+                    {r.season}
+                    {r.category ? ` · ${r.category}` : ""} · {TECHNICAL_EVENT_LABEL[r.event] ?? r.event}
+                    {r.implementWeightG ? ` ${r.implementWeightG} g` : ""}
+                    {r.isCompetition ? " · en competición" : ""}
+                  </span>
+                  <span className="shrink-0 font-medium tabular-nums">{m(r.markM)}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-muted-foreground">Sin marcas todavía.</p>
+          )}
+          <p className="text-xs text-muted-foreground">Categoría por la edad que cumples en el año (pon tu fecha de nacimiento en Ajustes → Perfil).</p>
         </Section>
       </div>
     </>

@@ -9,6 +9,9 @@ import { listHealthReports } from "@/lib/health/health-report";
 import { prisma } from "@/lib/prisma";
 import { APPOINTMENT_LABEL, supplementsToCheck } from "@/lib/recovery/health-admin";
 import { recentAppointments } from "@/lib/recovery/health-admin-service";
+import { SupplementCalendar } from "@/components/v17/nutrition-v17";
+import { addDays, startOfIsoWeek } from "@/lib/dates";
+import { supplementWeek } from "@/lib/nutrition/v17-nutrition";
 
 export const metadata = { title: "Citas y suplementos · LifeOS" };
 
@@ -24,6 +27,11 @@ export default async function HealthAdminPage() {
   ]);
   const view = supps.map((s) => ({ ...s, startedOn: s.startedOn ? toIsoDay(s.startedOn) : null, endedOn: s.endedOn ? toIsoDay(s.endedOn) : null, checkedOn: s.checkedOn ? toIsoDay(s.checkedOn) : null }));
   const pending = new Set(supplementsToCheck(view, day).map((s) => s.id));
+  // v1.7 · calendario de tomas de esta semana (sin dosis)
+  const ws = startOfIsoWeek(today());
+  const logs = await prisma.supplementLog.findMany({ where: { userId: user.id, date: { gte: ws, lte: addDays(ws, 6) } }, select: { supplementId: true, date: true } });
+  const active = view.filter((s) => !s.endedOn || s.endedOn >= toIsoDay(ws));
+  const suppWeek = supplementWeek(active, logs.map((l) => ({ supplementId: l.supplementId, date: toIsoDay(l.date) })), toIsoDay(ws));
   return (
     <>
       <PageHeader title="Citas y suplementos" description="Solo para ti. Para el fisio, un enlace temporal con tus molestias y tu carga." />
@@ -55,6 +63,11 @@ export default async function HealthAdminPage() {
               <p className="text-xs text-muted-foreground">Molestias, vuelta por fases, carga de 8 semanas y fatiga por zona. Caduca en 7 días; tu entrenadora no lo ve.</p>
               <HealthReportLinks kind="PHYSIO" label="Tu fisio" active={reports.filter((r) => r.kind === "PHYSIO").map((r) => ({ id: r.id, expiresAt: r.expiresAt.toISOString() }))} />
             </div>
+            <div className="grid gap-2 border-t pt-3">
+              <p className="font-medium">Informe anual de salud</p>
+              <p className="text-xs text-muted-foreground">12 meses, mes a mes: entreno, molestias, sueño, FC y VFC, bienestar y (si la usas) salud de la mujer. Para la revisión anual o la de temporada. Caduca en 7 días.</p>
+              <HealthReportLinks kind="ANNUAL" label="La revisión anual" active={reports.filter((r) => r.kind === "ANNUAL").map((r) => ({ id: r.id, expiresAt: r.expiresAt.toISOString() }))} />
+            </div>
           </CardContent>
         </Card>
         <Card className="h-fit gap-3 py-4">
@@ -85,6 +98,12 @@ export default async function HealthAdminPage() {
               </ul>
             ) : null}
             <SupplementForm today={day} />
+            {active.length ? (
+              <div className="grid gap-2 border-t pt-3">
+                <p className="font-medium">Calendario de tomas</p>
+                <SupplementCalendar supplements={active.map((s) => ({ id: s.id, name: s.name, days: s.days }))} week={suppWeek} />
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>

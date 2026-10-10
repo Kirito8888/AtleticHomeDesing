@@ -15,6 +15,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { dataKeyConfigured } from "@/lib/security/data-key";
 import { listInjuries } from "@/lib/recovery/injuries";
+import { listInjuryPhotos } from "@/lib/recovery/wellbeing-service";
 import { READINESS_WEIGHTS, type ReadinessComponent } from "@/lib/training/readiness";
 import { womenEnabled } from "@/lib/health/women-service";
 import { readProtocol } from "@/lib/recovery/protocol-service";
@@ -62,6 +63,8 @@ export default async function RecoveryPage() {
   const foster = fosterWeek(dailySrpe(weekSessions.map((s) => ({ ...s, date: toIsoDay(s.date) })), day));
   const hooper = [...recent].reverse().map((r) => ({ date: toIsoDay(r.date), value: hooperIndex(r) })).filter((h) => h.value != null);
   const debt = sleepDebt(recent.map((r) => ({ date: toIsoDay(r.date), sleepHours: r.sleepHours })), day, prefs.sleepTargetH);
+  const canSeal = dataKeyConfigured();
+  const photos = canSeal ? await listInjuryPhotos(user.id) : [];
   const todayLog = cycle?.logs.find((l) => l.date === day) ?? null;
 
   return (
@@ -73,6 +76,9 @@ export default async function RecoveryPage() {
             Salud de la mujer
           </Link>
         ) : null}
+        <Link href="/recovery/wellbeing" className="underline underline-offset-4">
+          Bienestar
+        </Link>
         <Link href="/recovery/body" className="underline underline-offset-4">
           Antropometría
         </Link>
@@ -165,6 +171,7 @@ export default async function RecoveryPage() {
           </Card>
           <InjuriesPanel
             today={toIsoDay(now)}
+            photos={canSeal}
             injuries={injuries.map((i) => ({
               id: i.id,
               area: i.area,
@@ -175,6 +182,7 @@ export default async function RecoveryPage() {
               resolvedOn: i.resolvedOn ? toIsoDay(i.resolvedOn) : null,
               notes: i.notes,
               protocol: i.protocol ? readProtocol(i.protocol.phases) : null,
+              photos: photos.filter((p) => p.injuryId === i.id).map((p) => ({ id: p.id, takenOn: toIsoDay(p.takenOn) })),
             }))}
           />
           <Card className="gap-3 py-4">

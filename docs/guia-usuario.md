@@ -190,6 +190,90 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
 - **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
 
+## Novedades de la v1.7 (dónde está cada cosa)
+
+**Nada cambia tu planificación por su cuenta y la salud no sale de tu cuenta.**
+- La rutina del cuestionario queda en **borrador** hasta que la actives.
+- Lo de salud va cifrado: ni la IA ni tu entrenadora lo ven.
+
+**Seguridad y privacidad**
+- **Ajustes → Llaves de acceso:** añade la huella o la cara del móvil. En el login, «Entrar con llave de acceso». Solo funciona con HTTPS.
+- **Ajustes → Privacidad y derechos:**
+  - consentimientos con su historial;
+  - **limitar el tratamiento** (pausa la IA, el acceso de tu entrenadora y los enlaces compartidos);
+  - pedir rectificación, supresión u oposición (queda registrado);
+  - plazos de conservación.
+- **Ajustes → Actividad reciente:** el registro está encadenado. Si alguien lo altera en la base de datos, verás el aviso.
+- Avisos push de lo sensible: llave nueva, enlace compartido, datos descargados…
+- En el login, enlaces a la **política de privacidad** y al **aviso legal**.
+
+**Entreno → Crear mi rutina**
+- 5 pasos: tú, salud, tests, objetivos y horario.
+- Si marcas algo en salud, te pide hablar antes con un profesional sanitario.
+- Sale tu perfil, la rutina en borrador y una **gráfica de lo que puedes lograr si la sigues**:
+  - línea esperada y franja prudente–optimista;
+  - es una estimación, no una promesa.
+- Repite los tests cada 4 semanas («Anotar test»): tus puntos aparecen sobre la curva.
+
+**Entreno y competición**
+- **Etiquetas** en cada sesión, con su **Diario técnico** (Entreno) para buscar por etiqueta.
+- **Entreno → Comparar sesiones:** dos sesiones lado a lado.
+- **Jabalina:**
+  - lanzamientos por implemento y semana;
+  - récords por temporada y categoría (pon tu fecha de nacimiento en el perfil).
+- **Modo competición:**
+  - el «Simulador de intentos» calcula a qué hora te toca cada uno según atletas, tu orden y el tiempo por intento;
+  - calentamientos de **pruebas combinadas**.
+- **Planificación → Importar calendario de competiciones:** `.ics` de la federación o CSV `fecha;competición;lugar`. No duplica.
+
+**Recuperación → Bienestar**
+- **Diario de sueño:** horas en la cama, latencia, despertares, calidad, cafeína (te dice cuánta te quedaba al acostarte) e higiene, con consejos.
+- **Ánimo y estrés:** con tendencia de 7 días. Si el ánimo sigue bajo, te anima a hablarlo; la **línea 024** atiende 24 h.
+- **Escalas:** EVA (dolor), QuickDASH (brazo y hombro) y Aquiles. Sirven para ver tu tendencia, no son un diagnóstico.
+- **Movilidad sugerida** según la fatiga por zona de tu última sesión. El umbral es el del semáforo, en Mis reglas.
+- **Respiración guiada:** caja, 4-7-8 para dormir, coherencia y activación antes de competir.
+
+**Otros cambios en Recuperación**
+- **Fotos de una molestia:** se reducen y pierden el EXIF en el móvil antes de subir, y se guardan cifradas. Pulsa la fecha para verla.
+- **Citas y suplementos:**
+  - **Informe anual de salud:** enlace de 7 días con 12 meses mes a mes;
+  - **Calendario de tomas:** eliges los días de cada suplemento y marcas lo que tomaste. Sin dosis.
+
+**Salud de la mujer**
+- En Ajustes de la sección: **anticoncepción** y **etapa** (peri o posmenopausia).
+- Sale una explicación de cómo cambia la lectura de tus datos y, en la menopausia, pautas y registro de síntomas.
+
+**Nutrición**
+- **Plan semanal:** tus recetas por día y comida. Un botón pasa los ingredientes de la semana a la lista de la compra.
+- **Lista de la compra → Escanear en el súper:** lo que escaneas se tacha si estaba en la lista; si no, se añade (con el Nutri-Score).
+- **Sudoración:**
+  1. pésate antes y después de entrenar;
+  2. apunta lo que bebiste;
+  3. sabrás tus litros por hora y cuánto beber para no perder más del 2 %.
+
+**Astras AI (estudio)**
+- **Flashcards:** «Crear tarjetas a mano (sin IA)»; pega varias como `pregunta | respuesta`.
+- **Trabajos y entregas:** avisos («en 2 días y sin empezar»), estado, nota y media ponderada.
+- **Pomodoro:** «Cuándo te concentras mejor», con tus franjas de los últimos 60 días.
+
+**Finanzas**
+- **Presupuesto de la temporada:**
+  - lo que prevés por concepto y lo que cuesta de media una competición;
+  - la previsión toma lo mayor entre tu ritmo actual y las competiciones que quedan.
+  - Cuenta los movimientos marcados con 🏅.
+- **Clip en cada gasto:** adjunta el justificante (PDF o foto). Se guarda cifrado.
+- **Suscripciones:**
+  - si un cargo del banco es mayor que lo guardado, aparece un aviso con «Actualizar»;
+  - «Cambiar importe» deja constancia de la subida.
+
+**Plataforma**
+- **Sin conexión:** además de las sesiones, el **agua**, los **hábitos** y las **comidas** se guardan en el móvil y se envían al volver la cobertura.
+- **Inicio → «De un vistazo»:** el día en una lista ligera. Añádela a la pantalla de inicio.
+- **Cuentas de demostración** (solo administración, en Ajustes → Estado del servidor):
+  - elige un público (principiante, corredora, persona mayor, posparto o lanzador);
+  - entra con los datos que salen (**solo se muestran una vez**) en una ventana privada;
+  - son datos inventados y se borran solos a los 30 días.
+
 ## Novedades de la v1.6 (dónde está cada cosa)
 
 **Nada de esto cambia tu planificación por su cuenta.** Lo que sugiere (kg del día, afinamiento, recolocar) aparece junto al plan y solo se aplica si pulsas «Usar» o «Aplicar». El afinamiento se quita con otro botón y el día vuelve a ser el original.

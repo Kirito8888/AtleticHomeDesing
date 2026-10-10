@@ -15,6 +15,9 @@ import { periodWindow } from "@/lib/finance/ledger";
 import { budgetsStatus, cashflow, listAccounts, spendingByCategory, sportExpenses, sportSeasonBalance, subscriptionsOverview } from "@/lib/finance/service";
 import { formatDate, formatEur } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { PriceAlerts, Receipts, SeasonBudgetForm, SubscriptionAmount } from "@/components/v17/finance-v17";
+import { SEASON_LINES, type SeasonLine } from "@/lib/finance/v17-finance";
+import { seasonBudgetView, subscriptionAlerts } from "@/lib/finance/v17-service";
 
 export const metadata = { title: "Finanzas · LifeOS" };
 
@@ -35,7 +38,7 @@ export default async function FinancePage() {
       where: { userId: user.id },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       take: 12,
-      include: { postings: { include: { account: { select: { name: true, type: true } }, category: { select: { name: true } } } } },
+      include: { postings: { include: { account: { select: { name: true, type: true } }, category: { select: { name: true } } } }, receipts: { select: { id: true, mime: true } } },
     }),
     prisma.bankImportProfile.findMany({ where: { userId: user.id }, orderBy: { name: "asc" } }),
     sportExpenses(user.id),
@@ -46,6 +49,8 @@ export default async function FinancePage() {
     }),
     sportSeasonBalance(user.id, toIsoDay(now)),
   ]);
+  const season = Number(toIsoDay(now).slice(0, 4));
+  const [sb, priceAl] = await Promise.all([seasonBudgetView(user.id, season, toIsoDay(now)), subscriptionAlerts(user.id, toIsoDay(now))]);
   const money = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
   const netWorth = money.reduce((a, x) => a + x.balanceCents, 0);
   const thisMonth = flow.at(-1);
@@ -179,6 +184,7 @@ export default async function FinancePage() {
             <RunSubscriptionsButton />
           </CardHeader>
           <CardContent className="px-4">
+            <PriceAlerts charged={priceAl.charged} edited={priceAl.edited} />
             {subs.subscriptions.length ? (
               <ul className="grid gap-2">
                 {subs.subscriptions.map((s) => (
@@ -191,6 +197,7 @@ export default async function FinancePage() {
                       <div className="text-xs text-muted-foreground">
                         Próximo: {formatDate(s.nextChargeDate)} {s.autoPost ? "· automático" : ""}
                       </div>
+                      <SubscriptionAmount id={s.id} name={s.name} amountCents={s.amountCents} />
                     </div>
                     <span className="shrink-0 tabular-nums">
                       {formatEur(s.amountCents)}
@@ -202,6 +209,47 @@ export default async function FinancePage() {
             ) : (
               <p className="text-sm text-muted-foreground">Sin suscripciones.</p>
             )}
+          </CardContent>
+        </Card>
+
+        <Card className="gap-3 py-4 lg:col-span-2">
+          <CardHeader className="px-4">
+            <CardTitle className="text-sm">Presupuesto de la temporada {season}</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 px-4 lg:grid-cols-2">
+            <div className="grid content-start gap-2 text-sm" aria-label="Previsión de la temporada">
+              {sb.hasBudget ? (
+                <>
+                  <p>
+                    Previsto <span className="font-medium tabular-nums">{formatEur(sb.plannedCents)}</span> · gastado <span className="font-medium tabular-nums">{formatEur(sb.spentCents)}</span>
+                    {sb.usedPct != null ? ` (${sb.usedPct} %)` : ""}
+                  </p>
+                  <Progress value={Math.min(100, sb.usedPct ?? 0)} aria-label="Presupuesto usado" />
+                  <p className={sb.overBudgetCents ? "font-medium text-destructive" : undefined}>
+                    Previsión a 31 de diciembre: {formatEur(sb.forecastCents)}
+                    {sb.overBudgetCents ? ` · te pasarías en ${formatEur(sb.overBudgetCents)}` : " · dentro del presupuesto"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {sb.linearCents != null ? `Al ritmo actual: ${formatEur(sb.linearCents)}. ` : ""}Por calendario: {formatEur(sb.calendarCents)} ({sb.upcomingCompetitions} competiciones pendientes × {formatEur(sb.perCompetitionCents)}). Se usa la mayor.
+                    {sb.incomeCents ? ` Con lo ingresado (${formatEur(sb.incomeCents)}) el saldo previsto es ${formatEur(sb.balanceCents)}.` : ""}
+                  </p>
+                  <ul className="grid gap-0.5 text-xs text-muted-foreground">
+                    {(Object.keys(SEASON_LINES) as SeasonLine[])
+                      .filter((k) => sb.lines[k])
+                      .map((k) => (
+                        <li key={k} className="flex justify-between gap-2">
+                          <span>{SEASON_LINES[k]}</span>
+                          <span className="tabular-nums">{formatEur(sb.lines[k]!)}</span>
+                        </li>
+                      ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="text-muted-foreground">Pon lo que prevés gastar este año en el deporte y el coste medio de cada competición: verás si llegas con la previsión al ritmo actual y con las competiciones que te quedan.</p>
+              )}
+              <p className="text-xs text-muted-foreground">Cuenta los movimientos marcados con 🏅.</p>
+            </div>
+            <SeasonBudgetForm season={season} lines={sb.lines} perCompetitionCents={sb.perCompetitionCents} />
           </CardContent>
         </Card>
 
@@ -289,6 +337,7 @@ export default async function FinancePage() {
                         {t.kind === "TRANSFER" ? "⇄ " : amount > 0 ? "+" : ""}
                         {formatEur(amount)}
                       </span>
+                      {t.kind === "EXPENSE" ? <Receipts transactionId={t.id} receipts={t.receipts} /> : null}
                       {t.kind === "EXPENSE" || t.kind === "INCOME" ? <SportToggle id={t.id} sport={t.sport} income={t.kind === "INCOME"} /> : null}
                       <DeleteTransaction id={t.id} />
                     </li>

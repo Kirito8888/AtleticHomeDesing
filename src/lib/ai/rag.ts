@@ -87,9 +87,11 @@ export async function createDocumentFromUpload(userId: string, file: File, meta:
     },
   });
   try {
-    const dir = path.resolve(env().UPLOAD_DIR, userId);
+    // turbopackIgnore: ruta de datos en ejecución, no un fichero del proyecto (si no, el trazado
+    // del build mete todo el proyecto en la imagen)
+    const dir = path.resolve(/* turbopackIgnore: true */ env().UPLOAD_DIR, userId);
     await mkdir(dir, { recursive: true });
-    const storagePath = path.join(dir, `${doc.id}${ALLOWED[mime]}`);
+    const storagePath = path.join(/* turbopackIgnore: true */ dir, `${doc.id}${ALLOWED[mime]}`);
     await writeFile(storagePath, buf);
     return prisma.studyDocument.update({ where: { id: doc.id }, data: { storagePath } });
   } catch (err) {
