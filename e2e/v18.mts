@@ -211,6 +211,89 @@ await page.getByText(/No hay nada compartido/).waitFor();
 await shot("02-uso");
 log(`primer uso, papelera con deshacer, búsqueda por etiqueta, notificaciones, horas de silencio y compartir (${viaSw ? "service worker" : "caché directa"})`);
 
+// 3. Bloque C · Objetivos, revisión, examen simulado, semana, temporada, finanzas, viaje, posponer y CSV
+await go(B + "/goals");
+await radio("Tipo de objetivo", "Otro (a mano)").click();
+await page.getByLabel("Nombre (opcional)").fill("Leer 12 libros V18");
+await page.getByLabel(/^Objetivo/).fill("12");
+await page.getByRole("button", { name: "Crear objetivo" }).click();
+await toast(/Objetivo creado/);
+await page.getByRole("list", { name: "Objetivos" }).getByText("Leer 12 libros V18").waitFor();
+await checkA11y("/goals");
+await go(B + "/review");
+await page.getByRole("list", { name: "Resumen de la semana" }).getByText(/sesi(ón|ones) · TSS/).waitFor();
+await page.getByLabel("¿Qué ha ido bien?").fill("Constancia en la técnica");
+await page.getByLabel("Foco de la próxima semana").fill("Dormir 8 horas V18");
+await page.getByRole("button", { name: "Guardar revisión" }).click();
+await toast(/Revisión guardada/);
+await checkA11y("/review");
+await go(B + "/");
+await page.getByRole("link", { name: "Foco de la semana" }).getByText("Dormir 8 horas V18").waitFor();
+await page.getByText("Leer 12 libros V18").first().waitFor();
+
+// Examen simulado (3 tarjetas: 2 bien y 1 mal)
+await api("post", "/api/study/cards", { deck: "Anatomía V18", lines: "Fémur|Hueso del muslo\nTibia|Hueso de la pierna\nRadio|Hueso del antebrazo" });
+await go(B + "/study/exam");
+await page.getByLabel("Preguntas").selectOption("5");
+await page.getByRole("button", { name: "Empezar examen" }).click();
+for (const ok of [true, false, true]) {
+  await page.getByRole("button", { name: "Ver respuesta" }).click();
+  await page.getByRole("button", { name: ok ? "La sabía" : "La fallé" }).click();
+}
+const result = page.getByRole("status", { name: "Resultado del examen" });
+await result.getByText(/6,7 \/ 10/).waitFor();
+await result.getByRole("list", { name: "Tarjetas falladas" }).getByRole("listitem").first().waitFor();
+await checkA11y("/study/exam (resultado)");
+
+// Mi semana e informe de temporada
+await go(B + "/planning/week-all");
+await page.getByRole("list", { name: "Días de la semana" }).getByText("Salidas de tacos V18").waitFor();
+await checkA11y("/planning/week-all");
+await noOverflow("/planning/week-all");
+await go(`${B}/print/season?year=${madrid.slice(0, 4)}`);
+await page.getByRole("heading", { name: `Temporada ${madrid.slice(0, 4)}` }).waitFor();
+await page.getByRole("table", { name: "Carga por mes" }).waitFor();
+
+// Finanzas: categorizar con «aplicar a los parecidos» y fondo de emergencia
+const bank = (await api("post", "/api/finance/accounts", { name: "Banco V18", type: "ASSET" })) as { id: string };
+await api("post", "/api/finance/categories", { name: "Súper V18", kind: "EXPENSE" });
+for (const d of ["COMPRA TARJ. 1234 MERCADONA VALENCIA", "MERCADONA VALENCIA 2"]) {
+  await api("post", "/api/finance/transactions", { mode: "simple", kind: "EXPENSE", date: madrid, description: d, amountCents: 2500, moneyAccountId: bank.id });
+}
+await go(B + "/finance");
+await page.getByRole("button", { name: "Categorizar COMPRA TARJ. 1234 MERCADONA VALENCIA" }).click();
+await page.getByLabel("Categoría de COMPRA TARJ. 1234 MERCADONA VALENCIA").selectOption({ label: "Súper V18" });
+await page.getByRole("button", { name: "Guardar", exact: true }).click();
+await toast(/Regla «mercadona valencia» guardada · 2 movimientos/);
+await page.getByRole("list", { name: "Reglas de categoría" }).getByText(/mercadona valencia/).waitFor();
+await page.getByText("Fondo de emergencia").first().waitFor();
+await checkA11y("/finance");
+
+// Viaje de competición: lugar del estadio
+const trip = (await api("post", "/api/planning/events", { type: "COMPETITION", title: "Autonómico V18", startAt: plusDays(madrid, 6) })) as { id: string };
+await go(`${B}/planning/competition/${trip.id}`);
+await page.getByLabel("Latitud del estadio").fill("39.470");
+await page.getByLabel("Longitud del estadio").fill("-0.376");
+await page.getByRole("button", { name: "Guardar lugar" }).click();
+await toast(/Lugar guardado/);
+await page.getByRole("button", { name: "Quitar" }).first().waitFor();
+
+// Posponer una notificación desde el centro
+await go(B + "/notifications");
+await page.getByRole("button", { name: "Recordar en 1 h" }).first().click();
+await page.getByText(/Te lo recuerdo a las/).first().waitFor();
+
+// CSV por módulo
+const csv: Record<string, string> = {};
+for (const kind of ["recovery", "nutrition", "study"]) {
+  const r = await page.request.get(`${B}/api/export/${kind}`);
+  if (!r.ok() || !(r.headers()["content-type"] ?? "").includes("text/csv")) errors.push(`CSV ${kind}: ${r.status()}`);
+  csv[kind] = await r.text();
+}
+if (!csv.nutrition.includes("Garbanzos V18")) errors.push("el CSV de comidas no trae la comida registrada");
+await shot("03-nuevas");
+log("objetivos, revisión semanal, examen simulado, mi semana, temporada, reglas de categoría, fondo de emergencia, viaje, posponer y CSV");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));

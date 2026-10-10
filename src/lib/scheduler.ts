@@ -13,7 +13,7 @@ import { purgeTrash } from "@/lib/account/trash";
 import { prisma } from "@/lib/prisma";
 import { dueReminders, publicTitle } from "@/lib/push/reminders";
 import { deadlineState } from "@/lib/finance/trips";
-import { notifyOnce } from "@/lib/push/service";
+import { notifyOnce, runSnoozedJob } from "@/lib/push/service";
 import { readPrefs } from "@/lib/rules/prefs";
 import { daysAgo, retentionDays } from "@/lib/privacy/retention";
 import { periodStarts } from "@/lib/health/cycle";
@@ -242,6 +242,25 @@ export async function runPeriodReminderJob(hour = madridHour(), weekday = madrid
   return sent;
 }
 
+/** v1.8 · Revisión semanal: el domingo desde las 18 h, a quien la tiene activada y ha usado LifeOS esa semana. */
+export async function runWeeklyReviewJob(hour = madridHour(), weekday = madridWeekday()): Promise<number> {
+  if (weekday !== 6 || hour < 18) return 0;
+  const monday = startOfIsoWeek(today());
+  const users = await prisma.user.findMany({
+    where: {
+      weeklyReviews: { none: { weekStart: monday } },
+      OR: [{ trainingSessions: { some: { date: { gte: monday } } } }, { studySessions: { some: { date: { gte: monday } } } }],
+    },
+    select: { id: true, athleteProfile: { select: { prefs: true } } },
+  });
+  let sent = 0;
+  for (const u of users) {
+    if (!readPrefs(u.athleteProfile?.prefs).weeklyReviewPush) continue;
+    if (await notifyOnce(u.id, `review:${toIsoDay(monday)}`, { title: "Revisión semanal", body: "Cinco minutos para cerrar la semana y elegir el foco de la próxima.", url: "/review", tag: "review" })) sent++;
+  }
+  return sent;
+}
+
 /** v1.6 · Citas de fisio o médico: aviso la tarde anterior (una vez). */
 export async function runAppointmentReminders(now = new Date()): Promise<number> {
   if (madridHour() < 19) return 0;
@@ -285,6 +304,7 @@ async function tick() {
     await runAppointmentReminders();
     await runDeadlineReminders();
     await runAdminOpsJob();
+    await runWeeklyReviewJob();
     const posted = await runSubscriptionsJob();
     const reports = await runWeeklyCoachJob();
     if (posted || reports) console.info(`[scheduler] ${posted} cobro(s) de suscripciones, ${reports} informe(s) del coach`);
@@ -302,6 +322,12 @@ async function safetyTick() {
     if (n) console.info(`[scheduler] ${n} aviso(s) de «entreno sola»`);
   } catch (err) {
     console.error("[scheduler] entreno sola:", err);
+  }
+  // v1.8 · notificaciones pospuestas
+  try {
+    await runSnoozedJob();
+  } catch (err) {
+    console.error("[scheduler] pospuestas:", err);
   }
 }
 

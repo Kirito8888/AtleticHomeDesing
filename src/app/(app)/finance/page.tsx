@@ -14,6 +14,11 @@ import { addDays, today, toIsoDay } from "@/lib/dates";
 import { periodWindow } from "@/lib/finance/ledger";
 import { budgetsStatus, cashflow, listAccounts, spendingByCategory, sportExpenses, sportSeasonBalance, subscriptionsOverview } from "@/lib/finance/service";
 import { formatDate, formatEur } from "@/lib/format";
+import { CategorizeTx, CategoryRules } from "@/components/finance/categorize";
+import { emergencyFund } from "@/lib/finance/emergency";
+import { listRules } from "@/lib/finance/category-rules-service";
+import { getPrefs } from "@/lib/rules/prefs-service";
+import { EmergencyMonthsSelect } from "@/components/settings/app-preferences";
 import { prisma } from "@/lib/prisma";
 import { PriceAlerts, Receipts, SeasonBudgetForm, SubscriptionAmount } from "@/components/finance/season";
 import { SEASON_LINES, type SeasonLine } from "@/lib/finance/season";
@@ -27,11 +32,11 @@ export default async function FinancePage() {
   const user = await pageUser();
   const now = today();
   const month = periodWindow("MONTHLY", now);
-  const [accounts, categories, budgets, flow, spending, subs, recent, importProfiles, sportSeasons, competitions, sportBal] = await Promise.all([
+  const [accounts, categories, budgets, flow, spending, subs, recent, importProfiles, sportSeasons, competitions, sportBal, rules, prefs] = await Promise.all([
     listAccounts(user.id),
     prisma.financialCategory.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true, kind: true } }),
     budgetsStatus(user.id, now),
-    cashflow(user.id, 6),
+    cashflow(user.id, 7),
     spendingByCategory(user.id, month.start, month.end),
     subscriptionsOverview(user.id),
     prisma.financialTransaction.findMany({
@@ -48,12 +53,16 @@ export default async function FinancePage() {
       select: { id: true, title: true, startAt: true },
     }),
     sportSeasonBalance(user.id, toIsoDay(now)),
+    listRules(user.id),
+    getPrefs(user.id),
   ]);
   const season = Number(toIsoDay(now).slice(0, 4));
   const [sb, priceAl] = await Promise.all([seasonBudgetView(user.id, season, toIsoDay(now)), subscriptionAlerts(user.id, toIsoDay(now))]);
   const money = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
   const netWorth = money.reduce((a, x) => a + x.balanceCents, 0);
   const thisMonth = flow.at(-1);
+  // v1.8 · fondo de emergencia con los 6 meses cerrados
+  const fund = emergencyFund(flow.slice(0, -1), netWorth, prefs.emergencyMonths);
   const maxSpend = Math.max(1, ...spending.map((s) => s.totalCents));
   const todayIso = toIsoDay(now);
 
@@ -149,7 +158,37 @@ export default async function FinancePage() {
             <CardTitle className="text-sm">Flujo de caja (6 meses)</CardTitle>
           </CardHeader>
           <CardContent className="px-4">
-            <CashflowChart data={flow} />
+            <CashflowChart data={flow.slice(1)} />
+          </CardContent>
+        </Card>
+
+        <Card className="gap-3 py-4" id="emergencia">
+          <CardHeader className="px-4">
+            <CardTitle className="flex items-center justify-between gap-2 text-sm">
+              Fondo de emergencia <EmergencyMonthsSelect value={prefs.emergencyMonths} />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2 px-4 text-sm">
+            {fund ? (
+              <>
+                <p>
+                  <span className="text-2xl font-semibold tabular-nums">{fund.coveredMonths != null ? fund.coveredMonths.toLocaleString("es-ES") : "—"}</span> meses cubiertos{" "}
+                  <span className="text-muted-foreground">(objetivo: {prefs.emergencyMonths})</span>
+                </p>
+                <Progress value={Math.min(100, ((fund.coveredMonths ?? 0) / prefs.emergencyMonths) * 100)} aria-label="Fondo de emergencia" />
+                <p className="text-muted-foreground">
+                  Gasto medio: {formatEur(fund.avgExpenseCents)}/mes ({fund.months} {fund.months === 1 ? "mes" : "meses"}).{" "}
+                  {fund.missingCents > 0
+                    ? `Faltan ${formatEur(fund.missingCents)}${fund.monthsToTarget != null ? `: unos ${fund.monthsToTarget} meses al ritmo actual.` : "; ahora mismo no ahorras."}`
+                    : "¡Completo!"}
+                </p>
+                <p className="text-muted-foreground">
+                  En 12 meses, al ahorro medio de {formatEur(fund.avgNetCents)}/mes: {formatEur(fund.in12mCents)}.
+                </p>
+              </>
+            ) : (
+              <p className="text-muted-foreground">Con un mes completo de movimientos verás cuántos meses de gastos cubre tu dinero.</p>
+            )}
           </CardContent>
         </Card>
 
@@ -329,9 +368,12 @@ export default async function FinancePage() {
                               ? "Saldo de apertura"
                               : t.kind === "ADJUSTMENT"
                                 ? "Ajuste"
-                                : (cat ?? "Sin categoría")}
-                          {moneyLeg ? ` · ${moneyLeg.account.name}` : ""}
+                                : (cat ?? (t.kind === "EXPENSE" || t.kind === "INCOME" ? "" : "Sin categoría"))}
+                          {moneyLeg ? `${cat || !(t.kind === "EXPENSE" || t.kind === "INCOME") ? " · " : ""}${moneyLeg.account.name}` : ""}
                         </div>
+                        {!cat && (t.kind === "EXPENSE" || t.kind === "INCOME") ? (
+                          <CategorizeTx id={t.id} description={t.description} categories={categories.filter((c) => c.kind === t.kind)} />
+                        ) : null}
                       </div>
                       <span className="shrink-0 font-medium tabular-nums">
                         {t.kind === "TRANSFER" ? "⇄ " : amount > 0 ? "+" : ""}
@@ -349,6 +391,18 @@ export default async function FinancePage() {
             )}
           </CardContent>
         </Card>
+
+        {rules.length ? (
+          <Card className="gap-3 py-4">
+            <CardHeader className="px-4">
+              <CardTitle className="text-sm">Reglas de categoría</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4">
+              <p className="mb-2 text-xs text-muted-foreground">Se aplican al importar extractos. Se crean al categorizar con «Aplicar a los parecidos».</p>
+              <CategoryRules rules={rules.map((r) => ({ id: r.id, pattern: r.pattern, category: r.category.name }))} />
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
     </>
   );

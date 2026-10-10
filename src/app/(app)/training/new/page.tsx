@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/page-header";
 import { ImportActivity } from "@/components/training/import-activity";
 import { VoiceSessionForm } from "@/components/training/voice-session";
 import { TemplateChips } from "@/components/training/template-chips";
+import { CoachLibrary, ShareTemplates } from "@/components/training/coach-library";
+import { sharedFromCoaches } from "@/lib/training/template-library";
 import { Button } from "@/components/ui/button";
 import { pageUser } from "@/lib/auth/page";
 import { formatDate } from "@/lib/format";
@@ -20,7 +22,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
   const user = await pageUser();
   const autoreg = await autoregContext(user.id);
   const { type, repeat, template } = await searchParams;
-  const [exercises, profile, lastStrength, templates] = await Promise.all([
+  const [exercises, profile, lastStrength, templates, library] = await Promise.all([
     exerciseOptions(user.id),
     prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { bodyWeightKg: true } }),
     prisma.trainingSession.findFirst({
@@ -28,7 +30,8 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       include: formSessionInclude,
     }),
-    prisma.sessionTemplate.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true, payload: true } }),
+    prisma.sessionTemplate.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true, payload: true, shared: true } }),
+    sharedFromCoaches(user.id),
   ]);
   const todayIso = toIsoDay(today());
   // "Repetir": mismas series y pesos que la última sesión de fuerza, con fecha de hoy.
@@ -70,6 +73,8 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
       />
       {!initial ? <ImportActivity /> : null}
       <TemplateChips templates={templates.map((t) => ({ id: t.id, name: t.name }))} activeId={chosen?.id} />
+      {!initial ? <CoachLibrary templates={library.map((t) => ({ id: t.id, name: t.name, coach: t.user.name?.split(" ")[0] ?? "Entrenadora" }))} /> : null}
+      {user.role === "COACH" && !initial ? <ShareTemplates templates={templates.map((t) => ({ id: t.id, name: t.name, shared: t.shared }))} /> : null}
       <VoiceSessionForm
         formKey={chosen ? `tpl-${chosen.id}` : initial ? "repeat" : "new"}
         exercises={exercises}

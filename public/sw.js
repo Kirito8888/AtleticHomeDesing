@@ -113,7 +113,9 @@ self.addEventListener("push", (event) => {
       tag: msg.tag,
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
-      data: { url: typeof msg.url === "string" && msg.url.startsWith("/") ? msg.url : "/" },
+      data: { url: typeof msg.url === "string" && msg.url.startsWith("/") ? msg.url : "/", logId: typeof msg.logId === "string" ? msg.logId : null },
+      // v1.8 · posponer (no en las urgentes: el servidor no manda logId)
+      actions: typeof msg.logId === "string" ? [{ action: "snooze", title: "Recordar en 1 h" }] : [],
     }),
   );
 });
@@ -121,6 +123,12 @@ self.addEventListener("push", (event) => {
 // Al tocarla: enfocar una pestaña de LifeOS (o abrir una) en la ruta indicada.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
+  if (event.action === "snooze" && event.notification.data?.logId) {
+    event.waitUntil(
+      fetch("/api/push/snooze", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: event.notification.data.logId }) }).catch(() => undefined),
+    );
+    return;
+  }
   const url = new URL(event.notification.data?.url || "/", self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {

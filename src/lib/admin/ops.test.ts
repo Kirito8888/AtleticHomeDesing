@@ -14,7 +14,7 @@ describe("operación v1.8", () => {
 
   it("ocultar módulos: la barra inferior se rellena con los que quedan", () => {
     const n = visibleNav(["nutrition", "study"]);
-    expect(n.all.map((i) => i.href)).toEqual(["/", "/training", "/recovery", "/planning", "/finance", "/settings"]);
+    expect(n.all.map((i) => i.href)).toEqual(["/", "/training", "/recovery", "/planning", "/finance", "/goals", "/settings"]);
     expect(n.mobile.map((i) => i.href)).toEqual(["/", "/training", "/planning", "/recovery", "/finance"]);
     expect(visibleNav([]).mobile).toHaveLength(5);
   });

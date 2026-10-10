@@ -125,6 +125,14 @@ html.hc.dark {
   --ring: oklch(0.85 0 0);
 }
 
+/* v1.8 · Avisos (sonner, richColors) en tema claro: los colores de serie no llegan a 4,5:1 (WCAG AA) */
+html [data-sonner-toaster][data-sonner-theme="light"] {
+  --success-text: hsl(140, 100%, 20%);
+  --info-text: hsl(210, 92%, 32%);
+  --warning-text: hsl(31, 92%, 28%);
+  --error-text: hsl(360, 100%, 35%);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

@@ -103,8 +103,9 @@ export function UsageSettings({ enabled, summary }: { enabled: boolean; summary:
 }
 
 /** v1.8 · Horas sin notificaciones (las de seguridad y «entreno sola» llegan igual). */
-export function QuietHoursSettings({ quietHours }: { quietHours: { from: string; to: string } | null }) {
+export function QuietHoursSettings({ quietHours, weeklyReviewPush = true }: { quietHours: { from: string; to: string } | null; weeklyReviewPush?: boolean }) {
   const { busy, save } = usePrefs();
+  const [review, setReview] = useState(weeklyReviewPush);
   const [from, setFrom] = useState(quietHours?.from ?? "22:30");
   const [to, setTo] = useState(quietHours?.to ?? "07:30");
   return (
@@ -127,6 +128,42 @@ export function QuietHoursSettings({ quietHours }: { quietHours: { from: string;
           </Button>
         ) : null}
       </div>
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          className="size-4"
+          checked={review}
+          disabled={busy}
+          onChange={() => {
+            setReview(!review);
+            void save({ weeklyReviewPush: !review }, !review ? "Aviso de la revisión semanal activado" : "Aviso de la revisión semanal desactivado");
+          }}
+        />
+        Aviso del domingo para la revisión semanal
+      </label>
     </div>
+  );
+}
+
+/** v1.8 · Meses de gastos que quieres tener cubiertos (fondo de emergencia). */
+export function EmergencyMonthsSelect({ value }: { value: number }) {
+  const { busy, save } = usePrefs();
+  return (
+    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+      Objetivo
+      <select
+        aria-label="Meses del fondo de emergencia"
+        className="h-8 rounded-md border bg-transparent px-2 text-sm text-foreground"
+        value={value}
+        disabled={busy}
+        onChange={(e) => void save({ emergencyMonths: Number(e.target.value) }, "Objetivo del fondo guardado")}
+      >
+        {[1, 2, 3, 4, 6, 9, 12].map((n) => (
+          <option key={n} value={n}>
+            {n} {n === 1 ? "mes" : "meses"}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
