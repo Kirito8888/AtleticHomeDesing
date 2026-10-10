@@ -35,6 +35,11 @@ describe.skipIf(!HAS_DB)("restaurar una exportación (BD real)", () => {
     await prisma.grade.create({ data: { userId: from, subject: "Anatomía", grade: 8, credits: 6 } });
     const pr = await prisma.prehabRoutine.create({ data: { userId: from, name: "Hombro", exercises: [{ name: "Rotación externa", dose: "3×15" }] } });
     await prisma.prehabLog.create({ data: { userId: from, routineId: pr.id, date: new Date("2026-10-01") } });
+    // v1.8
+    await prisma.weeklyReview.create({ data: { userId: from, weekStart: new Date("2026-09-28"), summary: { sessions: 1 }, focus: "Dormir" } });
+    const habit = await prisma.habit.findFirstOrThrow({ where: { userId: from } });
+    await prisma.goal.create({ data: { userId: from, kind: "HABIT", title: "Racha", target: 30, linkRef: habit.id } });
+    await prisma.goal.create({ data: { userId: from, kind: "CUSTOM", title: "Libros", target: 12, current: 4 } });
   });
 
   afterAll(async () => {
@@ -57,6 +62,11 @@ describe.skipIf(!HAS_DB)("restaurar una exportación (BD real)", () => {
     // v1.7
     expect(r.counts).toMatchObject({ "plan de comidas": 1, "tomas de suplementos": 1, "pruebas de sudoración": 1, "trabajos y entregas": 1, "presupuestos de temporada": 1, bienestar: 1 });
     expect(s.tags).toEqual(["bloqueo"]);
+    // v1.8: revisión y objetivos (el de racha, enlazado al hábito nuevo)
+    expect(r.counts).toMatchObject({ "revisiones semanales": 1, objetivos: 2 });
+    const newHabit = await prisma.habit.findFirstOrThrow({ where: { userId: to } });
+    expect(await prisma.goal.findFirstOrThrow({ where: { userId: to, kind: "HABIT" } })).toMatchObject({ linkRef: newHabit.id });
+    expect(data.app.notifications).toBeDefined();
     const [plan, recipe, supp] = await Promise.all([prisma.mealPlanEntry.findFirstOrThrow({ where: { userId: to } }), prisma.recipe.findFirstOrThrow({ where: { userId: to } }), prisma.supplement.findFirstOrThrow({ where: { userId: to }, include: { logs: true } })]);
     expect(plan.recipeId).toBe(recipe.id);
     expect(supp).toMatchObject({ days: [1, 3, 5], logs: [expect.objectContaining({ supplementId: supp.id })] });

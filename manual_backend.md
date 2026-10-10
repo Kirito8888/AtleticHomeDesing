@@ -646,7 +646,17 @@ Todas las rutas requieren sesión, salvo `/api/auth/*`, `/api/health` y las dos 
 | `/api/account/sessions` | DELETE | Cerrar sesión en todos los dispositivos |
 | `/api/account/ai-consent` | GET, PUT | `{enabled}` |
 | `/api/account/export` | GET | JSON con todos los datos del usuario |
-| `/api/export/training` · `/api/export/finance` | GET | CSV |
+| `/api/export/training` · `/api/export/finance` · `/api/export/recovery` · `/api/export/nutrition` · `/api/export/study` | GET | CSV (v1.8: recuperación sin notas, comidas, estudio y notas) |
+| `/api/goals` · `/api/goals/[id]` | GET, POST · PATCH, DELETE | v1.8 · Objetivos con progreso calculado (`MARK`, `TEST`, `HABIT`, `BUDGET`, `CUSTOM`) |
+| `/api/review` | GET, PUT | v1.8 · Revisión semanal (resumen + `{weekStart, wentWell, change, focus}`) |
+| `/api/notifications` · `/api/push/snooze` | GET, POST · POST | v1.8 · Bandeja (POST = todas leídas) · `{id, minutes=60}` |
+| `/api/trash` · `/api/trash/[id]/restore` | GET · POST | v1.8 · Papelera de 7 días |
+| `/api/study/mock-exam` | POST, PUT | v1.8 · `{deckId, count}` → tarjetas al azar · `{deckId, failed}` → vuelven al repaso |
+| `/api/finance/transactions/[id]/category` · `/api/finance/category-rules[/id]` | PUT · GET, DELETE | v1.8 · `{categoryId, similar}` aprende la regla |
+| `/api/training/templates/[id]` · `/[id]/copy` | PATCH · POST | v1.8 · La entrenadora comparte `{shared}` · el atleta copia |
+| `/api/planning/events/[id]` | PATCH, DELETE | v1.8 · PATCH `{lat, lon}` del lugar |
+| `/api/usage` · `/api/csp-report` | POST | v1.8 · Uso local (beacon) · informes de la CSP (público, limitado) |
+| `/api/admin/integrity` | POST | v1.8 · Revisión de integridad (ADMIN con segundo factor) |
 | `/api/auth/[...nextauth]` | GET, POST | Auth.js (csrf, callback/credentials, session, signout) |
 | `/api/profile` | GET, PATCH | Perfil del atleta; cambiar CTL/ATL recalcula la PMC |
 | `/api/coach/links` | GET, POST | El coach invita por email |
@@ -753,6 +763,10 @@ npm run lint
 npm run e2e          # recorrido de la UI en Chromium (app con ALLOW_REGISTRATION=true; BASE_URL)
 npm run e2e:plan     # importar un plan sintético en 390 px: vista previa, versiones, plan del día y anexos
                      #   (PLAN_ZIP=ruta prueba tu propio zip en local; nunca lo subas al repositorio)
+npm run e2e:v18      # v1.8 en 390 px: axe en las páginas clave, módulos, letra y contraste, uso local, CSP,
+                     #   administración con segundo factor, primer uso, papelera, notificaciones, compartir,
+                     #   objetivos, revisión, examen simulado, mi semana, temporada, reglas de categoría y CSV
+npm run budget       # presupuesto de JS por página (gzip, 380 KB) tras el build
 npm run e2e:v14      # v1.4 en 390 px (con LIFEOS_FAKE_AI=1): crear plan con IA, ciclo, RM y kg, registrar desde
                      #   el plan, control rápido y avisos, competición, .ics, semana, sensaciones, búsqueda,
                      #   sin conexión, hidratos, gastos deportivos e informe para la entrenadora

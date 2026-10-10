@@ -12,7 +12,7 @@ import { useEffect } from "react";
 export function PurgePrivateCache() {
   useEffect(() => {
     if (!("caches" in window)) return;
-    void (async () => {
+    const purge = async () => {
       try {
         for (const name of await caches.keys()) {
           if (!name.endsWith("-pages")) continue;
@@ -26,7 +26,10 @@ export function PurgePrivateCache() {
       } catch {
         // Sin acceso a Cache Storage (modo privado): no hay nada que borrar.
       }
-    })();
+    };
+    // El service worker guarda la página en segundo plano: una escritura puede llegar justo
+    // después de la primera pasada, así que se repite una vez.
+    void purge().then(() => new Promise((r) => setTimeout(r, 500))).then(purge);
   }, []);
   return null;
 }

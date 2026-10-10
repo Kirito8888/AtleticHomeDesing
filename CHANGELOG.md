@@ -2,6 +2,56 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v1.8 — calidad, experiencia de uso y 12 funcionalidades nuevas (10/10/2026)
+
+**Regla de diseño de siempre:** nada toca tu planificación sin confirmar y la salud no sale de tu cuenta. Lo nuevo de esta versión no lee salud cifrada (el informe de temporada, «Mi semana» y los CSV tampoco).
+
+**Calidad, seguridad y operación**
+- **Accesibilidad WCAG 2.1 AA:** axe revisa las páginas principales en la CI (0 fallos serios). Sube el contraste del texto secundario y de los avisos emergentes.
+- **Menos JavaScript:** las gráficas cargan en diferido. La página más pesada baja de ~435 a ~330 KB (gzip) y la CI falla si alguna pasa de 380 KB.
+- **Uso local** (Ajustes → Lo que más y menos usas): contador semanal de páginas, solo en tu servidor y desactivable.
+- **Ocultar módulos** (Ajustes → Módulos): desaparecen del menú y del panel sin borrar nada.
+- **Estado del servidor:**
+  - versión del código y aviso de **versión nueva disponible** en GitHub;
+  - **errores recientes** del servidor e informes de la CSP (sin datos personales, 30 días);
+  - **revisión de integridad**: ficheros sin registro, sesiones sin TSS y carga desfasada.
+- **Aviso a la administración** si la última copia de seguridad falló o tiene más de 36 h. Sustituye a la «prueba de restauración mensual» del plan: `backup.sh` ya restaura y comprueba **cada** copia.
+- **El límite de intentos** de login, llave, registro y contraseña vive en la base de datos: sobrevive a los reinicios.
+- **La administración exige 2FA o una llave de acceso** además del rol ADMIN.
+- Módulos `v17-*` renombrados por dominio (sin cambios de lógica).
+
+**Experiencia de uso**
+- **Primer uso guiado** (`/welcome`, 3 pasos): qué módulos usas, tu perfil y horas de silencio. El panel te lo ofrece mientras no lo hagas.
+- **Centro de notificaciones** con campana y no leídas. Todo aviso queda ahí aunque no tengas el push activado.
+- **Horas de silencio:** sin push en esa franja, salvo seguridad y «entreno sola».
+- **Papelera de 7 días** para sesiones, comidas y movimientos: «Deshacer» en el aviso y Ajustes → Papelera.
+- **Compartir con LifeOS** desde otras apps (con la app instalada; Android/Chrome). Según el fichero:
+  - `.ics` o CSV → importar competiciones;
+  - PDF o zip → importar el plan;
+  - extracto → finanzas;
+  - apuntes → estudio;
+  - foto → molestia o justificante.
+- **Búsqueda** ampliada: etiquetas del diario técnico, competiciones, rutinas, trabajos y recetas.
+- **Tamaño de letra y contraste alto** (Ajustes → Accesibilidad).
+
+**Funcionalidades nuevas**
+- **Revisión semanal** (domingo, con aviso desactivable): resumen y tres preguntas. El foco elegido sale en el panel toda la semana.
+- **Objetivos** con progreso automático (mejor marca, último test, racha de un hábito o gasto del mes) o a mano.
+- **Informe de temporada** imprimible: marcas, carga por mes, competiciones, molestias y balance deportivo.
+- **Viaje de competición:** lugar del estadio y pronóstico del día (Open-Meteo, 16 días antes) con consejos para la bolsa.
+- **Examen simulado** con tus flashcards: tiempo, autoevaluación y las falladas vuelven al repaso.
+- **Reglas de categoría aprendidas:** «aplicar a los parecidos» categoriza ya los movimientos iguales y los de las próximas importaciones.
+- **Fondo de emergencia:** meses de gastos cubiertos, objetivo configurable y proyección a 12 meses.
+- **Biblioteca de la entrenadora:** comparte plantillas y el atleta las copia (con sus ejercicios).
+- **CSV** de recuperación, comidas y estudio (además de entrenos y finanzas).
+- **Comparar una rutina con una cuenta demo** (solo administración).
+- **«Recordar en 1 h»** en las notificaciones.
+- **Mi semana:** entreno, clases, exámenes, estudio, entregas, citas y competiciones en una vista.
+
+**Datos**
+- Migración aditiva `v1_8_features`, probada sobre una copia v1.7 con datos (idénticos antes y después).
+- Exportación con revisiones, objetivos, reglas, bandeja, uso y papelera. Se restauran revisiones y objetivos; los de gasto no, porque las finanzas no se restauran.
+
 ## v1.7 — seguridad, privacidad (RGPD/LOPDGDD), menos recursos y 30 funcionalidades (10/10/2026)
 
 **Regla de diseño de toda la versión: nada toca tu planificación sin que lo confirmes, y la salud no sale de tu cuenta.** Las rutinas del cuestionario quedan como **borrador**. Todo lo de salud nuevo (bienestar, escalas, fotos, anticoncepción, menopausia) va **cifrado**: nunca va a la IA, la entrenadora no lo ve y no sale en el `.ics` ni en los informes compartidos (solo en los que tú creas para tu médica o fisio). Entra en la exportación y en el borrado.

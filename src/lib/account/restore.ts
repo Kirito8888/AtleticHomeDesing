@@ -176,12 +176,45 @@ export async function restoreExport(userId: string, data: unknown) {
       }
     }
   }
-  // Hábitos con sus días
+  // Hábitos con sus días (se guarda el id nuevo para los objetivos de racha, v1.8)
+  const habitMap = new Map<string, string>();
   for (const h of arr(get(data, "study", "habits"))) {
     const habit = await prisma.habit.create({ data: { userId, name: String(h.name), archived: Boolean(h.archived) } });
+    habitMap.set(String(h.id), habit.id);
     const dates = arr(h.logs).flatMap((l) => (day(l.date) ? [dateOnly(day(l.date)!)] : []));
     if (dates.length) await prisma.habitLog.createMany({ data: dates.map((date) => ({ userId, habitId: habit.id, date })), skipDuplicates: true });
     add("hábitos");
+  }
+
+  // v1.8 · Revisiones semanales y objetivos. Los de gasto apuntan a categorías de finanzas, que no se restauran.
+  for (const r of arr(get(data, "goals", "weeklyReviews"))) {
+    try {
+      await prisma.weeklyReview.create({ data: { ...pick(r, Prisma.WeeklyReviewScalarFieldEnum), userId } as never });
+      add("revisiones semanales");
+    } catch {
+      skipped.push("revisiones semanales");
+    }
+  }
+  for (const g of arr(get(data, "goals", "goals"))) {
+    const row = { ...pick(g, Prisma.GoalScalarFieldEnum), userId } as Row;
+    if (row.kind === "BUDGET") {
+      skipped.push("objetivos de gasto");
+      continue;
+    }
+    if (row.kind === "HABIT") {
+      const habitId = habitMap.get(String(row.linkRef));
+      if (!habitId) {
+        skipped.push("objetivos de racha");
+        continue;
+      }
+      row.linkRef = habitId;
+    }
+    try {
+      await prisma.goal.create({ data: row as never });
+      add("objetivos");
+    } catch {
+      skipped.push("objetivos");
+    }
   }
 
   // Ciclo y salud de la mujer: venían descifrados; se cifran con la clave de este servidor

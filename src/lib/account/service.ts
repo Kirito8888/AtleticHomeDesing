@@ -196,6 +196,15 @@ export async function exportAccount(userId: string) {
     prisma.receipt.findMany({ where, select: { id: true, transactionId: true, mime: true, createdAt: true } }),
     prisma.subscriptionPriceChange.findMany({ where: { subscription: { userId } }, orderBy: { on: "asc" } }),
   ]);
+  // v1.8: revisiones, objetivos, reglas de categoría, bandeja de avisos, uso local y papelera
+  const [weeklyReviews, goals, categoryRules, inbox, pageUsage, trash] = await Promise.all([
+    prisma.weeklyReview.findMany({ where, orderBy: { weekStart: "asc" }, omit: { userId: true } }),
+    prisma.goal.findMany({ where, orderBy: { createdAt: "asc" }, omit: { userId: true } }),
+    prisma.categoryRule.findMany({ where, select: { pattern: true, createdAt: true, category: { select: { name: true } } } }),
+    prisma.notificationLog.findMany({ where: { userId, title: { not: null } }, orderBy: { sentAt: "asc" }, select: { title: true, body: true, url: true, sentAt: true, readAt: true } }),
+    prisma.pageUsage.findMany({ where, orderBy: [{ week: "asc" }, { path: "asc" }], select: { path: true, week: true, count: true } }),
+    prisma.trashItem.findMany({ where, orderBy: { deletedAt: "asc" }, select: { kind: true, label: true, data: true, deletedAt: true } }),
+  ]);
   // Lo cifrado (nota y ubicación de «entreno sola») se entrega descifrado a su dueña, o se omite sin clave
   const safetyTripsOut = safetyTrips.map(({ data, ...t }) => ({ ...t, details: data && dataKeyConfigured() ? openJson(data) : null }));
   const safetyContactsOut = safetyContacts.map((c) => ({ status: c.status, createdAt: c.createdAt, role: c.userId === userId ? "MY_CONTACT" : "I_AM_CONTACT", person: c.userId === userId ? c.contact : c.owner }));
@@ -232,13 +241,27 @@ export async function exportAccount(userId: string) {
       supplementLogs: supplementLogs.map((l) => ({ supplementId: l.supplementId, supplement: l.supplement.name, date: l.date })),
     },
     planning: { calendarEvents, tasks, importedPlan: planMesos },
-    finance: { accounts: financialAccounts, categories: financialCategories, transactions, budgets, subscriptions, trips, deadlines, seasonBudgets, receipts, priceChanges },
+    finance: {
+      accounts: financialAccounts,
+      categories: financialCategories,
+      transactions,
+      budgets,
+      subscriptions,
+      trips,
+      deadlines,
+      seasonBudgets,
+      receipts,
+      priceChanges,
+      categoryRules: categoryRules.map((r) => ({ pattern: r.pattern, category: r.category.name, createdAt: r.createdAt })),
+    },
     nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration, recipes, shopping, mealPlan: mealPlan.map(({ recipe, ...m }) => ({ ...m, recipeName: recipe.name })), sweatTests },
     study: { documents: studyDocuments, chatThreads, flashcardDecks, classSlots, sessions: studySessions, habits, planBlocks: studyPlanBlocks, grades, assignments },
     coach: { reports: coachReports, links: coachLinks, sharedReports },
     calendarFeeds,
     security: { events: securityEvents, passkeys },
     privacy: { consents, requests: privacyRequests },
+    goals: { goals, weeklyReviews },
+    app: { notifications: inbox, pageUsage, trash },
   };
 }
 

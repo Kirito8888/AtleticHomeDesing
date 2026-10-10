@@ -133,7 +133,9 @@ await b.waitForFunction(async () => Boolean(await caches.match("/finance")), nul
   await a.waitForURL(/\/login/);
   await go(b, "/training");
   if (!/\/login/.test(b.url())) fail("la otra sesión sigue abierta tras cambiar la contraseña");
-  await b.waitForFunction(async () => !(await caches.match("/finance")), null, { timeout: 10000 }).catch(() => {});
+  // Sondeo propio: un waitForFunction se rompe si la página navega (redirección al login) y antes
+  // se ocultaba con catch, con lo que la comprobación podía adelantarse a la purga
+  for (let t = 0; t < 40 && (await cachedPage(b, "/finance").catch(() => true)); t++) await b.waitForTimeout(250);
   if (await cachedPage(b, "/finance")) fail("la caché del service worker conserva /finance tras revocar la sesión");
   if (!(await cachedPage(b, "/offline"))) fail("se borró también la página /offline");
   await login(a, email, password);
