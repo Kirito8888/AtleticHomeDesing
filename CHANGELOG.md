@@ -2,6 +2,148 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v1.7 — seguridad, privacidad (RGPD/LOPDGDD), menos recursos y 30 funcionalidades (10/10/2026)
+
+**Regla de diseño de toda la versión: nada toca tu planificación sin que lo confirmes, y la salud no sale de tu cuenta.** Las rutinas del cuestionario quedan como **borrador**. Todo lo de salud nuevo (bienestar, escalas, fotos, anticoncepción, menopausia) va **cifrado**: nunca va a la IA, la entrenadora no lo ve y no sale en el `.ics` ni en los informes compartidos (solo en los que tú creas para tu médica o fisio). Entra en la exportación y en el borrado.
+
+**Operación y menos recursos**
+- `update.sh` construye la imagen nueva **antes** de parar nada (si el build falla, no cambia nada).
+- `update.sh` borra los contenedores `web` huérfanos que causaron el «Conflict» de la v1.6 y reintenta una vez.
+- `update.sh` aplica la configuración nueva de la base de datos y actualiza el servicio de copias si está en marcha.
+- **Límites de memoria y CPU** configurables:
+  - `web`: 1 GB y heap de Node de 640 MB;
+  - `db`: 768 MB;
+  - `backup`: 256 MB.
+- Postgres ajustado para un servidor pequeño: `shared_buffers` 128 MB, `max_connections` 30, autovacuum cada 5 min y registro de consultas lentas.
+- La app abre como mucho 5 conexiones a la base de datos (`DB_POOL_MAX`).
+- **Contenedor web endurecido:**
+  - sistema de ficheros de solo lectura (con `/tmp` y la caché de Next en memoria);
+  - sin capacidades (`cap_drop: ALL`) y `no-new-privileges`;
+  - imagen sin npm ni yarn.
+- La imagen pesa menos: no lleva el código fuente.
+- Imágenes fijadas por versión: Postgres + pgvector 0.8.7 y pgAdmin 9.18.
+- Cabeceras de seguridad nuevas: CORP, Origin-Agent-Cluster, X-Permitted-Cross-Domain-Policies y sin `X-Powered-By`.
+
+**Seguridad**
+- **Llaves de acceso (passkeys):** entra con la huella o la cara del móvil (Ajustes → Llaves de acceso). Requieren HTTPS y `AUTH_URL` con tu dominio.
+- **Contraseñas con Argon2id.** Las antiguas (scrypt) se convierten solas la próxima vez que entres.
+- **Registro de actividad encadenado:** cada evento lleva la huella del anterior. Si alguien lo toca en la base de datos, Ajustes lo dice.
+- **Avisos push** de eventos sensibles: cuenta bloqueada, contraseña, email o 2FA cambiados, llave añadida o quitada, datos descargados, enlace compartido creado y sesiones cerradas.
+- **Rotación de claves de cifrado** sin perder datos:
+  - variables `*_PREVIOUS`;
+  - botón «Volver a cifrar» en Estado del servidor.
+- **Copias de seguridad:**
+  - mensuales que se guardan `BACKUP_KEEP_MONTHS` meses;
+  - copia opcional a otra máquina por SSH (`BACKUP_REMOTE`).
+- **CI:**
+  - Trivy analiza la imagen (falla con vulnerabilidades altas o críticas que tengan arreglo);
+  - lista de componentes (SBOM CycloneDX).
+- **Plan de respuesta a incidentes** con plantilla de notificación a la AEPD en 72 h: `docs/seguridad-incidentes.md`.
+
+**Privacidad (RGPD y LOPDGDD)**
+- **Consentimientos con versión e historial** (IA, salud, entrenadora y contacto de seguridad). El de IA explica la transferencia internacional (Google).
+- **Mis derechos** (Ajustes → Privacidad):
+  - acceso y portabilidad (exportación);
+  - rectificación;
+  - supresión;
+  - oposición;
+  - **limitación del tratamiento**: corta la IA, el acceso de la entrenadora y los enlaces compartidos hasta que la levantes.
+- Cada solicitud queda registrada.
+- **Plazos de conservación** con borrado automático: registro de actividad, «entreno sola», notificaciones, enlaces caducados y cuentas demo. Se cambian con `RETENTION_*_DAYS`.
+- **Páginas públicas** `/legal/privacidad` y `/legal/aviso`, rellenas con tus datos desde variables (`LEGAL_*`). Solo cookies técnicas.
+- **Plantillas** en `docs/rgpd/`: registro de actividades, EIPD y contrato de encargado. Solo hacen falta si otras personas usan tu servidor.
+
+**1 · Creador de rutinas con cuestionario** (Entreno → Crear mi rutina)
+- **El cuestionario** recoge quién eres, tu salud (estilo PAR-Q), tests sencillos, objetivos a corto y largo plazo y tu horario.
+- **El perfil** sale con su porqué.
+- **La rutina se genera sin IA y queda en borrador**, para revisarla y activarla.
+- **Bloqueos de prudencia:**
+  - si marcas algo en salud, pide antes el visto bueno de un profesional;
+  - con embarazo o posparto no se genera.
+- **Gráfica de progreso proyectado** por test:
+  - línea esperada y franja prudente–optimista;
+  - tus retests encima.
+- La gráfica es una **estimación** con rendimientos decrecientes, no una promesa.
+
+**Entreno y competición (2–8)**
+- Diario técnico con etiquetas y búsqueda.
+- Importar calendario de competiciones desde `.ics` o CSV, sin duplicar.
+- Simulador de los 6 intentos (a qué hora te toca cada uno).
+- Calentamientos de pruebas combinadas según el hueco entre pruebas.
+- Lanzamientos por implemento y semana.
+- Comparador de dos sesiones.
+- Récords por temporada y categoría RFEA.
+
+**Salud (9–17)**
+- Diario de sueño: horas, latencia, despertares, cafeína que queda al acostarte e higiene, con consejos.
+- **Escalas:** EVA, QuickDASH y una adaptación del VISA-A para el Aquiles. Sirven para ver la tendencia, no para diagnosticar.
+- Movilidad sugerida según la fatiga por zona de tu última sesión.
+- **Fotos de lesión:**
+  - el navegador las reescala y les quita el EXIF;
+  - se guardan cifradas en disco y no se cachean;
+  - se borran con la molestia.
+- Respiración guiada: caja, 4-7-8, coherencia y activación.
+- **Ánimo y estrés** con tendencia. Si el ánimo sigue bajo, recomienda hablarlo y da la línea 024.
+- **Anticoncepción:** cómo cambia la lectura del ciclo.
+- **Peri y posmenopausia:** pautas y registro de síntomas.
+- **Informe anual de salud:** enlace temporal con 12 meses mes a mes.
+
+**Nutrición y estudio (18–24)**
+- **Plan semanal de comidas** con tus recetas. Los ingredientes pasan a la lista de la compra escalados a las raciones.
+- **Escáner en el súper:** tacha lo que escaneas o lo añade, con el Nutri-Score.
+- **Calendario de suplementos sin dosis:**
+  - qué días toca y si lo tomaste;
+  - cumplimiento de la semana.
+- **Tasa de sudoración:** cuánto pierdes por hora y cuánto beber para no pasar del 2 %.
+- **Tarjetas de repaso a mano** (sin IA, mismo SM-2). Se pueden pegar varias como «pregunta | respuesta».
+- **Trabajos y entregas** con avisos y nota media ponderada.
+- **Concentración por franja horaria:** cuándo te rinden más los pomodoros.
+
+**Finanzas y plataforma (25–30)**
+- **Presupuesto de la temporada** por conceptos, con previsión. Toma la mayor de dos:
+  - el ritmo actual;
+  - el calendario: competiciones que quedan × coste medio.
+- **Justificantes** (PDF o foto) en cada gasto:
+  - se comprueba la firma real del fichero;
+  - se guardan cifrados;
+  - entran en la rotación de claves.
+- **Subidas de precio de suscripciones:**
+  - se detectan en los cargos o al cambiar el importe;
+  - aviso en Finanzas y en el resumen diario.
+- **Sin conexión:** agua, hábitos y comidas también pasan por la bandeja. Los hábitos no se invierten si se reenvían.
+- **«De un vistazo»** (`/glance`): el día en una lista ligera, sin gráficas.
+- **Cuentas de demostración por tipo de público** (solo administración): principiante, corredora, persona mayor, posparto y lanzador.
+  - datos inventados y correo `.invalid` que no existe;
+  - contraseña mostrada una vez;
+  - **se borran solas a los 30 días**.
+
+**Exportar y restaurar:**
+- **La exportación incluye todo lo nuevo:**
+  - llaves (solo el nombre);
+  - consentimientos;
+  - rutinas;
+  - bienestar descifrado;
+  - metadatos de fotos y justificantes;
+  - plan de comidas;
+  - tomas;
+  - sudoración;
+  - trabajos;
+  - presupuesto;
+  - cambios de precio.
+- **La restauración recupera:**
+  - etiquetas;
+  - tomas;
+  - plan de comidas;
+  - sudoración;
+  - trabajos;
+  - presupuesto;
+  - bienestar (cifrado otra vez con la clave del servidor).
+
+**Lo que no se ha hecho y por qué:**
+- **Análisis de vídeo:** lo descartaste.
+- **Caché del panel en memoria:** con una sola persona, el riesgo de ver datos viejos pesa más que el ahorro.
+- **ENS y NIS2:** no te obligan. Se han usado como buenas prácticas, sin afirmar que se cumplen.
+
 ## v1.6 — 36 funcionalidades: mujeres, fuerza autorregulada, plan inteligente, jabalina, salud, cocina, estudio y viajes (9/10/2026)
 
 **Regla de diseño de toda la versión: nada toca tu planificación sin que lo confirmes.** Los kg del día, el afinamiento y la recolocación son **sugerencias** junto al plan; solo se aplican con «Usar» o «Aplicar». El afinamiento se guarda aparte (`PlanDay.taperPct`), se aplica al mostrar el día y se quita con un botón: el contenido del día queda intacto (lo comprueba un test de integración).

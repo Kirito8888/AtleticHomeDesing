@@ -191,6 +191,10 @@ jobs:
           test "$(docker inspect -f '{{.HostConfig.Memory}}' "$id")" != "0"
           docker inspect -f '{{.HostConfig.CapDrop}}' "$id" | grep -qi all
           curl -sI http://127.0.0.1:3000/login | grep -qi "cross-origin-resource-policy: same-origin"
+          # La BD recibe su configuración (límite de memoria y ajustes de Postgres) desde update.sh
+          db=$(docker compose --env-file .env.production ps -q db)
+          test "$(docker inspect -f '{{.HostConfig.Memory}}' "$db")" != "0"
+          test "$(docker compose --env-file .env.production exec -T db psql -U lifeos -d lifeos -tAc 'show max_connections')" = "30"
           if LIFEOS_SIMULATE_UNHEALTHY=1 UPDATE_HEALTH_TIMEOUT=30 ./scripts/update.sh --no-pull; then
             echo "la vuelta atrás debía terminar con error"; exit 1
           fi

@@ -108,18 +108,18 @@ Reimportar respeta lo ya hecho. Detalle en `manual_backend.md` § 3.1b.
 
 | Ruta | Contenido |
 |---|---|
-| `src/lib/training/` | Motor de carga, importar del reloj, plantillas, temporizador, tabla de RM y %RM → kg, registrar desde el plan, 3 mejores por implemento; v1.6: kg del día (`autoreg.ts`), análisis de jabalina, temporadas, prehab y fatiga por zona |
+| `src/lib/training/` | Motor de carga, importar del reloj, plantillas, temporizador, tabla de RM y %RM → kg, registrar desde el plan, 3 mejores por implemento; v1.6: kg del día (`autoreg.ts`), análisis de jabalina, temporadas, prehab y fatiga por zona; v1.7: diario técnico, comparador, simulador de intentos, combinadas, récords por categoría e importar calendario (`v17-training.ts`) |
 | `src/lib/planning/` | Agenda del calendario, `plan-import/` (lector de PDF, versiones, servicio), cumplimiento, competición y calendario .ics; v1.6: afinamiento, recolocar y semanas tipo (sugerencias que no tocan el plan sin confirmar) |
-| `src/lib/ai-plan/` | Crear planificación con IA: cuestionario, prompt, validación, expansión a días, ajustes y seguimiento |
+| `src/lib/ai-plan/` · `src/lib/routine/` | Crear planificación con IA: cuestionario, prompt, validación, expansión a días, ajustes y seguimiento · v1.7: rutina del cuestionario sin IA (perfil, PAR-Q, generador y proyección de progreso) |
 | `src/lib/rules/` | «Mis reglas»: preferencias y motor de avisos (control rápido, peso, VFC, lanzamientos, vídeo, sensaciones) y semáforo del día |
-| `src/lib/health/` | Ciclo menstrual y salud de la mujer (cifrado), patrón y predicción aprendida, salud ósea, enlaces para médica y fisio, «entreno sola» |
+| `src/lib/health/` | Ciclo menstrual y salud de la mujer (cifrado), patrón y predicción aprendida, salud ósea, anticoncepción y menopausia, enlaces para médica, fisio e informe anual, «entreno sola» |
 | `src/lib/report/` | Informe de solo lectura para la entrenadora |
-| `src/lib/finance/` | Contabilidad, presupuestos, importar extractos, viajes de competición y plazos |
+| `src/lib/finance/` | Contabilidad, presupuestos, importar extractos, viajes de competición y plazos; v1.7: presupuesto de temporada, justificantes y subidas de precio |
 | `src/lib/ai/` | Gemini, RAG, flashcards, coach semanal |
-| `src/lib/security/` · `src/lib/auth/` | 2FA, auditoría, cifrado, CSP · sesión y permisos del coach |
+| `src/lib/security/` · `src/lib/auth/` · `src/lib/privacy/` · `src/lib/files/` | 2FA, auditoría encadenada, cifrado y rotación de claves, CSP · sesión, permisos del coach, Argon2id y llaves de acceso · consentimientos, derechos, limitación y conservación · ficheros cifrados (fotos y justificantes) |
 | `src/lib/push/` · `src/lib/jobs/` · `src/lib/scheduler.ts` | Notificaciones · cola · tareas programadas |
 | `prisma/` | Esquema, migraciones, seed y `scripts/user-admin.ts` |
 | `deploy/` · `scripts/update.sh` | Copias, fail2ban · actualizar con vuelta atrás |
-| `src/lib/recovery/` · `src/lib/nutrition/` · `src/lib/study/` | Readiness, importaciones (CSV, Apple Health), antropometría, citas y suplementos · OpenFoodFacts, agua, cocina (recetas, compra, comida de competición) · horario, pomodoro, hábitos, plan hasta el examen y notas |
-| `src/lib/offline/` · `src/lib/account/` | Bandeja sin conexión (IndexedDB) · exportar, restaurar y borrar la cuenta |
-| `e2e/` | Recorridos en Chromium: uso diario, seguridad, importar el plan, v1.4, v1.5 y v1.6 |
+| `src/lib/recovery/` · `src/lib/nutrition/` · `src/lib/study/` | Readiness, importaciones (CSV, Apple Health), antropometría, citas y suplementos, bienestar y fotos de lesión · OpenFoodFacts, agua, cocina (recetas, compra, comida de competición, plan semanal), sudoración y calendario de suplementos · horario, pomodoro, hábitos, plan hasta el examen, notas, tarjetas a mano, trabajos y franjas |
+| `src/lib/offline/` · `src/lib/account/` · `src/lib/demo/` | Bandeja sin conexión (IndexedDB: sesiones, agua, hábitos y comidas) · exportar, restaurar y borrar la cuenta · cuentas demo con datos sintéticos |
+| `e2e/` | Recorridos en Chromium: uso diario, seguridad, importar el plan, v1.4, v1.5, v1.6 y v1.7 |
