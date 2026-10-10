@@ -15,12 +15,12 @@ import { ApiError } from "@/lib/api";
  */
 export async function generateJson<T extends z.ZodType>(
   schema: T,
-  params: { userId: string; system: string; prompt: string; temperature?: number },
+  params: { userId: string; system: string; prompt: string; temperature?: number; images?: ChatTurn["images"] },
 ): Promise<{ data: z.infer<T>; model: string }> {
   const ai = await aiFor(params.userId);
   const { $schema: _ignored, ...jsonSchema } = z.toJSONSchema(schema) as Record<string, unknown>;
   void _ignored;
-  const res = await ai.text({ system: params.system, messages: [{ role: "user", text: params.prompt }], temperature: params.temperature ?? 0.4, json: jsonSchema });
+  const res = await ai.text({ system: params.system, messages: [{ role: "user", text: params.prompt, images: params.images }], temperature: params.temperature ?? 0.4, json: jsonSchema });
   let parsed: unknown;
   try {
     parsed = extractJson(res.text);
