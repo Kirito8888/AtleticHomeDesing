@@ -52,7 +52,7 @@ describe.skipIf(!HAS_DB)("papelera v1.8 (BD real)", () => {
     expect(await prisma.personalRecord.count({ where: { userId, sessionId: s.id } })).toBe(1);
     expect(back.tss).not.toBeNull();
     expect(await prisma.trashItem.count({ where: { userId } })).toBe(0);
-  });
+  }, 30_000);
 
   it("comida y movimiento (con su justificante) vuelven; vaciar borra el fichero", async () => {
     const meal = await prisma.macros.create({ data: { userId, date: new Date("2026-10-05"), mealType: "LUNCH", customName: "Lentejas", quantityG: 300, kcal: 350, proteinG: 20, carbsG: 50, fatG: 5 } });

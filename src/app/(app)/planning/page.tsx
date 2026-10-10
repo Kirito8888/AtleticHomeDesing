@@ -89,6 +89,9 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
     <>
       <PageHeader title="Planificación" description="Periodización, eventos y tareas" action={
           <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/planning/week-all">Mi semana</Link>
+            </Button>
             <PlanImportSheet />
             <AddPlanningSheet cycles={allCycles} defaultDate={todayIso} />
           </div>

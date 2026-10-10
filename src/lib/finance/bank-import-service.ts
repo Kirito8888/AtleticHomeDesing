@@ -12,6 +12,7 @@ import {
 import { movementHashes } from "@/lib/finance/bank-import-hash";
 import { createTransaction } from "@/lib/finance/service";
 import { prisma } from "@/lib/prisma";
+import { loadRules, ruleCategory } from "@/lib/finance/category-rules-service";
 
 export const MAX_STATEMENT_BYTES = 5 * 1024 * 1024;
 
@@ -73,6 +74,8 @@ export async function importStatement(userId: string, accountId: string, text: s
   const r = parse(text, mapping);
   if (r.errors.some((e) => e.line === 0)) throw new ApiError(422, r.errors.find((e) => e.line === 0)!.message);
   const hashes = movementHashes(r.movements, accountId);
+  // v1.8 · reglas aprendidas («aplicar a los parecidos»)
+  const rules = await loadRules(userId);
   let created = 0;
   let skipped = 0;
   for (let i = 0; i < r.movements.length; i++) {
@@ -88,6 +91,7 @@ export async function importStatement(userId: string, accountId: string, text: s
           payee: m.payee,
           amountCents: Math.abs(m.amountCents),
           moneyAccountId: accountId,
+          categoryId: ruleCategory(rules, `${m.description} ${m.payee ?? ""}`, m.amountCents < 0 ? "EXPENSE" : "INCOME"),
         },
         { importHash: hashes[i] },
       );

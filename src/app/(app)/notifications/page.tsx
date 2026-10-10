@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { MarkAllRead } from "@/components/layout/mark-read";
+import { MarkAllRead, SnoozeButton } from "@/components/layout/mark-read";
 import { PageHeader } from "@/components/page-header";
 import { pageUser } from "@/lib/auth/page";
 import { listInbox } from "@/lib/push/inbox";
@@ -28,11 +28,14 @@ export default async function NotificationsPage() {
                 <span className="shrink-0 text-xs text-muted-foreground">{when(n.sentAt)}</span>
               </div>
               {n.body ? <p className="text-muted-foreground">{n.body}</p> : null}
-              {n.url ? (
-                <Link href={n.url} className="text-xs font-medium underline underline-offset-2">
-                  Abrir
-                </Link>
-              ) : null}
+              <div className="mt-1 flex gap-3">
+                {n.url ? (
+                  <Link href={n.url} className="text-xs font-medium underline underline-offset-2">
+                    Abrir
+                  </Link>
+                ) : null}
+                <SnoozeButton id={n.id} until={n.snoozeUntil?.toISOString() ?? null} />
+              </div>
             </li>
           ))}
         </ul>

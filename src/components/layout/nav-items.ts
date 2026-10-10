@@ -1,4 +1,4 @@
-import { Activity, Apple, Brain, CalendarDays, HeartPulse, LayoutDashboard, Settings, Wallet } from "lucide-react";
+import { Activity, Apple, Brain, CalendarDays, HeartPulse, LayoutDashboard, Settings, Target, Wallet } from "lucide-react";
 
 /** `module`: lo que se puede ocultar en Ajustes → Módulos (v1.8). Inicio y Ajustes siempre están. */
 export const NAV_ITEMS = [
@@ -9,6 +9,7 @@ export const NAV_ITEMS = [
   { href: "/nutrition", label: "Nutrición", icon: Apple, mobile: true, module: "nutrition" },
   { href: "/finance", label: "Finanzas", icon: Wallet, mobile: false, module: "finance" },
   { href: "/study", label: "Astras AI", icon: Brain, mobile: true, module: "study" },
+  { href: "/goals", label: "Objetivos", icon: Target, mobile: false, module: null },
   { href: "/settings", label: "Ajustes", icon: Settings, mobile: false, module: null },
 ] as const;
 

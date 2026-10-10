@@ -35,7 +35,15 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
 
   return (
     <>
-      <PageHeader title="Rendimiento" description="Performance Management Chart y recuperación" />
+      <PageHeader
+        title="Rendimiento"
+        description="Performance Management Chart y recuperación"
+        action={
+          <Link href={`/print/season?year=${today().getUTCFullYear()}`} className="text-sm font-medium underline underline-offset-4">
+            Informe de temporada
+          </Link>
+        }
+      />
 
       <nav aria-label="Rango" className="mb-4 inline-flex rounded-lg bg-muted p-1">
         {RANGES.map((r) => (

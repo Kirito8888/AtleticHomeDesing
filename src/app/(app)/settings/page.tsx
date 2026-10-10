@@ -269,7 +269,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <div className="grid gap-6">
             <PushSettings configured={vapid != null} publicKey={vapid?.publicKey ?? null} devices={pushDevices} />
             {vapid ? <ReminderSettings initial={{ remindTomorrowHour: prefs.remindTomorrowHour, remindMondayCheck: prefs.remindMondayCheck, remindWeigh: prefs.remindWeigh }} /> : null}
-            <QuietHoursSettings quietHours={prefs.quietHours} />
+            <QuietHoursSettings quietHours={prefs.quietHours} weeklyReviewPush={prefs.weeklyReviewPush} />
           </div>
         </Section>
         <Section id="modulos" title="Módulos" description="Oculta lo que no usas: desaparece de la navegación y del panel. Tus datos no se tocan.">
@@ -357,6 +357,21 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                 <Button asChild variant="outline" size="sm">
                   <a href="/api/export/finance" download>
                     Finanzas (CSV)
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <a href="/api/export/recovery" download>
+                    Recuperación (CSV)
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <a href="/api/export/nutrition" download>
+                    Comidas (CSV)
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <a href="/api/export/study" download>
+                    Estudio (CSV)
                   </a>
                 </Button>
               </div>
