@@ -1,11 +1,11 @@
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AssignmentActions, AssignmentForm } from "@/components/v17/study-v17";
+import { AssignmentActions, AssignmentForm } from "@/components/study/coursework";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
 import { formatDate, formatNum } from "@/lib/format";
 import { knownSubjects } from "@/lib/study/schedule-service";
-import { assignmentsView } from "@/lib/study/v17-service";
+import { assignmentsView } from "@/lib/study/coursework-service";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Trabajos y entregas · LifeOS" };

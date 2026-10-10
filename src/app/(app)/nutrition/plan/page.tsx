@@ -4,12 +4,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MealPlanWeek } from "@/components/v17/nutrition-v17";
+import { MealPlanWeek } from "@/components/nutrition/planning";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, dateOnly, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
-import { weekDays } from "@/lib/nutrition/v17-nutrition";
-import { mealPlanWeek } from "@/lib/nutrition/v17-service";
+import { weekDays } from "@/lib/nutrition/planning";
+import { mealPlanWeek } from "@/lib/nutrition/planning-service";
 
 export const metadata = { title: "Plan de comidas · LifeOS" };
 

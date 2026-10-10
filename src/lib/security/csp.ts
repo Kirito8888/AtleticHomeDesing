@@ -28,6 +28,8 @@ export function buildCsp(nonce: string, opts: { dev: boolean; https: boolean }):
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
+    // v1.8 · Las violaciones se registran (agregadas) en Estado del servidor
+    "report-uri /api/csp-report",
     ...(opts.https ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 }

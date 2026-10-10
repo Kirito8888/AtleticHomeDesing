@@ -4,9 +4,9 @@ import { PageHeader } from "@/components/page-header";
 import { pageUser } from "@/lib/auth/page";
 import { diffDays, today, toIsoDay } from "@/lib/dates";
 import { formatDate, formatEur, SESSION_TYPE_LABEL } from "@/lib/format";
-import { seasonBudgetView } from "@/lib/finance/v17-service";
+import { seasonBudgetView } from "@/lib/finance/season-service";
 import { prisma } from "@/lib/prisma";
-import { assignmentAlert, type AssignmentStatus } from "@/lib/study/v17-study";
+import { assignmentAlert, type AssignmentStatus } from "@/lib/study/coursework";
 
 export const metadata = { title: "De un vistazo · LifeOS" };
 

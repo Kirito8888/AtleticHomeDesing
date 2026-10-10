@@ -1,8 +1,9 @@
 import { ApiError, parseBody, route } from "@/lib/api";
+import { trashSession } from "@/lib/account/trash";
 import { requireUser, resolveAthleteId } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { createSessionSchema } from "@/lib/training/schemas";
-import { deleteTrainingSession, updateTrainingSession } from "@/lib/training/service";
+import { updateTrainingSession } from "@/lib/training/service";
 
 type Ctx = RouteContext<"/api/training/sessions/[id]">;
 
@@ -39,6 +40,7 @@ export const DELETE = route(async (req, ctx: Ctx) => {
   const user = await requireUser();
   const { id } = await ctx.params;
   const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "SESSIONS", "write");
-  await deleteTrainingSession(userId, id);
-  return { ok: true };
+  // v1.8 · a la papelera (7 días, se puede deshacer)
+  const { id: trashId } = await trashSession(userId, id);
+  return { ok: true, trashId };
 });

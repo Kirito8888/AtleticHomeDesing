@@ -13,6 +13,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/client-api";
+import { trashedToast } from "@/lib/trash-client";
 import { toCents } from "@/lib/finance/ledger";
 
 export interface AccountOpt {
@@ -466,7 +467,8 @@ export function DeleteTransaction({ id }: { id: string }) {
       onClick={async () => {
         if (!confirm("¿Borrar el movimiento?")) return;
         try {
-          await api(`/api/finance/transactions/${id}`, { method: "DELETE" });
+          const r = await api<{ trashId?: string }>(`/api/finance/transactions/${id}`, { method: "DELETE" });
+          trashedToast(r.trashId, "Movimiento borrado", () => router.refresh());
           router.refresh();
         } catch (e) {
           toast.error((e as Error).message);

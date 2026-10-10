@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Activity, Apple, Brain, CalendarDays, ChevronRight, HeartPulse, ListChecks, ListTodo, Plus, Trophy, Wallet } from "lucide-react";
+import { Activity, Apple, Brain, CalendarDays, ChevronRight, HeartPulse, ListChecks, ListTodo, Plus, Target, Trophy, Wallet } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { OfflineDayCache } from "@/components/offline-day-cache";
@@ -12,10 +12,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { pageUser } from "@/lib/auth/page";
 import { getDashboard } from "@/lib/dashboard";
+import { prisma } from "@/lib/prisma";
+import { getPrefs } from "@/lib/rules/prefs-service";
+import { listGoals } from "@/lib/goals/service";
+import { goalValue } from "@/lib/goals/goals";
+import { currentFocus, reviewWeek } from "@/lib/review/service";
 import { diffDays, today } from "@/lib/dates";
 import { formatDate, formatDuration, formatEur, formatNum, READINESS_LABEL, SESSION_TYPE_LABEL } from "@/lib/format";
 
-function Widget({ title, icon: Icon, href, id, children }: { title: string; icon: React.ElementType; href?: string; id?: string; children: React.ReactNode }) {
+function Widget({ title, icon: Icon, href, id, children, hide }: { title: string; icon: React.ElementType; href?: string; id?: string; children: React.ReactNode; hide?: boolean }) {
+  if (hide) return null;
   return (
     <Card id={id} className="scroll-mt-20 gap-3 py-4">
       <CardHeader className="flex flex-row items-center justify-between px-4">
@@ -35,7 +41,18 @@ function Widget({ title, icon: Icon, href, id, children }: { title: string; icon
 
 export default async function DashboardPage() {
   const user = await pageUser();
-  const d = await getDashboard(user.id);
+  const [d, prefs, onb, focus, goals, reviewed] = await Promise.all([
+    getDashboard(user.id),
+    getPrefs(user.id),
+    prisma.user.findUnique({ where: { id: user.id }, select: { onboardedAt: true } }),
+    currentFocus(user.id),
+    listGoals(user.id),
+    prisma.weeklyReview.count({ where: { userId: user.id, weekStart: reviewWeek() } }),
+  ]);
+  const openGoals = goals.filter((g) => !g.doneAt).slice(0, 3);
+  // Sábado o domingo sin revisar: se invita a hacerla
+  const reviewDue = !reviewed && [0, 6].includes(today().getUTCDay());
+  const off = (m: string) => (prefs.hiddenModules as readonly string[]).includes(m);
   const readiness = d.recovery?.readinessScore ?? null;
   const rStatus = readinessStatus(readiness);
   const label = (d.recovery?.readinessParts as { label?: keyof typeof READINESS_LABEL } | null)?.label;
@@ -53,6 +70,9 @@ export default async function DashboardPage() {
           <div className="flex gap-2">
             <Button asChild size="sm" variant="outline">
               <Link href="/glance">De un vistazo</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href="/planning/week-all">Semana</Link>
             </Button>
             <Button asChild size="sm">
               <Link href="/training/new">
@@ -77,6 +97,21 @@ export default async function DashboardPage() {
         </Link>
       ) : null}
 
+      {onb && !onb.onboardedAt ? (
+        <Link href="/welcome" className="mb-4 block rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+          👋 <span className="font-medium">Configura LifeOS en 1 minuto</span>: elige tus módulos, tu perfil y cuándo no molestarte.
+        </Link>
+      ) : null}
+      {focus || reviewDue ? (
+        <Link href="/review" className="mb-4 block rounded-md border p-3 text-sm" aria-label="Foco de la semana">
+          {focus ? (
+            <>
+              🎯 <span className="font-medium">Foco de la semana:</span> {focus}
+            </>
+          ) : null}
+          {reviewDue ? <span className={focus ? "mt-1 block text-xs text-muted-foreground" : "font-medium"}>📝 Toca la revisión semanal (5 min)</span> : null}
+        </Link>
+      ) : null}
       <OfflineDayCache paths={d.offlinePaths} />
       <Link
         href="/recovery"
@@ -107,7 +142,7 @@ export default async function DashboardPage() {
       ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Widget title="Readiness" icon={HeartPulse} href="/recovery">
+        <Widget hide={off("recovery")} title="Readiness" icon={HeartPulse} href="/recovery">
           {readiness != null && rStatus ? (
             <div className="flex items-end justify-between gap-2">
               <div className="text-5xl font-semibold tabular-nums">{Math.round(readiness)}</div>
@@ -123,7 +158,7 @@ export default async function DashboardPage() {
           )}
         </Widget>
 
-        <Widget title="Forma (PMC)" icon={Activity} href="/training/performance">
+        <Widget hide={off("training")} title="Forma (PMC)" icon={Activity} href="/training/performance">
           {cur ? (
             <div className="grid gap-2">
               <div className="grid grid-cols-3 gap-2">
@@ -141,7 +176,7 @@ export default async function DashboardPage() {
           )}
         </Widget>
 
-        <Widget title="Hoy toca" icon={CalendarDays} href="/training">
+        <Widget hide={off("training")} title="Hoy toca" icon={CalendarDays} href="/training">
           {d.sessions.length ? (
             <ul className="grid gap-2">
               {d.sessions.map((s) => (
@@ -169,7 +204,7 @@ export default async function DashboardPage() {
           ) : null}
         </Widget>
 
-        <Widget title="Nutrición" icon={Apple} href="/nutrition">
+        <Widget hide={off("nutrition")} title="Nutrición" icon={Apple} href="/nutrition">
           {goal ? (
             <div className="grid gap-2.5">
               {(
@@ -200,7 +235,7 @@ export default async function DashboardPage() {
           )}
         </Widget>
 
-        <Widget title="Finanzas" icon={Wallet} href="/finance">
+        <Widget hide={off("finance")} title="Finanzas" icon={Wallet} href="/finance">
           {d.budgetAlerts.length ? (
             <ul className="grid gap-2">
               {d.budgetAlerts.map((b) => (
@@ -217,7 +252,7 @@ export default async function DashboardPage() {
           )}
         </Widget>
 
-        <Widget title="Estudio y tareas" icon={Brain} href="/study">
+        <Widget hide={off("study")} title="Estudio y tareas" icon={Brain} href="/study">
           <div className="grid gap-3">
             <p className="text-sm">
               <span className="text-2xl font-semibold tabular-nums">{d.dueCards}</span>{" "}
@@ -252,7 +287,25 @@ export default async function DashboardPage() {
           </div>
         </Widget>
 
-        <Widget title="Hábitos" icon={ListChecks} id="habitos">
+        {openGoals.length ? (
+          <Widget title="Objetivos" icon={Target} href="/goals">
+            <ul className="grid gap-2 text-sm">
+              {openGoals.map((g) => (
+                <li key={g.id} className="grid gap-1">
+                  <div className="flex justify-between gap-2">
+                    <span className="truncate">{g.title}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                      {goalValue(g.kind, g.progress.current, g.unit)} / {goalValue(g.kind, g.target, g.unit)}
+                    </span>
+                  </div>
+                  <Progress value={g.progress.pct * 100} aria-label={`Progreso de ${g.title}`} />
+                </li>
+              ))}
+            </ul>
+          </Widget>
+        ) : null}
+
+        <Widget hide={off("study")} title="Hábitos" icon={ListChecks} id="habitos">
           <HabitsCard habits={d.habits} today={d.day} />
         </Widget>
       </div>

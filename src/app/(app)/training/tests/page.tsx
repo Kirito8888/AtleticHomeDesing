@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/page-header";
 import { TestForm } from "@/components/training/test-form";
-import { ValueChart } from "@/components/training/value-chart";
+import { ValueChart } from "@/components/charts/lazy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";

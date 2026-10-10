@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 import { ApiError, enforceRateLimit, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
-import { addReceipt, RECEIPT_MAX_BYTES } from "@/lib/finance/v17-service";
+import { addReceipt, RECEIPT_MAX_BYTES } from "@/lib/finance/season-service";
 
 /** v1.7 · Justificante de un movimiento (multipart: file). Se comprueba la firma real y se guarda cifrado. */
 export const POST = route(async (req, ctx: RouteContext<"/api/finance/transactions/[id]/receipts">) => {

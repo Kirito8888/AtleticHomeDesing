@@ -68,7 +68,40 @@ async function financeCsv(userId: string) {
   );
 }
 
-const EXPORTS = { training: trainingCsv, finance: financeCsv } as const;
+/** v1.8 · Recuperación diaria (sin notas: pueden llevar detalles de salud). */
+async function recoveryCsv(userId: string) {
+  const rows = await prisma.recoveryMetrics.findMany({ where: { userId }, orderBy: { date: "asc" } });
+  return toCsv(
+    ["fecha", "sueno_h", "calidad_sueno", "vfc_ms", "fc_reposo", "agujetas", "fatiga", "estres", "animo", "peso_kg", "readiness"],
+    rows.map((r) => [r.date, r.sleepHours, r.sleepQuality, r.hrvRmssdMs, r.restingHr, r.doms, r.fatigue, r.stress, r.mood, r.bodyWeightKg, r.readinessScore]),
+  );
+}
+
+/** v1.8 · Comidas: una fila por alimento. */
+async function nutritionCsv(userId: string) {
+  const rows = await prisma.macros.findMany({ where: { userId }, orderBy: [{ date: "asc" }, { createdAt: "asc" }], include: { foodProduct: { select: { name: true } } } });
+  return toCsv(
+    ["fecha", "comida", "alimento", "cantidad_g", "kcal", "proteinas_g", "hidratos_g", "grasas_g", "fibra_g"],
+    rows.map((m) => [m.date, m.mealType, m.foodProduct?.name ?? m.customName, m.quantityG, m.kcal, m.proteinG, m.carbsG, m.fatG, m.fiberG]),
+  );
+}
+
+/** v1.8 · Estudio: bloques de estudio y notas. */
+async function studyCsv(userId: string) {
+  const [sessions, grades] = await Promise.all([
+    prisma.studySession.findMany({ where: { userId }, orderBy: { date: "asc" } }),
+    prisma.grade.findMany({ where: { userId }, orderBy: { createdAt: "asc" } }),
+  ]);
+  return toCsv(
+    ["tipo", "fecha", "asignatura", "minutos", "nota", "creditos", "convocatoria"],
+    [
+      ...sessions.map((s) => ["estudio", s.date, s.subject, s.minutes, null, null, null]),
+      ...grades.map((g) => ["nota", g.createdAt, g.subject, null, g.grade, g.credits, g.term]),
+    ],
+  );
+}
+
+const EXPORTS = { training: trainingCsv, finance: financeCsv, recovery: recoveryCsv, nutrition: nutritionCsv, study: studyCsv } as const;
 
 /** GET /api/export/training | /api/export/finance → CSV (Excel/LibreOffice). */
 export const GET = route(async (req, ctx: RouteContext<"/api/export/[kind]">) => {

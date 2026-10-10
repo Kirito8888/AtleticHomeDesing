@@ -3,11 +3,9 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { Stat } from "@/components/stat";
 import { StatusLabel, tsbStatus } from "@/components/status";
-import { E1rmChart } from "@/components/training/e1rm-chart";
-import { AttemptsScatter } from "@/components/training/attempts-scatter";
-import { MarksChart } from "@/components/training/marks-chart";
+import { AttemptsScatter, E1rmChart, MarksChart, PmcCharts } from "@/components/charts/lazy";
 import { SeasonGoals } from "@/components/training/season-goals";
-import { PmcCharts, type PmcPoint } from "@/components/training/pmc-charts";
+import type { PmcPoint } from "@/components/training/pmc-charts";
 import { Card, CardContent } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, today } from "@/lib/dates";
@@ -37,7 +35,15 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
 
   return (
     <>
-      <PageHeader title="Rendimiento" description="Performance Management Chart y recuperación" />
+      <PageHeader
+        title="Rendimiento"
+        description="Performance Management Chart y recuperación"
+        action={
+          <Link href={`/print/season?year=${today().getUTCFullYear()}`} className="text-sm font-medium underline underline-offset-4">
+            Informe de temporada
+          </Link>
+        }
+      />
 
       <nav aria-label="Rango" className="mb-4 inline-flex rounded-lg bg-muted p-1">
         {RANGES.map((r) => (

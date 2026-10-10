@@ -45,3 +45,27 @@ export async function todayMaxTemp(lat: number, lon: number, date: string, f: Fe
   g.__lifeosMaxTemp.set(key, { at: Date.now(), value });
   return value;
 }
+
+export type DayForecast = { date: string; maxC: number | null; minC: number | null; rainMm: number | null; rainProb: number | null; windMaxMs: number | null };
+
+/** v1.8 · Pronóstico de un día en el lugar de la competición (Open-Meteo da hasta 16 días). */
+export async function dayForecast(lat: number, lon: number, date: string, f: Fetch = fetch): Promise<DayForecast | null> {
+  const url = `${BASE}?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max&wind_speed_unit=ms&timezone=Europe%2FMadrid&start_date=${date}&end_date=${date}`;
+  const j = (await getJson(url, f)) as {
+    daily?: { time?: string[]; temperature_2m_max?: number[]; temperature_2m_min?: number[]; precipitation_sum?: number[]; precipitation_probability_max?: number[]; wind_speed_10m_max?: number[] };
+  } | null;
+  const d = j?.daily;
+  if (!d?.time?.length) return null;
+  const pick = (a?: number[]) => (a && typeof a[0] === "number" ? a[0] : null);
+  return { date, maxC: pick(d.temperature_2m_max), minC: pick(d.temperature_2m_min), rainMm: pick(d.precipitation_sum), rainProb: pick(d.precipitation_probability_max), windMaxMs: pick(d.wind_speed_10m_max) };
+}
+
+/** Consejos cortos para la bolsa según el pronóstico. Puro. */
+export function forecastTips(fc: DayForecast): string[] {
+  const tips: string[] = [];
+  if ((fc.rainProb ?? 0) >= 50 || (fc.rainMm ?? 0) >= 2) tips.push("Chubasquero, toalla y calcetines de repuesto");
+  if ((fc.maxC ?? 0) >= 28) tips.push("Gorra, crema solar y más agua de lo habitual");
+  if (fc.minC != null && fc.minC <= 8) tips.push("Ropa de abrigo para el calentamiento y entre intentos");
+  if ((fc.windMaxMs ?? 0) >= 8) tips.push("Viento fuerte: ajusta las marcas de la carrera");
+  return tips;
+}

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
 import { formatDate } from "@/lib/format";
+import { usePendingShared } from "@/lib/share-client";
 
 const MAX_SIDE = 1600;
 
@@ -31,6 +32,7 @@ export function InjuryPhotos({ injuryId, today, photos }: { injuryId: string; to
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
+  const shared = usePendingShared("injury");
 
   async function upload(file: File | undefined) {
     if (!file) return;
@@ -72,6 +74,11 @@ export function InjuryPhotos({ injuryId, today, photos }: { injuryId: string; to
           <input ref={input} type="file" accept="image/*" capture="environment" className="sr-only" disabled={busy} aria-label="Añadir foto de la molestia" onChange={(e) => upload(e.target.files?.[0])} />
         </label>
       </div>
+      {shared.file ? (
+        <Button type="button" size="sm" variant="outline" disabled={busy} onClick={async () => upload((await shared.take()) ?? undefined)}>
+          Añadir aquí la foto compartida
+        </Button>
+      ) : null}
       {photos.length ? (
         <ul className="flex flex-wrap gap-1.5" aria-label="Fotos de la molestia">
           {photos.map((p) => (

@@ -3,8 +3,8 @@ import { z } from "zod";
 
 import { parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
-import { manualCardSchema, parseCardLines } from "@/lib/study/v17-study";
-import { addManualCards } from "@/lib/study/v17-service";
+import { manualCardSchema, parseCardLines } from "@/lib/study/coursework";
+import { addManualCards } from "@/lib/study/coursework-service";
 
 /** v1.7 · Tarjetas a mano (sin IA): una, o varias pegadas como «pregunta | respuesta» por línea. */
 export const POST = route(async (req) => {

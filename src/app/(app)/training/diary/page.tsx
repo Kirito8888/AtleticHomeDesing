@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { pageUser } from "@/lib/auth/page";
 import { formatDate, formatNum, TECHNICAL_EVENT_LABEL } from "@/lib/format";
-import { technicalDiary } from "@/lib/training/v17-service";
+import { technicalDiary } from "@/lib/training/diary-service";
 
 export const metadata = { title: "Diario técnico · LifeOS" };
 
