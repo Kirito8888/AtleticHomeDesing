@@ -91,3 +91,29 @@ describe("macrosForQuantity", () => {
     expect(macrosForQuantity(f, 125)).toEqual({ kcal: 76.3, proteinG: 4.5, carbsG: 5.8, fatG: 3.9, fiberG: null });
   });
 });
+
+describe("v1.10 · micronutrientes y búsqueda por marca", () => {
+  it("convierte los micronutrientes de g a mg y µg, y deduce el sodio de la sal", () => {
+    const f = normalizeOffProduct({ ...hacendadoYogur, nutriments: { ...hacendadoYogur.nutriments, calcium_100g: 0.12, "vitamin-d_100g": 0.0000015, "vitamin-b12_100g": 0.0000004, magnesium_100g: 0.011, potassium_100g: 0.15 } })!;
+    expect(f).toMatchObject({ calciumPer100g: 120, vitDPer100g: 1.5, b12Per100g: 0.4, magnesiumPer100g: 11, potassiumPer100g: 150, sodiumPer100g: 52 });
+    expect(normalizeOffProduct({ product_name: "x", nutriments: {} })).toMatchObject({ calciumPer100g: null, sodiumPer100g: null });
+  });
+
+  it("brandPage pide a la API v2 los productos de la marca vendidos en España", async () => {
+    const calls: string[] = [];
+    const client = createOffClient({
+      baseUrl: "https://es.openfoodfacts.org",
+      userAgent: "Atlenza-test",
+      fetchImpl: (async (url: string) => {
+        calls.push(String(url));
+        return jsonResponse({ count: 250, products: [hacendadoYogur, { code: "1" }] });
+      }) as typeof fetch,
+    });
+    const r = await client.brandPage("hacendado", 2);
+    expect(r.count).toBe(250);
+    expect(r.products).toHaveLength(1); // el que no tiene nombre se descarta
+    const u = new URL(calls[0]);
+    expect(u.pathname).toBe("/api/v2/search");
+    expect(Object.fromEntries(u.searchParams)).toMatchObject({ brands_tags: "hacendado", countries_tags_en: "spain", page: "2", page_size: "100" });
+  });
+});

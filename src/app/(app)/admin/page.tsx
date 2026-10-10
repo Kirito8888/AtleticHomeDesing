@@ -2,6 +2,8 @@ import Link from "next/link";
 
 import { InviteForm, PendingInvitations, UserList } from "@/components/admin/admin-panel";
 import { MetricsCard } from "@/components/admin/metrics-card";
+import { CatalogCard } from "@/components/admin/catalog-card";
+import { catalogStatus } from "@/lib/nutrition/catalog-sync";
 import { metricsSummary } from "@/lib/admin/metrics";
 import { serverStatus } from "@/lib/admin/status";
 import { telegramConfigured } from "@/lib/admin/telegram";
@@ -34,7 +36,7 @@ export default async function AdminPage() {
       </>
     );
   }
-  const [users, invitations, problems, status] = await Promise.all([listUsersForAdmin(), listInvitations(), checkHealth(), serverStatus()]);
+  const [users, invitations, problems, status, catalog] = await Promise.all([listUsersForAdmin(), listInvitations(), checkHealth(), serverStatus(), catalogStatus()]);
   const mem = process.memoryUsage();
   const now = new Date();
   return (
@@ -91,6 +93,19 @@ export default async function AdminPage() {
               process={{ uptimeSec: Math.round(process.uptime()), rssMb: Math.round(mem.rss / 1e6), heapMb: Math.round(mem.heapUsed / 1e6) }}
               db={{ latencyMs: status.db.latencyMs, sizeMb: status.db.sizeBytes != null ? Math.round(status.db.sizeBytes / 1e6) : null, queue: status.queue }}
               telegram={telegramConfigured()}
+            />
+          </CardContent>
+        </Card>
+        <Card className="gap-3 py-4 lg:col-span-2">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base">Catálogo de alimentos</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <CatalogCard
+              enabled={catalog.enabled}
+              total={catalog.total}
+              brands={catalog.brands}
+              states={catalog.states.map((s) => ({ brand: s.brand, page: s.page, total: s.total, products: s.products, error: s.error, finishedAt: s.finishedAt?.toISOString() ?? null }))}
             />
           </CardContent>
         </Card>

@@ -9,9 +9,9 @@ const query = z.object({
   page: z.coerce.number().int().min(1).max(50).default(1),
 });
 
-/** Búsqueda de productos (p.ej. "hacendado yogur") en OpenFoodFacts España. */
+/** Búsqueda de productos (p.ej. "hacendado yogur"): catálogo local primero y OpenFoodFacts España si hace falta. */
 export const GET = route(async (req) => {
-  await requireUser();
+  const user = await requireUser();
   const { q, page } = parseQuery(req, query);
-  return searchFoods(q, page);
+  return searchFoods(q, page, user.id);
 });

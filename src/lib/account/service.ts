@@ -198,6 +198,7 @@ export async function exportAccount(userId: string) {
   ]);
   // v1.9: proveedor de IA elegido, sin la clave (ni cifrada): al restaurar hay que volver a ponerla
   // v1.10: Telegram vinculado (el chat es tuyo; los códigos de vinculación no se exportan)
+  const ownFoods = await prisma.foodProduct.findMany({ where: { ownerId: userId }, omit: { raw: true, ownerId: true } });
   const telegram = await prisma.telegramLink.findUnique({ where: { userId }, select: { chatId: true, enabled: true, linkedAt: true } });
   const aiProvider = await prisma.aiCredential.findUnique({ where: { userId }, select: { provider: true, baseUrl: true, model: true, embeddingModel: true, verifiedAt: true } });
   // v1.8: revisiones, objetivos, reglas de categoría, bandeja de avisos, uso local y papelera
@@ -258,7 +259,7 @@ export async function exportAccount(userId: string) {
       priceChanges,
       categoryRules: categoryRules.map((r) => ({ pattern: r.pattern, category: r.category.name, createdAt: r.createdAt })),
     },
-    nutrition: { entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration, recipes, shopping, mealPlan: mealPlan.map(({ recipe, ...m }) => ({ ...m, recipeName: recipe.name })), sweatTests },
+    nutrition: { ownFoods, entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration, recipes, shopping, mealPlan: mealPlan.map(({ recipe, ...m }) => ({ ...m, recipeName: recipe.name })), sweatTests },
     study: { documents: studyDocuments, chatThreads, flashcardDecks, classSlots, sessions: studySessions, habits, planBlocks: studyPlanBlocks, grades, assignments },
     coach: { reports: coachReports, links: coachLinks, sharedReports },
     calendarFeeds,

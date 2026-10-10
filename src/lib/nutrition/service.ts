@@ -8,6 +8,7 @@ import { env } from "@/lib/env";
 import { createOffClient, macrosForQuantity, OffError, type NormalizedFood } from "@/lib/nutrition/openfoodfacts";
 import { prisma } from "@/lib/prisma";
 import { getPrefs } from "@/lib/rules/prefs-service";
+import { microsForQuantity } from "@/lib/nutrition/micros";
 
 import { carbDay, carbTarget } from "./carbs";
 
@@ -36,25 +37,71 @@ async function cacheProducts(foods: NormalizedFood[]) {
  * Busca en OpenFoodFacts y cachea los resultados. Si OFF falla o limita,
  * cae a la caché local para que el registro de comidas no se bloquee.
  */
-export async function searchFoods(query: string, page: number) {
+/** v1.10 · Catálogo local (marcas españolas sincronizadas, caché y alimentos propios de `userId`). */
+export async function searchLocalFoods(userId: string | null, query: string, take = 20) {
+  const words = query.split(/\s+/).filter((w) => w.length > 1).slice(0, 6);
+  if (!words.length) return [];
+  return prisma.foodProduct.findMany({
+    where: {
+      OR: [{ ownerId: null }, ...(userId ? [{ ownerId: userId }] : [])],
+      AND: words.map((w) => ({
+        OR: [{ name: { contains: w, mode: "insensitive" as const } }, { brand: { contains: w, mode: "insensitive" as const } }],
+      })),
+    },
+    take,
+    // Primero los propios y los que tienen datos completos
+    orderBy: [{ ownerId: { sort: "asc", nulls: "last" } }, { kcalPer100g: { sort: "asc", nulls: "last" } }, { name: "asc" }],
+  });
+}
+
+/**
+ * v1.10 · Primero el catálogo local (sin red, y sin gastar el límite de OFF de 10 búsquedas por
+ * minuto); OpenFoodFacts en línea solo si en local hay pocos resultados o se pide otra página.
+ * Si OFF falla o limita, se queda con lo local para que el registro de comidas no se bloquee.
+ */
+export async function searchFoods(query: string, page: number, userId: string | null = null) {
+  const local = page === 1 ? await searchLocalFoods(userId, query) : [];
+  if (local.length >= 8) return { source: "local" as const, count: local.length, products: local };
   try {
     const result = await off().search(query, page);
     const cached = await cacheProducts(result.products);
-    return { source: "openfoodfacts" as const, count: result.count, products: cached };
+    const ids = new Set(local.map((p) => p.id));
+    return { source: "openfoodfacts" as const, count: result.count, products: [...local, ...cached.filter((p) => !ids.has(p.id))] };
   } catch (err) {
     if (!(err instanceof OffError)) throw err;
-    const words = query.split(/\s+/).filter(Boolean);
-    const products = await prisma.foodProduct.findMany({
-      where: {
-        AND: words.map((w) => ({
-          OR: [{ name: { contains: w, mode: "insensitive" as const } }, { brand: { contains: w, mode: "insensitive" as const } }],
-        })),
-      },
-      take: 20,
-      orderBy: { fetchedAt: "desc" },
-    });
-    return { source: "cache" as const, warning: err.message, count: products.length, products };
+    return { source: "cache" as const, warning: err.message, count: local.length, products: local };
   }
+}
+
+/** v1.10 · Alimento propio (por 100 g), p. ej. a partir de la etiqueta leída con OCR. Solo lo ve su dueño. */
+export const ownFoodSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  brand: z.string().trim().max(80).nullish(),
+  kcalPer100g: z.number().min(0).max(1000),
+  proteinPer100g: z.number().min(0).max(100),
+  carbsPer100g: z.number().min(0).max(100),
+  sugarsPer100g: z.number().min(0).max(100).nullish(),
+  fatPer100g: z.number().min(0).max(100),
+  satFatPer100g: z.number().min(0).max(100).nullish(),
+  fiberPer100g: z.number().min(0).max(100).nullish(),
+  saltPer100g: z.number().min(0).max(100).nullish(),
+  ironPer100g: z.number().min(0).max(1000).nullish(),
+  calciumPer100g: z.number().min(0).max(10_000).nullish(),
+  vitDPer100g: z.number().min(0).max(10_000).nullish(),
+  b12Per100g: z.number().min(0).max(10_000).nullish(),
+  magnesiumPer100g: z.number().min(0).max(10_000).nullish(),
+  sodiumPer100g: z.number().min(0).max(40_000).nullish(),
+  potassiumPer100g: z.number().min(0).max(40_000).nullish(),
+});
+
+export async function createOwnFood(userId: string, input: z.infer<typeof ownFoodSchema>) {
+  const sodium = input.sodiumPer100g ?? (input.saltPer100g != null ? Math.round((input.saltPer100g / 2.5) * 1000) : null);
+  return prisma.foodProduct.create({ data: { ...input, sodiumPer100g: sodium, ownerId: userId, source: "own" } });
+}
+
+export async function deleteOwnFood(userId: string, id: string) {
+  const { count } = await prisma.foodProduct.deleteMany({ where: { id, ownerId: userId } });
+  if (!count) throw new ApiError(404, "Alimento no encontrado");
 }
 
 export async function getFoodByBarcode(barcode: string) {
@@ -107,7 +154,8 @@ export async function createEntry(userId: string, input: z.infer<typeof createEn
   const product = input.foodProductId
     ? await prisma.foodProduct.findUnique({ where: { id: input.foodProductId } })
     : await getFoodByBarcode(input.barcode!);
-  if (!product) throw new ApiError(404, "Producto no encontrado");
+  // Los alimentos propios de otra persona no existen para ti
+  if (!product || (product.ownerId && product.ownerId !== userId)) throw new ApiError(404, "Producto no encontrado");
   if (product.kcalPer100g == null) throw new ApiError(422, "El producto no tiene datos nutricionales; regístralo manualmente");
   return prisma.macros.create({
     data: {
@@ -117,7 +165,7 @@ export async function createEntry(userId: string, input: z.infer<typeof createEn
       foodProductId: product.id,
       quantityG: input.quantityG,
       ...macrosForQuantity(product, input.quantityG),
-      ironMg: product.ironPer100g == null ? null : Math.round(product.ironPer100g * input.quantityG) / 100,
+      ...microsForQuantity(product, input.quantityG),
       ironRich: input.ironRich ?? false,
     },
     include: { foodProduct: { select: { name: true, brand: true, imageUrl: true } } },

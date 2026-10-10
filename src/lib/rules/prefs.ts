@@ -116,6 +116,9 @@ export const prefsSchema = z.object({
     })
     .nullable()
     .default(null),
+  // --- v1.10 ---
+  /** Objetivos diarios de micronutrientes; los que falten usan la referencia general (EFSA). */
+  microTargets: z.partialRecord(z.enum(["ironMg", "calciumMg", "vitDUg", "b12Ug", "magnesiumMg", "sodiumMg", "potassiumMg"]), z.number().min(0).max(100_000)).default({}),
 });
 
 export type Prefs = z.infer<typeof prefsSchema>;
