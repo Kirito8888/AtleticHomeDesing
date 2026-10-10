@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
+import { sendOrQueue } from "@/lib/offline/outbox";
 import { cn } from "@/lib/utils";
 
 export type HabitView = { id: string; name: string; current: number; best: number; doneToday: boolean; last7: Array<{ date: string; done: boolean }> };
@@ -28,7 +29,7 @@ export function HabitsCard({ habits: initial, today }: { habits: HabitView[]; to
       ),
     );
     try {
-      await api(`/api/habits/${h.id}/toggle`, { body: { date: today } });
+      if ((await sendOrQueue(`/api/habits/${h.id}/toggle`, { date: today, done }, `Hábito: ${h.name}`)) === "queued") toast.success("Sin conexión: se enviará al volver la cobertura");
     } catch (e) {
       toast.error((e as Error).message);
       setHabits((xs) => xs.map((x) => (x.id === h.id ? h : x)));

@@ -274,7 +274,7 @@ await page.getByRole("button", { name: /^Guardar sesión$/ }).click();
 await toast(/Sin conexión: la sesión queda guardada/);
 await ctx.setOffline(false);
 await page.evaluate(() => window.dispatchEvent(new Event("online")));
-await toast(/sin conexión ya enviadas/);
+await toast(/sin conexión ya enviad[ao]s/);
 const offlineCount = ((await (await page.request.get(`${B}/api/training/sessions?from=${madrid}&to=${madrid}`)).json()) as Array<{ durationSec: number | null }>).filter((x) => x.durationSec === 1800).length;
 if (offlineCount !== 1) errors.push(`sin conexión: se esperaba 1 sesión de 30 min, hay ${offlineCount}`);
 log("registrar sin conexión y envío al volver la cobertura (sin duplicar)");

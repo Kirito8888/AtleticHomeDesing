@@ -5,6 +5,8 @@ import { addDays, dateOnly, localDay, startOfIsoWeek, today, toIsoDay } from "@/
 import { formatEur } from "@/lib/format";
 import { env } from "@/lib/env";
 import { runDueSubscriptions } from "@/lib/finance/service";
+import { subscriptionAlerts } from "@/lib/finance/v17-service";
+import { pruneExpiredDemos } from "@/lib/demo/service";
 import { prisma } from "@/lib/prisma";
 import { dueReminders, publicTitle } from "@/lib/push/reminders";
 import { deadlineState } from "@/lib/finance/trips";
@@ -85,6 +87,8 @@ export async function pruneAuditJob(now = new Date()): Promise<number> {
   await prisma.safetyTrip.deleteMany({ where: { endedAt: { lt: daysAgo(now, d.SAFETY_TRIPS) } } });
   await prisma.privacyRequest.deleteMany({ where: { resolvedAt: { lt: daysAgo(now, d.PRIVACY_REQUESTS) } } });
   await prisma.webAuthnChallenge.deleteMany({ where: { expiresAt: { lt: now } } });
+  // v1.7 · cuentas demo caducadas (datos sintéticos)
+  await pruneExpiredDemos(now);
   return count;
 }
 
@@ -118,6 +122,9 @@ export async function runDailyDigestJob(hour = madridHour()): Promise<number> {
     if (u.subscriptions.length) {
       parts.push(`mañana se cobra ${u.subscriptions.map((s) => `${s.name} ${formatEur(s.amountCents)}`).join(", ")}`);
     }
+    // v1.7 · subidas de precio detectadas en los cargos (una vez al día, mientras no se actualice el importe)
+    const rises = (await subscriptionAlerts(u.id, toIsoDay(day))).charged;
+    if (rises.length) parts.push(`${rises.map((r) => r.name).join(", ")} te cobra más que antes`);
     if (!parts.length) continue;
     const ok = await notifyOnce(u.id, `digest:${toIsoDay(day)}`, {
       title: "Tu día en LifeOS",

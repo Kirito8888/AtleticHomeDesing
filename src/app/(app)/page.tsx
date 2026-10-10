@@ -50,11 +50,16 @@ export default async function DashboardPage() {
         title={`Hola${user.name ? `, ${user.name.split(" ")[0]}` : ""}`}
         description={formatDate(d.day, { weekday: "long", day: "numeric", month: "long" })}
         action={
-          <Button asChild size="sm">
-            <Link href="/training/new">
-              <Plus /> Sesión
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href="/glance">De un vistazo</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/training/new">
+                <Plus /> Sesión
+              </Link>
+            </Button>
+          </div>
         }
       />
 

@@ -43,6 +43,9 @@ model User {
   failedLogins   Int       @default(0)
   lockedUntil    DateTime?
   sessionVersion Int       @default(1)
+  // v1.7 · Cuenta de demostración (datos sintéticos): se borra sola al caducar
+  demoAudience   String?
+  demoExpiresAt  DateTime?
   // Privacidad (v1.1): fecha en que el usuario autorizó enviar datos a Gemini (null = no)
   aiConsentAt    DateTime?
   // Seguridad (v1.2): 2FA TOTP. Secreto cifrado (AES-256-GCM, TOTP_ENCRYPTION_KEY);
@@ -140,6 +143,8 @@ model User {
   supplementLogs         SupplementLog[]
   sweatTests             SweatTest[]
   assignments            Assignment[]
+  seasonBudgets          SeasonBudget[]
+  receipts               Receipt[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -936,6 +941,7 @@ model FinancialTransaction {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   subscription Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   postings     Posting[]
+  receipts     Receipt[]
 
   @@unique([userId, importHash])
   @@index([userId, date])
@@ -1007,10 +1013,11 @@ model Subscription {
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 
-  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account      FinancialAccount       @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  category     FinancialCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  user         User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account      FinancialAccount          @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  category     FinancialCategory?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   transactions FinancialTransaction[]
+  priceChanges SubscriptionPriceChange[]
 
   @@index([userId, nextChargeDate])
 }
@@ -2166,4 +2173,49 @@ model Assignment {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, dueOn])
+}
+
+/// v1.7 · Presupuesto de la temporada deportiva (año natural): previsto por concepto y coste medio por competición.
+model SeasonBudget {
+  id                  String   @id @default(cuid())
+  userId              String
+  season              Int
+  lines               Json // { license, gear, travel, entries, physio, other } en céntimos
+  perCompetitionCents Int      @default(0)
+  updatedAt           DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, season])
+}
+
+/// v1.7 · Justificante de un gasto: el fichero va cifrado (AES-256-GCM) en UPLOAD_DIR.
+model Receipt {
+  id            String   @id @default(cuid())
+  userId        String
+  transactionId String
+  path          String
+  mime          String
+  createdAt     DateTime @default(now())
+
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transaction FinancialTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, transactionId])
+}
+
+/// v1.7 · Cambio de precio de una suscripción (para avisar de subidas).
+model SubscriptionPriceChange {
+  id             String    @id @default(cuid())
+  subscriptionId String
+  fromCents      Int
+  toCents        Int
+  on             DateTime  @db.Date
+  source         String    @default("EDIT") // EDIT | CHARGE
+  seenAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, on])
 }
