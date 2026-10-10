@@ -6,6 +6,8 @@
 const VERSION = "lifeos-v2";
 const STATIC = `${VERSION}-static`;
 const PAGES = `${VERSION}-pages`;
+// v1.8 · Ficheros recibidos con «Compartir» (los recoge la página /share; ver src/lib/share.ts)
+const SHARE = "lifeos-share";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(PAGES).then((c) => c.add("/offline")));
@@ -14,12 +16,36 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)))).then(() => self.clients.claim()),
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => !k.startsWith(VERSION) && k !== SHARE).map((k) => caches.delete(k)))).then(() => self.clients.claim()),
   );
 });
 
+// v1.8 · share_target del manifest: se guardan los ficheros (máx. 10 y 30 MB) y se abre /share
+async function receiveShare(req) {
+  try {
+    const form = await req.formData();
+    const files = form.getAll("files").filter((f) => f instanceof File).slice(0, 10);
+    await caches.delete(SHARE);
+    const cache = await caches.open(SHARE);
+    let total = 0;
+    for (const [i, f] of files.entries()) {
+      total += f.size;
+      if (total > 30 * 1024 * 1024) break;
+      const headers = { "content-type": f.type || "application/octet-stream", "x-name": encodeURIComponent(f.name.slice(0, 200)) };
+      await cache.put(`/__shared/${i}`, new Response(f, { headers }));
+    }
+  } catch {
+    // Sin ficheros legibles: /share lo indica
+  }
+  return Response.redirect("/share", 303);
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
+  if (req.method === "POST" && new URL(req.url).pathname === "/share") {
+    event.respondWith(receiveShare(req));
+    return;
+  }
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;

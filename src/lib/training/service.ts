@@ -48,7 +48,7 @@ export async function createTrainingSession(
   userId: string,
   plannedById: string | null,
   input: CreateSessionInput,
-  opts: { replace?: { id: string; date: Date } } = {},
+  opts: { replace?: { id: string; date: Date }; id?: string } = {},
 ) {
   const date = dateOnly(input.date);
   // v1.6 · registro sin conexión: el mismo clientId no crea dos sesiones (reenvío tras perder la respuesta)
@@ -118,7 +118,7 @@ export async function createTrainingSession(
     }
     const created = await tx.trainingSession.create({
       data: {
-        id: opts.replace?.id,
+        id: opts.replace?.id ?? opts.id,
         userId,
         clientId: opts.replace ? null : (input.clientId ?? null),
         plannedById,

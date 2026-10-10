@@ -13,7 +13,7 @@ import { api } from "@/lib/client-api";
 import { parseDuration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const DISCIPLINES = {
+export const DISCIPLINES = {
   SPRINT: "Velocidad",
   MIDDLE_DISTANCE: "Medio fondo",
   LONG_DISTANCE: "Fondo",

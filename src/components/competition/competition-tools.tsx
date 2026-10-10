@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
+import { useSharedFiles } from "@/lib/share-client";
 import { attemptSchedule, combinedWarmups, type ImportedEvent, parseCompetitionCsv, parseIcsEvents } from "@/lib/training/competition-tools";
 
 const hhmm = (m: number) => `${String(Math.floor((((m % 1440) + 1440) % 1440) / 60)).padStart(2, "0")}:${String(Math.round(((m % 60) + 60) % 60)).padStart(2, "0")}`;
@@ -104,6 +105,12 @@ export function CombinedWarmups() {
 export function CompetitionImport() {
   const router = useRouter();
   const [found, setFound] = useState<ImportedEvent[] | null>(null);
+  const box = useRef<HTMLDivElement>(null);
+  // v1.8 · llegado desde «Compartir»: se abre el desplegable y se lee
+  useSharedFiles("competitions", (files) => {
+    box.current?.closest("details")?.setAttribute("open", "");
+    void read(files[0]);
+  });
   async function read(file: File) {
     if (file.size > 2 * 1024 * 1024) return toast.error("Fichero demasiado grande (máx. 2 MB)");
     const text = await file.text();
@@ -122,7 +129,7 @@ export function CompetitionImport() {
     }
   }
   return (
-    <div className="grid gap-2 text-sm">
+    <div ref={box} className="grid gap-2 text-sm">
       <Input aria-label="Calendario de competiciones (.ics o CSV)" type="file" accept=".ics,.csv,text/calendar,text/csv" onChange={(e) => e.target.files?.[0] && void read(e.target.files[0])} />
       {found?.length ? (
         <>

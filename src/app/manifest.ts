@@ -17,6 +17,20 @@ export default function manifest(): MetadataRoute.Manifest {
       { src: "/icons/maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
       { src: "/icons/icon.svg", sizes: "any", type: "image/svg+xml" },
     ],
+    // v1.8 · Aparece en «Compartir» del móvil (lo recibe el service worker y lo abre /share)
+    share_target: {
+      action: "/share",
+      method: "POST",
+      enctype: "multipart/form-data",
+      params: {
+        files: [
+          {
+            name: "files",
+            accept: [".ics", "text/calendar", ".csv", "text/csv", ".pdf", "application/pdf", ".zip", "application/zip", "image/*", ".txt", "text/plain", ".md", ".n43"],
+          },
+        ],
+      },
+    },
     shortcuts: [
       { name: "Registrar sesión", short_name: "Sesión", url: "/training/new", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
       { name: "Agua", short_name: "Agua", url: "/nutrition#agua", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },

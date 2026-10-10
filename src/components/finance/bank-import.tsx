@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { api } from "@/lib/client-api";
+import { useSharedFiles } from "@/lib/share-client";
 import { type BankMapping, detectDelimiter, looksLikeNorma43, parseCsv } from "@/lib/finance/bank-import";
 import { formatDate, formatEur } from "@/lib/format";
 
@@ -54,6 +55,11 @@ export function BankImport({ accounts, profiles }: { accounts: Array<{ id: strin
   const [profileName, setProfileName] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // v1.8 · llegado desde «Compartir»
+  useSharedFiles("bank", (shared) => {
+    setOpen(true);
+    void onFile(shared[0]);
+  });
   async function onFile(f: File | undefined, profile?: ImportProfile) {
     setPreview(null);
     if (!f) return;

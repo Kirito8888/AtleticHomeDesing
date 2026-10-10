@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { api } from "@/lib/client-api";
 import { formatDate } from "@/lib/format";
+import { useSharedFiles } from "@/lib/share-client";
 
 type MesoPreview = {
   code: string;
@@ -41,6 +42,11 @@ export function PlanImportSheet() {
   const [files, setFiles] = useState<File[]>([]);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState<"preview" | "commit" | null>(null);
+  // v1.8 · llegado desde «Compartir»
+  useSharedFiles("plan", (shared) => {
+    setOpen(true);
+    void analyse(shared);
+  });
 
   function form() {
     const f = new FormData();
