@@ -3,7 +3,7 @@ import { ShoppingList } from "@/components/nutrition/kitchen";
 import { pageUser } from "@/lib/auth/page";
 import { prisma } from "@/lib/prisma";
 
-export const metadata = { title: "Lista de la compra · LifeOS" };
+export const metadata = { title: "Lista de la compra · Atlenza" };
 
 export default async function ShoppingPage() {
   const user = await pageUser();

@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { Prisma } from "@/generated/prisma/client";
-import { generateJson } from "@/lib/ai/gemini";
+import { generateJson } from "@/lib/ai/llm";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { ApiError } from "@/lib/api";
 import { dateOnly } from "@/lib/dates";
@@ -50,7 +50,7 @@ export async function generateAiPlan(userId: string, request: PlanRequest, deps:
   for (let attempt = 0; attempt < 2; attempt++) {
     if (fakeAi()) plan = aiPlanSchema.parse(fakeAiPlan(request));
     else {
-      const res = await generate(aiPlanSchema, { system: PLAN_SYSTEM, prompt: buildPlanPrompt(request, attempt ? warnings : undefined), temperature: 0.5 });
+      const res = await generate(aiPlanSchema, { userId, system: PLAN_SYSTEM, prompt: buildPlanPrompt(request, attempt ? warnings : undefined), temperature: 0.5 });
       plan = res.data;
       model = res.model;
     }
@@ -199,6 +199,7 @@ export async function swapDayLocation(userId: string, dayId: string, location: L
       try {
         await (deps.assertAllowed ?? assertAiAllowed)(userId);
         const out = await (deps.generate ?? generateJson)(aiSwapSchema, {
+          userId,
           system: PLAN_SYSTEM,
           prompt: buildSwapPrompt({
             exercises: res.unresolved.map((u) => `${u.item.exercise} (${u.item.sets})`),

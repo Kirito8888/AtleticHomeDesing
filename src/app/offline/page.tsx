@@ -1,6 +1,6 @@
 import { WifiOff } from "lucide-react";
 
-export const metadata = { title: "Sin conexión · LifeOS" };
+export const metadata = { title: "Sin conexión · Atlenza" };
 
 export default function OfflinePage() {
   return (
@@ -8,7 +8,7 @@ export default function OfflinePage() {
       <WifiOff className="size-10 text-muted-foreground" />
       <h1 className="text-xl font-semibold">Sin conexión</h1>
       <p className="max-w-sm text-sm text-muted-foreground">
-        LifeOS necesita conexión para guardar y leer tus datos. Las páginas que ya visitaste siguen disponibles.
+        Atlenza necesita conexión para guardar y leer tus datos. Las páginas que ya visitaste siguen disponibles.
       </p>
     </main>
   );

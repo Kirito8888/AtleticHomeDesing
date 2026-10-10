@@ -3,14 +3,14 @@ import Link from "next/link";
 import { PlanWizard } from "@/components/ai-plan/plan-wizard";
 import { PageHeader } from "@/components/page-header";
 import type { AGE_BANDS } from "@/lib/ai-plan/options";
+import { aiAvailable } from "@/lib/ai/provider";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
-import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { activeInjuries } from "@/lib/recovery/injuries";
 import { womenMode } from "@/lib/health/women-service";
 
-export const metadata = { title: "Crear mi planificación · LifeOS" };
+export const metadata = { title: "Crear mi planificación · Atlenza" };
 
 function ageBand(birth: Date | null | undefined): keyof typeof AGE_BANDS | null {
   if (!birth) return null;
@@ -18,7 +18,7 @@ function ageBand(birth: Date | null | undefined): keyof typeof AGE_BANDS | null 
   return age < 18 ? "u18" : age < 30 ? "18-29" : age < 40 ? "30-39" : age < 50 ? "40-49" : age < 60 ? "50-59" : "60+";
 }
 
-/** Astras AI → Crear planificación: cuestionario sin escribir → plan con Gemini (borrador). */
+/** Atlenza IA → Crear planificación: cuestionario sin escribir → plan con la IA del usuario (borrador). */
 export default async function CreatePlanPage() {
   const user = await pageUser();
   const now = today();
@@ -32,12 +32,12 @@ export default async function CreatePlanPage() {
     womenMode(user.id),
   ]);
   const fake = process.env.LIFEOS_FAKE_AI === "1";
-  const configured = fake || Boolean(env().GEMINI_API_KEY);
+  const configured = fake || (await aiAvailable(user.id));
   const consent = fake || me.aiConsentAt != null;
 
   return (
     <>
-      <PageHeader title="Crear mi planificación" description="Responde con unos toques; la IA (Gemini) prepara un plan a tu medida que revisas antes de activarlo." />
+      <PageHeader title="Crear mi planificación" description="Responde con unos toques; la IA que elijas prepara un plan a tu medida que revisas antes de activarlo." />
       {mode !== "NONE" ? (
         <p role="status" className="mb-4 rounded-md border border-amber-500/50 bg-amber-500/5 p-3 text-sm">
           Tienes activo el modo {mode === "PREGNANT" ? "embarazo" : "posparto"}: aquí no se generan planes con IA. Sigue las pautas de tu médica o matrona y la guía por fases de{" "}
@@ -48,7 +48,11 @@ export default async function CreatePlanPage() {
         </p>
       ) : !configured ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          La IA no está configurada en el servidor: añade <code>GEMINI_API_KEY</code> al fichero de entorno y reinicia.
+          Aún no tienes una IA configurada: pon tu clave (Google, OpenAI, Anthropic o un modelo local) en{" "}
+          <Link href="/settings#ia" className="font-medium text-foreground underline underline-offset-4">
+            Ajustes → IA
+          </Link>
+          .
         </p>
       ) : !consent ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
@@ -56,7 +60,7 @@ export default async function CreatePlanPage() {
           <Link href="/settings" className="font-medium text-foreground underline underline-offset-4">
             Ajustes → Privacidad e IA
           </Link>
-          . A Gemini solo le llegan tus respuestas del cuestionario: ni tu nombre, ni tu email, ni tus datos de salud.
+          . A la IA solo le llegan tus respuestas del cuestionario: ni tu nombre, ni tu email, ni tus datos de salud.
         </p>
       ) : null}
       {drafts.length ? (

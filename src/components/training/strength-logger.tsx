@@ -29,6 +29,24 @@ export interface SetRow {
   planReps?: number | null;
   planRir?: number | null;
   suggestedKg?: number | null;
+  /**
+   * v1.9 · Datos de la serie que el formulario no muestra (al editar una sesión ya guardada):
+   * se devuelven tal cual para no perderlos. El RIR solo se conserva si no cambia el RPE.
+   */
+  keep?: { rpe: number | null; rir: number | null; tempo: string | null; restSec: number | null; isFailure: boolean; notes: string | null };
+}
+
+/** Campos conservados de una serie editada (sin nulos, para no pisar valores por defecto). */
+function keptFields(s: SetRow) {
+  const k = s.keep;
+  if (!k) return {};
+  return {
+    ...(k.rir != null && k.rpe === s.rpe ? { rir: k.rir } : {}),
+    ...(k.tempo ? { tempo: k.tempo } : {}),
+    ...(k.restSec != null ? { restSec: k.restSec } : {}),
+    ...(k.isFailure ? { isFailure: true } : {}),
+    ...(k.notes ? { notes: k.notes } : {}),
+  };
 }
 
 export type AutoregContext = { maxPct: number; step: number; mvt: number; profiles: Record<string, { slope: number; intercept: number }> };
@@ -53,7 +71,7 @@ export function blocksToSets(blocks: ExerciseBlock[]) {
   return blocks.flatMap((b) =>
     b.sets
       .filter((s) => s.reps != null && s.reps > 0)
-      .map((s) => ({ exerciseId: b.exerciseId, reps: s.reps!, weightKg: s.weightKg ?? 0, rpe: s.rpe, isWarmup: s.isWarmup, ...(s.velocityMs ? { velocityMs: s.velocityMs } : {}), ...(s.suggestedKg ? { suggestedKg: s.suggestedKg } : {}) })),
+      .map((s) => ({ exerciseId: b.exerciseId, reps: s.reps!, weightKg: s.weightKg ?? 0, rpe: s.rpe, isWarmup: s.isWarmup, ...(s.velocityMs ? { velocityMs: s.velocityMs } : {}), ...(s.suggestedKg ? { suggestedKg: s.suggestedKg } : {}), ...keptFields(s) })),
   );
 }
 

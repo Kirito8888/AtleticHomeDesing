@@ -10,7 +10,7 @@ import { addDays, today } from "@/lib/dates";
 import { formatDate, formatNum, SESSION_TYPE_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
-export const metadata = { title: "Mis atletas · LifeOS" };
+export const metadata = { title: "Mis atletas · Atlenza" };
 
 /** Vista de entrenador/a: sesiones recientes y próximas de cada atleta que le ha dado permiso de sesiones. */
 export default async function CoachPage() {

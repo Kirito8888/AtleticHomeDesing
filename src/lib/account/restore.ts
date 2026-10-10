@@ -47,7 +47,7 @@ export async function isEmptyAccount(userId: string) {
 }
 
 export async function restoreExport(userId: string, data: unknown) {
-  if (get(data, "format") !== "lifeos-export/2") throw new ApiError(400, "No es una exportación de LifeOS (formato lifeos-export/2)");
+  if (get(data, "format") !== "lifeos-export/2") throw new ApiError(400, "No es una exportación de Atlenza ni de LifeOS (formato lifeos-export/2)");
   if (!(await isEmptyAccount(userId))) throw new ApiError(409, "Solo se restaura en una cuenta vacía (sin sesiones, recuperación, comidas ni movimientos)");
   const counts: Record<string, number> = {};
   const skipped: string[] = [];

@@ -196,6 +196,8 @@ export async function exportAccount(userId: string) {
     prisma.receipt.findMany({ where, select: { id: true, transactionId: true, mime: true, createdAt: true } }),
     prisma.subscriptionPriceChange.findMany({ where: { subscription: { userId } }, orderBy: { on: "asc" } }),
   ]);
+  // v1.9: proveedor de IA elegido, sin la clave (ni cifrada): al restaurar hay que volver a ponerla
+  const aiProvider = await prisma.aiCredential.findUnique({ where: { userId }, select: { provider: true, baseUrl: true, model: true, embeddingModel: true, verifiedAt: true } });
   // v1.8: revisiones, objetivos, reglas de categoría, bandeja de avisos, uso local y papelera
   const [weeklyReviews, goals, categoryRules, inbox, pageUsage, trash] = await Promise.all([
     prisma.weeklyReview.findMany({ where, orderBy: { weekStart: "asc" }, omit: { userId: true } }),
@@ -259,7 +261,7 @@ export async function exportAccount(userId: string) {
     coach: { reports: coachReports, links: coachLinks, sharedReports },
     calendarFeeds,
     security: { events: securityEvents, passkeys },
-    privacy: { consents, requests: privacyRequests },
+    privacy: { consents, requests: privacyRequests, aiProvider },
     goals: { goals, weeklyReviews },
     app: { notifications: inbox, pageUsage, trash },
   };

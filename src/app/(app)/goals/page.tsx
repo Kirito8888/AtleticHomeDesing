@@ -9,7 +9,7 @@ import { listGoals } from "@/lib/goals/service";
 import { prisma } from "@/lib/prisma";
 import { TEST_CATALOG } from "@/lib/training/physical-tests";
 
-export const metadata = { title: "Objetivos · LifeOS" };
+export const metadata = { title: "Objetivos · Atlenza" };
 
 /** v1.8 · Objetivos con progreso automático (marcas, tests, rachas y gasto) o a mano. */
 export default async function GoalsPage() {

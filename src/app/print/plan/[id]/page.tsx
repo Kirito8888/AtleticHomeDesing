@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { annotateKg } from "@/lib/training/plan-to-form";
 import { rmContext } from "@/lib/training/rm-service";
 
-export const metadata = { title: "Plan del día · LifeOS" };
+export const metadata = { title: "Plan del día · Atlenza" };
 
 /** Plan del día en una hoja limpia para imprimir o guardar como PDF (sin menús). */
 export default async function PrintPlanDay({ params }: PageProps<"/print/plan/[id]">) {
@@ -63,7 +63,7 @@ export default async function PrintPlanDay({ params }: PageProps<"/print/plan/[i
           </section>
         ),
       )}
-      <p className="mt-6 text-xs text-gray-500">LifeOS · Notas: ____________________________________________</p>
+      <p className="mt-6 text-xs text-gray-500">Atlenza · Notas: ____________________________________________</p>
     </main>
   );
 }

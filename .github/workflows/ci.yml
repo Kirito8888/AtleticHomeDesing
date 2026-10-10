@@ -26,6 +26,8 @@ jobs:
       - run: npm ci
       # Vulnerabilidades altas en dependencias de producción (las de desarrollo no llegan a la imagen).
       - run: npm audit --omit=dev --audit-level=high
+      # Atlenza · solo licencias admitidas en producción (sin propietarias ni copyleft fuerte)
+      - run: node scripts/third-party-notices.mjs --check
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
@@ -96,7 +98,8 @@ jobs:
       - name: Smoke de la UI (registro abierto)
         run: |
           # LIFEOS_FAKE_AI=1: planes con IA simulados (la CI no tiene clave de Gemini)
-          LIFEOS_FAKE_AI=1 ALLOW_REGISTRATION=true PORT=3000 node .next/standalone/server.js > server-open.log 2>&1 &
+          # v1.9: AI_LOCAL_BASE_URLS = IA simulada que levanta e2e:v19 (un «modelo local» autorizado)
+          LIFEOS_FAKE_AI=1 AI_LOCAL_BASE_URLS=http://127.0.0.1:39999/v1 ALLOW_REGISTRATION=true PORT=3000 node .next/standalone/server.js > server-open.log 2>&1 &
           SERVER=$!
           for i in $(seq 60); do curl -sf -o /dev/null http://localhost:3000/login && break; sleep 1; done
           npm run e2e
@@ -111,6 +114,8 @@ jobs:
           npm run e2e:v17
           # v1.8: accesibilidad (axe), operación, experiencia de uso y funcionalidades nuevas
           npm run e2e:v18
+          # v1.9: condiciones de uso, panel de administración, enlace de contraseña y suspensión
+          npm run e2e:v19
           kill $SERVER
       # El smoke ya creó un usuario: con ALLOW_REGISTRATION=false el registro queda cerrado.
       - name: Seguridad (registro cerrado)
@@ -118,6 +123,19 @@ jobs:
           ALLOW_REGISTRATION=false PORT=3000 node .next/standalone/server.js > server-closed.log 2>&1 &
           for i in $(seq 60); do curl -sf -o /dev/null http://localhost:3000/login && break; sleep 1; done
           npm run e2e:security
+      # v1.9 · Auditoría pasiva gratuita con OWASP ZAP (baseline) contra la app ya en marcha.
+      # Rompe la CI solo con las reglas FAIL de .zap/rules.tsv; el informe se sube siempre.
+      - name: OWASP ZAP baseline
+        run: |
+          for i in 1 2 3; do docker pull -q ghcr.io/zaproxy/zaproxy:2.16.1 && break; sleep $((i * 10)); done
+          docker run --rm --network host -u root -v "$PWD/.zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:2.16.1 \
+            zap-baseline.py -t http://localhost:3000/login -c rules.tsv -I -m 2 -r zap-report.html -J zap-report.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: .zap/zap-report.*
+          if-no-files-found: ignore
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

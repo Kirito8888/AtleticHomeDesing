@@ -16,7 +16,7 @@ import { rulesToday } from "@/lib/rules/rules-service";
 import type { VariantOption } from "@/lib/planning/plan-import/types";
 import { prisma } from "@/lib/prisma";
 
-export const metadata = { title: "Día del plan · LifeOS" };
+export const metadata = { title: "Día del plan · Atlenza" };
 
 /** Cualquier día del plan importado, también de versiones no activas (para compararlas). */
 export default async function PlanDayPage({ params }: PageProps<"/planning/plan/[id]">) {

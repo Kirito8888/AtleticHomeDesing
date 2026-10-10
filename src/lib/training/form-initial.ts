@@ -44,7 +44,22 @@ interface StoredSession {
   feelings?: unknown;
   zoneFatigue?: unknown;
   status: string;
-  strength: { sets: Array<{ exerciseId: string; reps: number; weightKg: number; rpe: number | null; isWarmup: boolean; velocityMs?: number | null }> } | null;
+  strength: {
+    sets: Array<{
+      exerciseId: string;
+      reps: number;
+      weightKg: number;
+      rpe: number | null;
+      isWarmup: boolean;
+      velocityMs?: number | null;
+      suggestedKg?: number | null;
+      rir?: number | null;
+      tempo?: string | null;
+      restSec?: number | null;
+      isFailure?: boolean;
+      notes?: string | null;
+    }>;
+  } | null;
   technical: {
     event: string;
     implementWeightG: number | null;
@@ -90,7 +105,8 @@ function readFeelings(raw: unknown): NonNullable<SessionFormInitial["feelings"]>
 /** "4:05" para tiempos enteros; "11.45" si hay décimas (sprints), que formatDuration redondearía. */
 const dur = (sec: number | null) => (sec == null ? "" : Number.isInteger(sec) ? formatDuration(sec) : String(sec));
 
-export function sessionToFormInitial(s: StoredSession, overrides: Partial<SessionFormInitial> = {}): SessionFormInitial {
+/** `repeat`: es una sesión nueva copiada de otra (solo se arrastran tempo y descanso, no RIR, fallo ni notas). */
+export function sessionToFormInitial(s: StoredSession, overrides: Partial<SessionFormInitial> = {}, opts: { repeat?: boolean } = {}): SessionFormInitial {
   // MIXED: la pestaña inicial es la primera parte con datos.
   const type: FormKind = isFormKind(s.type) ? s.type : s.strength ? "STRENGTH" : s.technical ? "TECHNICAL" : s.track ? "TRACK" : "STRENGTH";
   const base: SessionFormInitial = {
@@ -114,7 +130,18 @@ export function sessionToFormInitial(s: StoredSession, overrides: Partial<Sessio
     // Series consecutivas del mismo ejercicio → un bloque (como en el registro).
     const blocks: ExerciseBlock[] = [];
     for (const set of s.strength.sets) {
-      const row = { reps: set.reps, weightKg: set.weightKg, rpe: set.rpe, isWarmup: set.isWarmup, velocityMs: set.velocityMs ?? null };
+      const row = {
+        reps: set.reps,
+        weightKg: set.weightKg,
+        rpe: set.rpe,
+        isWarmup: set.isWarmup,
+        velocityMs: set.velocityMs ?? null,
+        suggestedKg: set.suggestedKg ?? null,
+        // v1.9 · lo que el formulario no muestra se conserva al guardar la edición
+        keep: opts.repeat
+          ? { rpe: null, rir: null, tempo: set.tempo ?? null, restSec: set.restSec ?? null, isFailure: false, notes: null }
+          : { rpe: set.rpe, rir: set.rir ?? null, tempo: set.tempo ?? null, restSec: set.restSec ?? null, isFailure: set.isFailure ?? false, notes: set.notes ?? null },
+      };
       const last = blocks.at(-1);
       if (last && last.exerciseId === set.exerciseId) last.sets.push(row);
       else blocks.push({ key: `srv${blocks.length}`, exerciseId: set.exerciseId, sets: [row] });

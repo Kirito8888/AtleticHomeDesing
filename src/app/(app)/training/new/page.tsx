@@ -16,7 +16,7 @@ import { sessionToFormInitial, templateToFormInitial } from "@/lib/training/form
 import { exerciseOptions, formSessionInclude } from "@/lib/training/session-queries";
 import { autoregContext } from "@/lib/training/rm-service";
 
-export const metadata = { title: "Nueva sesión · LifeOS" };
+export const metadata = { title: "Nueva sesión · Atlenza" };
 
 export default async function NewSessionPage({ searchParams }: PageProps<"/training/new">) {
   const user = await pageUser();
@@ -47,7 +47,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
   const initial =
     fromTemplate ??
     (repeat === "strength" && lastStrength
-      ? sessionToFormInitial(lastStrength, { date: todayIso, planned: false, rpe: null, notes: "", feelings: [] })
+      ? sessionToFormInitial(lastStrength, { date: todayIso, planned: false, rpe: null, notes: "", feelings: [] }, { repeat: true })
       : undefined);
   const initialType = type === "TECHNICAL" || type === "TRACK" ? type : "STRENGTH";
   return (

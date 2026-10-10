@@ -1,6 +1,6 @@
 # Seguridad
 
-LifeOS guarda datos de salud, entrenamiento, finanzas y apuntes. El código es **público**; los datos, nunca.
+Atlenza guarda datos de salud, entrenamiento, finanzas y apuntes. El código es **público**; los datos, nunca.
 
 ## Avisar de una vulnerabilidad
 
@@ -21,7 +21,7 @@ Respondo en cuanto pueda; es un proyecto personal sin plazos garantizados. Si el
 **Fuera:**
 - ataques que requieren acceso de administrador al servidor o a la BD;
 - denegación de servicio por volumen;
-- fallos de servicios de terceros (Gemini, OpenFoodFacts, servicios push), salvo que LifeOS los use de forma insegura.
+- fallos de servicios de terceros (Gemini, OpenFoodFacts, servicios push), salvo que Atlenza los use de forma insegura.
 
 ## Medidas que ya existen
 

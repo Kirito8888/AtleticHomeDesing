@@ -35,8 +35,9 @@ function makePdf(pages: string[]): Buffer {
   return Buffer.from(out, "latin1");
 }
 
-const fakeEmbed = async (texts: string[]) => texts.map((_, i) => Array.from({ length: DIM }, (_, j) => (j === i % DIM ? 1 : 0)));
-const deps = { embed: fakeEmbed, assertAllowed: async () => {}, embedModel: () => "fake@768" };
+const fakeVectors = (texts: string[]) => texts.map((_, i) => Array.from({ length: DIM }, (_, j) => (j === i % DIM ? 1 : 0)));
+const fakeEmbed = async (_userId: string, texts: string[]) => ({ vectors: fakeVectors(texts), tag: "fake@768" });
+const deps = { embed: fakeEmbed, assertAllowed: async () => {} };
 
 describe.skipIf(!HAS_DB)("ingesta de apuntes en segundo plano (BD real)", () => {
   // Importación diferida: sin DATABASE_URL no se carga Prisma.
@@ -113,16 +114,36 @@ describe.skipIf(!HAS_DB)("ingesta de apuntes en segundo plano (BD real)", () => 
       rag.processDocument(doc.id, {
         ...deps,
         assertAllowed: async () => Promise.reject(new Error("Activa el consentimiento de IA")),
-        embed: async (t) => ((sent = true), fakeEmbed(t)),
+        embed: async (u, t) => ((sent = true), fakeEmbed(u, t)),
       }),
     ).rejects.toThrow();
     expect(sent).toBe(false);
     expect((await prisma.studyDocument.findUniqueOrThrow({ where: { id: doc.id } })).status).toBe("FAILED");
   });
 
+  it("con una IA sin embeddings (Anthropic) se indexa por texto y se busca en español; al cambiar de IA se reindexa", async () => {
+    const textOnly = { ...deps, embed: async () => null };
+    const doc = await newDoc("glucolisis.txt", Buffer.from("La glucólisis anaeróbica produce lactato durante los esfuerzos intensos. ".repeat(30)), "text/plain");
+    const done = await rag.processDocument(doc.id, textOnly);
+    expect(done?.embedModel).toBe(rag.TEXT_ONLY);
+    expect((await chunkStats(doc.id)).sinVector).toBe((await chunkStats(doc.id)).total);
+    const hits = await rag.searchChunks(userId, "¿qué produce la glucólisis?", 3, [doc.id], textOnly);
+    expect(hits.length).toBeGreaterThan(0);
+    expect(hits[0].documentId).toBe(doc.id);
+    expect(Number(hits[0].score)).toBeGreaterThanOrEqual(0.35);
+    // Con embeddings, el documento solo por texto sigue saliendo por texto hasta reindexarlo
+    expect((await rag.searchChunks(userId, "glucólisis lactato", 3, [doc.id], deps)).length).toBeGreaterThan(0);
+    const ids = await rag.documentsToReindex(userId, "fake@768");
+    expect(ids).toContain(doc.id);
+    expect((await prisma.studyDocument.findUniqueOrThrow({ where: { id: doc.id } })).status).toBe("PENDING");
+    await rag.processDocument(doc.id, deps);
+    expect((await prisma.studyDocument.findUniqueOrThrow({ where: { id: doc.id } })).embedModel).toBe("fake@768");
+    expect(await rag.documentsToReindex(userId, "fake@768")).not.toContain(doc.id);
+  }, 60_000);
+
   it("la cola pg-boss procesa un documento encolado", async () => {
     const doc = await newDoc("cola.pdf", makePdf(book.slice(0, 10)));
-    // Cola propia: si hay un servidor de LifeOS en marcha contra la misma BD, su
+    // Cola propia: si hay un servidor de Atlenza en marcha contra la misma BD, su
     // trabajador no debe llevarse este documento (lo procesaría con Gemini real).
     const q = `ingest-test-${Date.now()}`;
     await queue.startIngestWorker(deps, q);

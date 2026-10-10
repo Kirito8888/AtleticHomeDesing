@@ -5,7 +5,7 @@ import { formatDate, formatEur, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { BODY_AREA_LABEL, BODY_SIDE_LABEL } from "@/lib/recovery/injury-rules";
 import { seasonReport } from "@/lib/training/season-report";
 
-export const metadata = { title: "Informe de temporada · LifeOS" };
+export const metadata = { title: "Informe de temporada · Atlenza" };
 
 const MONTH = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -104,7 +104,7 @@ export default async function PrintSeason({ searchParams }: PageProps<"/print/se
       <p className="text-sm">
         Ingresos {formatEur(r.money.incomeCents)} · Gastos {formatEur(r.money.expenseCents)} · Saldo {formatEur(r.money.incomeCents - r.money.expenseCents)}
       </p>
-      <p className="mt-6 text-xs text-gray-500">LifeOS · informe de temporada {year}</p>
+      <p className="mt-6 text-xs text-gray-500">Atlenza · informe de temporada {year}</p>
     </main>
   );
 }

@@ -14,7 +14,7 @@ import { routineView } from "@/lib/routine/service";
 import { hasSecondFactor } from "@/lib/auth/admin";
 import { prisma } from "@/lib/prisma";
 
-export const metadata = { title: "Mi rutina · LifeOS" };
+export const metadata = { title: "Mi rutina · Atlenza" };
 
 const BAND_LABEL = { bajo: "por debajo de lo habitual", medio: "en la media", alto: "por encima" } as const;
 

@@ -12,7 +12,7 @@ import { formatDate, formatDuration, formatNum, SESSION_TYPE_LABEL } from "@/lib
 import { prisma } from "@/lib/prisma";
 import { sessionThread } from "@/lib/training/comments-service";
 
-export const metadata = { title: "Sesión del atleta · LifeOS" };
+export const metadata = { title: "Sesión del atleta · Atlenza" };
 
 /** Sesión de un atleta vista por su entrenador/a (permiso de sesiones), con el hilo de comentarios. */
 export default async function CoachSessionPage({ params, searchParams }: PageProps<"/coach/session/[id]">) {

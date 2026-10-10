@@ -7,7 +7,7 @@ import { formatDate, formatNum } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { type Girth, measureChanges, type Skinfold, skinfoldSum } from "@/lib/recovery/body-measures";
 
-export const metadata = { title: "Antropometría · LifeOS" };
+export const metadata = { title: "Antropometría · Atlenza" };
 
 export default async function BodyPage() {
   const user = await pageUser();

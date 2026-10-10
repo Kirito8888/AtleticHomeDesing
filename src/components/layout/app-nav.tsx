@@ -55,7 +55,7 @@ export function AppNav({ userName, hidden = [], bell }: { userName: string | nul
     <>
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-56 flex-col border-r bg-background p-3 md:flex">
         <Link href="/" className="mb-4 flex items-center gap-2 px-3 py-2 text-lg font-bold tracking-tight">
-          <Activity className="size-5" /> LifeOS
+          <Activity className="size-5" /> Atlenza
         </Link>
         <form role="search" action="/search" className="mb-3 px-1">
           <input name="q" type="search" aria-label="Buscar" placeholder="Buscar…" className="h-9 w-full rounded-md border bg-transparent px-3 text-sm" />
@@ -75,7 +75,7 @@ export function AppNav({ userName, hidden = [], bell }: { userName: string | nul
 
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/90 px-4 pt-[env(safe-area-inset-top)] backdrop-blur md:hidden">
         <Link href="/" className="flex items-center gap-2 font-bold tracking-tight">
-          <Activity className="size-5" /> LifeOS
+          <Activity className="size-5" /> Atlenza
         </Link>
         <div className="flex items-center gap-1">
           <Button asChild variant="ghost" size="icon">

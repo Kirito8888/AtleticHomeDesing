@@ -11,7 +11,7 @@ import { EQUIPMENT_KINDS, equipmentAlerts, type EquipmentKind } from "@/lib/trai
 import { listEquipment } from "@/lib/training/equipment-service";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Material · LifeOS" };
+export const metadata = { title: "Material · Atlenza" };
 
 export default async function EquipmentPage() {
   const user = await pageUser();

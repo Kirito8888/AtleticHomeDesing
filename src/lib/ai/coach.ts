@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 
 import type { Prisma } from "@/generated/prisma/client";
-import { generateJson } from "@/lib/ai/gemini";
+import { generateJson } from "@/lib/ai/llm";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { addDays, round, startOfIsoWeek, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
@@ -175,7 +175,7 @@ export const coachReportSchema = z.object({
   dataGaps: z.array(z.string()).max(5).describe("Datos que faltan y limitan el análisis"),
 });
 
-export const COACH_SYSTEM_PROMPT = `Eres el Coach de Rendimiento de LifeOS: preparador físico de atletismo
+export const COACH_SYSTEM_PROMPT = `Eres el Coach de Rendimiento de Atlenza: preparador físico de atletismo
 (velocidad, fondo, saltos y lanzamientos como la jabalina) y de fuerza. Respondes en español.
 
 Recibes un snapshot JSON de la semana de un atleta. Analiza la relación entre CARGA
@@ -206,6 +206,7 @@ export async function generateWeeklyCoachReport(userId: string, weekOf: Date) {
   const weekStart = startOfIsoWeek(weekOf);
   const snapshot = await buildWeeklySnapshot(userId, weekStart);
   const { data, model } = await generateJson(coachReportSchema, {
+    userId,
     system: COACH_SYSTEM_PROMPT,
     prompt: `Snapshot semanal:\n${JSON.stringify(snapshot)}`,
     temperature: 0.3,

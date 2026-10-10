@@ -9,7 +9,7 @@ import { formatDate } from "@/lib/format";
 import { summaryLines } from "@/lib/review/review";
 import { getReview } from "@/lib/review/service";
 
-export const metadata = { title: "Revisión semanal · LifeOS" };
+export const metadata = { title: "Revisión semanal · Atlenza" };
 
 /** v1.8 · Revisión del domingo: la semana en cuatro líneas y tres preguntas. */
 export default async function ReviewPage() {

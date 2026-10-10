@@ -98,7 +98,7 @@ export function VoiceSessionForm(props: { exercises: ExerciseOption[]; defaultDa
               Convertir en sesión
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">El audio lo transcribe tu navegador. Al servidor solo llega el texto; si tienes la IA activada, Gemini lo convierte, y si no, la app lo interpreta sola.</p>
+          <p className="text-xs text-muted-foreground">El audio lo transcribe tu navegador. Al servidor solo llega el texto; si tienes la IA activada, tu IA lo convierte, y si no, la app lo interpreta sola.</p>
         </div>
       </details>
       <SessionForm key={key} exercises={props.exercises} defaultDate={props.defaultDate} bodyWeightKg={props.bodyWeightKg} initialType={props.initialType} initial={initial} autoreg={props.autoreg} />

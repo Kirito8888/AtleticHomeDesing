@@ -26,6 +26,7 @@ const tables: Table[] = [
   { name: "salud de la mujer", read: (skip) => prisma.womenHealth.findMany({ select: { userId: true, data: true }, skip, take: BATCH, orderBy: { userId: "asc" } }).then((r) => r.map((x) => ({ id: x.userId, data: x.data }))), write: (userId, data) => prisma.womenHealth.update({ where: { userId }, data: { data } }) },
   { name: "registros de salud", read: (skip) => prisma.healthLog.findMany({ select: { id: true, data: true }, skip, take: BATCH, orderBy: { id: "asc" } }), write: (id, data) => prisma.healthLog.update({ where: { id }, data: { data } }) },
   { name: "bienestar", read: (skip) => prisma.wellbeingLog.findMany({ select: { id: true, data: true }, skip, take: BATCH, orderBy: { id: "asc" } }), write: (id, data) => prisma.wellbeingLog.update({ where: { id }, data: { data } }) },
+  { name: "claves de IA", read: (skip) => prisma.aiCredential.findMany({ where: { keySealed: { not: null } }, select: { id: true, keySealed: true }, skip, take: BATCH, orderBy: { id: "asc" } }).then((r) => r.map((x) => ({ id: x.id, data: x.keySealed }))), write: (id, data) => prisma.aiCredential.update({ where: { id }, data: { keySealed: data } }) },
   { name: "entreno sola", read: (skip) => prisma.safetyTrip.findMany({ where: { data: { not: null } }, select: { id: true, data: true }, skip, take: BATCH, orderBy: { id: "asc" } }), write: (id, data) => prisma.safetyTrip.update({ where: { id }, data: { data } }) },
 ];
 

@@ -14,7 +14,7 @@ import type { ParsedWeek } from "@/lib/planning/plan-import/types";
 import { prisma } from "@/lib/prisma";
 import { mesoWeeklyTonnage } from "@/lib/training/plan-vs-done-service";
 
-export const metadata = { title: "Bloque del plan · LifeOS" };
+export const metadata = { title: "Bloque del plan · Atlenza" };
 
 type Section = { title: string | null; text: string };
 

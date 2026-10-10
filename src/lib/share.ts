@@ -1,5 +1,5 @@
 /**
- * v1.8 · «Compartir con LifeOS» (share target de la PWA).
+ * v1.8 · «Compartir con Atlenza» (share target de la PWA).
  *
  * El service worker recibe el POST del sistema, guarda los ficheros en Cache Storage
  * (SHARE_CACHE) y abre /share. Allí se elige el destino según el tipo; la página de

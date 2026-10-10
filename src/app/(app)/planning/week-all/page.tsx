@@ -8,7 +8,7 @@ import { groupWeek, hhmm, WEEK_KIND_LABEL } from "@/lib/planning/week-all";
 import { weekAll } from "@/lib/planning/week-all-service";
 import { cn } from "@/lib/utils";
 
-export const metadata = { title: "Mi semana · LifeOS" };
+export const metadata = { title: "Mi semana · Atlenza" };
 
 /** v1.8 · Entreno, clases, exámenes, estudio, entregas, citas y competiciones en una sola semana. */
 export default async function WeekAllPage({ searchParams }: PageProps<"/planning/week-all">) {

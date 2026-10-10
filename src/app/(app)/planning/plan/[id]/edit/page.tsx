@@ -8,7 +8,7 @@ import type { PlanBlock } from "@/lib/planning/plan-import/types";
 import { prisma } from "@/lib/prisma";
 import { exerciseOptions } from "@/lib/training/session-queries";
 
-export const metadata = { title: "Editar día · LifeOS" };
+export const metadata = { title: "Editar día · Atlenza" };
 
 /** Editar un día de un plan propio. */
 export default async function EditManualDayPage({ params }: PageProps<"/planning/plan/[id]/edit">) {

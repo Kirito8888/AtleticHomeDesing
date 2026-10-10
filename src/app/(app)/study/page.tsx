@@ -9,17 +9,17 @@ import { ManualCards } from "@/components/study/coursework";
 import { StudyChat } from "@/components/study/study-chat";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { aiAvailable } from "@/lib/ai/provider";
 import { pageUser } from "@/lib/auth/page";
 import { toIsoDay } from "@/lib/dates";
-import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 
-export const metadata = { title: "Astras AI · LifeOS" };
+export const metadata = { title: "Atlenza IA · Atlenza" };
 
 export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   const user = await pageUser();
   const { tab } = await searchParams;
-  const aiConfigured = Boolean(env().GEMINI_API_KEY);
+  const aiConfigured = await aiAvailable(user.id);
   const now = new Date();
   const [me, docs, threads, decks, due, reports] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { aiConsentAt: true } }),
@@ -40,8 +40,8 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   return (
     <>
       <PageHeader
-        title="Astras AI"
-        description="Estudio con tus apuntes, coach de rendimiento y planes de entrenamiento (Gemini)"
+        title="Atlenza IA"
+        description="Estudio con tus apuntes, coach de rendimiento y planes de entrenamiento (con la IA que elijas)"
         action={
           <div className="flex gap-2">
             <Button asChild size="sm" variant="outline">
@@ -71,11 +71,15 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
       </nav>
       {!aiConfigured ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          La IA no está configurada: añade <code>GEMINI_API_KEY</code> a tu fichero de entorno y reinicia. Puedes seguir repasando flashcards existentes.
+          Aún no tienes una IA configurada: pon tu clave (Google, OpenAI, Anthropic o un modelo local) en{" "}
+          <Link href="/settings#ia" className="font-medium text-foreground underline underline-offset-4">
+            Ajustes → IA
+          </Link>
+          . Puedes seguir repasando flashcards existentes.
         </p>
       ) : !aiConsent ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          Astras AI está desactivado: tus apuntes y tu resumen semanal solo se envían a Google Gemini si lo autorizas en{" "}
+          Atlenza IA está desactivado: tus apuntes y tu resumen semanal solo se envían a tu IA si lo autorizas en{" "}
           <Link href="/settings" className="font-medium text-foreground underline underline-offset-4">
             Ajustes → Privacidad e IA
           </Link>

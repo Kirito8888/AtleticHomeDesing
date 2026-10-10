@@ -13,7 +13,7 @@ import { getPrefs } from "@/lib/rules/prefs-service";
 import { dataKeyConfigured } from "@/lib/security/data-key";
 import { FATIGUE_ZONES, type FatigueZone } from "@/lib/training/zone-fatigue";
 
-export const metadata = { title: "Bienestar · LifeOS" };
+export const metadata = { title: "Bienestar · Atlenza" };
 
 type Row = WellbeingEntry & { id: string };
 const short = (d: string) => formatDate(d, { day: "numeric", month: "short" });

@@ -126,7 +126,7 @@ export function SignOutEverywhere() {
   );
 }
 
-export function AiConsentToggle({ initial, configured }: { initial: boolean; configured: boolean }) {
+export function AiConsentToggle({ initial, configured, provider }: { initial: boolean; configured: boolean; provider: string }) {
   const router = useRouter();
   const [enabled, setEnabled] = useState(initial);
   const [busy, setBusy] = useState(false);
@@ -134,7 +134,7 @@ export function AiConsentToggle({ initial, configured }: { initial: boolean; con
     <div className="grid gap-3 text-sm">
       <div className="flex items-center justify-between gap-3">
         <label htmlFor="ai-consent" className="font-medium">
-          Permitir enviar datos a Google Gemini
+          Permitir enviar datos a {provider}
         </label>
         <Switch
           id="ai-consent"
@@ -145,7 +145,7 @@ export function AiConsentToggle({ initial, configured }: { initial: boolean; con
             try {
               await api("/api/account/ai-consent", { method: "PUT", body: { enabled: value } });
               setEnabled(value);
-              toast.success(value ? "Astras AI activado" : "Astras AI desactivado");
+              toast.success(value ? "Atlenza IA activado" : "Atlenza IA desactivado");
               router.refresh();
             } catch (e) {
               toast.error((e as Error).message);
@@ -158,10 +158,11 @@ export function AiConsentToggle({ initial, configured }: { initial: boolean; con
       <ul className="list-disc space-y-1 pl-5 text-muted-foreground">
         <li>Apuntes: el texto de los documentos que subas y tus preguntas al tutor.</li>
         <li>Coach semanal: un resumen numérico de tu semana (carga, VFC, sueño, competiciones). Sin nombre ni email.</li>
-        <li>Transferencia internacional: Google puede tratarlos fuera del Espacio Económico Europeo (Marco de Privacidad de Datos UE-EE. UU. y cláusulas contractuales tipo).</li>
-        <li>Nunca se envían finanzas ni nutrición.</li>
+        <li>Transferencia internacional: un proveedor externo puede tratarlos fuera del Espacio Económico Europeo según sus condiciones. Un modelo local de este servidor no saca nada de él.</li>
+        <li>Si cambias de proveedor, este permiso se desactiva y tienes que volver a darlo.</li>
+        <li>Nunca se envían datos de salud, finanzas ni nutrición.</li>
       </ul>
-      {!configured ? <p className="text-xs text-muted-foreground">Este servidor no tiene GEMINI_API_KEY: la IA no funcionará aunque lo actives.</p> : null}
+      {!configured ? <p className="text-xs text-muted-foreground">Aún no tienes una IA configurada (sección IA, arriba): no funcionará aunque lo actives.</p> : null}
     </div>
   );
 }
