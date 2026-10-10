@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/page-header";
-import { ClassForm, DeleteSlot } from "@/components/study/schedule-forms";
+import { ClassForm, DeleteSlot, ScheduleImport } from "@/components/study/schedule-forms";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
@@ -39,6 +39,12 @@ export default async function SchedulePage() {
           </CardHeader>
           <CardContent className="px-4">
             <ClassForm today={todayIso} />
+            <details className="mt-4 border-t pt-3">
+              <summary className="cursor-pointer text-sm font-medium">Importar el horario de la universidad (.ics)</summary>
+              <div className="mt-3">
+                <ScheduleImport />
+              </div>
+            </details>
           </CardContent>
         </Card>
         <div className="grid h-fit gap-4">

@@ -53,6 +53,7 @@ export function SupplementForm({ today }: { today: string }) {
           <Input id="sp-dose" className="w-full min-w-0" value={f.dose} maxLength={80} placeholder="la que te pautaron" onChange={set("dose")} />
         </Field>
       </div>
+      <AntiDopingNotice />
       <Button
         type="button"
         disabled={busy || !f.name.trim()}
@@ -130,5 +131,27 @@ export function DeleteAppointment({ id }: { id: string }) {
     <button type="button" disabled={busy} aria-label="Borrar cita" className="text-xs text-muted-foreground underline-offset-2 hover:underline" onClick={() => call(`/api/recovery/appointments/${id}`, { method: "DELETE" }, "Cita borrada")}>
       borrar
     </button>
+  );
+}
+
+/** v1.10 · Fuentes oficiales para comprobar un suplemento o medicamento (sin copiar ninguna lista). */
+export const ANTI_DOPING_LINKS = {
+  wada: "https://www.wada-ama.org/en/resources/world-anti-doping-code-and-international-standards/prohibited-list",
+  celad: "https://celad.educacionfpydeportes.gob.es/",
+};
+
+export function AntiDopingNotice() {
+  return (
+    <div role="note" aria-label="Aviso antidopaje" className="rounded-md border border-amber-500/50 bg-amber-500/5 p-2 text-xs">
+      Antes de tomarlo, compruébalo en la{" "}
+      <a href={ANTI_DOPING_LINKS.wada} target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2">
+        Lista de Prohibiciones de la AMA
+      </a>{" "}
+      y en la{" "}
+      <a href={ANTI_DOPING_LINKS.celad} target="_blank" rel="noopener noreferrer" className="font-medium underline underline-offset-2">
+        CELAD
+      </a>{" "}
+      (o con la app NØDopApp en tu farmacia). Los complementos alimenticios pueden llevar sustancias prohibidas que no aparecen en la etiqueta: la responsabilidad es de quien compite. Después, marca «comprobado».
+    </div>
   );
 }
