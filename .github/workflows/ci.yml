@@ -35,9 +35,13 @@ jobs:
   semgrep:
     name: Análisis estático (Semgrep)
     runs-on: ubuntu-latest
-    container: semgrep/semgrep
     steps:
       - uses: actions/checkout@v4
+      # Desde PyPI (sin imagen de Docker Hub) y con versión fija
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install --quiet semgrep==1.179.0
       # Reglas propias (.semgrep.yml): bloquean.
       - run: semgrep scan --config .semgrep.yml --error --metrics=off src prisma e2e
       # Reglas públicas: informe (no bloquea) para revisar hallazgos nuevos sin romper la CI por falsos positivos.
@@ -47,16 +51,6 @@ jobs:
     name: E2E (UI + seguridad)
     runs-on: ubuntu-latest
     needs: check
-    services:
-      db:
-        image: pgvector/pgvector:pg17
-        env:
-          POSTGRES_USER: lifeos
-          POSTGRES_PASSWORD: lifeos
-          POSTGRES_DB: lifeos
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U lifeos" --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql://lifeos:lifeos@localhost:5432/lifeos?schema=public
       AUTH_SECRET: ci-only-not-a-secret
@@ -72,6 +66,20 @@ jobs:
       VAPID_SUBJECT: mailto:ci@example.com
     steps:
       - uses: actions/checkout@v4
+      # Docker Hub limita las descargas anónimas desde los runners compartidos (toomanyrequests): se usa
+      # el espejo público de Google; si una imagen no está en él, Docker cae a Docker Hub.
+      - name: Espejo de Docker Hub
+        run: |
+          sudo sh -c '[ -s /etc/docker/daemon.json ] || echo "{}" > /etc/docker/daemon.json'
+          sudo jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' /etc/docker/daemon.json | sudo tee /etc/docker/daemon.json.new >/dev/null
+          sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json && sudo systemctl restart docker
+      # PostgreSQL 17 + pgvector como paso (no como «service»: así pasa por el espejo y reintenta)
+      - name: Base de datos
+        run: |
+          for i in 1 2 3; do docker pull -q pgvector/pgvector:pg17 && break; sleep $((i * 10)); done
+          docker run -d --name db -p 5432:5432 -e POSTGRES_USER=lifeos -e POSTGRES_PASSWORD=lifeos -e POSTGRES_DB=lifeos pgvector/pgvector:pg17
+          for i in $(seq 60); do docker exec db pg_isready -U lifeos -h 127.0.0.1 >/dev/null 2>&1 && break; sleep 1; done
+          docker exec db pg_isready -U lifeos -h 127.0.0.1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -120,6 +128,13 @@ jobs:
     needs: check
     steps:
       - uses: actions/checkout@v4
+      # Docker Hub limita las descargas anónimas desde los runners compartidos (toomanyrequests): se usa
+      # el espejo público de Google; si una imagen no está en él, Docker cae a Docker Hub.
+      - name: Espejo de Docker Hub
+        run: |
+          sudo sh -c '[ -s /etc/docker/daemon.json ] || echo "{}" > /etc/docker/daemon.json'
+          sudo jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' /etc/docker/daemon.json | sudo tee /etc/docker/daemon.json.new >/dev/null
+          sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json && sudo systemctl restart docker
       - name: Entorno de prueba (.env.production efímero y clave age)
         run: |
           sudo apt-get update -q && sudo apt-get install -y -q age postgresql-client
