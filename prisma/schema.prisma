@@ -158,6 +158,9 @@ model User {
   invitationsCreated     Invitation[]           @relation("InvitationCreatedBy")
   passwordResets         PasswordReset[]
   aiCredential           AiCredential?
+  // v1.10
+  telegramLink           TelegramLink?
+  telegramLinkCodes      TelegramLinkCode[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -202,6 +205,9 @@ enum SecurityEventType {
   PASSWORD_RESET_ISSUED
   PASSWORD_RESET_USED
   TERMS_ACCEPTED
+  // v1.10
+  TELEGRAM_LINKED
+  TELEGRAM_UNLINKED
 }
 
 /// Registro de auditoría visible por el usuario (Ajustes → Actividad). Se borra con la cuenta
@@ -2422,4 +2428,27 @@ model AiCredential {
   updatedAt      DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// v1.10 · Chat de Telegram vinculado (con `/start CÓDIGO` al bot). Los avisos de la app llegan también ahí.
+model TelegramLink {
+  userId   String   @id
+  chatId   String   @unique
+  enabled  Boolean  @default(true)
+  linkedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Código de un solo uso (15 min) para vincular Telegram; solo se guarda su SHA-256.
+model TelegramLinkCode {
+  id        String   @id @default(cuid())
+  userId    String
+  codeHash  String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

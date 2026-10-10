@@ -197,6 +197,8 @@ export async function exportAccount(userId: string) {
     prisma.subscriptionPriceChange.findMany({ where: { subscription: { userId } }, orderBy: { on: "asc" } }),
   ]);
   // v1.9: proveedor de IA elegido, sin la clave (ni cifrada): al restaurar hay que volver a ponerla
+  // v1.10: Telegram vinculado (el chat es tuyo; los códigos de vinculación no se exportan)
+  const telegram = await prisma.telegramLink.findUnique({ where: { userId }, select: { chatId: true, enabled: true, linkedAt: true } });
   const aiProvider = await prisma.aiCredential.findUnique({ where: { userId }, select: { provider: true, baseUrl: true, model: true, embeddingModel: true, verifiedAt: true } });
   // v1.8: revisiones, objetivos, reglas de categoría, bandeja de avisos, uso local y papelera
   const [weeklyReviews, goals, categoryRules, inbox, pageUsage, trash] = await Promise.all([
@@ -261,7 +263,7 @@ export async function exportAccount(userId: string) {
     coach: { reports: coachReports, links: coachLinks, sharedReports },
     calendarFeeds,
     security: { events: securityEvents, passkeys },
-    privacy: { consents, requests: privacyRequests, aiProvider },
+    privacy: { consents, requests: privacyRequests, aiProvider, telegram },
     goals: { goals, weeklyReviews },
     app: { notifications: inbox, pageUsage, trash },
   };

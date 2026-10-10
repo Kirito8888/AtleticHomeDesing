@@ -151,14 +151,19 @@ export type AdminUserRow = {
   secondFactor: boolean;
   demo: boolean;
   me: boolean;
+  telegram: boolean;
 };
 
 export function UserList({ users }: { users: AdminUserRow[] }) {
   const router = useRouter();
   const [link, setLink] = useState<{ url: string; who: string } | null>(null);
-  async function act(id: string, action: "suspend" | "reactivate" | "reset-password", who: string) {
+  async function act(id: string, action: "suspend" | "reactivate" | "reset-password" | "reset-password-telegram", who: string) {
     try {
-      const r = await api<{ ok?: boolean; url?: string }>(`/api/admin/users/${id}`, { body: { action } });
+      const r = await api<{ ok?: boolean; url?: string; sentTelegram?: boolean }>(`/api/admin/users/${id}`, { body: { action } });
+      if (action === "reset-password-telegram") {
+        if (r.sentTelegram) toast.success("Enlace enviado por Telegram");
+        else toast.error("No se pudo enviar por Telegram: compártelo a mano");
+      }
       if (r.url) setLink({ url: r.url, who });
       else toast.success(action === "suspend" ? "Cuenta suspendida" : "Cuenta reactivada");
       router.refresh();
@@ -205,6 +210,11 @@ export function UserList({ users }: { users: AdminUserRow[] }) {
                 <Button type="button" size="sm" variant="outline" onClick={() => act(u.id, "reset-password", u.name ?? u.email)} aria-label={`Enlace de contraseña nueva para ${u.email}`}>
                   Enlace de contraseña nueva
                 </Button>
+                {u.telegram ? (
+                  <Button type="button" size="sm" variant="outline" onClick={() => act(u.id, "reset-password-telegram", u.name ?? u.email)} aria-label={`Enviar por Telegram el enlace de contraseña nueva a ${u.email}`}>
+                    Enviar por Telegram
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </li>

@@ -51,7 +51,7 @@ describe.skipIf(!HAS_DB)("vigilancia interna (BD real)", () => {
     const calls: Array<{ url: string; body: string }> = [];
     const ok = await telegram.sendAdminTelegram("hola", async (url, init) => {
       calls.push({ url: String(url), body: String(init?.body) });
-      return new Response("{}", { status: 200 });
+      return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }), { status: 200 });
     });
     expect(ok).toBe(true);
     expect(calls[0].url).toBe("https://api.telegram.org/bot123456:TEST-token-abcdefghijklmnopqrstuvw/sendMessage");
