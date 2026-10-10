@@ -48,7 +48,7 @@ const api = async (method: "post" | "put" | "patch" | "delete", url: string, dat
 
 const user = (...a: string[]) => execFileSync("npm", ["run", "-s", "user", "--", ...a], { encoding: "utf8" });
 const newUser = (email: string, role = "ATHLETE") => {
-  const pw = user("create", email, "--name", "Amiga", "--role", role).match(/Contraseña: (\S+)/)?.[1];
+  const pw = user("create", email, "--name", "Amiga", "--role", role, "--accept-terms").match(/Contraseña: (\S+)/)?.[1];
   if (!pw) throw new Error(`no se pudo crear ${email}`);
   return pw;
 };

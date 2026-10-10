@@ -5,9 +5,19 @@ import { pageUser } from "@/lib/auth/page";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { unreadCount } from "@/lib/push/inbox";
 import { getPrefs } from "@/lib/rules/prefs-service";
+import { TermsGate } from "@/components/legal/terms-gate";
+import { hasAcceptedTerms, TERMS_VERSION } from "@/lib/auth/access";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await pageUser();
+  // v1.9 · Uso solo con las condiciones aceptadas (versión vigente). La administración no lo necesita.
+  if (user.role !== "ADMIN" && !user.email?.endsWith("@demo.lifeos.invalid") && !(await hasAcceptedTerms(user.id))) {
+    return (
+      <main className="mx-auto w-full max-w-5xl px-4">
+        <TermsGate version={TERMS_VERSION} />
+      </main>
+    );
+  }
   const [prefs, unread] = await Promise.all([getPrefs(user.id), unreadCount(user.id)]);
   return (
     <div className="min-h-dvh md:pl-56">

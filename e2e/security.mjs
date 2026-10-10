@@ -19,7 +19,7 @@ const run = Date.now();
 
 /** Crea un usuario con el script de administración y devuelve su contraseña generada. */
 function createUser(email) {
-  const out = execFileSync("npm", ["run", "-s", "user", "--", "create", email, "--name", "E2E"], { encoding: "utf8" });
+  const out = execFileSync("npm", ["run", "-s", "user", "--", "create", email, "--name", "E2E", "--accept-terms"], { encoding: "utf8" });
   const pw = out.match(/Contraseña: (\S+)/)?.[1];
   if (!pw) fail(`no se pudo crear ${email}: ${out}`);
   return pw;
@@ -74,6 +74,32 @@ const alertText = (page) => page.locator("p[role=alert]").first().textContent({ 
   const csp = (await page.request.get(B + "/login")).headers()["content-security-policy"] ?? "";
   if (!/script-src 'self' 'nonce-/.test(csp)) fail(`CSP sin nonce: ${csp}`);
   log("registro cerrado (página, enlace y API) y CSP con nonce");
+}
+
+// 1b. v1.9 · Con el registro cerrado, solo con invitación (un solo uso), aceptando las condiciones;
+//     una cuenta suspendida no puede entrar y pierde la sesión
+{
+  const email = `inv${run}@test.dev`;
+  const link = adminCli("invite", email, "--days", "1").match(/(\/register\?invite=[A-Za-z0-9_-]{43})/)?.[1];
+  if (!link) fail("npm run user -- invite no devolvió el enlace");
+  const page = await newPage();
+  await go(page, link);
+  await page.getByText("Tienes una invitación para usar Atlenza").waitFor();
+  if ((await page.inputValue("#email")) !== email) fail("la invitación no fija el email");
+  await page.fill("#name", "Invitada");
+  await page.fill("#password", "contraseña-larga-1");
+  await page.check("input[name=terms]");
+  await Promise.all([page.waitForURL(/\/settings\?welcome=1/), page.click("button[type=submit]")]);
+  const again = await newPage();
+  await go(again, link);
+  await again.getByText("Invitación no válida").waitFor();
+  adminCli("suspend", email);
+  await go(page, "/training");
+  if (!/\/login/.test(page.url())) fail("la sesión de una cuenta suspendida sigue abierta");
+  await login(again, email, "contraseña-larga-1");
+  if (!/suspendida/.test(await alertText(again))) fail("una cuenta suspendida pudo entrar");
+  adminCli("reactivate", email);
+  log("invitación de un solo uso con el registro cerrado, condiciones aceptadas y cuenta suspendida sin acceso");
 }
 
 // 2. Límite por IP: 10 intentos / 15 min, aunque cada uno use un email distinto

@@ -27,13 +27,14 @@ export async function registrationOpen(): Promise<boolean> {
   return (await prisma.user.count()) === 0;
 }
 
-export async function createUser(data: z.infer<typeof registerSchema>) {
-  if (!(await registrationOpen())) throw new ApiError(403, "El registro de cuentas nuevas está cerrado");
+/** v1.9 · Con una invitación válida (ya comprobada) se crea aunque el registro esté cerrado, con su rol. */
+export async function createUser(data: z.infer<typeof registerSchema>, invited?: { role: "ATHLETE" | "COACH" | "ADMIN" }) {
+  if (!invited && !(await registrationOpen())) throw new ApiError(403, "El registro de cuentas nuevas está cerrado");
   return prisma.user.create({
     data: {
       name: data.name,
       email: data.email,
-      role: data.role,
+      role: invited?.role ?? data.role,
       passwordHash: await hashPassword(data.password),
       // Todo usuario puede entrenar: el perfil se crea siempre (un coach también puede ser atleta).
       athleteProfile: { create: {} },

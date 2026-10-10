@@ -44,6 +44,7 @@ await go(B + "/register");
 await page.fill("#name", "Atleta Prueba");
 await page.fill("#email", `v14${Date.now()}@test.dev`);
 await page.fill("#password", "contraseña-segura-1");
+await page.check("input[name=terms]");
 await Promise.all([page.waitForURL(/\/settings\?welcome=1/), page.click("button[type=submit]")]);
 await page.selectOption("#p-sex", "FEMALE");
 await page.getByRole("button", { name: "Guardar perfil" }).click();

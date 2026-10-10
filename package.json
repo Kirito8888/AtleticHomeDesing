@@ -28,6 +28,7 @@
     "e2e:v17": "tsx e2e/v17.mts",
     "budget": "node scripts/bundle-budget.mjs",
     "e2e:v18": "tsx e2e/v18.mts",
+    "e2e:v19": "tsx e2e/v19.mts",
     "notices": "node scripts/third-party-notices.mjs"
   },
   "dependencies": {

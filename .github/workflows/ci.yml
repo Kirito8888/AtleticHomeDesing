@@ -113,6 +113,8 @@ jobs:
           npm run e2e:v17
           # v1.8: accesibilidad (axe), operación, experiencia de uso y funcionalidades nuevas
           npm run e2e:v18
+          # v1.9: condiciones de uso, panel de administración, enlace de contraseña y suspensión
+          npm run e2e:v19
           kill $SERVER
       # El smoke ya creó un usuario: con ALLOW_REGISTRATION=false el registro queda cerrado.
       - name: Seguridad (registro cerrado)

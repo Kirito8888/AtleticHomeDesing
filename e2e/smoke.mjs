@@ -27,6 +27,7 @@ await go(B + "/register");
 await page.fill("#name", "Bea Lanzadora");
 await page.fill("#email", email);
 await page.fill("#password", "contraseña-segura-1");
+await page.check("input[name=terms]");
 await Promise.all([page.waitForURL(/\/settings\?welcome=1/), page.click("button[type=submit]")]);
 log("registro → ajustes con bienvenida");
 
