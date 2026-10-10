@@ -3,7 +3,7 @@ import { z } from "zod";
 import { parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { isoDate, today, toIsoDay } from "@/lib/dates";
-import { importCompetitions } from "@/lib/training/v17-service";
+import { importCompetitions } from "@/lib/training/diary-service";
 
 /** v1.7 · Competiciones de un calendario (.ics o CSV leído en el navegador): solo se añaden las nuevas. */
 export const POST = route(async (req) => {

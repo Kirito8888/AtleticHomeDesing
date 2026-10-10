@@ -108,7 +108,7 @@ Reimportar respeta lo ya hecho. Detalle en `manual_backend.md` § 3.1b.
 
 | Ruta | Contenido |
 |---|---|
-| `src/lib/training/` | Motor de carga, importar del reloj, plantillas, temporizador, tabla de RM y %RM → kg, registrar desde el plan, 3 mejores por implemento; v1.6: kg del día (`autoreg.ts`), análisis de jabalina, temporadas, prehab y fatiga por zona; v1.7: diario técnico, comparador, simulador de intentos, combinadas, récords por categoría e importar calendario (`v17-training.ts`) |
+| `src/lib/training/` | Motor de carga, importar del reloj, plantillas, temporizador, tabla de RM y %RM → kg, registrar desde el plan, 3 mejores por implemento; v1.6: kg del día (`autoreg.ts`), análisis de jabalina, temporadas, prehab y fatiga por zona; v1.7: diario técnico, comparador, simulador de intentos, combinadas, récords por categoría e importar calendario (`competition-tools.ts`) |
 | `src/lib/planning/` | Agenda del calendario, `plan-import/` (lector de PDF, versiones, servicio), cumplimiento, competición y calendario .ics; v1.6: afinamiento, recolocar y semanas tipo (sugerencias que no tocan el plan sin confirmar) |
 | `src/lib/ai-plan/` · `src/lib/routine/` | Crear planificación con IA: cuestionario, prompt, validación, expansión a días, ajustes y seguimiento · v1.7: rutina del cuestionario sin IA (perfil, PAR-Q, generador y proyección de progreso) |
 | `src/lib/rules/` | «Mis reglas»: preferencias y motor de avisos (control rápido, peso, VFC, lanzamientos, vídeo, sensaciones) y semáforo del día |
@@ -122,4 +122,6 @@ Reimportar respeta lo ya hecho. Detalle en `manual_backend.md` § 3.1b.
 | `deploy/` · `scripts/update.sh` | Copias, fail2ban · actualizar con vuelta atrás |
 | `src/lib/recovery/` · `src/lib/nutrition/` · `src/lib/study/` | Readiness, importaciones (CSV, Apple Health), antropometría, citas y suplementos, bienestar y fotos de lesión · OpenFoodFacts, agua, cocina (recetas, compra, comida de competición, plan semanal), sudoración y calendario de suplementos · horario, pomodoro, hábitos, plan hasta el examen, notas, tarjetas a mano, trabajos y franjas |
 | `src/lib/offline/` · `src/lib/account/` · `src/lib/demo/` | Bandeja sin conexión (IndexedDB: sesiones, agua, hábitos y comidas) · exportar, restaurar y borrar la cuenta · cuentas demo con datos sintéticos |
-| `e2e/` | Recorridos en Chromium: uso diario, seguridad, importar el plan, v1.4, v1.5, v1.6 y v1.7 |
+| `src/lib/goals/` · `src/lib/review/` · `src/lib/admin/` | v1.8 · Objetivos (progreso puro + servicio) · revisión semanal · uso local, errores del servidor, integridad, aviso de copias y de versión nueva |
+| `src/lib/share*.ts` · `public/sw.js` | v1.8 · Compartir con LifeOS: el service worker guarda lo compartido en Cache Storage y `/share` propone el destino |
+| `e2e/` | Recorridos en Chromium: uso diario, seguridad, importar el plan, v1.4, v1.5, v1.6, v1.7 y v1.8 (con axe en `e2e/a11y.mts`) |

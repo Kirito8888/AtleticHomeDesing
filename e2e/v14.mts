@@ -19,7 +19,8 @@ const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, lo
 const page = await ctx.newPage();
 page.on("pageerror", (e) => errors.push(`pageerror ${page.url()}: ${e.message}`));
 page.on("console", (m) => {
-  if (m.type() === "error" && !/404|422/.test(m.text())) errors.push(`console ${page.url()}: ${m.text()}`);
+  // ERR_INTERNET_DISCONNECTED: el paso «sin conexión» lo provoca a propósito (precargas de la navegación)
+  if (m.type() === "error" && !/404|422|ERR_INTERNET_DISCONNECTED/.test(m.text())) errors.push(`console ${page.url()}: ${m.text()}`);
 });
 page.on("response", (r) => {
   if (r.url().includes("/api/") && r.status() >= 500) errors.push(`HTTP ${r.status()} ${r.url()}`);

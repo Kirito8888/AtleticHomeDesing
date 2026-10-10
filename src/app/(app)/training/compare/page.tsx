@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { pageUser } from "@/lib/auth/page";
 import { formatDate, SESSION_TYPE_LABEL } from "@/lib/format";
-import { compareSessions } from "@/lib/training/v17-training";
-import { recentSessionsForPick, sessionForCompare } from "@/lib/training/v17-service";
+import { compareSessions } from "@/lib/training/competition-tools";
+import { recentSessionsForPick, sessionForCompare } from "@/lib/training/diary-service";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Comparar sesiones · LifeOS" };

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { CoachPanel, type CoachReportView } from "@/components/study/coach-panel";
 import { DocumentsPanel } from "@/components/study/documents-panel";
 import { FlashcardReview } from "@/components/study/flashcard-review";
-import { ManualCards } from "@/components/v17/study-v17";
+import { ManualCards } from "@/components/study/coursework";
 import { StudyChat } from "@/components/study/study-chat";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -111,6 +111,9 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
           <div className="grid gap-4">
             <FlashcardReview decks={decks.map((d) => ({ id: d.id, name: d.name, total: d._count.cards, due: due.find((x) => x.deckId === d.id)?._count._all ?? 0 }))} />
             <ManualCards decks={decks.map((d) => d.name)} />
+            <Link href="/study/exam" className="text-sm font-medium underline underline-offset-4">
+              Examen simulado con tus tarjetas →
+            </Link>
           </div>
         </TabsContent>
         <TabsContent value="coach">

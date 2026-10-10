@@ -46,6 +46,8 @@ model User {
   // v1.7 · Cuenta de demostración (datos sintéticos): se borra sola al caducar
   demoAudience   String?
   demoExpiresAt  DateTime?
+  // v1.8 · primer uso guiado terminado (o descartado)
+  onboardedAt    DateTime?
   // Privacidad (v1.1): fecha en que el usuario autorizó enviar datos a Gemini (null = no)
   aiConsentAt    DateTime?
   // Seguridad (v1.2): 2FA TOTP. Secreto cifrado (AES-256-GCM, TOTP_ENCRYPTION_KEY);
@@ -145,6 +147,12 @@ model User {
   assignments            Assignment[]
   seasonBudgets          SeasonBudget[]
   receipts               Receipt[]
+  // v1.8
+  pageUsage              PageUsage[]
+  trash                  TrashItem[]
+  weeklyReviews          WeeklyReview[]
+  goals                  Goal[]
+  categoryRules          CategoryRule[]
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -816,6 +824,9 @@ model CalendarEvent {
   allDay      Boolean              @default(true)
   priority    CompetitionPriority? // solo competiciones
   location    String?
+  // v1.8 · coordenadas del lugar (opcionales) para el tiempo del día de la competición
+  lat         Float?
+  lon         Float?
   createdAt   DateTime             @default(now())
   updatedAt   DateTime             @updatedAt
 
@@ -907,6 +918,7 @@ model FinancialCategory {
   postings      Posting[]
   budgets       Budget[]
   subscriptions Subscription[]
+  categoryRules CategoryRule[]
 
   @@unique([userId, name])
 }
@@ -1266,6 +1278,8 @@ model SessionTemplate {
   name      String
   type      SessionType
   payload   Json
+  // v1.8 · plantilla de la entrenadora visible para sus atletas (permiso SESSIONS)
+  shared    Boolean     @default(false)
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
 
@@ -1542,14 +1556,22 @@ model PushSubscription {
 /// Notificaciones ya enviadas (clave lógica, p. ej. "digest:2026-10-06"): evita
 /// repetirlas si el planificador se ejecuta varias veces o el contenedor se reinicia.
 model NotificationLog {
-  id     String   @id @default(cuid())
-  userId String
-  key    String
-  sentAt DateTime @default(now())
+  id          String    @id @default(cuid())
+  userId      String
+  key         String
+  sentAt      DateTime  @default(now())
+  // v1.8 · centro de notificaciones (lo enviado) y leídas
+  title       String?
+  body        String?
+  url         String?
+  readAt      DateTime?
+  // v1.8 · «Recordar en 1 h»: el scheduler lo vuelve a enviar a esta hora
+  snoozeUntil DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, key])
+  @@index([snoozeUntil])
 }
 
 /// Cómo leer el extracto de un banco (columnas, formato de fecha y de importe).
@@ -2218,4 +2240,118 @@ model SubscriptionPriceChange {
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@index([subscriptionId, on])
+}
+
+// ---------- v1.8 ----------
+
+/// v1.8 · Uso local (opcional): cuántas veces se abre cada página por semana. Sin terceros.
+model PageUsage {
+  userId String
+  path   String // patrón de la ruta, sin ids (p. ej. /training/[id])
+  week   DateTime @db.Date // lunes
+  count  Int      @default(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, path, week])
+  @@index([week])
+}
+
+/// v1.8 · Errores 500 e informes de la CSP, agregados (sin cuerpos ni datos personales).
+model ServerError {
+  id      String   @id @default(cuid())
+  key     String   @unique // tipo|ruta|mensaje recortado
+  kind    String // ERROR | CSP
+  path    String
+  message String
+  count   Int      @default(1)
+  firstAt DateTime @default(now())
+  lastAt  DateTime @default(now())
+
+  @@index([lastAt])
+}
+
+/// v1.8 · Límite de peticiones persistente (ventana fija): sobrevive a los reinicios.
+model RateLimitHit {
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@id([key, windowStart])
+  @@index([windowStart])
+}
+
+/// v1.8 · Papelera (7 días): copia de lo borrado (sesión, comida o movimiento) para poder deshacer.
+/// Lo borrado se borra de verdad de su tabla: ninguna consulta tiene que filtrar nada.
+model TrashItem {
+  id        String   @id @default(cuid())
+  userId    String
+  kind      String // SESSION | MEAL | TRANSACTION
+  label     String
+  data      Json
+  files     String[] @default([]) // ficheros cifrados (justificantes) que se borran al vaciar
+  deletedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, deletedAt])
+}
+
+/// v1.8 · Revisión del domingo: resumen de la semana y tres respuestas; el foco se ve en el panel.
+model WeeklyReview {
+  id        String   @id @default(cuid())
+  userId    String
+  weekStart DateTime @db.Date // lunes
+  summary   Json // { tss, sessions, sleepH, studyMin, spentCents }
+  wentWell  String?
+  change    String?
+  focus     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+}
+
+enum GoalKind {
+  MARK // mejor marca en una prueba técnica (linkRef = TechnicalEvent)
+  TEST // test físico (linkRef = testKey)
+  HABIT // racha de un hábito en días (linkRef = habitId)
+  BUDGET // gasto del mes en una categoría por debajo de target (linkRef = categoryId)
+  CUSTOM // progreso manual
+}
+
+/// v1.8 · Objetivo con progreso calculado a partir de los datos existentes.
+model Goal {
+  id             String    @id @default(cuid())
+  userId         String
+  kind           GoalKind
+  title          String
+  target         Float
+  current        Float? // solo CUSTOM
+  unit           String?
+  higherIsBetter Boolean   @default(true)
+  linkRef        String?
+  dueOn          DateTime? @db.Date
+  doneAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// v1.8 · «Aplicar a los parecidos»: al importar un extracto, el concepto que contiene `pattern` va a esa categoría.
+model CategoryRule {
+  id         String   @id @default(cuid())
+  userId     String
+  pattern    String // en minúsculas y sin espacios repetidos
+  categoryId String
+  createdAt  DateTime @default(now())
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category FinancialCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pattern])
 }

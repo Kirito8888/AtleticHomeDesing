@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/page-header";
-import { ProjectionChart } from "@/components/routine/projection-chart";
+import { ProjectionChart } from "@/components/charts/lazy";
 import { RetestForm } from "@/components/routine/retest-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,16 +11,26 @@ import { today, toIsoDay } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
 import { EXPERIENCE, GOALS_LONG, GOALS_SHORT, TESTS, type TestKey } from "@/lib/routine/questionnaire";
 import { routineView } from "@/lib/routine/service";
+import { hasSecondFactor } from "@/lib/auth/admin";
+import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Mi rutina · LifeOS" };
 
 const BAND_LABEL = { bajo: "por debajo de lo habitual", medio: "en la media", alto: "por encima" } as const;
 
-export default async function RoutineDetailPage({ params }: PageProps<"/training/routine/[id]">) {
+export default async function RoutineDetailPage({ params, searchParams }: PageProps<"/training/routine/[id]">) {
   const user = await pageUser();
   const { id } = await params;
   const v = await routineView(user.id, id);
   if (!v) notFound();
+  // v1.8 · Administración (con segundo factor): comparar con la rutina de una cuenta demo
+  const admin = user.role === "ADMIN" && (await hasSecondFactor(user.id));
+  const demos = admin
+    ? await prisma.routineProfile.findMany({ where: { user: { demoExpiresAt: { not: null } } }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, userId: true, user: { select: { name: true } } } })
+    : [];
+  const demoId = (await searchParams).demo;
+  const demoPick = typeof demoId === "string" ? demos.find((d) => d.id === demoId) : undefined;
+  const demo = demoPick ? await routineView(demoPick.userId, demoPick.id) : null;
   const { answers: a, profile: p } = v;
   return (
     <>
@@ -98,6 +108,68 @@ export default async function RoutineDetailPage({ params }: PageProps<"/training
             </p>
           </CardContent>
         </Card>
+        {admin && demos.length ? (
+          <Card className="gap-3 py-4 lg:col-span-2" aria-label="Comparar con una demo">
+            <CardHeader className="px-4">
+              <CardTitle className="text-base">Comparar con una demo</CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 px-4 text-sm">
+              <nav aria-label="Cuentas demo" className="flex flex-wrap gap-1.5">
+                {demos.map((d) => (
+                  <Link key={d.id} href={`?demo=${d.id}`} aria-current={d.id === demoPick?.id ? "true" : undefined} className={d.id === demoPick?.id ? "rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs" : "rounded-full border px-3 py-1 text-xs"}>
+                    {d.user.name ?? "Demo"}
+                  </Link>
+                ))}
+              </nav>
+              {demo ? (
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b text-xs text-muted-foreground">
+                      <th className="py-1 pr-2 font-medium"></th>
+                      <th className="py-1 pr-2 font-medium">Esta rutina</th>
+                      <th className="py-1 font-medium">Demo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b">
+                      <td className="py-1 pr-2">Perfil</td>
+                      <td className="py-1 pr-2">
+                        {p.archetype} · {p.level}
+                      </td>
+                      <td className="py-1">
+                        {demo.profile.archetype} · {demo.profile.level}
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td className="py-1 pr-2">Días / min</td>
+                      <td className="py-1 pr-2">
+                        {a.weekdays.length} × {a.minutes}
+                      </td>
+                      <td className="py-1">
+                        {demo.answers.weekdays.length} × {demo.answers.minutes}
+                      </td>
+                    </tr>
+                    {[...new Set([...v.metrics.map((m) => m.key), ...demo.metrics.map((m) => m.key)])].map((k) => {
+                      const mine = v.metrics.find((m) => m.key === k);
+                      const theirs = demo.metrics.find((m) => m.key === k);
+                      const cell = (m: typeof mine) => (m ? `${m.baseline} → ${m.longTerm.expected} ${m.unit}` : "—");
+                      return (
+                        <tr key={k} className="border-b">
+                          <td className="py-1 pr-2">{TESTS[k].label}</td>
+                          <td className="py-1 pr-2 tabular-nums">{cell(mine)}</td>
+                          <td className="py-1 tabular-nums">{cell(theirs)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-muted-foreground">Elige una cuenta demo para ver su perfil y su proyección al lado de esta.</p>
+              )}
+              <p className="text-xs text-muted-foreground">Solo para administración: lee únicamente cuentas demo (caducan solas).</p>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
     </>
   );

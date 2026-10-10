@@ -31,6 +31,8 @@ jobs:
       - run: npm test
       # Sin DATABASE_URL ni secretos: el build no debe necesitarlos.
       - run: npm run build
+      # v1.8 · Presupuesto de JS por página (gzip): avisa si una página engorda sin querer
+      - run: npm run budget
 
   semgrep:
     name: Análisis estático (Semgrep)
@@ -107,6 +109,8 @@ jobs:
           # v1.6: mujeres, fuerza, planificación, jabalina, salud, plataforma, nutrición, estudio y finanzas
           npm run e2e:v16
           npm run e2e:v17
+          # v1.8: accesibilidad (axe), operación, experiencia de uso y funcionalidades nuevas
+          npm run e2e:v18
           kill $SERVER
       # El smoke ya creó un usuario: con ALLOW_REGISTRATION=false el registro queda cerrado.
       - name: Seguridad (registro cerrado)

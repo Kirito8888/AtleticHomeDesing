@@ -29,7 +29,10 @@ export function route<C = unknown>(fn: Handler<C>) {
       if (result instanceof Response) return result;
       return NextResponse.json(result ?? { ok: true });
     } catch (err) {
-      return errorResponse(err);
+      const res = errorResponse(err);
+      // v1.8 · Los 500 quedan registrados (agregados, sin datos) para «Estado del servidor»
+      if (res.status >= 500) void import("@/lib/admin/server-errors").then((m) => m.recordServerError("ERROR", req.nextUrl.pathname, err instanceof Error ? `${err.name}: ${err.message}` : String(err)));
+      return res;
     }
   };
 }

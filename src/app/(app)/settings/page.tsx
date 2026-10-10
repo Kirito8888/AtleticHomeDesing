@@ -23,6 +23,10 @@ import { CarbsByDayForm, HydrationForm, TrackForm } from "@/components/settings/
 import { CoachReport } from "@/components/settings/coach-report";
 import { RotateKeys } from "@/components/settings/rotate-keys";
 import { DemoAccounts } from "@/components/settings/demo-accounts";
+import { AccessibilitySettings, ModulesSettings, QuietHoursSettings, UsageSettings } from "@/components/settings/app-preferences";
+import { usageSummary } from "@/lib/admin/usage";
+import { hasSecondFactor } from "@/lib/auth/admin";
+import { IntegrityCheck } from "@/components/settings/integrity-check";
 import { listDemoAccounts } from "@/lib/demo/service";
 import { ServerStatusView } from "@/components/settings/server-status";
 import { RestoreForm } from "@/components/settings/restore-form";
@@ -91,8 +95,11 @@ function Section({ id, title, description, children }: { id?: string; title: str
 
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const user = await pageUser();
-  const status = user.role === "ADMIN" ? await serverStatus() : null;
-  const demos = user.role === "ADMIN" ? await listDemoAccounts() : [];
+  // v1.8 · la administración exige 2FA o una llave de acceso
+  const adminOk = user.role === "ADMIN" && (await hasSecondFactor(user.id));
+  const status = adminOk ? await serverStatus() : null;
+  const demos = adminOk ? await listDemoAccounts() : [];
+  const usage = await usageSummary(user.id);
   const { welcome } = await searchParams;
   const todayIso = toIsoDay(today());
   const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed, reports, passkeys, integrity] = await Promise.all([
@@ -125,7 +132,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
       <PageHeader title="Ajustes" />
       {welcome ? (
         <p role="status" className="mb-4 rounded-md border p-3 text-sm">
-          ¡Bienvenido/a! Completa tu perfil y tus umbrales: con ellos el TSS se calcula a partir de tu FC y tus ritmos.
+          ¡Bienvenido/a! Completa tu perfil y tus umbrales: con ellos el TSS se calcula a partir de tu FC y tus ritmos.{" "}
+          <Link href="/welcome" className="font-medium underline">
+            Empezar con la guía de 3 pasos
+          </Link>
         </p>
       ) : null}
       <div className="grid gap-4 lg:grid-cols-2">
@@ -259,7 +269,17 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <div className="grid gap-6">
             <PushSettings configured={vapid != null} publicKey={vapid?.publicKey ?? null} devices={pushDevices} />
             {vapid ? <ReminderSettings initial={{ remindTomorrowHour: prefs.remindTomorrowHour, remindMondayCheck: prefs.remindMondayCheck, remindWeigh: prefs.remindWeigh }} /> : null}
+            <QuietHoursSettings quietHours={prefs.quietHours} weeklyReviewPush={prefs.weeklyReviewPush} />
           </div>
+        </Section>
+        <Section id="modulos" title="Módulos" description="Oculta lo que no usas: desaparece de la navegación y del panel. Tus datos no se tocan.">
+          <ModulesSettings hidden={prefs.hiddenModules} />
+        </Section>
+        <Section id="accesibilidad" title="Accesibilidad" description="Tamaño de letra y contraste.">
+          <AccessibilitySettings fontScale={prefs.fontScale} highContrast={prefs.highContrast} />
+        </Section>
+        <Section id="uso" title="Lo que más y menos usas" description="Solo se cuenta cuántas veces abres cada página, en tu servidor. Nada sale de aquí.">
+          <UsageSettings enabled={prefs.usageStats} summary={usage} />
         </Section>
         <Section id="pista" title="Mi pista" description="Para guardar el tiempo (temperatura, viento, lluvia) de tus sesiones técnicas y el calor del día. Solo se envían las coordenadas a Open-Meteo.">
           <TrackForm initial={prefs.track} />
@@ -300,13 +320,26 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             Privacidad y derechos (consentimientos, limitar el tratamiento, plazos)
           </Link>
         </Section>
+        {user.role === "ADMIN" && !adminOk ? (
+          <Section id="servidor" title="Estado del servidor" description="Solo administración.">
+            <p role="alert" className="text-sm">
+              Para administrar el servidor activa antes la <strong>verificación en dos pasos</strong> o añade una <strong>llave de acceso</strong> (más arriba, en esta página). Con solo la contraseña, la administración queda bloqueada.
+            </p>
+          </Section>
+        ) : null}
         {status ? (
           <Section id="servidor" title="Estado del servidor" description="Solo administración. Míralo después de cada actualización.">
             <ServerStatusView s={status} />
             <RotateKeys />
+            <IntegrityCheck />
             <DemoAccounts accounts={demos.map((d) => ({ id: d.id, email: d.email, demoAudience: d.demoAudience, demoExpiresAt: d.demoExpiresAt!.toISOString() }))} />
           </Section>
         ) : null}
+        <Section title="Papelera" description="Sesiones, comidas y movimientos borrados en los últimos 7 días.">
+          <Link href="/settings/trash" className="text-sm font-medium underline underline-offset-4">
+            Abrir la papelera
+          </Link>
+        </Section>
         <Section title="Tus datos" description="Descarga una copia completa (JSON) o elimina tu cuenta.">
           <div className="grid gap-6">
             <div className="grid gap-2">
@@ -324,6 +357,21 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                 <Button asChild variant="outline" size="sm">
                   <a href="/api/export/finance" download>
                     Finanzas (CSV)
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <a href="/api/export/recovery" download>
+                    Recuperación (CSV)
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <a href="/api/export/nutrition" download>
+                    Comidas (CSV)
+                  </a>
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <a href="/api/export/study" download>
+                    Estudio (CSV)
                   </a>
                 </Button>
               </div>

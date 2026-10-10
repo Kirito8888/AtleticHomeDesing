@@ -1,10 +1,9 @@
-import { ApiError, route } from "@/lib/api";
-import { requireUser } from "@/lib/auth/session";
+import { route } from "@/lib/api";
+import { requireAdmin } from "@/lib/auth/admin";
 import { deleteDemoAccount } from "@/lib/demo/service";
 
 export const DELETE = route(async (_req, ctx: RouteContext<"/api/admin/demo/[id]">) => {
-  const user = await requireUser();
-  if (user.role !== "ADMIN") throw new ApiError(403, "Solo para administración");
+  await requireAdmin();
   const { id } = await ctx.params;
   await deleteDemoAccount(id);
   return { ok: true };

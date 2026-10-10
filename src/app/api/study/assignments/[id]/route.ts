@@ -1,7 +1,7 @@
 import { parsePatchBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
-import { assignmentSchema } from "@/lib/study/v17-study";
-import { deleteAssignment, updateAssignment } from "@/lib/study/v17-service";
+import { assignmentSchema } from "@/lib/study/coursework";
+import { deleteAssignment, updateAssignment } from "@/lib/study/coursework-service";
 
 type Ctx = RouteContext<"/api/study/assignments/[id]">;
 

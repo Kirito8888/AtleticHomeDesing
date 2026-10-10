@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
+import { useSharedFiles } from "@/lib/share-client";
 import { formatDate } from "@/lib/format";
 
 export interface DocItem {
@@ -28,6 +29,15 @@ const STATUS = { PENDING: "Pendiente", PROCESSING: "Procesando", EMBEDDED: "List
 export function DocumentsPanel({ docs, aiEnabled }: { docs: DocItem[]; aiEnabled: boolean }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
+  // v1.8 · llegado desde «Compartir»: queda elegido, falta pulsar «Subir»
+  useSharedFiles("document", (shared) => {
+    if (!fileRef.current) return;
+    const dt = new DataTransfer();
+    dt.items.add(shared[0]);
+    fileRef.current.files = dt.files;
+    fileRef.current.scrollIntoView({ block: "center" });
+    toast.info(`«${shared[0].name}» listo: pulsa Subir`);
+  });
   const [subject, setSubject] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 

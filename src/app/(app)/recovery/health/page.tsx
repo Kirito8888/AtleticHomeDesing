@@ -9,9 +9,9 @@ import { listHealthReports } from "@/lib/health/health-report";
 import { prisma } from "@/lib/prisma";
 import { APPOINTMENT_LABEL, supplementsToCheck } from "@/lib/recovery/health-admin";
 import { recentAppointments } from "@/lib/recovery/health-admin-service";
-import { SupplementCalendar } from "@/components/v17/nutrition-v17";
+import { SupplementCalendar } from "@/components/nutrition/planning";
 import { addDays, startOfIsoWeek } from "@/lib/dates";
-import { supplementWeek } from "@/lib/nutrition/v17-nutrition";
+import { supplementWeek } from "@/lib/nutrition/planning";
 
 export const metadata = { title: "Citas y suplementos · LifeOS" };
 

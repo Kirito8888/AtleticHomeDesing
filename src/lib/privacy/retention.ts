@@ -11,6 +11,10 @@ export const RETENTION_DEFAULTS = {
   EXPIRED_LINKS: 30,
   /** Solicitudes de derechos ya atendidas (prueba de que se atendieron). */
   PRIVACY_REQUESTS: 3 * 365,
+  /** v1.8 · Errores del servidor e informes de la CSP (agregados, sin datos personales). */
+  SERVER_ERRORS: 30,
+  /** v1.8 · Uso local de páginas (contador semanal). */
+  PAGE_USAGE: 365,
 } as const;
 export type RetentionKey = keyof typeof RETENTION_DEFAULTS;
 

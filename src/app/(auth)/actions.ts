@@ -1,13 +1,14 @@
 "use server";
 
 import { AuthError, CredentialsSignin } from "next-auth";
+import { rateLimitPersistent } from "@/lib/rate-limit-db";
 import { headers } from "next/headers";
 
 import { signIn, signOut } from "@/auth";
 import { Prisma } from "@/generated/prisma/client";
 import { ApiError } from "@/lib/api";
 import { createUser, registerSchema } from "@/lib/auth/users";
-import { clientIp, LIMITS, rateLimit } from "@/lib/rate-limit";
+import { clientIp, LIMITS } from "@/lib/rate-limit";
 
 export interface FormState {
   error?: string;
@@ -57,7 +58,7 @@ export async function passkeyLoginAction(challengeId: string, response: string, 
 
 export async function registerAction(_prev: FormState, form: FormData): Promise<FormState> {
   const ip = clientIp(await headers());
-  if (!rateLimit(`register:${ip}`, LIMITS.register.limit, LIMITS.register.windowMs).ok) return { error: TOO_MANY };
+  if (!(await rateLimitPersistent(`register:${ip}`, LIMITS.register.limit, LIMITS.register.windowMs)).ok) return { error: TOO_MANY };
 
   const parsed = registerSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos no válidos" };

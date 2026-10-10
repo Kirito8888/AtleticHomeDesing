@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { AttemptSheet } from "@/components/competition/attempt-sheet";
 import { CompetitionChecklist } from "@/components/competition/checklist";
-import { AttemptSimulator, CombinedWarmups } from "@/components/competition/v17-competition";
+import { AttemptSimulator, CombinedWarmups } from "@/components/competition/competition-tools";
 import { WarmupTimer } from "@/components/competition/warmup-timer";
 import { TaperCard } from "@/components/competition/taper-card";
 import { CompMeals } from "@/components/competition/comp-meals";
@@ -19,6 +19,9 @@ import { formatDate, formatNum } from "@/lib/format";
 import { countdownLabel } from "@/lib/planning/competition";
 import { prisma } from "@/lib/prisma";
 import { getPrefs } from "@/lib/rules/prefs-service";
+import { TripPlace } from "@/components/competition/trip-place";
+import { diffDays } from "@/lib/dates";
+import { dayForecast, forecastTips } from "@/lib/weather";
 
 export const metadata = { title: "Competición · LifeOS" };
 
@@ -43,6 +46,12 @@ export default async function CompetitionPage({ params }: PageProps<"/planning/c
     toIsoDay(today()),
   );
   const todayIso = toIsoDay(today());
+  // v1.8 · Viaje: pronóstico del día (Open-Meteo, hasta 16 días antes) y el viaje de Finanzas si existe
+  const daysTo = diffDays(ev.startAt, today());
+  const [forecast, trip] = await Promise.all([
+    ev.lat != null && ev.lon != null && daysTo >= 0 && daysTo <= 15 && process.env.LIFEOS_NO_WEATHER !== "1" ? dayForecast(ev.lat, ev.lon, day) : null,
+    prisma.trip.findFirst({ where: { userId: user.id, eventId: ev.id }, select: { id: true, name: true } }),
+  ]);
   return (
     <>
       <PageHeader title={ev.title} description={`${formatDate(ev.startAt, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}${ev.location ? ` · ${ev.location}` : ""}`} />
@@ -61,6 +70,42 @@ export default async function CompetitionPage({ params }: PageProps<"/planning/c
           </CardHeader>
           <CardContent className="px-4">
             <CompetitionChecklist eventId={ev.id} items={prefs.checklist} />
+          </CardContent>
+        </Card>
+        <Card className="gap-3 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base">Viaje y tiempo</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 px-4 text-sm">
+            {forecast ? (
+              <div aria-label="Pronóstico del día">
+                <p className="font-medium">
+                  {forecast.minC != null ? `${Math.round(forecast.minC)}–` : ""}
+                  {forecast.maxC != null ? `${Math.round(forecast.maxC)} °C` : "—"}
+                  {forecast.rainProb != null ? ` · lluvia ${forecast.rainProb} %` : ""}
+                  {forecast.windMaxMs != null ? ` · viento hasta ${formatNum(forecast.windMaxMs, 1)} m/s` : ""}
+                </p>
+                {forecastTips(forecast).length ? (
+                  <ul className="mt-1 list-disc pl-5 text-muted-foreground">
+                    {forecastTips(forecast).map((t) => (
+                      <li key={t}>{t}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : ev.lat != null ? (
+              <p className="text-muted-foreground">{daysTo > 15 ? "El pronóstico aparece 16 días antes." : daysTo < 0 ? "La competición ya pasó." : "Pronóstico no disponible ahora."}</p>
+            ) : null}
+            <TripPlace eventId={ev.id} lat={ev.lat} lon={ev.lon} />
+            {trip ? (
+              <Link href="/finance/trips" className="underline underline-offset-2">
+                Presupuesto del viaje: {trip.name}
+              </Link>
+            ) : (
+              <Link href="/finance/trips" className="text-muted-foreground underline underline-offset-2">
+                Preparar el presupuesto del viaje en Finanzas
+              </Link>
+            )}
           </CardContent>
         </Card>
         {taper && day > toIsoDay(today()) ? (

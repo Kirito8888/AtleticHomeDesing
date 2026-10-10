@@ -15,6 +15,8 @@ export interface PushMessage {
   url?: string;
   /** Misma etiqueta = la nueva sustituye a la anterior en el móvil. */
   tag?: string;
+  /** v1.8 · Fila de la bandeja: permite «Recordar en 1 h» desde la notificación. */
+  logId?: string;
 }
 
 export interface VapidKeys {

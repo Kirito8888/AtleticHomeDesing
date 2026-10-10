@@ -9,7 +9,7 @@ import { addHealthLog, saveWomenSettings } from "@/lib/health/women-service";
 import { prisma } from "@/lib/prisma";
 import { addWellbeing, parseWellbeing } from "@/lib/recovery/wellbeing-service";
 import { dataKeyConfigured } from "@/lib/security/data-key";
-import { createSessionSchema } from "@/lib/training/schemas";
+import { sessionInputFromSnapshot } from "@/lib/account/session-snapshot";
 import { createTrainingSession, recomputeDailyLoads } from "@/lib/training/service";
 
 /**
@@ -73,31 +73,9 @@ export async function restoreExport(userId: string, data: unknown) {
 
   // Sesiones: se vuelven a validar y a crear (recalcula TSS y marcas)
   for (const s of arr(get(data, "training", "sessions"))) {
-    const track = s.track as Row | null;
-    const tech = s.technical as Row | null;
-    const str = s.strength as Row | null;
-    const sets = arr(get(str, "sets")).flatMap((x) => {
-      const id = exMap.get(String(x.exerciseId)) ?? byName.get(String(get(x, "exercise", "name") ?? "").toLowerCase()) ?? (catalog.some((c) => c.id === x.exerciseId) ? String(x.exerciseId) : null);
-      return id ? [{ exerciseId: id, reps: x.reps, weightKg: x.weightKg, rpe: x.rpe, rir: x.rir, isWarmup: x.isWarmup, velocityMs: x.velocityMs, suggestedKg: x.suggestedKg }] : [];
-    });
-    const input = {
-      date: day(s.date),
-      type: s.type,
-      status: s.status,
-      title: s.title,
-      durationSec: s.durationSec,
-      sessionRpe: s.sessionRpe,
-      notes: s.notes,
-      feelings: s.feelings ?? null,
-      zoneFatigue: s.zoneFatigue ?? null,
-      tags: Array.isArray(s.tags) ? s.tags : [],
-      ...(track ? { track: { ...pick(track, Prisma.TrackSessionScalarFieldEnum, ["sessionId"]), intervals: arr(track.intervals).map((i) => pick(i, Prisma.TrackIntervalScalarFieldEnum, ["trackSessionId"])) } } : {}),
-      ...(tech ? { technical: { ...pick(tech, Prisma.TechnicalSessionScalarFieldEnum, ["sessionId", "bestMarkM", "conditions"]), attempts: arr(tech.attempts).map((a) => pick(a, Prisma.TechnicalAttemptScalarFieldEnum, ["technicalSessionId", "order"])) } } : {}),
-      ...(str ? { strength: { bodyWeightKg: str.bodyWeightKg ?? null, sets } } : {}),
-    };
-    const parsed = createSessionSchema.safeParse(JSON.parse(JSON.stringify(input, (_k, v) => (v === null ? undefined : v))));
+    const { date, parsed } = sessionInputFromSnapshot(s, (x) => exMap.get(String(x.exerciseId)) ?? byName.get(String(get(x, "exercise", "name") ?? "").toLowerCase()) ?? (catalog.some((c) => c.id === x.exerciseId) ? String(x.exerciseId) : null));
     if (!parsed.success) {
-      skipped.push(`sesión del ${input.date}`);
+      skipped.push(`sesión del ${date}`);
       continue;
     }
     await createTrainingSession(userId, null, parsed.data);
@@ -198,12 +176,45 @@ export async function restoreExport(userId: string, data: unknown) {
       }
     }
   }
-  // Hábitos con sus días
+  // Hábitos con sus días (se guarda el id nuevo para los objetivos de racha, v1.8)
+  const habitMap = new Map<string, string>();
   for (const h of arr(get(data, "study", "habits"))) {
     const habit = await prisma.habit.create({ data: { userId, name: String(h.name), archived: Boolean(h.archived) } });
+    habitMap.set(String(h.id), habit.id);
     const dates = arr(h.logs).flatMap((l) => (day(l.date) ? [dateOnly(day(l.date)!)] : []));
     if (dates.length) await prisma.habitLog.createMany({ data: dates.map((date) => ({ userId, habitId: habit.id, date })), skipDuplicates: true });
     add("hábitos");
+  }
+
+  // v1.8 · Revisiones semanales y objetivos. Los de gasto apuntan a categorías de finanzas, que no se restauran.
+  for (const r of arr(get(data, "goals", "weeklyReviews"))) {
+    try {
+      await prisma.weeklyReview.create({ data: { ...pick(r, Prisma.WeeklyReviewScalarFieldEnum), userId } as never });
+      add("revisiones semanales");
+    } catch {
+      skipped.push("revisiones semanales");
+    }
+  }
+  for (const g of arr(get(data, "goals", "goals"))) {
+    const row = { ...pick(g, Prisma.GoalScalarFieldEnum), userId } as Row;
+    if (row.kind === "BUDGET") {
+      skipped.push("objetivos de gasto");
+      continue;
+    }
+    if (row.kind === "HABIT") {
+      const habitId = habitMap.get(String(row.linkRef));
+      if (!habitId) {
+        skipped.push("objetivos de racha");
+        continue;
+      }
+      row.linkRef = habitId;
+    }
+    try {
+      await prisma.goal.create({ data: row as never });
+      add("objetivos");
+    } catch {
+      skipped.push("objetivos");
+    }
   }
 
   // Ciclo y salud de la mujer: venían descifrados; se cifran con la clave de este servidor

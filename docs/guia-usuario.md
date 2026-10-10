@@ -190,6 +190,54 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
 - **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
 
+## Novedades de la v1.8 (dónde está cada cosa)
+
+**Para empezar**
+- **Bienvenida** (te la ofrece el panel): elige qué partes de LifeOS usas, tu perfil y las horas sin avisos. Todo se cambia después en Ajustes.
+- **Ajustes → Módulos:** oculta lo que no uses. No se borra nada.
+- **Ajustes → Accesibilidad:** letra más grande y contraste alto.
+
+**Avisos**
+- **Campana** (arriba): todo lo que LifeOS te ha avisado en los últimos 60 días, aunque no tengas el push activado.
+- **«Recordar en 1 h»** en cada aviso, desde la campana o desde la notificación del móvil.
+- **Ajustes → Notificaciones:** horas de silencio. Los avisos de seguridad y de «entreno sola» llegan siempre.
+
+**Si te equivocas al borrar**
+- Al borrar una sesión, una comida o un movimiento sale **«Deshacer»** durante unos segundos.
+- Después, **Ajustes → Papelera** lo guarda 7 días.
+
+**Compartir con LifeOS** (con la app instalada, en Android)
+- Desde el correo, el navegador o la galería: «Compartir» → LifeOS.
+- Te propone qué hacer según el fichero:
+  - calendario de la federación → competiciones;
+  - PDF o zip del plan → importar el plan;
+  - extracto → finanzas;
+  - apuntes → estudio;
+  - foto → molestia o justificante.
+- Nada se guarda hasta que lo confirmas en la pantalla de siempre.
+
+**Planificar y revisar**
+- **Inicio → Semana** (o Plan → Mi semana): entreno, clases, exámenes, estudio, entregas, citas y competiciones juntos.
+- **Revisión semanal** (el domingo te avisa): tu semana en cuatro líneas y tres preguntas. El **foco** sale en el panel toda la semana siguiente.
+- **Objetivos** (menú): marca, test físico, racha de un hábito, gasto del mes o uno a mano. El progreso se calcula solo con lo que ya registras.
+
+**Entreno**
+- **Rendimiento → Informe de temporada:** una hoja para imprimir o guardar en PDF.
+- **Modo competición → Viaje y tiempo:** guarda las coordenadas del estadio y, 16 días antes, verás el pronóstico con consejos para la bolsa.
+- **Nueva sesión → De tu entrenadora:** plantillas que te ha compartido; «Copiar» las añade a las tuyas.
+- **Entrenadoras:** en Nueva sesión, «Compartir plantillas con tus atletas».
+
+**Estudio**
+- **Flashcards → Examen simulado:** tarjetas al azar con tiempo. Las que falles vuelven hoy al repaso.
+
+**Finanzas**
+- **Movimiento sin categoría → «Sin categoría»:** elige una y marca «Aplicar a los parecidos». Los iguales (y los de las próximas importaciones) se categorizan solos.
+- **Fondo de emergencia:** cuántos meses de gastos cubre tu dinero y cuánto falta para tu objetivo.
+
+**Tus datos**
+- **Ajustes → Exportar:** CSV de recuperación, comidas y estudio (además de entrenos y finanzas).
+- **Ajustes → Lo que más y menos usas:** contador de páginas, solo en tu servidor. Se puede desactivar.
+
 ## Novedades de la v1.7 (dónde está cada cosa)
 
 **Nada cambia tu planificación por su cuenta y la salud no sale de tu cuenta.**
