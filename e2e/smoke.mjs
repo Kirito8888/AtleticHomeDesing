@@ -240,7 +240,7 @@ await page.getByText("Campeonato de España").waitFor();
 await page.getByRole("status").filter({ hasText: "Molestia activa en Rodilla (izquierda)" }).waitFor();
 await shot("09-dashboard");
 await go(B + "/study");
-await page.getByText(/La IA no está configurada/).waitFor();
+await page.getByText(/Aún no tienes una IA configurada/).waitFor();
 await go(B + "/settings");
 await page.getByRole("button", { name: "Activar notificaciones en este dispositivo" }).waitFor();
 await shot("10-study");

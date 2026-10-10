@@ -37,9 +37,11 @@ import { RulesForm } from "@/components/settings/rules-form";
 import { TwoFactorSettings } from "@/components/settings/two-factor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { AiProviderSettings } from "@/components/settings/ai-provider";
+import { credentialView, DEFAULT_MODELS } from "@/lib/ai/credentials";
+import { localBaseUrls, OPENAI_PRESETS } from "@/lib/ai/provider";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
-import { env } from "@/lib/env";
 import { formatDate, formatDuration } from "@/lib/format";
 import { feedStatus } from "@/lib/planning/feed-service";
 import { listReports } from "@/lib/report/service";
@@ -126,6 +128,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const vapid = vapidKeys();
   const p = me.athleteProfile;
   const prefs = readPrefs(p?.prefs);
+  const aiView = await credentialView(user.id);
+  const isDemo = Boolean(me.demoExpiresAt);
+  const aiProviderName = aiView.own?.label ?? (aiView.serverFallback ? "Google Gemini" : "la IA que configures");
 
   return (
     <>
@@ -314,8 +319,20 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               : `El registro de actividad se ha alterado (${integrity.reason}). Alguien ha tocado la base de datos: sigue el plan de incidentes.`}
           </p>
         </Section>
-        <Section title="Privacidad e IA" description="Atlenza IA usa Google Gemini. Sin tu permiso no se envía nada.">
-          <AiConsentToggle initial={me.aiConsentAt != null} configured={Boolean(env().GEMINI_API_KEY)} />
+        <Section id="ia" title="IA" description="Usa tu propia IA: Google, OpenAI o compatible, Anthropic o un modelo local. Sin tu permiso no se envía nada.">
+          {isDemo ? (
+            <p className="text-sm text-muted-foreground">Las cuentas de demostración no pueden configurar una IA propia.</p>
+          ) : (
+            <AiProviderSettings
+              view={{ ...aiView, own: aiView.own ? { ...aiView.own, verifiedAt: aiView.own.verifiedAt?.toISOString() ?? null } : null }}
+              presets={Object.values(OPENAI_PRESETS)}
+              locals={localBaseUrls()}
+              defaults={DEFAULT_MODELS}
+            />
+          )}
+        </Section>
+        <Section title="Privacidad e IA" description={`Tus datos solo van a ${aiProviderName} si lo permites.`}>
+          <AiConsentToggle initial={me.aiConsentAt != null} configured={Boolean(aiView.own ?? aiView.serverFallback)} provider={aiProviderName} />
           <Link href="/settings/privacy" className="mt-3 inline-block text-sm font-medium underline underline-offset-4">
             Privacidad y derechos (consentimientos, limitar el tratamiento, plazos)
           </Link>

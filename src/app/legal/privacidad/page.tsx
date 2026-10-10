@@ -37,7 +37,7 @@ export default async function PrivacyPolicy() {
       <ul>
         <li>Nadie, salvo lo que tú decidas: tu entrenador/a (solo lo que marques, nunca salud ni finanzas), enlaces temporales que creas (médica, fisio, entrenadora) y tu contacto de «Entreno sola».</li>
         <li>
-          Google (Gemini), solo si activas Atlenza IA: tus apuntes, preguntas y un resumen numérico sin nombre ni salud. Puede tratarlos fuera del Espacio Económico Europeo (Marco de Privacidad de Datos UE-EE. UU. y cláusulas contractuales tipo).
+          El proveedor de IA que tú elijas en Ajustes → IA (Google, OpenAI o compatible, Anthropic, o un modelo local de este servidor; si no eliges ninguno y el servidor tiene clave, Google Gemini), solo si activas Atlenza IA: tus apuntes, preguntas y un resumen numérico sin nombre ni salud. Un proveedor externo puede tratarlos fuera del Espacio Económico Europeo según sus propias condiciones y garantías; un modelo local no los saca del servidor. Tu clave de API se guarda cifrada y no se comparte.
         </li>
         <li>OpenFoodFacts y Open-Meteo reciben solo búsquedas de alimentos y coordenadas de tu pista, sin datos tuyos.</li>
       </ul>

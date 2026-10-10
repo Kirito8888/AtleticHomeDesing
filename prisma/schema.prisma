@@ -639,6 +639,8 @@ model Exercise {
   personalRecords PersonalRecord[]
 
   @@unique([userId, name])
+  // v1.9 · + índice único parcial "Exercise_global_name_key" (name WHERE userId IS NULL), creado en la
+  // migración v1_9: con userId NULL el @@unique no impide duplicar un ejercicio global.
 }
 
 model StrengthSession {

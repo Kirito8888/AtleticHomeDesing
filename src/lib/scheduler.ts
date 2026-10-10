@@ -48,12 +48,14 @@ export async function runSubscriptionsJob(): Promise<number> {
  * que si el contenedor estaba apagado el lunes, se genera al arrancar.
  */
 export async function runWeeklyCoachJob(): Promise<number> {
-  if (!env().GEMINI_API_KEY) return 0;
   const weekStart = startOfIsoWeek(addDays(today(), -7));
   const weekEnd = addDays(weekStart, 6);
   const users = await prisma.user.findMany({
     where: {
       aiConsentAt: { not: null },
+      processingRestrictedAt: null,
+      // v1.9 · con su IA propia o, si el servidor tiene clave, con la del servidor
+      ...(env().GEMINI_API_KEY ? {} : { aiCredential: { isNot: null } }),
       trainingSessions: { some: { status: "COMPLETED", date: { gte: weekStart, lte: weekEnd } } },
       coachReports: { none: { weekStart } },
     },

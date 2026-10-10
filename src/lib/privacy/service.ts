@@ -13,9 +13,9 @@ import { recordEvent, type AuditContext } from "@/lib/security/audit";
  */
 export const CONSENT_TEXT = {
   AI: {
-    version: "2026-10",
-    label: "Atlenza IA (Google Gemini)",
-    text: "Envío a Google (Gemini) de tus apuntes, un resumen numérico de tus entrenos sin nombre ni datos de salud y tus preguntas, para responderte. Google puede tratarlos fuera del Espacio Económico Europeo (transferencia internacional amparada en el Marco de Privacidad de Datos UE-EE. UU. y cláusulas contractuales tipo). Puedes retirarlo cuando quieras; no afecta a lo ya enviado.",
+    version: "2026-11",
+    label: "Atlenza IA (el proveedor que elijas)",
+    text: "Envío al proveedor de IA que configures en Ajustes → IA (Google, OpenAI o compatible, Anthropic o un modelo local de este servidor; si no configuras ninguno y el servidor tiene clave, Google Gemini) de tus apuntes, un resumen numérico de tus entrenos sin nombre ni datos de salud y tus preguntas, para responderte. Los proveedores externos pueden tratarlos fuera del Espacio Económico Europeo según sus propias condiciones; un modelo local no saca nada del servidor. Al cambiar de proveedor se vuelve a pedir este consentimiento. Puedes retirarlo cuando quieras; no afecta a lo ya enviado.",
   },
   HEALTH: {
     version: "2026-10",
@@ -36,9 +36,9 @@ export const CONSENT_TEXT = {
 export type ConsentPurpose = keyof typeof CONSENT_TEXT;
 
 /** Anota un cambio de consentimiento (nunca se borra; la exportación lo incluye). */
-export async function recordConsent(userId: string, purpose: ConsentPurpose, granted: boolean, ctx: AuditContext = {}) {
+export async function recordConsent(userId: string, purpose: ConsentPurpose, granted: boolean, ctx: AuditContext = {}, detail?: string) {
   await prisma.consent.create({ data: { userId, purpose, version: CONSENT_TEXT[purpose].version, granted } });
-  await recordEvent(userId, "CONSENT_CHANGED", ctx, `${CONSENT_TEXT[purpose].label}: ${granted ? "concedido" : "retirado"}`);
+  await recordEvent(userId, "CONSENT_CHANGED", ctx, `${CONSENT_TEXT[purpose].label}: ${granted ? "concedido" : "retirado"}${detail ? ` (${detail})` : ""}`);
 }
 
 /**
