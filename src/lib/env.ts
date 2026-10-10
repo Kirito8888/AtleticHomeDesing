@@ -62,6 +62,11 @@ const schema = z.object({
   // v1.9 · URL de modelos locales que los usuarios pueden elegir (Ollama, LM Studio, vLLM…), separadas por comas.
   // p. ej. http://ollama:11434/v1. Cualquier otra URL debe ser https y pública.
   AI_LOCAL_BASE_URLS: z.string().optional(),
+  // v1.9 · Avisos de la vigilancia interna a la administración por Telegram (opcional). Crea un bot con
+  // @BotFather y pon aquí su token y el id de tu chat. Nada más sale del servidor.
+  TELEGRAM_BOT_TOKEN: z.string().regex(/^\d+:[\w-]{20,}$/, "TELEGRAM_BOT_TOKEN no tiene el formato 123456:ABC…").optional(),
+  TELEGRAM_ADMIN_CHAT_ID: z.string().regex(/^-?\d+$/, "TELEGRAM_ADMIN_CHAT_ID debe ser un número").optional(),
+  TELEGRAM_API_URL: z.string().url().default("https://api.telegram.org"),
   GEMINI_CHAT_MODEL: z.string().default("gemini-2.5-flash"),
   GEMINI_EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),
   GEMINI_EMBEDDING_DIM: z.coerce.number().int().positive().default(768),

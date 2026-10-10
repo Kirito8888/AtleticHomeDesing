@@ -19,6 +19,7 @@ import { daysAgo, retentionDays } from "@/lib/privacy/retention";
 import { periodStarts } from "@/lib/health/cycle";
 import { getCycle } from "@/lib/health/cycle-service";
 import { runSafetyJob } from "@/lib/health/safety-service";
+import { runWatchJob } from "@/lib/admin/watch";
 import { readWomenSettings } from "@/lib/health/women";
 import { dataKeyConfigured, openJson } from "@/lib/security/data-key";
 
@@ -330,6 +331,12 @@ async function safetyTick() {
     await runSnoozedJob();
   } catch (err) {
     console.error("[scheduler] pospuestas:", err);
+  }
+  // v1.9 · vigilancia interna (avisos por Telegram a la administración)
+  try {
+    await runWatchJob();
+  } catch (err) {
+    console.error("[scheduler] vigilancia:", err);
   }
 }
 

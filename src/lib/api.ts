@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { ZodError, type z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
+import { recordRequest } from "@/lib/admin/metrics";
 import { LIMITS, rateLimit } from "@/lib/rate-limit";
 
 export class ApiError extends Error {
@@ -24,16 +25,19 @@ type Handler<C> = (req: NextRequest, ctx: C) => Promise<unknown>;
  */
 export function route<C = unknown>(fn: Handler<C>) {
   return async (req: NextRequest, ctx: C): Promise<Response> => {
+    const t0 = performance.now();
+    let res: Response;
     try {
       const result = await fn(req, ctx);
-      if (result instanceof Response) return result;
-      return NextResponse.json(result ?? { ok: true });
+      res = result instanceof Response ? result : NextResponse.json(result ?? { ok: true });
     } catch (err) {
-      const res = errorResponse(err);
+      res = errorResponse(err);
       // v1.8 · Los 500 quedan registrados (agregados, sin datos) para «Estado del servidor»
       if (res.status >= 500) void import("@/lib/admin/server-errors").then((m) => m.recordServerError("ERROR", req.nextUrl.pathname, err instanceof Error ? `${err.name}: ${err.message}` : String(err)));
-      return res;
     }
+    // v1.9 · Métricas internas (en memoria) para el panel de administración
+    recordRequest(req.method, req.nextUrl.pathname, res.status, performance.now() - t0);
+    return res;
   };
 }
 

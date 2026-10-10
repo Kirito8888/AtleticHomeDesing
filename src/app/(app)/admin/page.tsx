@@ -1,6 +1,11 @@
 import Link from "next/link";
 
 import { InviteForm, PendingInvitations, UserList } from "@/components/admin/admin-panel";
+import { MetricsCard } from "@/components/admin/metrics-card";
+import { metricsSummary } from "@/lib/admin/metrics";
+import { serverStatus } from "@/lib/admin/status";
+import { telegramConfigured } from "@/lib/admin/telegram";
+import { checkHealth } from "@/lib/admin/watch";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { listInvitations, listUsersForAdmin } from "@/lib/auth/access";
@@ -29,7 +34,8 @@ export default async function AdminPage() {
       </>
     );
   }
-  const [users, invitations] = await Promise.all([listUsersForAdmin(), listInvitations()]);
+  const [users, invitations, problems, status] = await Promise.all([listUsersForAdmin(), listInvitations(), checkHealth(), serverStatus()]);
+  const mem = process.memoryUsage();
   const now = new Date();
   return (
     <>
@@ -71,6 +77,20 @@ export default async function AdminPage() {
           </CardHeader>
           <CardContent className="px-4">
             <PendingInvitations items={invitations.map((i) => ({ ...i, expiresAt: i.expiresAt.toISOString() }))} />
+          </CardContent>
+        </Card>
+        <Card className="gap-3 py-4 lg:col-span-2">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base">Métricas y vigilancia</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <MetricsCard
+              metrics={metricsSummary()}
+              problems={problems}
+              process={{ uptimeSec: Math.round(process.uptime()), rssMb: Math.round(mem.rss / 1e6), heapMb: Math.round(mem.heapUsed / 1e6) }}
+              db={{ latencyMs: status.db.latencyMs, sizeMb: status.db.sizeBytes != null ? Math.round(status.db.sizeBytes / 1e6) : null, queue: status.queue }}
+              telegram={telegramConfigured()}
+            />
           </CardContent>
         </Card>
       </div>
