@@ -59,6 +59,7 @@ export default async function AdminPage() {
                 secondFactor: u.secondFactor,
                 demo: Boolean(u.demoExpiresAt),
                 me: u.id === user.id,
+                telegram: Boolean(u.telegramLink),
               }))}
             />
           </CardContent>

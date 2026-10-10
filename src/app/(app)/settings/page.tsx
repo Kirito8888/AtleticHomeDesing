@@ -32,6 +32,8 @@ import { ServerStatusView } from "@/components/settings/server-status";
 import { RestoreForm } from "@/components/settings/restore-form";
 import { serverStatus } from "@/lib/admin/status";
 import { PushSettings } from "@/components/settings/push-settings";
+import { TelegramSettings } from "@/components/settings/telegram-settings";
+import { telegramStatus } from "@/lib/telegram/link";
 import { ReminderSettings } from "@/components/settings/reminder-settings";
 import { RulesForm } from "@/components/settings/rules-form";
 import { TwoFactorSettings } from "@/components/settings/two-factor";
@@ -129,6 +131,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const p = me.athleteProfile;
   const prefs = readPrefs(p?.prefs);
   const aiView = await credentialView(user.id);
+  const tgStatus = await telegramStatus(user.id);
   const isDemo = Boolean(me.demoExpiresAt);
   const aiProviderName = aiView.own?.label ?? (aiView.serverFallback ? "Google Gemini" : "la IA que configures");
 
@@ -270,9 +273,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <Section title="Verificación en dos pasos" description="Un código de tu móvil además de la contraseña.">
           <TwoFactorSettings initial={{ ...twoFactor, enabledAt: twoFactor.enabledAt?.toISOString() ?? null }} />
         </Section>
-        <Section title="Notificaciones" description="Avisos en el móvil aunque la app esté cerrada.">
+        <Section id="notificaciones" title="Notificaciones" description="Avisos en el móvil (y en Telegram, si lo vinculas) aunque la app esté cerrada.">
           <div className="grid gap-6">
             <PushSettings configured={vapid != null} publicKey={vapid?.publicKey ?? null} devices={pushDevices} />
+            <TelegramSettings status={{ ...tgStatus, linkedAt: tgStatus.linkedAt?.toISOString() ?? null }} />
             {vapid ? <ReminderSettings initial={{ remindTomorrowHour: prefs.remindTomorrowHour, remindMondayCheck: prefs.remindMondayCheck, remindWeigh: prefs.remindWeigh }} /> : null}
             <QuietHoursSettings quietHours={prefs.quietHours} weeklyReviewPush={prefs.weeklyReviewPush} />
           </div>

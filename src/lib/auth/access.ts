@@ -105,6 +105,7 @@ export async function listUsersForAdmin() {
       demoExpiresAt: true,
       totpEnabledAt: true,
       _count: { select: { passkeys: true } },
+      telegramLink: { select: { enabled: true } },
     },
   });
   const lastLogins = await prisma.securityEvent.groupBy({
