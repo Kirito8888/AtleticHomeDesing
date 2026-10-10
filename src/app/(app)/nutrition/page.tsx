@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { AddFoodSheet } from "@/components/nutrition/add-food-sheet";
+import { FoodPhoto } from "@/components/nutrition/food-ai";
 import { DeleteEntry, IronToggle } from "@/components/nutrition/delete-entry";
 import { womenEnabled } from "@/lib/health/women-service";
 import { MealShortcuts, SaveMealFavorite } from "@/components/nutrition/meal-shortcuts";
@@ -109,6 +110,7 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
       <div id="agua" className="mb-4 scroll-mt-20">
         <WaterCard date={date} ml={water.ml} target={water.target} hot={water.hot} hasSession={water.hasSession} maxTemp={water.maxTemp} />
       </div>
+      <FoodPhoto date={date} />
       <MealShortcuts date={date} yesterday={yesterday} favorites={favorites} />
 
       <div className="grid gap-3">

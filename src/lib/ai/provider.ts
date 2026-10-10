@@ -40,7 +40,8 @@ export const ANTHROPIC_URL = "https://api.anthropic.com/v1";
 const ANTHROPIC_VERSION = "2023-06-01";
 const TIMEOUT_MS = 90_000;
 
-export type ChatTurn = { role: "user" | "assistant"; text: string };
+/** v1.10 · `images`: fotos JPEG o PNG en base64 (sin EXIF; las reescala el navegador). */
+export type ChatTurn = { role: "user" | "assistant"; text: string; images?: Array<{ mime: "image/jpeg" | "image/png"; base64: string }> };
 export type EmbedTask = "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY";
 
 export interface AiClient {
@@ -192,7 +193,7 @@ function geminiClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
       const res = await wrap(() =>
         sdk.models.generateContent({
           model: cfg.model,
-          contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.text }] })),
+          contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [...(m.images ?? []).map((i) => ({ inlineData: { mimeType: i.mime, data: i.base64 } })), { text: m.text }] })),
           config: { systemInstruction: system, temperature: temperature ?? 0.3, ...(json ? { responseMimeType: "application/json", responseJsonSchema: json } : {}) },
         }),
       );
@@ -240,7 +241,7 @@ function openAiClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
         {
           model: cfg.model,
           temperature: temperature ?? 0.3,
-          messages: [{ role: "system", content: json ? withSchema(system, json) : system }, ...messages.map((m) => ({ role: m.role, content: m.text }))],
+          messages: [{ role: "system", content: json ? withSchema(system, json) : system }, ...messages.map((m) => ({ role: m.role, content: m.images?.length ? [...m.images.map((i) => ({ type: "image_url", image_url: { url: `data:${i.mime};base64,${i.base64}` } })), { type: "text", text: m.text }] : m.text }))],
           ...(json ? { response_format: { type: "json_object" } } : {}),
         },
         cfg.apiKey,
@@ -294,7 +295,7 @@ function anthropicClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
           max_tokens: 8192,
           temperature: temperature ?? 0.3,
           system: json ? withSchema(system, json) : system,
-          messages: messages.map((m) => ({ role: m.role, content: m.text })),
+          messages: messages.map((m) => ({ role: m.role, content: m.images?.length ? [...m.images.map((i) => ({ type: "image", source: { type: "base64", media_type: i.mime, data: i.base64 } })), { type: "text", text: m.text }] : m.text })),
         },
         key,
       );
