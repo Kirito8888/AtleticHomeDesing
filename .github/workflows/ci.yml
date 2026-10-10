@@ -131,13 +131,13 @@ jobs:
           docker run --rm --network host -u root -v "$PWD/.zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:2.16.1 \
             zap-baseline.py -t http://localhost:3000/login -c rules.tsv -I -m 2 -r zap-report.html -J zap-report.json
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: zap-report
           path: .zap/zap-report.*
           if-no-files-found: ignore
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-logs
           path: |
@@ -186,7 +186,7 @@ jobs:
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image \
             --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress lifeos-web:latest
           npm sbom --package-lock-only --sbom-format cyclonedx --omit dev > sbom.cdx.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sbom
           path: sbom.cdx.json
