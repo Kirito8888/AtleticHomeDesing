@@ -1,4 +1,4 @@
-import { DeleteOwnFood, MicroTargetsForm, OwnFoodForm } from "@/components/nutrition/micros-forms";
+import { DeleteOwnFood, MicroTargetsForm, OwnFoodWithLabel } from "@/components/nutrition/micros-forms";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -72,7 +72,7 @@ export default async function MicrosPage() {
             ) : (
               <p className="text-muted-foreground">Lo que no esté en el catálogo, añádelo aquí con los valores de la etiqueta.</p>
             )}
-            <OwnFoodForm />
+            <OwnFoodWithLabel />
           </CardContent>
         </Card>
       </div>

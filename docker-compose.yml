@@ -71,7 +71,8 @@ services:
     # sin capacidades de Linux y sin escalar privilegios.
     read_only: true
     tmpfs:
-      - /tmp:size=64m
+      # v1.10: 128 MB para los ficheros temporales del OCR (un PDF y una página cada vez)
+      - /tmp:size=128m
       - /app/.next/cache:size=64m,uid=1001,gid=1001
     cap_drop: [ALL]
     security_opt:

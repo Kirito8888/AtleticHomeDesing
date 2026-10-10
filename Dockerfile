@@ -40,7 +40,9 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0
 # v1.7: parches de seguridad del sistema base y fuera npm/corepack/yarn (la imagen final solo ejecuta
 # `node server.js`): menos tamaño y menos componentes con fallos conocidos.
+# v1.10: OCR en el propio servidor (Tesseract en español e inglés y pdftoppm para PDF escaneados).
 RUN apt-get update && apt-get upgrade -y --no-install-recommends && apt-get install -y --no-install-recommends openssl ca-certificates \
+    tesseract-ocr tesseract-ocr-spa tesseract-ocr-eng poppler-utils \
   && rm -rf /var/lib/apt/lists/* \
   && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /opt/yarn* /usr/local/bin/yarn /usr/local/bin/yarnpkg \
   && groupadd --system --gid 1001 nodejs \

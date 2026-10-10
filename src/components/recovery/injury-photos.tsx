@@ -8,23 +8,9 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
 import { formatDate } from "@/lib/format";
 import { usePendingShared } from "@/lib/share-client";
+import { reencodeImage } from "@/lib/client-image";
 
-const MAX_SIDE = 1600;
-
-/**
- * Reescala y vuelve a codificar la foto en el navegador: el JPEG nuevo no lleva EXIF (ni ubicación
- * ni modelo del móvil). Así lo que sube ya está limpio y pesa poco.
- */
-async function reencode(file: File): Promise<Blob> {
-  const bmp = await createImageBitmap(file);
-  const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.round(bmp.width * scale);
-  canvas.height = Math.round(bmp.height * scale);
-  canvas.getContext("2d")!.drawImage(bmp, 0, 0, canvas.width, canvas.height);
-  bmp.close();
-  return new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("No se pudo procesar la foto"))), "image/jpeg", 0.85));
-}
+const reencode = (file: File) => reencodeImage(file);
 
 /** v1.7 · Fotos de una molestia: cifradas en el servidor; solo se cargan cuando pulsas «Ver». */
 export function InjuryPhotos({ injuryId, today, photos }: { injuryId: string; today: string; photos: Array<{ id: string; takenOn: string }> }) {

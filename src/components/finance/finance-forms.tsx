@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Chips, Field } from "@/components/form/chips";
+import { OcrFill } from "@/components/ocr-fill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -81,6 +82,21 @@ export function QuickTransaction({
   const { busy, run } = useSubmit(() => setOpen(false));
   const money = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
   const cats = categories.filter((c) => c.kind === (kind === "INCOME" ? "INCOME" : "EXPENSE"));
+  const formRef = useRef<HTMLFormElement>(null);
+  // v1.10 · Rellenar desde la foto de un ticket (OCR del servidor): solo propone, se revisa antes de guardar
+  const fillFromReceipt = (r: { amount: number | null; date: string | null; merchant: string | null; found: boolean }) => {
+    const f = formRef.current;
+    if (!f) return;
+    const set = (name: string, v: string | null) => {
+      const el = f.elements.namedItem(name) as HTMLInputElement | null;
+      if (el && v) el.value = v;
+    };
+    set("amount", r.amount != null ? r.amount.toFixed(2).replace(".", ",") : null);
+    set("date", r.date);
+    set("description", r.merchant);
+    if (r.amount == null && !r.merchant) toast.error(r.found ? "No he encontrado el importe: rellénalo a mano" : "No he podido leer el ticket");
+    else toast.success("Revisa los datos leídos del ticket antes de guardar");
+  };
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -96,6 +112,7 @@ export function QuickTransaction({
         </SheetHeader>
         {money.length ? (
           <form
+            ref={formRef}
             className="grid gap-3"
             onSubmit={(e) => {
               e.preventDefault();
@@ -130,6 +147,7 @@ export function QuickTransaction({
                 { value: "TRANSFER", label: "Transferencia" },
               ]}
             />
+            {kind === "EXPENSE" ? <OcrFill endpoint="/api/ocr/receipt" label="Rellenar desde un ticket" onResult={fillFromReceipt} /> : null}
             <Field label="Importe (€)" htmlFor="t-amount">
               <Input id="t-amount" name="amount" inputMode="decimal" placeholder="12,50" className="h-12 text-xl font-semibold" required autoFocus />
             </Field>
