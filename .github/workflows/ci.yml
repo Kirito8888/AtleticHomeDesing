@@ -18,7 +18,7 @@ jobs:
     name: Lint, tipos, tests y build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -36,7 +36,7 @@ jobs:
     name: Análisis estático (Semgrep)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Desde PyPI (sin imagen de Docker Hub) y con versión fija
       - uses: actions/setup-python@v5
         with:
@@ -65,7 +65,7 @@ jobs:
       VAPID_PRIVATE_KEY: WR6TKd8X0HhDbnzMaiYLa1-Ye5SPRYYjarLHcVna1Is
       VAPID_SUBJECT: mailto:ci@example.com
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Docker Hub limita las descargas anónimas desde los runners compartidos (toomanyrequests): se usa
       # el espejo público de Google; si una imagen no está en él, Docker cae a Docker Hub.
       - name: Espejo de Docker Hub
@@ -127,7 +127,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: check
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # Docker Hub limita las descargas anónimas desde los runners compartidos (toomanyrequests): se usa
       # el espejo público de Google; si una imagen no está en él, Docker cae a Docker Hub.
       - name: Espejo de Docker Hub
