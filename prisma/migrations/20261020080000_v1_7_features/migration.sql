@@ -26,7 +26,9 @@ ALTER TABLE "Supplement" ADD COLUMN     "days" INTEGER[] DEFAULT ARRAY[]::INTEGE
 ALTER TABLE "TrainingSession" ADD COLUMN     "tags" TEXT[] DEFAULT ARRAY[]::TEXT[];
 
 -- AlterTable
-ALTER TABLE "User" ADD COLUMN     "processingRestrictedAt" TIMESTAMP(3);
+ALTER TABLE "User" ADD COLUMN     "demoAudience" TEXT,
+ADD COLUMN     "demoExpiresAt" TIMESTAMP(3),
+ADD COLUMN     "processingRestrictedAt" TIMESTAMP(3);
 
 -- CreateTable
 CREATE TABLE "Passkey" (
@@ -187,6 +189,44 @@ CREATE TABLE "Assignment" (
     CONSTRAINT "Assignment_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "SeasonBudget" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "season" INTEGER NOT NULL,
+    "lines" JSONB NOT NULL,
+    "perCompetitionCents" INTEGER NOT NULL DEFAULT 0,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SeasonBudget_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Receipt" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "transactionId" TEXT NOT NULL,
+    "path" TEXT NOT NULL,
+    "mime" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Receipt_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SubscriptionPriceChange" (
+    "id" TEXT NOT NULL,
+    "subscriptionId" TEXT NOT NULL,
+    "fromCents" INTEGER NOT NULL,
+    "toCents" INTEGER NOT NULL,
+    "on" DATE NOT NULL,
+    "source" TEXT NOT NULL DEFAULT 'EDIT',
+    "seenAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SubscriptionPriceChange_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "Passkey_credentialId_key" ON "Passkey"("credentialId");
 
@@ -229,6 +269,15 @@ CREATE INDEX "SweatTest_userId_date_idx" ON "SweatTest"("userId", "date");
 -- CreateIndex
 CREATE INDEX "Assignment_userId_dueOn_idx" ON "Assignment"("userId", "dueOn");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "SeasonBudget_userId_season_key" ON "SeasonBudget"("userId", "season");
+
+-- CreateIndex
+CREATE INDEX "Receipt_userId_transactionId_idx" ON "Receipt"("userId", "transactionId");
+
+-- CreateIndex
+CREATE INDEX "SubscriptionPriceChange_subscriptionId_on_idx" ON "SubscriptionPriceChange"("subscriptionId", "on");
+
 -- AddForeignKey
 ALTER TABLE "Passkey" ADD CONSTRAINT "Passkey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -270,4 +319,16 @@ ALTER TABLE "SweatTest" ADD CONSTRAINT "SweatTest_userId_fkey" FOREIGN KEY ("use
 
 -- AddForeignKey
 ALTER TABLE "Assignment" ADD CONSTRAINT "Assignment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SeasonBudget" ADD CONSTRAINT "SeasonBudget_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Receipt" ADD CONSTRAINT "Receipt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Receipt" ADD CONSTRAINT "Receipt_transactionId_fkey" FOREIGN KEY ("transactionId") REFERENCES "FinancialTransaction"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SubscriptionPriceChange" ADD CONSTRAINT "SubscriptionPriceChange_subscriptionId_fkey" FOREIGN KEY ("subscriptionId") REFERENCES "Subscription"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 

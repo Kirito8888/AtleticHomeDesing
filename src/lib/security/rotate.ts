@@ -4,7 +4,7 @@ import { readFile, writeFile } from "node:fs/promises";
 
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { photoFile } from "@/lib/recovery/wellbeing-service";
+import { userFile as photoFile } from "@/lib/files/sealed-files";
 import { openAny, openBytes, seal, sealBytes } from "@/lib/security/secret-box";
 
 import { dataKey, previousDataKey } from "./data-key";
@@ -55,10 +55,10 @@ async function rotateTables(list: Table[], keys: [string, string | undefined]) {
   return out;
 }
 
-/** Fotos de lesión: el fichero entero se vuelve a cifrar si solo abre con la clave anterior. */
-async function rotatePhotos(keys: [string, string | undefined]) {
+/** Ficheros cifrados (fotos, justificantes): se vuelven a cifrar si solo abren con la clave anterior. */
+async function rotateFiles(files: Array<{ userId: string; path: string }>, keys: [string, string | undefined]) {
   const r = { rotated: 0, current: 0, failed: 0 };
-  for (const p of await prisma.injuryPhoto.findMany({ select: { userId: true, path: true } })) {
+  for (const p of files) {
     try {
       const file = photoFile(p.userId, p.path);
       const blob = await readFile(file);
@@ -78,7 +78,9 @@ async function rotatePhotos(keys: [string, string | undefined]) {
 
 export async function reencryptAll() {
   const keys: [string, string | undefined] = [dataKey(), previousDataKey()];
-  const data: Record<string, { rotated: number; current: number; failed: number }> = { ...(await rotateTables(tables, keys)), "fotos de lesión": await rotatePhotos(keys) };
+  const data: Record<string, { rotated: number; current: number; failed: number }> = { ...(await rotateTables(tables, keys)), "fotos de lesión": await rotateFiles(await prisma.injuryPhoto.findMany({ select: { userId: true, path: true } }), keys),
+    justificantes: await rotateFiles(await prisma.receipt.findMany({ select: { userId: true, path: true } }), keys),
+  };
   const totpKey = env().TOTP_ENCRYPTION_KEY;
   const totp = totpKey
     ? await rotateTables(

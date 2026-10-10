@@ -22,6 +22,8 @@ import { listPasskeys } from "@/lib/auth/passkey";
 import { CarbsByDayForm, HydrationForm, TrackForm } from "@/components/settings/carbs-form";
 import { CoachReport } from "@/components/settings/coach-report";
 import { RotateKeys } from "@/components/settings/rotate-keys";
+import { DemoAccounts } from "@/components/settings/demo-accounts";
+import { listDemoAccounts } from "@/lib/demo/service";
 import { ServerStatusView } from "@/components/settings/server-status";
 import { RestoreForm } from "@/components/settings/restore-form";
 import { serverStatus } from "@/lib/admin/status";
@@ -90,6 +92,7 @@ function Section({ id, title, description, children }: { id?: string; title: str
 export default async function SettingsPage({ searchParams }: PageProps<"/settings">) {
   const user = await pageUser();
   const status = user.role === "ADMIN" ? await serverStatus() : null;
+  const demos = user.role === "ADMIN" ? await listDemoAccounts() : [];
   const { welcome } = await searchParams;
   const todayIso = toIsoDay(today());
   const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed, reports, passkeys, integrity] = await Promise.all([
@@ -301,6 +304,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
           <Section id="servidor" title="Estado del servidor" description="Solo administración. Míralo después de cada actualización.">
             <ServerStatusView s={status} />
             <RotateKeys />
+            <DemoAccounts accounts={demos.map((d) => ({ id: d.id, email: d.email, demoAudience: d.demoAudience, demoExpiresAt: d.demoExpiresAt!.toISOString() }))} />
           </Section>
         ) : null}
         <Section title="Tus datos" description="Descarga una copia completa (JSON) o elimina tu cuenta.">

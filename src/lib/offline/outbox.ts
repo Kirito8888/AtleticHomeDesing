@@ -61,3 +61,19 @@ export async function flush(): Promise<{ sent: number; rejected: Array<{ label: 
 
 /** ¿El error es de red (sin conexión) y no del servidor? */
 export const isNetworkError = (e: unknown) => e instanceof TypeError || (typeof navigator !== "undefined" && !navigator.onLine);
+
+/**
+ * v1.7 · Envía y, si no hay red, lo deja en la bandeja (agua, hábitos, comidas). Devuelve «queued»
+ * cuando quedó pendiente. Los errores del servidor se lanzan igual que con `api`.
+ */
+export async function sendOrQueue(url: string, body: unknown, label: string): Promise<"sent" | "queued"> {
+  try {
+    const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `Error ${res.status}`);
+    return "sent";
+  } catch (e) {
+    if (!isNetworkError(e)) throw e;
+    await enqueue({ id: crypto.randomUUID(), url, body, label });
+    return "queued";
+  }
+}

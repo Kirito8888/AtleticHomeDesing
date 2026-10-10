@@ -222,6 +222,11 @@ export async function exportAccount(userId: string) {
  */
 export async function deleteAccount(userId: string, password: string) {
   await verifyCurrentPassword(userId, password);
+  await purgeUser(userId);
+}
+
+/** Borra la cuenta y sus ficheros sin pedir contraseña (cuentas demo caducadas o borradas por administración). */
+export async function purgeUser(userId: string) {
   await prisma.$transaction(async (tx) => {
     // Ejercicios propios usados en sesiones de otros atletas (planificadas por
     // este coach): pasan al catálogo global para no romper datos ajenos.

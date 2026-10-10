@@ -319,6 +319,60 @@ await page.getByLabel("Estudio por franja").waitFor();
 await shot("07-nutrition-study");
 log("plan de comidas y compra, sudoración, calendario de suplementos, tarjetas a mano, trabajos y franjas de estudio");
 
+// 7. Finanzas y plataforma: presupuesto de temporada, justificante cifrado, subida de precio, sin conexión,
+// «De un vistazo» y cuentas demo
+const accs = (await (await page.request.get(B + "/api/finance/accounts")).json()) as Array<{ id: string; type: string }>;
+let bank = accs.find((a) => a.type === "ASSET");
+bank ??= (await api("post", "/api/finance/accounts", { name: "Banco E2E", type: "ASSET" })) as { id: string; type: string };
+await api("post", "/api/finance/transactions", { mode: "simple", kind: "EXPENSE", date: madrid, description: "Clavos de jabalina", amountCents: 4500, moneyAccountId: bank.id, sport: true });
+await api("post", "/api/finance/subscriptions", { name: "Música E2E", amountCents: 999, nextChargeDate: plusDays(madrid, 20), accountId: bank.id });
+await api("post", "/api/finance/transactions", { mode: "simple", kind: "EXPENSE", date: madrid, description: "PAGO MUSICA E2E", amountCents: 1199, moneyAccountId: bank.id });
+await go(B + "/finance");
+await page.getByLabel("Material (€)").fill("300");
+await page.getByLabel("Coste medio por competición (€)").fill("50");
+await page.getByRole("button", { name: /^Guardar presupuesto \d{4}$/ }).click();
+await toast(/Presupuesto guardado/);
+await page.getByLabel("Previsión de la temporada").getByText(/Previsión a 31 de diciembre/).waitFor();
+await page.getByLabel("Subidas de precio").getByText(/Música E2E/).waitFor();
+await page.getByRole("button", { name: /Actualizar a 11,99/ }).click();
+await toast(/Importe actualizado/);
+await page.getByRole("button", { name: "Entendido" }).waitFor();
+await page.getByLabel("Adjuntar justificante").first().setInputFiles({ name: "ticket.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% sintético\n") });
+await toast(/Justificante guardado/);
+await page.getByRole("link", { name: "Justificante 1" }).first().waitFor();
+await noOverflow("/finance");
+
+await go(B + "/nutrition");
+await ctx.setOffline(true);
+await page.getByRole("button", { name: "+250 ml" }).click();
+await toast(/Sin conexión: el agua se apuntará/);
+await ctx.setOffline(false);
+await page.evaluate(() => window.dispatchEvent(new Event("online")));
+await toast(/sin conexión ya enviados/);
+
+await go(B + "/glance");
+await page.getByLabel("Resumen del día").getByText(/0,25 L/).waitFor();
+await noOverflow("/glance");
+await shot("08-finance-glance");
+
+const adminEmail = `v17admin${Date.now()}@test.dev`;
+const admin = await login(adminEmail, newUser(adminEmail, "ADMIN"));
+await admin.goto(B + "/settings");
+await admin.getByRole("radiogroup", { name: "Tipo de público" }).getByRole("radio", { name: "Lanzador" }).click();
+await admin.getByRole("button", { name: "Crear cuenta demo" }).click();
+const demoBox = admin.getByRole("status").filter({ hasText: "Contraseña" });
+await demoBox.waitFor({ timeout: 60_000 });
+const demoEmail = (await demoBox.locator(".font-mono").first().textContent())!.trim();
+const demoPw = (await admin.getByLabel("Contraseña de la cuenta demo").textContent())!.trim();
+await admin.getByLabel("Cuentas demo").getByText(/Lanzador/).waitFor();
+const demoPage = await login(demoEmail, demoPw);
+await demoPage.getByText(/Cuenta de demostración/).waitFor();
+await demoPage.goto(B + "/training");
+if (!(await demoPage.getByText(/Técnica de jabalina|Fuerza máxima|Potencia y pliometría/).count())) errors.push("demo: no hay sesiones sintéticas");
+await demoPage.context().close();
+await admin.context().close();
+log("presupuesto de temporada, justificante cifrado, subida de precio, agua sin conexión, de un vistazo y cuenta demo");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));
