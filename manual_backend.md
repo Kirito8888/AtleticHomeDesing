@@ -39,7 +39,7 @@ Navegador (PWA, Next.js App Router)
 - **Fechas.** Las columnas `@db.Date` se manejan como medianoche UTC (`src/lib/dates.ts`). "Hoy" se calcula en `Europe/Madrid`.
 - **Dinero.** Siempre en céntimos de EUR (`Int`), nunca en coma flotante. `toCents("12,50") = 1250`.
 - **Unidades.** Distancia en metros, tiempo en segundos, carga en kg y peso de implementos en gramos.
-- **Entorno.** `src/lib/env.ts` valida las variables. Gemini y OpenFoodFacts son opcionales: si faltan, sus endpoints devuelven 503 en vez de impedir el arranque.
+- **Entorno.** `src/lib/env.ts` valida las variables. La IA del servidor (`GEMINI_API_KEY`) y OpenFoodFacts son opcionales: si faltan, sus endpoints devuelven 503 (o usan la IA propia de cada usuario) en vez de impedir el arranque.
 - **Cliente Prisma perezoso** (`src/lib/prisma.ts`). Se crea en el primer uso, no al importar. Así `next build` funciona sin `DATABASE_URL`, que no debe estar en la imagen Docker.
 
 ---
@@ -187,7 +187,7 @@ rulesToday(userId, día)                                      src/lib/rules/rule
 - `move-service.ts` (mueve también el `PlanDay` enlazado y avisa con `throwMinHours`);
 - `planning/manual-plan.ts` (plan `MANUAL` que se activa con el mismo `activateAiPlan`).
 
-**IA:** `ai/data-ai.ts` construye un resumen numérico de entrenos (sin salud, ciclo, notas ni nombre) para «pregunta a tus datos»; `voiceToDraft` usa Gemini solo con consentimiento y clave y, si no, el parser local `voice-parse.ts`. Límite `aiChat`.
+**IA:** `ai/data-ai.ts` construye un resumen numérico de entrenos (sin salud, ciclo, notas ni nombre) para «pregunta a tus datos»; `voiceToDraft` usa la IA del usuario solo con consentimiento y una IA disponible y, si no, el parser local `voice-parse.ts`. Límite `aiChat`.
 
 **Estudio** (`study/schedule.ts`, puro): clases semanales con validez y exámenes; `examClashes` marca sesiones planificadas el día del examen o la víspera; `studyWeek`; `habitStreak` (la racha de ayer sigue viva hasta que acaba hoy).
 
@@ -534,9 +534,23 @@ Reglas:
 
 ---
 
-## 5. Atlenza IA (Gemini, `@google/genai`)
+## 5. Atlenza IA (la IA de cada usuario)
 
-**Consentimiento.** Nada sale hacia Google sin permiso explícito del dueño de los datos: `User.aiConsentAt` (interruptor en *Ajustes → Privacidad e IA*, `PUT /api/account/ai-consent`). `assertAiAllowed(userId)` (`src/lib/ai/guard.ts`) se ejecuta al principio de la subida y del proceso de apuntes, `askStudyQuestion`, `generateFlashcards` y `generateWeeklyCoachReport`. En el coach cuenta el consentimiento del **atleta**, aunque el informe lo pida su entrenador.
+**Proveedores (v1.9).** Cada persona elige su IA en *Ajustes → IA* (`PUT /api/account/ai-provider`, `src/lib/ai/credentials.ts`). La capa común está en `src/lib/ai/provider.ts` y la usan `generateJson`, `generateText` y `embedTexts` (`src/lib/ai/llm.ts`), siempre con la IA del **dueño de los datos**:
+
+| Proveedor | Cómo se llama | Embeddings para apuntes |
+|---|---|---|
+| `GEMINI` | SDK `@google/genai` (JSON con `responseJsonSchema`) | `gemini-embedding-001` a 768 |
+| `OPENAI` | `POST {baseUrl}/chat/completions` y `/embeddings` (`dimensions: 768`): OpenAI, Mistral, Groq, DeepSeek, OpenRouter, Together o un modelo local (Ollama, LM Studio, vLLM) | El que elija, si da 768 dimensiones (p. ej. `text-embedding-3-small`, `nomic-embed-text`) |
+| `ANTHROPIC` | `POST https://api.anthropic.com/v1/messages` | No tiene: los apuntes se buscan por texto |
+
+- **Clave:** `AiCredential.keySealed` (AES-256-GCM con `DATA_ENCRYPTION_KEY`, entra en la rotación de claves). Solo se ven sus 4 últimos caracteres (`keyHint`); no va en la exportación ni en respuestas, y los errores del proveedor la tachan.
+- **Al guardar** se hace una prueba real (un «OK» y, si hay modelo de embeddings, un vector de 768); si falla, no se guarda nada. Cambiar de proveedor o de URL retira `aiConsentAt` y reindexa en segundo plano los apuntes vectorizados con otro modelo (`documentsToReindex`).
+- **URL (SSRF):** valen las predefinidas y las de `AI_LOCAL_BASE_URLS` (las autoriza la administración, p. ej. `http://ollama:11434/v1`). Cualquier otra debe ser https y resolver a IP pública; se comprueba antes de cada llamada y sin seguir redirecciones.
+- **Respaldo:** si alguien no tiene IA propia y el servidor define `GEMINI_API_KEY`, se usa esa. Sin ninguna, 503 `ai_not_configured`.
+- **Cuentas demo:** no pueden configurar una IA propia.
+
+**Consentimiento.** Nada sale hacia la IA sin permiso explícito del dueño de los datos: `User.aiConsentAt` (interruptor en *Ajustes → Privacidad e IA*, `PUT /api/account/ai-consent`). `assertAiAllowed(userId)` (`src/lib/ai/guard.ts`) se ejecuta al principio de la subida y del proceso de apuntes, `askStudyQuestion`, `generateFlashcards` y `generateWeeklyCoachReport`. En el coach cuenta el consentimiento del **atleta**, aunque el informe lo pida su entrenador.
 
 **Tareas programadas** (`src/instrumentation.ts` → `src/lib/scheduler.ts`, `SCHEDULER_ENABLED`): al arrancar y cada hora, cobra las suscripciones vencidas de todos los usuarios, envía el resumen diario por push (desde las 7:00), genera el informe del coach de la semana anterior a quien tenga consentimiento, haya entrenado y aún no lo tenga, y borra la auditoría de más de 180 días. Ambas tareas son idempotentes: si el contenedor estuvo apagado, se ponen al día al arrancar. El cobro de suscripciones reserva la fecha con un `UPDATE … WHERE nextChargeDate = <leída>` para no cobrar dos veces si coincide con el botón manual.
 
@@ -544,7 +558,7 @@ Reglas:
 
 ```
 POST /api/ai/documents (multipart: file, subject?)            → 202 + documento en PENDING
-  ├─ assertAiAllowed(): sin GEMINI_API_KEY → 503; sin consentimiento → 403 (antes de tocar disco)
+  ├─ assertAiAllowed(): sin IA (propia ni del servidor) → 503; sin consentimiento → 403 (antes de tocar disco)
   ├─ valida: PDF / TXT / MD, ≤ 15 MB, contenido real (PDF empieza por %PDF-, texto = UTF-8 sin NUL)
   │          y cuota por usuario (UPLOAD_QUOTA_MB, 200 MB por defecto)
   ├─ guarda el fichero en UPLOAD_DIR/<userId>/<docId>.<ext>
@@ -555,18 +569,18 @@ trabajador (src/lib/jobs/queue.ts, arrancado en instrumentation.ts) → processD
   ├─ extrae texto: unpdf (pdf.js), por página
   ├─ trocea: chunkText() ≈1200 caracteres, 200 de solape,
   │          corte en párrafo > frase > palabra; conserva la página de origen
-  ├─ embedContent(gemini-embedding-001, taskType=RETRIEVAL_DOCUMENT,
-  │               outputDimensionality=768), lotes de 100
-  ├─ normalización L2: Google solo normaliza la salida de 3072 dimensiones
+  ├─ embeddings con la IA del usuario (768, lotes de 100, normalización L2);
+  │  sin embeddings → solo fragmentos, embedModel = "texto"
   └─ borra fragmentos previos + INSERT DocumentChunk + UPDATE embedding = '[…]'::vector (idempotente)
 ```
 
 - **Cola:** pg-boss guarda los trabajos en el esquema `pgboss` del mismo PostgreSQL (sin Redis). Un trabajo a la vez; 2 reintentos con espera creciente; caduca a los 15 min. Si falla, el documento queda en `FAILED` con el motivo y se puede reintentar (`POST /api/ai/documents/[id]/retry`). La UI refresca la lista cada 3 s mientras haya documentos en curso.
 
 - **Consulta:**
-  1. `embed(pregunta, RETRIEVAL_QUERY)`.
-  2. KNN por **distancia coseno** sobre el índice **HNSW** (`vector_cosine_ops`, m=16, ef_construction=64), siempre **filtrado por `userId`**.
-  3. Se queda con los 6 mejores y descarta los de similitud < 0,35.
+  1. `embed(pregunta, RETRIEVAL_QUERY)` con la IA del usuario.
+  2. Documentos vectorizados con **ese mismo modelo** (`StudyDocument.embedModel`): KNN por **distancia coseno** sobre el índice **HNSW** (`vector_cosine_ops`, m=16, ef_construction=64), siempre **filtrado por `userId`**.
+  3. El resto (IA sin embeddings o documentos pendientes de reindexar): texto completo en español (`to_tsvector('spanish')` + `websearch_to_tsquery`), con la puntuación escalada para compararla.
+  4. Se queda con los 6 mejores y descarta los de similitud < 0,35.
 - **Respuesta:** prompt de sistema "responde solo con los fragmentos, cita con [n]; si no está, dilo". Se envían los últimos 10 mensajes del hilo como contexto.
 - **Persistencia:** `ChatMessage` con `citations` (fragmento, documento, página, score) y el consumo de tokens.
 - **Por qué `vector(768)`:** cabe en HNSW (límite de 2000 dimensiones) y ocupa 4 veces menos que 3072. **Cambiar el modelo o la dimensión obliga a re-vectorizar** todos los documentos (`embedModel` queda registrado en cada documento).
@@ -578,7 +592,7 @@ trabajador (src/lib/jobs/queue.ts, arrancado en instrumentation.ts) → processD
 ### 5.2 Flashcards
 
 - **Generación:** toma fragmentos repartidos por todo el documento (máximo ~40 000 caracteres) y llama a `generateJson()` con un esquema zod.
-  - Gemini recibe el esquema como `responseJsonSchema` (decodificación restringida).
+  - Gemini recibe el esquema como `responseJsonSchema` (decodificación restringida); el resto de proveedores, en las instrucciones.
   - El servidor vuelve a **validar** la respuesta: si no cumple el contrato, 502.
 - **Repaso:** **SM-2** (`sm2.ts`).
 
@@ -593,7 +607,7 @@ trabajador (src/lib/jobs/queue.ts, arrancado en instrumentation.ts) → processD
 
 - **Endpoints:**
   - `POST /api/ai/coach/weekly` (por defecto, la semana ISO anterior) hace un upsert de `CoachReport(userId, weekStart)`.
-  - `GET …?preview=1` devuelve el snapshot sin llamar a Gemini.
+  - `GET …?preview=1` devuelve el snapshot sin llamar a la IA.
 - **Snapshot** (`buildWeeklySnapshot`). Es **lo único que ve el modelo**:
   - Carga total y por tipo (pista, técnica, fuerza): sesiones, TSS y minutos; además, el TSS de la semana anterior.
   - PMC: CTL al inicio y al final, ATL, TSB, ACWR y rampa.
@@ -631,7 +645,7 @@ PATCH /api/planning/plan/day/[id]    → versión suave · cambiar de sitio (alt
 ```
 
 - **Ciclo menstrual** (`CycleProfile`, `CycleLog`): JSON cifrado con AES-256-GCM (`sealJson`/`openJson`, clave `DATA_ENCRYPTION_KEY` o, si no está, `TOTP_ENCRYPTION_KEY`). La fase se calcula en local (`src/lib/health/cycle.ts`); con anticonceptivo hormonal no se estiman fases. La IA nunca recibe estos datos: genera una «versión suave» genérica de cada sesión y la app la propone según los síntomas. El coach no tiene ruta para leerlos.
-- **Sin clave de Gemini** la sección lo explica; en la CI y los E2E, `LIFEOS_FAKE_AI=1` sustituye a Gemini por un generador determinista (`fake.ts`). **No usar en producción.**
+- **Sin IA configurada** la sección lo explica; en la CI y los E2E, `LIFEOS_FAKE_AI=1` sustituye a la IA por un generador determinista (`fake.ts`). **No usar en producción.**
 
 ## 6. Referencia de la API
 
@@ -804,7 +818,7 @@ Las imágenes de Docker Hub pasan por el espejo `mirror.gcr.io`, para no chocar 
 
 **Sin probar contra los servicios reales:**
 
-- **Gemini:** el entorno de desarrollo no tenía clave. Se verificó la degradación (503 y avisos en la UI), la extracción de PDF en el build standalone y el SQL de pgvector con vectores sintéticos.
+- **IA real:** el entorno de desarrollo no tiene claves. Se verificó la degradación (503 y avisos en la UI), la extracción de PDF en el build standalone, el SQL de pgvector con vectores sintéticos y, desde la v1.9, el recorrido completo con un servidor simulado compatible con OpenAI y otro con la API de Anthropic (integración y E2E v19).
 - **OpenFoodFacts:** estaba bloqueado por el proxy. El cliente está cubierto con `fetch` simulado y se verificó el respaldo en caché.
 
 ---
@@ -813,22 +827,25 @@ Las imágenes de Docker Hub pasan por el espejo `mirror.gcr.io`, para no chocar 
 
 - **Importar la planificación:** el lector está hecho para la maquetación de los PDF «día a día» del plan 2026-27 (cabeceras «M5 · S1 · LUNES 26/10 · …», tabla de 6 columnas). Si una versión futura cambia esa maquetación, la vista previa lo dirá (bloques no reconocidos, semanas sin días, días sin tabla) **antes** de importar. Los %RM se convierten a kg con la tabla de RM (v1.4).
 
-- **Crear plan con IA:** probado con un Gemini simulado (la CI no tiene clave). La calidad real del plan depende del modelo; la validación del servidor impide material o zonas no permitidas y progresiones bruscas, pero no sustituye a un entrenador. Las semanas de VFC «marcadas» del plan no se leen del PDF: el aviso de VFC usa cualquier semana con ≥ 3 mañanas.
+- **Crear plan con IA:** probado con una IA simulada (la CI no tiene clave). La calidad real del plan depende del modelo; la validación del servidor impide material o zonas no permitidas y progresiones bruscas, pero no sustituye a un entrenador. Las semanas de VFC «marcadas» del plan no se leen del PDF: el aviso de VFC usa cualquier semana con ≥ 3 mañanas.
 - **Recordatorios push:** se evalúan cada hora; con el contenedor apagado a esa hora, llegan en la siguiente pasada del día.
 
-- **Importar del reloj:** los tests usan ficheros FIT generados con el codificador oficial de Garmin imitando a cada marca, y GPX/TCX escritos según cada formato; **no** ficheros exportados de relojes físicos. Si un reloj concreto escribe algo inesperado, la vista previa lo muestra antes de guardar.
+- **Importar del reloj:** los tests usan ficheros FIT generados con el codificador de `fit-file-parser` (MIT, `e2e/fit-builder.mjs`) imitando a cada marca, y GPX/TCX escritos según cada formato; **no** ficheros exportados de relojes físicos. Si un reloj concreto escribe algo inesperado, la vista previa lo muestra antes de guardar.
 - **Notificaciones en iPhone:** solo con la PWA instalada en la pantalla de inicio (iOS 16.4+). La vibración del temporizador no existe en Safari.
 - **Commits de la v1.2 no del todo independientes:** comparten una migración y algún módulo (p. ej. la auditoría se usa en los permisos del coach); revertir uno puede exigir revertir otro.
-- **PDFs escaneados sin capa de texto:** devuelven 422. Haría falta OCR.
+- **PDFs escaneados sin capa de texto:** devuelven 422. El OCR local (Tesseract) llega en la v1.10.
 - **Salud de la mujer:** el cribado de RED-S no es el LEAF-Q validado y la disponibilidad energética es una estimación (MET por RPE, % de grasa de báscula). Sirven para detectar señales, no para diagnosticar.
-- **Pregunta a tus datos y dictado:** probados con Gemini simulado; la calidad real depende del modelo. El dictado depende de la API de voz del navegador (Chrome/Android sí; Firefox no).
+- **Pregunta a tus datos y dictado:** probados con una IA simulada; la calidad real depende del modelo. El dictado depende de la API de voz del navegador (Chrome/Android sí; Firefox no).
 - **Estado del servidor:** la «última copia» solo aparece si el servicio `backup` está activo y reconstruido desde la v1.5; la copia previa de `update.sh` no se registra.
 - **v1.6 · Sin conexión:** solo las sesiones van a la bandeja; agua y hábitos todavía no. La bandeja vive en el navegador de ese móvil: si borras los datos del sitio antes de recuperar cobertura, se pierde.
 - **v1.6 · Restaurar:** no entran finanzas ni viajes (asientos que dependen de cuentas), apuntes ni planes importados; los vínculos con coach y contactos de «entreno sola» hay que rehacerlos.
 - **v1.6 · Entreno sola:** depende del push (sin SMS ni email) y de que el contenedor esté encendido; el aviso puede llegar hasta 5 min tarde. No sustituye a avisar a alguien de viva voz.
 - **v1.6 · Predicciones (ciclo, previsión de marca, equivalencia entre implementos):** estadística sencilla sobre tus propios datos; con pocos datos lo dicen y no dan cifra, pero con pocos más siguen siendo orientativas.
 - **Limitador en memoria:** vale para un único contenedor `web`. Con varias réplicas habría que moverlo a PostgreSQL o Redis; lo mismo para el planificador (se ejecutaría en cada réplica).
-- **Editar una sesión** desde la UI reescribe solo los campos que muestra el formulario: los que se hubieran enviado por API (p. ej. `rir`, `tempo` o `velocityMs` de una serie) se pierden al guardar.
 - **Marcas personales al editar:** se recalculan las de la sesión editada; las de sesiones posteriores que se compararon con ella no se reevalúan.
-- **`Exercise @@unique([userId, name])`:** PostgreSQL trata los `NULL` como distintos, así que no impide duplicados en el catálogo global. El seed es idempotente con `findFirst`; si se crean ejercicios globales a mano, conviene un índice parcial único.
+- **Índice parcial `Exercise_global_name_key` (v1.9):** impide duplicar ejercicios globales. Prisma no lo modela (está en SQL dentro de la migración v1_9 y comentado en `schema.prisma`). Prisma 7.10 no propone borrarlo al comparar la BD con el esquema (comprobado con `migrate diff`), pero conviene revisarlo si cambia la versión de Prisma.
+- **IA propia (v1.9):**
+  - La comprobación de URL resuelve el DNS antes de cada llamada, pero no impide un *DNS rebinding* entre esa resolución y la conexión. Por eso las redes internas solo se permiten en `AI_LOCAL_BASE_URLS`, que define la administración.
+  - Con Anthropic o sin modelo de embeddings, los apuntes se buscan por texto: funciona bien con las palabras de la pregunta y peor con sinónimos.
+  - La calidad de las respuestas depende del modelo elegido; un modelo local pequeño puede no respetar el JSON de los planes (entonces da 502 y se puede reintentar).
 - **Calibraciones heurísticas:** `TSS_PER_HARD_SET = 5`, `TSS_PER_TECHNICAL_ATTEMPT = 1,5` y los pesos del readiness son puntos de partida razonables, no valores validados. Conviene ajustarlos a cada atleta con su propio histórico.

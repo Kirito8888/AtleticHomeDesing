@@ -260,7 +260,13 @@ dc --profile tools run --rm migrate npm run user -- reset-password ana@correo.es
 dc --profile tools run --rm migrate npm run user -- unlock ana@correo.es           # tras 5 intentos fallidos
 dc --profile tools run --rm migrate npm run user -- set-role ana@correo.es COACH
 dc --profile tools run --rm migrate npm run user -- disable-2fa ana@correo.es      # perdió el móvil y los códigos
+# v1.9 · acceso solo con permiso
+dc --profile tools run --rm migrate npm run user -- invite ana@correo.es --role ATHLETE --days 7   # enlace de un solo uso
+dc --profile tools run --rm migrate npm run user -- suspend ana@correo.es          # no puede entrar; sus datos se conservan
+dc --profile tools run --rm migrate npm run user -- reactivate ana@correo.es
 ```
+
+Desde la v1.9, lo diario se hace en el **panel de administración** (`/admin`, con 2FA o llave): invitar, revocar invitaciones, suspender y reactivar cuentas y generar un **enlace de contraseña nueva** (1 hora, un solo uso) para quien la olvide. No hay emails: el enlace lo copias y se lo das por un canal privado.
 
 Cada usuario puede, en **Ajustes**: cambiar su contraseña y su email, activar la verificación en dos pasos, ver su actividad reciente, activar notificaciones, cerrar sesión en todos sus dispositivos, elegir qué ve su entrenador, descargar sus datos y borrar su cuenta.
 
@@ -292,6 +298,56 @@ dc --profile tools run --rm --build migrate
 dc up -d --build web
 docker image prune -f
 ```
+
+#### De v1.8 a v1.9 (Atlenza: uso solo con permiso, IA propia de cada usuario y vigilancia interna)
+
+**Lo que cambia para quien usa la app:**
+- El nombre visible pasa a ser **Atlenza**. No cambian la base de datos (`lifeos`), los volúmenes, las cookies ni las variables `LIFEOS_*`: no se pierde nada ni se cierra ninguna sesión.
+- **Condiciones de uso:** al entrar, cada cuenta (salvo ADMIN y demos) ve una pantalla para aceptarlas una vez.
+- **Registro solo por invitación** (si `ALLOW_REGISTRATION` no es `true`): desde el panel `/admin` o con `npm run user -- invite`. El enlace es de un solo uso y caduca.
+- **IA propia:** cada persona pone su clave en *Ajustes → IA* (Google, OpenAI o compatible, Anthropic o un modelo local). La clave del servidor `GEMINI_API_KEY` pasa a ser **opcional**: si la dejas, sirve de respaldo para quien no tenga la suya. Quien cambie de proveedor tiene que volver a dar el permiso de IA.
+
+**Antes de actualizar:**
+- **`AUTH_URL` debe ser la URL pública con https** (p. ej. `https://atlenza.tudominio.es`): con ella se construyen los enlaces de invitación y de contraseña nueva. Si está vacía, los enlaces salen relativos y tendrás que añadir el dominio a mano.
+- Lee la `LICENSE`: desde la v1.9 el programa es «todos los derechos reservados»; instalarlo requiere permiso escrito del autor.
+
+**Base de datos:**
+- Una migración: `v1_9_features`.
+- **Crea** las tablas `Invitation`, `PasswordReset` y `AiCredential`; añade `User.suspendedAt` y valores nuevos al registro de seguridad.
+- **Índice único parcial** para los ejercicios globales (`Exercise_global_name_key`). Si hubiera dos ejercicios globales con el mismo nombre (solo posible con dos *seeds* a la vez), sus series, marcas y alias pasan al más antiguo y el duplicado se borra. Es el único cambio que toca datos y se ha probado sobre una copia de la v1.8 con un duplicado provocado.
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh
+```
+
+**Variables nuevas** (todas opcionales):
+
+| Variable | Para qué |
+|---|---|
+| `AI_LOCAL_BASE_URLS` | URL de modelos locales que los usuarios pueden elegir, separadas por comas. Ej.: `http://ollama:11434/v1` si Ollama está en la misma red de Docker, o `http://host.docker.internal:11434/v1` si corre en el host (añade `extra_hosts: ["host.docker.internal:host-gateway"]` al servicio `web`). Cualquier otra URL que ponga un usuario debe ser https y pública. |
+| `TELEGRAM_BOT_TOKEN` y `TELEGRAM_ADMIN_CHAT_ID` | Avisos de la vigilancia interna por Telegram: copias fallidas, BD lenta, cola con fallos, poco disco o picos de errores, y cuándo se resuelven. Crea el bot con @BotFather; tu chat id sale en `https://api.telegram.org/bot<TOKEN>/getUpdates` tras escribirle. |
+
+**Vigilancia de la web caída** (la app no puede avisar si está caída). Añade al cron del usuario que despliega:
+
+```bash
+crontab -e
+# cada 5 minutos; avisa al segundo fallo seguido y cuando vuelve
+*/5 * * * * cd /opt/lifeos && sh scripts/watchdog.sh >/dev/null 2>&1
+```
+
+Lee `TELEGRAM_*`, `WEB_BIND` y `WEB_PORT` de `.env.production`. Sin Telegram configurado no envía nada.
+
+**Conexiones salientes nuevas:**
+- Las del proveedor de IA que elija cada usuario, solo con su permiso. Un modelo local no sale del servidor.
+- `api.telegram.org`, solo si configuras Telegram, y solo con el texto del aviso (sin datos de usuarios).
+
+**Comprobar que todo fue bien:**
+- `dc ps`: `web` y `db` **healthy**.
+- **Ajustes → Estado del servidor**: `v1.9.0` y la migración `20261115080000_v1_9_features`.
+- **`/admin` → Métricas y vigilancia**: «todo en orden» y, si configuraste Telegram, «Los avisos llegan por Telegram».
+- Prueba una invitación: créala en `/admin`, ábrela en una ventana privada y comprueba que pide aceptar las condiciones.
+- Si usas `scripts/watchdog.sh`, para la web un momento (`dc stop web`), espera 10 min y arráncala (`dc start web`): deben llegarte el aviso y la recuperación.
 
 #### De v1.7 a v1.8 (calidad, experiencia de uso y 12 funcionalidades)
 

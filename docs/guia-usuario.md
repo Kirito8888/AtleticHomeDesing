@@ -160,7 +160,7 @@ En el calendario o en Inicio, toca una competición:
 
 ## Atlenza IA: crear tu planificación
 
-**Atlenza IA → Crear plan.** Requiere la IA activada (Ajustes → Privacidad e IA) y la clave de Gemini en el servidor.
+**Atlenza IA → Crear plan.** Requiere tu IA configurada (Ajustes → IA) y el permiso de IA activado (Ajustes → Privacidad e IA).
 
 1. **Cuestionario sin escribir:** objetivo, disciplina, nivel, edad, qué días y cuántos minutos, duración (4–12 semanas) y fecha de inicio, **dónde entrenas cada día** y **con qué material**, molestias y ejercicios que prefieres evitar, intensidad y estilo.
 2. **Seguridad:** si marcas dolor en el pecho, mareos, una condición cardíaca, embarazo o posparto reciente, o una cirugía en los últimos 6 meses, **no se genera el plan**: consulta antes con un profesional sanitario.
@@ -176,11 +176,11 @@ En cada día del plan:
 
 Al terminar cada semana, **«¿Cómo fue?»** (fácil / bien / duro + dolor) ajusta la semana siguiente (±1 serie, ±1 RIR) sin volver a llamar a la IA.
 
-Lo que se envía a Gemini: solo tus respuestas del cuestionario (incluidas las zonas con molestias que marques; las lesiones activas vienen marcadas y puedes quitarlas). Nunca tu ciclo, tus registros de recuperación, tus notas ni tu nombre.
+Lo que se envía a tu IA: solo tus respuestas del cuestionario (incluidas las zonas con molestias que marques; las lesiones activas vienen marcadas y puedes quitarlas). Nunca tu ciclo, tus registros de recuperación, tus notas ni tu nombre.
 
 ## Atlenza IA (estudio)
 
-Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta que la autorizas, porque envía texto a Google Gemini.
+Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Privacidad e IA**: está desactivada hasta que la autorizas, porque envía texto al proveedor que elijas.
 
 - **Apuntes:** sube PDF, TXT o Markdown. Se procesan en segundo plano y, si fallan, puedes reintentar.
 - **Chat:** preguntas sobre tus apuntes, con las fuentes citadas.
@@ -189,6 +189,39 @@ Requiere activarla en **Ajustes → Privacidad e IA**: está desactivada hasta q
 - **Pregunta a tus datos:** «¿cuánto he lanzado este mes?». Se envía un resumen numérico de tus entrenos (nunca salud, ciclo ni notas).
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
 - **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
+
+## Novedades de la v1.9 (dónde está cada cosa)
+
+**Entrar y permisos**
+- Atlenza solo se usa **con permiso de su autor**: para crear una cuenta necesitas una **invitación** (un enlace que te da la administración, de un solo uso).
+- La primera vez aceptas las **condiciones de uso** (`/legal/condiciones`).
+- **¿Olvidaste la contraseña?** No hay emails. Entra con tu llave de acceso o con un código de recuperación, o pide a la administración un enlace para poner una nueva (dura 1 hora).
+- **Acerca de** (Ajustes → Acerca de): versión, autoría, licencia y atribuciones.
+
+**Tu propia IA** (**Ajustes → IA**)
+1. Elige el proveedor:
+   - **Google Gemini:** clave gratuita en Google AI Studio;
+   - **OpenAI o compatible:** OpenAI, Mistral, Groq, DeepSeek, OpenRouter, Together o un **modelo local del servidor** si la administración lo ha activado;
+   - **Anthropic (Claude).**
+2. Pon el modelo y la clave y pulsa **«Guardar y probar»**. Se prueba con un mensaje corto sin datos tuyos; si falla, no se guarda nada.
+3. Activa el permiso en **Privacidad e IA**. Lleva el nombre de tu proveedor y, si cambias de proveedor, se desactiva y tienes que volver a darlo.
+
+Además:
+- La clave se guarda **cifrada** y no se vuelve a mostrar (solo sus 4 últimos caracteres). No va en «Descargar mis datos».
+- **Apuntes:** con un **modelo de embeddings** de 768 dimensiones (`gemini-embedding-001`, `text-embedding-3-small`, `nomic-embed-text`…) se buscan por significado. Sin él (o con Anthropic), se buscan por texto. Al cambiar de modelo se reindexan solos.
+- Los datos de salud **nunca** se envían a la IA, sea cual sea el proveedor.
+
+**Entreno**
+- **Editar una sesión** ya no borra el RIR, el tempo, el descanso, las notas ni la velocidad de las series. «Repetir la última» solo copia el tempo y el descanso.
+
+**Administración** (`/admin`, con 2FA o llave de acceso)
+- **Cuentas:** suspender y reactivar (no se borran datos) y el enlace de contraseña nueva.
+- **Invitar:** con email fijo o para cualquiera, rol y caducidad. El enlace se ve una sola vez: cópialo y envíalo por un canal privado.
+- **Métricas y vigilancia:**
+  - estado (todo en orden o el problema);
+  - peticiones, errores y latencias de la última hora;
+  - memoria, base de datos y cola.
+  - Con Telegram configurado, los avisos te llegan al móvil.
 
 ## Novedades de la v1.8 (dónde está cada cosa)
 

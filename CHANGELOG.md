@@ -2,6 +2,43 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v1.9 — Atlenza: uso solo con permiso, IA propia de cada usuario y vigilancia interna (10/10/2026)
+
+**Licencia y autoría**
+- **Atlenza**, de David Ornelas Luna. **Todos los derechos reservados:** el código se puede ver en GitHub, pero usarlo, instalarlo, copiarlo o modificarlo requiere permiso escrito, que se pide abriendo una issue (`LICENSE`, `NOTICE`).
+- **`THIRD_PARTY_NOTICES.md`** generado desde las dependencias. La CI rechaza las licencias propietarias o de *copyleft* fuerte en producción.
+- **Página «Acerca de»** con autoría, licencia y atribuciones (Open Food Facts, Open-Meteo, Geist y Lucide).
+- **Sin componentes con licencia propietaria:** el lector de ficheros FIT pasa del SDK de Garmin a `fit-file-parser` (MIT).
+- Las escalas de brazo y hombro, y de Aquiles, se presentan como **propias y no validadas**.
+- **Aviso fijo** en Recuperación: información orientativa; no es un producto sanitario.
+
+**Acceso solo con permiso**
+- **Registro por invitación** de un solo uso, con caducidad, desde el panel o con `npm run user -- invite`.
+- **Condiciones de uso** versionadas: se aceptan al registrarse, o en una pantalla al entrar quien aún no lo haya hecho.
+- **Panel de administración** (`/admin`, con 2FA o llave):
+  - invitar y revocar invitaciones;
+  - suspender y reactivar cuentas (la suspensión cierra sus sesiones);
+  - **enlace de contraseña nueva** de un solo uso (1 h), sin email.
+
+**IA propia de cada usuario**
+- En **Ajustes → IA** cada persona elige su proveedor, se prueba la conexión antes de guardar y la clave va cifrada (solo se ven sus 4 últimos caracteres):
+  - Google Gemini;
+  - cualquier API compatible con OpenAI (OpenAI, Mistral, Groq, DeepSeek, OpenRouter, Together);
+  - un modelo local autorizado por la administración (Ollama, LM Studio, vLLM);
+  - Anthropic.
+- **Cambiar de proveedor** vuelve a pedir el permiso de IA y reindexa los apuntes. Sin embeddings (Anthropic), los apuntes se buscan por texto.
+- La clave del servidor `GEMINI_API_KEY` pasa a ser solo un **respaldo opcional**.
+- Protección contra peticiones a la red interna: las URL de los usuarios deben ser https y públicas.
+
+**Calidad y operación**
+- **Editar una sesión** ya no pierde el RIR, el tempo, el descanso, el fallo, las notas, la velocidad ni los kg sugeridos de cada serie.
+- **Ejercicios globales únicos:** índice parcial; la migración fusiona duplicados si los hubiera.
+- **Vigilancia interna:** cada 5 min comprueba la BD, las migraciones, las copias, la cola, el disco y los picos de errores, y avisa por **Telegram** (opcional) de cada problema y de cuando se resuelve. `scripts/watchdog.sh` (cron del servidor) avisa si la web entera cae.
+- **Métricas internas** en `/admin`: peticiones, errores y latencias de la API en la última hora, memoria, BD y cola. Sin servicios externos.
+- **OWASP ZAP** (auditoría pasiva) en la CI.
+- La imagen *migrate* incluye todo lo que necesita `npm run user`; un test lo comprueba.
+- Manual del backend al día: IA por proveedor y limitaciones resueltas y nuevas.
+
 ## v1.8 — calidad, experiencia de uso y 12 funcionalidades nuevas (10/10/2026)
 
 **Regla de diseño de siempre:** nada toca tu planificación sin confirmar y la salud no sale de tu cuenta. Lo nuevo de esta versión no lee salud cifrada (el informe de temporada, «Mi semana» y los CSV tampoco).

@@ -18,7 +18,7 @@ flowchart LR
     PGA["pgadmin (perfil pgadmin)<br/>solo por túnel SSH"]
     F2B["fail2ban<br/>lee journald"]
   end
-  GEM["Google Gemini<br/>(solo con consentimiento)"]
+  GEM["IA de cada usuario<br/>(Gemini, OpenAI o compatible, Anthropic o local;<br/>solo con consentimiento)"]
   OFF["OpenFoodFacts"]
   PUSH["Servicios push<br/>FCM · Mozilla · Apple · WNS"]
 
@@ -115,7 +115,7 @@ Reimportar respeta lo ya hecho. Detalle en `manual_backend.md` § 3.1b.
 | `src/lib/health/` | Ciclo menstrual y salud de la mujer (cifrado), patrón y predicción aprendida, salud ósea, anticoncepción y menopausia, enlaces para médica, fisio e informe anual, «entreno sola» |
 | `src/lib/report/` | Informe de solo lectura para la entrenadora |
 | `src/lib/finance/` | Contabilidad, presupuestos, importar extractos, viajes de competición y plazos; v1.7: presupuesto de temporada, justificantes y subidas de precio |
-| `src/lib/ai/` | Gemini, RAG, flashcards, coach semanal |
+| `src/lib/ai/` | Proveedores de IA por usuario (`provider.ts`, `credentials.ts`), RAG, flashcards, coach semanal |
 | `src/lib/security/` · `src/lib/auth/` · `src/lib/privacy/` · `src/lib/files/` | 2FA, auditoría encadenada, cifrado y rotación de claves, CSP · sesión, permisos del coach, Argon2id y llaves de acceso · consentimientos, derechos, limitación y conservación · ficheros cifrados (fotos y justificantes) |
 | `src/lib/push/` · `src/lib/jobs/` · `src/lib/scheduler.ts` | Notificaciones · cola · tareas programadas |
 | `prisma/` | Esquema, migraciones, seed y `scripts/user-admin.ts` |

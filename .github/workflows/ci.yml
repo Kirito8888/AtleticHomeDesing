@@ -123,6 +123,19 @@ jobs:
           ALLOW_REGISTRATION=false PORT=3000 node .next/standalone/server.js > server-closed.log 2>&1 &
           for i in $(seq 60); do curl -sf -o /dev/null http://localhost:3000/login && break; sleep 1; done
           npm run e2e:security
+      # v1.9 · Auditoría pasiva gratuita con OWASP ZAP (baseline) contra la app ya en marcha.
+      # Rompe la CI solo con las reglas FAIL de .zap/rules.tsv; el informe se sube siempre.
+      - name: OWASP ZAP baseline
+        run: |
+          for i in 1 2 3; do docker pull -q ghcr.io/zaproxy/zaproxy:2.16.1 && break; sleep $((i * 10)); done
+          docker run --rm --network host -u root -v "$PWD/.zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:2.16.1 \
+            zap-baseline.py -t http://localhost:3000/login -c rules.tsv -I -m 2 -r zap-report.html -J zap-report.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-report
+          path: .zap/zap-report.*
+          if-no-files-found: ignore
       - if: failure()
         uses: actions/upload-artifact@v4
         with:

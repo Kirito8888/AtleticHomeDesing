@@ -15,7 +15,7 @@ Pensada para el móvil y autoalojada en tu propio servidor.
 
 **Versión actual: v1.9**: licencia y autoría, nombre Atlenza, acceso solo por invitación, IA con la clave de cada usuario (Gemini, OpenAI, Claude, Mistral, OpenRouter o un modelo local) y monitorización interna. Ver [`CHANGELOG.md`](CHANGELOG.md).
 
-**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · PostgreSQL 17 + pgvector · Prisma 7 · pg-boss · Docker Compose · Google Gemini (opcional).
+**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · PostgreSQL 17 + pgvector · Prisma 7 · pg-boss · Docker Compose · IA de cada usuario (Gemini, compatible con OpenAI o Anthropic; opcional).
 
 ## Qué hace
 
