@@ -105,7 +105,6 @@ CREATE TABLE "CategoryRule" (
     "pattern" TEXT NOT NULL,
     "categoryId" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "financialAccountId" TEXT,
 
     CONSTRAINT "CategoryRule_pkey" PRIMARY KEY ("id")
 );
@@ -154,7 +153,4 @@ ALTER TABLE "CategoryRule" ADD CONSTRAINT "CategoryRule_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "CategoryRule" ADD CONSTRAINT "CategoryRule_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "FinancialCategory"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "CategoryRule" ADD CONSTRAINT "CategoryRule_financialAccountId_fkey" FOREIGN KEY ("financialAccountId") REFERENCES "FinancialAccount"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 

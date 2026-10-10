@@ -899,7 +899,6 @@ model FinancialAccount {
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   postings      Posting[]
   subscriptions Subscription[]
-  rules         CategoryRule[]
 
   @@unique([userId, name])
 }
@@ -2351,10 +2350,8 @@ model CategoryRule {
   categoryId String
   createdAt  DateTime @default(now())
 
-  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  category           FinancialCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  financialAccount   FinancialAccount? @relation(fields: [financialAccountId], references: [id])
-  financialAccountId String?
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category FinancialCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
   @@unique([userId, pattern])
 }

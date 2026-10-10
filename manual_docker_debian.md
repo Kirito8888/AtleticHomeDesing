@@ -293,6 +293,55 @@ dc up -d --build web
 docker image prune -f
 ```
 
+#### De v1.7 a v1.8 (calidad, experiencia de uso y 12 funcionalidades)
+
+**Antes de actualizar: la cuenta ADMIN necesita 2FA o una llave de acceso.**
+- Desde la v1.8, **Estado del servidor** y `/api/admin/*` exigen además del rol ADMIN un segundo factor.
+- Si tu cuenta no lo tiene, Ajustes te lo dice y no verás la administración hasta activarlo.
+- Actívalo antes: **Ajustes → Seguridad (2FA)** o **Ajustes → Llaves de acceso** (las llaves necesitan HTTPS).
+- Si ya lo tienes, no hace falta nada.
+
+**Base de datos:**
+- Una migración, **solo aditiva**: `v1_8_features`.
+- **Crea** tablas: `PageUsage`, `ServerError`, `RateLimitHit`, `TrashItem`, `WeeklyReview`, `Goal` y `CategoryRule`.
+- **Añade columnas opcionales:** primer uso (`User.onboardedAt`), título, texto, enlace, leída y pospuesta de las notificaciones, coordenadas de los eventos y «compartida» de las plantillas.
+- No borra ni cambia datos. Se ha probado sobre una copia de una BD v1.7 con datos: usuarios, sesiones, plan y movimientos idénticos antes y después, y sin diferencias con el esquema.
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh
+```
+
+**Qué hace `update.sh` en la v1.8:**
+- Lo mismo que en la v1.7.
+- Además, pasa el commit actual a la imagen (`GIT_SHA`) para que **Estado del servidor** diga qué versión del código corre y si hay una más nueva en GitHub.
+- La BD no se reinicia (su configuración no cambia).
+
+**Variables:** **ninguna obligatoria.**
+
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `GIT_SHA` | la pone `update.sh` | Commit de la imagen. No la pongas a mano. |
+| `UPDATE_REPO` | `Kirito8888/AtleticHomeDesing` | Repositorio donde mirar si hay versión nueva (solo si usas un fork). |
+| `RETENTION_SERVER_ERRORS_DAYS` | `30` | Días que se guardan los errores del servidor y los informes de la CSP. |
+| `RETENTION_PAGE_USAGE_DAYS` | `365` | Días que se guarda el contador de uso local. |
+
+**Conexiones salientes nuevas:**
+- `api.github.com`: comprobación de versión, una vez cada 6 h, desde Estado del servidor. Solo pide el último commit de `main`; no envía nada tuyo.
+- `api.open-meteo.com`: ya se usaba en la v1.5. Ahora también para el pronóstico del día de la competición, solo si guardas las coordenadas del estadio.
+
+**Comprobar que todo fue bien:**
+- `dc ps`: `web` y `db` deben salir **healthy**.
+- **Ajustes → Estado del servidor** debe decir:
+  - `v1.8.0`;
+  - última migración `v1_8_features`;
+  - «Versión del código» con el commit;
+  - «Errores recientes» vacío o casi;
+  - **«Revisar ahora»** de la integridad → «Todo en orden».
+- La **campana** aparece arriba; el aviso de tu último inicio de sesión ya está dentro.
+- **Ajustes → Notificaciones:** pon tus horas de silencio.
+- **Compartir con LifeOS:** en Android, reinstala la app desde Chrome (menú → «Instalar aplicación») para que aparezca en el menú «Compartir».
+
 #### De v1.6 a v1.7 (seguridad, privacidad, menos recursos y 30 funcionalidades)
 
 **Base de datos:**
