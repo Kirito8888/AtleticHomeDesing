@@ -5,7 +5,14 @@
 ## Dónde estamos
 - **Versión fusionada:** v1.10 (PR #24, 14/10/2026). CI en verde.
 - **Siguiente:** v2.0, por bloques; **una sesión por bloque**. Cierre con PR al final de la versión.
-- **Bloque en curso:** ninguno. Empezar por **A**.
+- **Bloque en curso:** ninguno. Hecho: **Salto** (medidor de salto por vídeo, PR pendiente de fusionar). **A (clubes)** se aplaza; sigue pendiente.
+
+## Bloque Salto (hecho, fuera de la lista A–E)
+Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
+tests), API `api/training/tests/jump` (recalcula en servidor y guarda **mejor** y **media** como dos tests del catálogo:
+`cmj`/`sj`/`abalakov`/`djRsi` y `…Mean`), UI `components/training/jump-meter.tsx` en `/training/tests/salto`, E2E `e2e:salto`.
+Sin cambios de esquema. El vídeo nunca sale del navegador. Los fps detectados son los **del fichero** (pueden ser 30 si el móvil
+reexportó la cámara lenta): la atleta confirma los fps de captura. Fuera: perfil F-V (Samozino) y detección automática.
 
 ## v2.0 · bloques (en orden)
 Antes del bloque A: `scripts/dev/snapshot.sh` (foto de la BD v1.10 para la migración `v2_0_features`).

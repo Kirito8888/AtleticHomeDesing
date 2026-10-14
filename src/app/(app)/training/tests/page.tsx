@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { PageHeader } from "@/components/page-header";
 import { TestForm } from "@/components/training/test-form";
 import { ValueChart } from "@/components/charts/lazy";
@@ -25,6 +27,9 @@ export default async function TestsPage() {
           </CardHeader>
           <CardContent className="px-4">
             <TestForm today={toIsoDay(today())} />
+            <Link href="/training/tests/salto" className="mt-3 flex min-h-11 items-center text-sm font-medium underline underline-offset-4">
+              Medir salto con vídeo
+            </Link>
           </CardContent>
         </Card>
         <div className="grid gap-4" aria-label="Resultados por test">
