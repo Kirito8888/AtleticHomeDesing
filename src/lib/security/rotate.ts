@@ -81,6 +81,7 @@ export async function reencryptAll() {
   const keys: [string, string | undefined] = [dataKey(), previousDataKey()];
   const data: Record<string, { rotated: number; current: number; failed: number }> = { ...(await rotateTables(tables, keys)), "fotos de lesión": await rotateFiles(await prisma.injuryPhoto.findMany({ select: { userId: true, path: true } }), keys),
     justificantes: await rotateFiles(await prisma.receipt.findMany({ select: { userId: true, path: true } }), keys),
+    "vídeos de ejercicios": await rotateFiles(await prisma.exercise.findMany({ where: { userId: { not: null }, videoPath: { not: null } }, select: { userId: true, videoPath: true } }).then((r) => r.map((e) => ({ userId: e.userId!, path: e.videoPath! }))), keys),
   };
   const totpKey = env().TOTP_ENCRYPTION_KEY;
   const totp = totpKey

@@ -58,7 +58,7 @@ export async function restoreExport(userId: string, data: unknown) {
   const catalog = await prisma.exercise.findMany({ where: { userId: null }, select: { id: true, name: true } });
   const byName = new Map(catalog.map((e) => [e.name.toLowerCase(), e.id]));
   for (const e of arr(get(data, "training", "customExercises"))) {
-    const created = await prisma.exercise.create({ data: { ...pick(e, Prisma.ExerciseScalarFieldEnum), userId } as Prisma.ExerciseUncheckedCreateInput, select: { id: true } }).catch(() => null);
+    const created = await prisma.exercise.create({ data: { ...pick(e, Prisma.ExerciseScalarFieldEnum, ["videoPath", "videoMime", "videoBytes"]), userId } as Prisma.ExerciseUncheckedCreateInput, select: { id: true } }).catch(() => null);
     if (created) {
       exMap.set(String(e.id), created.id);
       add("ejercicios propios");
