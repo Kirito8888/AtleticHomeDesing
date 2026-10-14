@@ -299,6 +299,31 @@ dc up -d --build web
 docker image prune -f
 ```
 
+#### De v1.10 a v2.0 (clubes, varias atletas, flashcards compartidas, tendencias y varias réplicas)
+
+**Lo que cambia para quien usa la app:**
+- **Clubes y cuotas internas**, **planificar varias atletas** y «qué pasa si», **flashcards compartidas** con progreso propio, **semanas de VFC** y **tendencias** mensuales, y el **medidor de salto** por vídeo. Detalle en [`CHANGELOG.md`](CHANGELOG.md).
+
+**Antes de actualizar:**
+- **Límite de peticiones en la BD:** los contadores vigentes se reinician al desplegar (nadie queda bloqueado). Las claves se guardan con HMAC de `AUTH_SECRET`: **no cambies `AUTH_SECRET`** durante la actualización.
+- **Varias réplicas:** ya es posible ejecutar más de una réplica `web`; las tareas programadas y el sondeo de Telegram se reparten con cerrojos en Postgres. Con una sola réplica no cambia nada. Los avisos de vigilancia y las métricas de administración siguen en memoria por réplica.
+- **Telegram:** quita cualquier otro programa que consulte el mismo bot; sigue valiendo lo de la v1.10.
+
+**Base de datos:**
+- Una migración: `v2_0_features`. Solo **añade**: tablas `Organization`, `OrgMember`, `OrgFee`, `FlashcardReview` y `FlashcardDeckShare`. Además copia, una sola vez y sin duplicar, el estado de repaso de cada tarjeta (`Flashcard`) a `FlashcardReview` a nombre de la dueña del mazo; las columnas antiguas de `Flashcard` se quedan como legado. No modifica ni borra datos existentes y se ha probado sobre una copia de la v1.10 (mismos recuentos y esquema idéntico al de Prisma).
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh
+```
+
+**Variables nuevas:** ninguna. Opcional: actualiza `OFF_USER_AGENT` a `Atlenza/2.0 (tu-email)`.
+
+**Comprobar tras actualizar:**
+1. Entra con una cuenta con mazos: *Estudio → Flashcards* debe mostrar las tarjetas pendientes igual que antes.
+2. `/clubs` carga (vacío si aún no hay clubes).
+3. *Ajustes → Tus datos → Descargar todos mis datos* descarga el fichero y contiene `clubs` y `study.flashcardReviews`.
+
 #### De v1.9 a v1.10 (Telegram por usuario, Strava, OCR, catálogo español y micronutrientes)
 
 **Lo que cambia para quien usa la app:**

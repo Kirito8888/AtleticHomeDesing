@@ -190,6 +190,28 @@ Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Pri
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
 - **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
 
+## Novedades de la v2.0 (dónde está cada cosa)
+
+**Clubes** (**Clubs** en el menú)
+- Si te invitan a un club, aparece como pendiente: **tú decides** si aceptas y qué ve la entrenadora (carga, sesiones, recuperación, planificación, informes) y si puede planificar por ti. Ser del club no da acceso por sí solo.
+- Tus **cuotas** las ves en el club; solo la administradora las apunta y marca. No hay pago dentro de Atlenza.
+
+**Entrenadora: varias atletas** (**Entrenadora → Varias atletas**)
+- Elige una semana tipo o un plan tuyo, marca atletas y revisa la simulación («qué pasa si»). Al aplicar, cada una recibe un **borrador**; no cambia nada hasta que lo activa.
+
+**Estudio: mazos compartidos** (**Estudio → Flashcards**)
+- «Mis mazos» y «Compartidos conmigo». Con **Compartir** invitas por email. Repasas con tu propio progreso; no puedes editar ni borrar un mazo ajeno. «Dejar» el mazo borra tu progreso en él.
+
+**Recuperación**
+- **Tendencias** (**Recuperación → Tendencias**): sueño, VFC, carga y días con molestia mes a mes; avisa con la causa, los valores y tu umbral. Los umbrales se cambian en **Mis reglas**.
+- Si importas un plan con semanas «VFC», el calendario las etiqueta y el aviso de VFC solo salta en ellas.
+
+**Salto** (**Entreno → Tests → Salto**)
+- Sube un vídeo del salto, marca despegue y aterrizaje y confirma los fps **de captura** (el fichero puede decir 30 aunque grabaras en cámara lenta). Se guardan el mejor y la media. El vídeo no sale del navegador.
+
+**Tus datos**
+- **Ajustes → Tus datos → Descargar todos mis datos** incluye ahora tu progreso de flashcards y tus clubes y cuotas. Al restaurar en una cuenta vacía no se recrean clubes ni mazos compartidos.
+
 ## Novedades de la v1.10 (dónde está cada cosa)
 
 **Telegram** (**Ajustes → Notificaciones**)
