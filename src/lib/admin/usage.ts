@@ -20,7 +20,7 @@ export async function usageSummary(userId: string, weeks = 8) {
   from.setUTCDate(from.getUTCDate() - 7 * (weeks - 1));
   const rows = await prisma.pageUsage.groupBy({ by: ["path"], where: { userId, week: { gte: from } }, _sum: { count: true }, orderBy: { _sum: { count: "desc" } } });
   const list = rows.map((r) => ({ path: r.path, count: r._sum.count ?? 0 }));
-  const sections = ["/training", "/recovery", "/planning", "/nutrition", "/finance", "/study", "/coach", "/safety", "/glance"];
+  const sections = ["/training", "/recovery", "/planning", "/nutrition", "/finance", "/study", "/coach", "/clubs", "/safety", "/glance"];
   const unused = sections.filter((s) => !list.some((r) => r.path === s || r.path.startsWith(`${s}/`)));
   return { top: list.slice(0, 10), total: list.reduce((a, r) => a + r.count, 0), unused, weeks };
 }
