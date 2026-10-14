@@ -14,7 +14,8 @@ describe.skipIf(!HAS_DB)("planificar varios atletas v2.0 (BD real)", () => {
   const mail = (k: string) => `${k}-${t}@test.dev`;
   const coach = () => ({ id: u.coa, role: "COACH" as const });
   const input = (ids: string[]) => ({ source: { kind: "template" as const, id: tplId }, start: "2030-03-04", athleteIds: ids, rpe: 6 });
-  const counts = async () => [await prisma.planMeso.count(), await prisma.trainingSession.count(), await prisma.dailyLoad.count()];
+  const mine = () => ({ userId: { in: Object.values(u) } });
+  const counts = async () => [await prisma.planMeso.count({ where: mine() }), await prisma.trainingSession.count({ where: mine() }), await prisma.dailyLoad.count({ where: mine() })];
 
   beforeAll(async () => {
     vi.resetModules();
