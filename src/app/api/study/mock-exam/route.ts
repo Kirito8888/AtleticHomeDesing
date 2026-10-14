@@ -1,3 +1,4 @@
+import { visibleCards } from "@/lib/ai/flashcards";
 import { ApiError, parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
@@ -7,7 +8,7 @@ import { mockExamSchema, mockResultSchema, pickRandom } from "@/lib/study/mock-e
 export const POST = route(async (req) => {
   const user = await requireUser();
   const { deckId, count } = await parseBody(req, mockExamSchema);
-  const cards = await prisma.flashcard.findMany({ where: { deckId, deck: { userId: user.id } }, select: { id: true, front: true, back: true } });
+  const cards = await prisma.flashcard.findMany({ where: { deckId, ...visibleCards(user.id) }, select: { id: true, front: true, back: true } });
   if (cards.length < 3) throw new ApiError(400, "El mazo necesita al menos 3 tarjetas");
   return { cards: pickRandom(cards, count) };
 });
@@ -16,6 +17,17 @@ export const POST = route(async (req) => {
 export const PUT = route(async (req) => {
   const user = await requireUser();
   const { deckId, failed } = await parseBody(req, mockResultSchema);
-  const { count } = await prisma.flashcard.updateMany({ where: { id: { in: failed }, deckId, deck: { userId: user.id } }, data: { dueAt: new Date() } });
-  return { toReview: count };
+  // Solo mi propio progreso: en un mazo compartido no se toca nada de la dueña.
+  const cards = await prisma.flashcard.findMany({ where: { id: { in: failed }, deckId, ...visibleCards(user.id) }, select: { id: true } });
+  const now = new Date();
+  await prisma.$transaction(
+    cards.map((c) =>
+      prisma.flashcardReview.upsert({
+        where: { userId_cardId: { userId: user.id, cardId: c.id } },
+        create: { userId: user.id, cardId: c.id, dueAt: now },
+        update: { dueAt: now },
+      }),
+    ),
+  );
+  return { toReview: cards.length };
 });

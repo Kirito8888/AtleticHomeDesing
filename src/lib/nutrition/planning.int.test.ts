@@ -54,7 +54,7 @@ describe.skipIf(!HAS_DB)("nutrición y estudio v1.7 (BD real)", () => {
     const { reviewFlashcard } = await import("@/lib/ai/flashcards");
     const card = await prisma.flashcard.findFirstOrThrow({ where: { deckId: r.deckId } });
     await reviewFlashcard(userId, card.id, 5);
-    expect((await prisma.flashcard.findUniqueOrThrow({ where: { id: card.id } })).repetitions).toBe(1);
+    expect((await prisma.flashcardReview.findUniqueOrThrow({ where: { userId_cardId: { userId, cardId: card.id } } })).repetitions).toBe(1);
 
     const a = await st.createAssignment(userId, { subject: "Física", title: "Práctica 1", dueOn: "2026-10-11", status: "TODO", weightPct: 30 });
     await st.createAssignment(userId, { subject: "Física", title: "Práctica 2", dueOn: "2026-10-30", status: "TODO", weightPct: 20 });

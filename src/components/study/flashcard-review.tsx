@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { DeckShares } from "@/components/study/deck-shares";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
 
@@ -12,6 +13,11 @@ interface Deck {
   name: string;
   total: number;
   due: number;
+  mastered: number;
+  reviewed: number;
+  shared: boolean;
+  ownerName: string | null;
+  sharedWith: number;
 }
 interface Card {
   id: string;
@@ -31,12 +37,23 @@ export function FlashcardReview({ decks }: { decks: Deck[] }) {
   const [queue, setQueue] = useState<Card[] | null>(null);
   const [flipped, setFlipped] = useState(false);
   const [done, setDone] = useState(0);
+  const [managing, setManaging] = useState<string | null>(null);
 
   async function start(deckId: string) {
     try {
       setQueue(await api<Card[]>(`/api/ai/flashcards/due?deckId=${deckId}&limit=50`));
       setFlipped(false);
       setDone(0);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  }
+
+  async function leave(deckId: string) {
+    if (!window.confirm("¿Dejar este mazo? Se borra también tu progreso en él.")) return;
+    try {
+      await api(`/api/ai/flashcards/decks/${deckId}/shares`, { method: "DELETE" });
+      router.refresh();
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -102,22 +119,61 @@ export function FlashcardReview({ decks }: { decks: Deck[] }) {
     );
   }
 
-  return decks.length ? (
-    <ul className="grid gap-2">
-      {decks.map((d) => (
-        <li key={d.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
-          <div className="min-w-0">
-            <div className="truncate font-medium">{d.name}</div>
-            <div className="text-xs text-muted-foreground">
-              {d.total} tarjetas · {d.due} para hoy
-            </div>
+  const mine = decks.filter((d) => !d.shared);
+  const shared = decks.filter((d) => d.shared);
+  const row = (d: Deck) => (
+    <li key={d.id} className="grid gap-2 rounded-lg border p-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate font-medium">{d.name}</div>
+          <div className="text-xs text-muted-foreground">
+            {d.total} tarjetas · {d.due} para hoy
           </div>
-          <Button size="sm" disabled={!d.due} onClick={() => start(d.id)}>
-            Repasar
+          <div className="text-xs text-muted-foreground">
+            Mi progreso: {d.reviewed} vistas · {d.mastered} dominadas
+          </div>
+          {d.shared ? (
+            <div className="truncate text-xs text-muted-foreground">
+              De {d.ownerName} · <span className="font-medium">solo lectura</span>
+            </div>
+          ) : d.sharedWith ? (
+            <div className="text-xs text-muted-foreground">Compartido con {d.sharedWith}</div>
+          ) : null}
+        </div>
+        <Button size="sm" className="h-10" disabled={!d.due} onClick={() => start(d.id)}>
+          Repasar
+        </Button>
+      </div>
+      <div className="flex gap-2">
+        {d.shared ? (
+          <Button variant="ghost" size="sm" onClick={() => leave(d.id)}>
+            Dejar mazo
           </Button>
-        </li>
-      ))}
-    </ul>
+        ) : (
+          <Button variant="ghost" size="sm" aria-expanded={managing === d.id} onClick={() => setManaging(managing === d.id ? null : d.id)}>
+            Compartir
+          </Button>
+        )}
+      </div>
+      {managing === d.id && !d.shared ? <DeckShares deckId={d.id} /> : null}
+    </li>
+  );
+
+  return decks.length ? (
+    <div className="grid gap-4">
+      {mine.length ? (
+        <section className="grid gap-2">
+          <h3 className="text-sm font-medium">Mis mazos</h3>
+          <ul className="grid gap-2">{mine.map(row)}</ul>
+        </section>
+      ) : null}
+      {shared.length ? (
+        <section className="grid gap-2">
+          <h3 className="text-sm font-medium">Compartidos conmigo</h3>
+          <ul className="grid gap-2">{shared.map(row)}</ul>
+        </section>
+      ) : null}
+    </div>
   ) : (
     <p className="text-sm text-muted-foreground">Genera flashcards desde tus apuntes.</p>
   );

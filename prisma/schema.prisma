@@ -89,6 +89,8 @@ model User {
   studyDocuments         StudyDocument[]
   chatThreads            ChatThread[]
   flashcardDecks         FlashcardDeck[]
+  flashcardShares        FlashcardDeckShare[]
+  flashcardReviews       FlashcardReview[]
   coachReports           CoachReport[]
   recoveryCodes          RecoveryCode[]
   securityEvents         SecurityEvent[]
@@ -1345,13 +1347,28 @@ model FlashcardDeck {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user  User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  cards Flashcard[]
+  user   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cards  Flashcard[]
+  shares FlashcardDeckShare[]
 
   @@unique([userId, name])
 }
 
-/// Repetición espaciada SM-2.
+/// v2.0 · Mazo compartido en solo lectura con otra persona (el contenido es de la dueña).
+model FlashcardDeckShare {
+  id        String   @id @default(cuid())
+  deckId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  deck FlashcardDeck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([deckId, userId])
+  @@index([userId])
+}
+
+/// Contenido de la tarjeta. Los campos SM-2 de aquí son legado (v<2.0): el estado vive en FlashcardReview.
 model Flashcard {
   id               String    @id @default(cuid())
   deckId           String
@@ -1365,10 +1382,32 @@ model Flashcard {
   lastReviewedAt   DateTime?
   createdAt        DateTime  @default(now())
 
-  deck           FlashcardDeck  @relation(fields: [deckId], references: [id], onDelete: Cascade)
-  sourceDocument StudyDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  deck           FlashcardDeck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  sourceDocument StudyDocument?    @relation(fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  reviews        FlashcardReview[]
 
   @@index([deckId, dueAt])
+}
+
+/// v2.0 · Repetición espaciada SM-2 por persona y tarjeta. Sin fila = tarjeta nueva (toca hoy).
+model FlashcardReview {
+  id             String    @id @default(cuid())
+  userId         String
+  cardId         String
+  easeFactor     Float     @default(2.5)
+  intervalDays   Int       @default(0)
+  repetitions    Int       @default(0)
+  dueAt          DateTime  @default(now())
+  lastReviewedAt DateTime?
+  lastGrade      Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  card Flashcard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, cardId])
+  @@index([userId, dueAt])
 }
 
 /// Informe semanal del Coach de Rendimiento (Gemini).
