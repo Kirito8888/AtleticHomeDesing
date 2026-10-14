@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión fusionada:** v1.10 (PR #24, 14/10/2026). CI en verde.
 - **Siguiente:** v2.0, por bloques; **una sesión por bloque**. Cierre con PR al final de la versión.
-- **Bloque en curso:** ninguno. Hecho: **Salto** (fusionado) y **A (clubes y cuotas)** (PR pendiente de fusionar). **Siguiente: B.**
+- **Bloque en curso:** ninguno. Hecho: **Salto**, **A (clubes y cuotas)** (fusionados) y **B (planificar varios atletas)** (PR pendiente). **Siguiente: C.**
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
 Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
@@ -25,10 +25,15 @@ Antes del bloque A: `scripts/dev/snapshot.sh` (foto de la BD v1.10 para la migra
   Cuotas: solo la ADMIN del club apunta/marca; la atleta ve las suyas; la entrenadora no las ve. Sin pasarela ni email.
   Pendiente/decisión: el ADMIN **global** sigue saltándose `processingRestrictedAt` (comportamiento previo, no tocado);
   no se registran eventos de auditoría de club (habría que ampliar el enum `SecurityEventType`).
-- **B · Planificar varios atletas + «qué pasa si».** Copiar plan/plantilla a N atletas con `canPlan` (hoy todo es por
-  `userId`: `src/lib/planning/manual-plan.ts`, `ai-plan/service.ts` `saveDraftPlan`, `WeekTemplate`). Simulación en
-  borrador: `computePmc` (`src/lib/training/pmc.ts`) con TSS futuro de sesiones PLANNED, sembrado con CTL/ATL de hoy;
-  reutilizar `taperProposal` (`planning/taper-service.ts`) y `rescheduleOptions` (`planning/reschedule.ts`).
+- **B · Planificar varios atletas + «qué pasa si» — HECHO.** Sin cambios de esquema (no hay migración nueva).
+  `/coach/multi`: la entrenadora copia una semana tipo (`WeekTemplate`) o un plan propio a N atletas; se crea **un borrador
+  por atleta** (`createManualDraftFromDays`, `PlanMeso.meta.assignedById`), sin sesiones ni activar: la atleta lo activa.
+  Solo con vínculo activo (1:1 o club) + ámbito PLANNING + `canPlan`; `processingRestrictedAt` bloquea; el ADMIN global aquí
+  **no** se salta nada. Simulación sin escrituras (`projectPmc` en `training/pmc.ts`, `coach/what-if.ts`): base, con copia,
+  con afinamiento (`taperProposal`) y recolocando choques (`rescheduleOptions` sin exámenes ni ciclo); requiere ámbito LOAD.
+  TSS previsto = `tss` guardado o sRPE con el RPE que elige la entrenadora. API `api/coach/multi-plan` (apply exige `confirm`).
+  Tests: `pmc.test.ts`, `what-if.test.ts`, `multi-plan.int.test.ts`; E2E `e2e:v20b`. Fuera: `saveDraftPlan` (plan con IA)
+  como origen — solo se copian semanas tipo y planes propios.
 - **C · Flashcards compartidas.** El estado SM-2 vive en `Flashcard` (por tarjeta): crear `FlashcardReview(userId, cardId, …)`
   y migrar el estado existente al dueño del mazo. Compartir mazo con personas autorizadas (solo lectura del contenido).
   Código: `src/lib/ai/flashcards.ts`, `sm2.ts`.

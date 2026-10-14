@@ -32,6 +32,7 @@
     "e2e:v110": "tsx e2e/v110.mts",
     "e2e:salto": "tsx e2e/salto.mts",
     "e2e:v20a": "tsx e2e/v20a.mts",
+    "e2e:v20b": "tsx e2e/v20b.mts",
     "notices": "node scripts/third-party-notices.mjs"
   },
   "dependencies": {
