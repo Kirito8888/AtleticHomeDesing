@@ -92,6 +92,7 @@ export async function exportAccount(userId: string) {
     flashcardReviews,
     coachReports,
     coachLinks,
+    clubMemberships,
   ] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -131,6 +132,8 @@ export async function exportAccount(userId: string) {
       where: { OR: [{ coachId: userId }, { athleteId: userId }] },
       include: { coach: { select: { name: true, email: true } }, athlete: { select: { name: true, email: true } } },
     }),
+    // v2.0 · Mis membresías de club y mis propias cuotas (nunca las de otras personas del club).
+    prisma.orgMember.findMany({ where, include: { org: { select: { name: true } }, fees: true } }),
   ]);
   const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos, cycle, oneRepMaxes, exerciseAliases, sharedReports, calendarFeeds, women] = await Promise.all([
     prisma.securityEvent.findMany({ where, orderBy: { createdAt: "desc" }, omit: { userId: true } }),
@@ -267,6 +270,7 @@ export async function exportAccount(userId: string) {
     nutrition: { ownFoods, entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration, recipes, shopping, mealPlan: mealPlan.map(({ recipe, ...m }) => ({ ...m, recipeName: recipe.name })), sweatTests },
     study: { documents: studyDocuments, chatThreads, flashcardDecks, flashcardReviews, classSlots, sessions: studySessions, habits, planBlocks: studyPlanBlocks, grades, assignments },
     coach: { reports: coachReports, links: coachLinks, sharedReports },
+    clubs: { memberships: clubMemberships },
     calendarFeeds,
     security: { events: securityEvents, passkeys },
     privacy: { consents, requests: privacyRequests, aiProvider, telegram, strava },

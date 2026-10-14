@@ -20,8 +20,8 @@ import { createTrainingSession, recomputeDailyLoads } from "@/lib/training/servi
  * comidas, agua, objetivos, recetas y lista de la compra; horario, estudio, plan de estudio, notas y
  * hábitos; plazos. v1.7: etiquetas de las sesiones, tomas de suplementos, plan de comidas, sudoración,
  * trabajos, presupuesto de temporada y diario de bienestar (se vuelve a cifrar).
- * No entra: finanzas (asientos con cuentas) ni viajes, apuntes, chats y flashcards (los ficheros no van
- * en la exportación), planes importados o con IA, vínculos con el coach o de «entreno sola» ni enlaces
+ * No entra: finanzas (asientos con cuentas) ni viajes, apuntes, chats y flashcards con su progreso (los ficheros no van
+ * en la exportación; v2.0: tampoco clubes ni cuotas, que son vínculos como los del coach), planes importados o con IA, vínculos con el coach o de «entreno sola» ni enlaces
  * compartidos; tampoco rutinas del cuestionario (van con su plan), llaves de acceso (son de este
  * dispositivo y servidor), consentimientos (se vuelven a dar) ni fotos o justificantes (sus ficheros).
  */

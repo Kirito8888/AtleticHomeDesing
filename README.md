@@ -13,7 +13,7 @@ Pensada para el móvil y autoalojada en tu propio servidor.
 > [`LICENSE`](LICENSE); componentes de terceros en [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 > No es «open source»: es código visible con todos los derechos reservados.
 
-**Versión actual: v1.10**: Telegram por usuario, catálogo local de alimentos españoles (Hacendado y más) con micronutrientes, OCR en el propio servidor, horario de la universidad y calendario de la federación, foto de la comida y plan semanal con IA, y Strava. Ver [`CHANGELOG.md`](CHANGELOG.md).
+**Versión actual: v2.0**: clubes y cuotas internas, planificar varias atletas con «qué pasa si», flashcards compartidas, semanas de VFC y tendencias, medidor de salto y varias réplicas. Ver [`CHANGELOG.md`](CHANGELOG.md).
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · PostgreSQL 17 + pgvector · Prisma 7 · pg-boss · Docker Compose · IA de cada usuario (Gemini, compatible con OpenAI o Anthropic; opcional).
 
