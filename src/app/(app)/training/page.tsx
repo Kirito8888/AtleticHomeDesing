@@ -114,6 +114,9 @@ export default async function TrainingPage() {
             Análisis de jabalina
           </Link>
         ) : null}
+        <Link href="/training/exercises" className="underline underline-offset-4">
+          Biblioteca de ejercicios
+        </Link>
         <Link href="/training/prehab" className="underline underline-offset-4">
           Prehabilitación
         </Link>

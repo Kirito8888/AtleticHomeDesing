@@ -2,20 +2,15 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { parseBody, route } from "@/lib/api";
-import { requireUser } from "@/lib/auth/session";
+import { requireUser, resolveAthleteId } from "@/lib/auth/session";
+import { DESCRIPTION_MAX, listLibrary } from "@/lib/training/exercise-library";
 import { prisma } from "@/lib/prisma";
 
-/** Catálogo: ejercicios globales + los propios del usuario. */
+/** Catálogo: ejercicios globales + los propios. Con `?athlete=` la entrenadora ve los de su atleta (solo lectura). */
 export const GET = route(async (req) => {
   const user = await requireUser();
-  const q = req.nextUrl.searchParams.get("q")?.trim();
-  return prisma.exercise.findMany({
-    where: {
-      OR: [{ userId: null }, { userId: user.id }],
-      name: q ? { contains: q, mode: "insensitive" } : undefined,
-    },
-    orderBy: { name: "asc" },
-  });
+  const ownerId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athlete"), "SESSIONS");
+  return listLibrary(ownerId, req.nextUrl.searchParams.get("q")?.trim());
 });
 
 const muscle = z.enum([
@@ -56,6 +51,7 @@ const schema = z.object({
   loadType: z.enum(["BARBELL", "DUMBBELL", "KETTLEBELL", "MACHINE", "CABLE", "BODYWEIGHT", "MEDBALL", "BAND", "OTHER"]).default("BARBELL"),
   isUnilateral: z.boolean().default(false),
   bodyweightFactor: z.number().min(0).max(1.5).default(0),
+  description: z.string().trim().max(DESCRIPTION_MAX).nullish(),
 });
 
 export const POST = route(async (req) => {
