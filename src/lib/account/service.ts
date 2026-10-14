@@ -89,6 +89,7 @@ export async function exportAccount(userId: string) {
     studyDocuments,
     chatThreads,
     flashcardDecks,
+    flashcardReviews,
     coachReports,
     coachLinks,
   ] = await Promise.all([
@@ -123,6 +124,8 @@ export async function exportAccount(userId: string) {
     prisma.studyDocument.findMany({ where, omit: { storagePath: true } }),
     prisma.chatThread.findMany({ where, include: { messages: { orderBy: { createdAt: "asc" } } } }),
     prisma.flashcardDeck.findMany({ where, include: { cards: true } }),
+    // v2.0 · Mi propio progreso SM-2 (también el de mazos compartidos conmigo); nunca el de otras personas.
+    prisma.flashcardReview.findMany({ where }),
     prisma.coachReport.findMany({ where }),
     prisma.coachAthlete.findMany({
       where: { OR: [{ coachId: userId }, { athleteId: userId }] },
@@ -262,7 +265,7 @@ export async function exportAccount(userId: string) {
       categoryRules: categoryRules.map((r) => ({ pattern: r.pattern, category: r.category.name, createdAt: r.createdAt })),
     },
     nutrition: { ownFoods, entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration, recipes, shopping, mealPlan: mealPlan.map(({ recipe, ...m }) => ({ ...m, recipeName: recipe.name })), sweatTests },
-    study: { documents: studyDocuments, chatThreads, flashcardDecks, classSlots, sessions: studySessions, habits, planBlocks: studyPlanBlocks, grades, assignments },
+    study: { documents: studyDocuments, chatThreads, flashcardDecks, flashcardReviews, classSlots, sessions: studySessions, habits, planBlocks: studyPlanBlocks, grades, assignments },
     coach: { reports: coachReports, links: coachLinks, sharedReports },
     calendarFeeds,
     security: { events: securityEvents, passkeys },
