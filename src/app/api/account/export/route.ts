@@ -8,7 +8,7 @@ import { toIsoDay, today } from "@/lib/dates";
 /** Descarga de todos los datos del usuario en JSON. */
 export const GET = route(async (req) => {
   const user = await requireUser();
-  enforceRateLimit("export", user.id);
+  await enforceRateLimit("export", user.id);
   const data = await exportAccount(user.id);
   await recordEvent(user.id, "DATA_EXPORTED", auditContext(req.headers), "JSON completo");
   // v1.7 · Derecho de acceso y portabilidad (arts. 15 y 20): atendido en el momento

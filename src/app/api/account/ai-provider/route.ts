@@ -12,7 +12,7 @@ export const GET = route(async () => {
 /** Guarda tras probar la conexión; si cambia el proveedor, hay que volver a dar el consentimiento. */
 export const PUT = route(async (req) => {
   const user = await requireUser();
-  enforceRateLimit("aiProvider", user.id);
+  await enforceRateLimit("aiProvider", user.id);
   const input = await parseBody(req, credentialSchema);
   return saveCredential(user.id, input, auditContext(req.headers));
 });

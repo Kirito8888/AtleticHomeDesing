@@ -7,7 +7,7 @@ import { addReceipt, RECEIPT_MAX_BYTES } from "@/lib/finance/season-service";
 /** v1.7 · Justificante de un movimiento (multipart: file). Se comprueba la firma real y se guarda cifrado. */
 export const POST = route(async (req, ctx: RouteContext<"/api/finance/transactions/[id]/receipts">) => {
   const user = await requireUser();
-  enforceRateLimit("photoUpload", user.id);
+  await enforceRateLimit("photoUpload", user.id);
   const { id } = await ctx.params;
   if (Number(req.headers.get("content-length") ?? 0) > RECEIPT_MAX_BYTES + 64 * 1024) throw new ApiError(413, "El justificante ocupa demasiado (máx. 5 MB)");
   const form = await req.formData().catch(() => {

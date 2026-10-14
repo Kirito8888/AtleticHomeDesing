@@ -44,7 +44,7 @@ describe.skipIf(!HAS_DB)("operación v1.8 (BD real)", () => {
     expect(blocked).toMatchObject({ ok: false });
     expect(blocked.retryAfterSec).toBeGreaterThan(0);
     expect((await again.rateLimitPersistent(key, 3, 60_000, t0 + 61_000)).ok).toBe(true);
-    await prisma.rateLimitHit.deleteMany({ where: { key } });
+    await prisma.rateLimitHit.deleteMany({ where: { key: again.hashKey(key) } });
   });
 
   it("errores agregados por ruta y mensaje", async () => {

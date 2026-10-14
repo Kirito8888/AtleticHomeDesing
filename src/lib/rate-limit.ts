@@ -1,5 +1,5 @@
-// Limitador de peticiones en memoria (ventana deslizante). Suficiente para un
-// único contenedor web; con varias réplicas habría que moverlo a Postgres/Redis.
+// Limitador en memoria (ventana deslizante): solo es el respaldo de `rate-limit-db.ts` cuando la BD no
+// responde. Las rutas usan el de BD (compartido entre réplicas). Aquí también viven `LIMITS` y `clientIp`.
 
 export interface RateLimitResult {
   ok: boolean;

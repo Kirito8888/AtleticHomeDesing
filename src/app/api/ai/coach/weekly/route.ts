@@ -24,7 +24,7 @@ export const GET = route(async (req) => {
  */
 export const POST = route(async (req) => {
   const user = await requireUser();
-  enforceRateLimit("aiGenerate", user.id);
+  await enforceRateLimit("aiGenerate", user.id);
   const body = await parseBody(req, z.object({ athleteId: z.string().optional(), weekOf: isoDate.optional() }));
   const userId = await resolveAthleteId(user, body.athleteId, "REPORTS");
   const report = await generateWeeklyCoachReport(userId, body.weekOf ? dateOnly(body.weekOf) : addDays(today(), -7));

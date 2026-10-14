@@ -10,7 +10,7 @@ const MAX = 5 * 1024 * 1024;
 /** v1.10 · Lee el calendario de la federación o del club (Excel .xlsx o PDF) y devuelve las competiciones; no guarda nada. */
 export const POST = route(async (req) => {
   const user = await requireUser();
-  enforceRateLimit("import", user.id);
+  await enforceRateLimit("import", user.id);
   const file = (await req.formData().catch(() => null))?.get("file");
   if (!(file instanceof File)) throw new ApiError(400, "Falta el fichero");
   if (file.size > MAX) throw new ApiError(413, "El fichero supera 5 MB");

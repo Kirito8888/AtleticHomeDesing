@@ -13,7 +13,7 @@ export const GET = route(async () => {
 
 export const POST = route(async () => {
   const user = await requireUser();
-  enforceRateLimit("comment", `tg:${user.id}`);
+  await enforceRateLimit("comment", `tg:${user.id}`);
   return createLinkCode(user.id);
 });
 
