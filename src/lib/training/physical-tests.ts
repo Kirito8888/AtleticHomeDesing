@@ -9,6 +9,13 @@ export const TEST_CATALOG = {
   medBallBack: { name: "Balón medicinal atrás por encima de la cabeza", unit: "m", higherIsBetter: true },
   medBallFront: { name: "Balón medicinal adelante (pecho o por encima)", unit: "m", higherIsBetter: true },
   cmj: { name: "Salto con contramovimiento (CMJ)", unit: "cm", higherIsBetter: true },
+  sj: { name: "Salto sin contramovimiento (SJ)", unit: "cm", higherIsBetter: true },
+  abalakov: { name: "Salto Abalakov (con brazos)", unit: "cm", higherIsBetter: true },
+  djRsi: { name: "Salto desde cajón (DJ) · RSI", unit: "m/s", higherIsBetter: true },
+  cmjMean: { name: "CMJ · media de intentos", unit: "cm", higherIsBetter: true },
+  sjMean: { name: "SJ · media de intentos", unit: "cm", higherIsBetter: true },
+  abalakovMean: { name: "Abalakov · media de intentos", unit: "cm", higherIsBetter: true },
+  djRsiMean: { name: "DJ · RSI medio de intentos", unit: "m/s", higherIsBetter: true },
   pullUps: { name: "Dominadas máximas", unit: "reps", higherIsBetter: true },
 } as const;
 export type CatalogTest = keyof typeof TEST_CATALOG;
