@@ -14,6 +14,7 @@ import { pageUser } from "@/lib/auth/page";
 import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { capitalizeFirst, formatDate, formatNum, SESSION_TYPE_LABEL } from "@/lib/format";
 import { agendaForDay, tasksDuePerDay } from "@/lib/planning/agenda";
+import { hrvWeekRanges } from "@/lib/planning/plan-import/hrv-weeks";
 import { planOverview } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
@@ -39,7 +40,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
   const prev = toIsoDay(new Date(Date.UTC(y, m - 2, 1))).slice(0, 7);
   const next = toIsoDay(new Date(Date.UTC(y, m, 1))).slice(0, 7);
 
-  const [cycles, events, sessions, allCycles, tasks, planMesos, variantDays, slots] = await Promise.all([
+  const [cycles, events, sessions, allCycles, tasks, planMesos, variantDays, slots, hrvWeeks] = await Promise.all([
     prisma.trainingCycle.findMany({
       where: { userId: user.id, startDate: { lte: gridEnd }, endDate: { gte: gridStart } },
       orderBy: [{ level: "asc" }, { startDate: "asc" }],
@@ -59,6 +60,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
       select: { id: true, variant: true, date: true, relDay: true, title: true, meso: { select: { code: true } } },
     }),
     listSlots(user.id),
+    hrvWeekRanges(user.id),
   ]);
   const variantItems: VariantDay[] = variantDays.map((d) => ({
     id: d.id,
@@ -134,6 +136,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
           const done = sessions.filter((s) => toIsoDay(s.date) === iso && s.status === "COMPLETED").length;
           const planned = sessions.filter((s) => toIsoDay(s.date) === iso && s.status === "PLANNED").length;
           const due = dueByDay.get(iso) ?? 0;
+          const hrv = hrvWeeks.some((w) => w.start <= iso && w.end >= iso);
           const exam = slots.some((x) => x.kind === "EXAM" && x.date === iso);
           return (
             <Link
@@ -167,6 +170,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                 {done ? <span className="ml-auto text-[10px] text-muted-foreground" title="Sesiones completadas">✓{done > 1 ? done : ""}</span> : null}
                 {planned ? <span className="text-[10px] text-muted-foreground" title="Sesiones planificadas">○{planned > 1 ? planned : ""}</span> : null}
                 {due ? <span className="text-[10px] text-muted-foreground" title="Tareas que vencen">□{due > 1 ? due : ""}</span> : null}
+                {hrv ? <span className="rounded bg-sky-100 px-0.5 text-[9px] font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200" title="Semana de VFC: mide la VFC cada mañana">VFC</span> : null}
                 {exam ? <span className="text-[10px] text-amber-700 dark:text-amber-400" title="Examen">✎</span> : null}
                 {predicted.get(iso) ? (
                   <span className="text-[10px] text-rose-600 dark:text-rose-400" title={predicted.get(iso)!.period ? "Regla prevista" : "Síntomas previstos"}>

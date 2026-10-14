@@ -214,6 +214,7 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
                   {w.variant ? `Versión ${w.variant} · ` : ""}
                   {w.number ? `Semana ${w.number}` : "Semana"}
                   {w.title ? ` · ${w.title}` : ""}
+                  {w.hrv ? <span className="ml-2 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200">VFC</span> : null}
                 </div>
                 {w.text ? <p className="text-xs text-muted-foreground">{w.text}</p> : null}
               </div>

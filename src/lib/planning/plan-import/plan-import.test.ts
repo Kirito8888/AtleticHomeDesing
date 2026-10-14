@@ -6,7 +6,7 @@ import { mesoPdf, versionsPdf } from "@/test/plan-fixtures";
 
 import { groupLines } from "./extract";
 import { parsePlanUpload, PlanImportError, pdfsFromZip } from "./files";
-import { inferDate, parseDayHeader, sessionKind } from "./parse";
+import { inferDate, isHrvWeek, parseDayHeader, sessionKind } from "./parse";
 
 const rowsOf = (d: { blocks: Array<{ kind: string; rows?: unknown[] }> }) => d.blocks.flatMap((b) => (b.kind === "table" ? (b.rows as never[]) : []));
 
@@ -19,7 +19,7 @@ describe("importar planificación: PDF «día a día»", () => {
     expect(m.intro.map((p) => p.title)).toContain("Qué busco en este mesociclo");
     expect(m.weeks.map((w) => [w.number, w.title, w.start, w.end])).toEqual([
       [1, "Entrada", "2026-10-26", "2026-11-01"],
-      [2, "Carga", "2026-11-02", "2026-11-08"],
+      [2, "Carga · VFC", "2026-11-02", "2026-11-08"],
     ]);
     expect(m.days.map((d) => [d.key, d.date, d.weekday, d.durationMin, d.type])).toEqual([
       ["M5|-|2026-10-26|1", "2026-10-26", "LUNES", 109, "MIXED"],
@@ -27,6 +27,8 @@ describe("importar planificación: PDF «día a día»", () => {
       ["M5|-|2026-10-31|1", "2026-10-31", "SÁBADO", 28, "TRACK"],
       ["M5|-|2026-11-02|1", "2026-11-02", "LUNES", 60, "MIXED"],
     ]);
+    // Semana marcada «VFC» en el encabezado; la otra no.
+    expect(m.weeks.map((w) => w.hrv)).toEqual([false, true]);
     // Cabecera de día en dos líneas: el título no arrastra la duración.
     expect(m.days[0].title).toBe("Snatch ligero + JABALINA");
     expect(m.days[0].weekTitle).toBe("Entrada");
@@ -149,5 +151,14 @@ describe("piezas del parser", () => {
       ["body", "ab"],
       ["footer", "pie"],
     ]);
+  });
+});
+
+describe("semanas de VFC", () => {
+  it("marca por encabezado o por texto de la semana, no por mencionar la VFC", () => {
+    expect(isHrvWeek("SEMANA 2 · 02/11 – 08/11 · Carga · VFC", "")).toBe(true);
+    expect(isHrvWeek("", "Semana VFC: mide cada mañana.")).toBe(true);
+    expect(isHrvWeek("", "VFC: 3 mañanas.")).toBe(true);
+    expect(isHrvWeek("SEMANA 1 · Entrada", "Mide la VFC al despertar si puedes.")).toBe(false);
   });
 });
