@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
 import { WEEKDAY_NAMES } from "@/lib/study/schedule";
+import { type ImportedSlot, parseIcsSchedule } from "@/lib/study/schedule-import";
 
 /** Alta de una clase semanal o de un examen. */
 export function ClassForm({ today }: { today: string }) {
@@ -109,5 +110,53 @@ export function DeleteSlot({ id, label }: { id: string; label: string }) {
     >
       <Trash2 />
     </Button>
+  );
+}
+
+/** v1.10 · Importar el horario de la universidad (.ics): se lee aquí, se revisa y se añaden las nuevas. */
+export function ScheduleImport() {
+  const router = useRouter();
+  const [found, setFound] = useState<{ slots: ImportedSlot[]; ignored: number } | null>(null);
+  async function read(file: File) {
+    if (file.size > 2 * 1024 * 1024) return toast.error("Fichero demasiado grande (máx. 2 MB)");
+    const r = parseIcsSchedule(await file.text());
+    if (!r.slots.length) toast.error("No he encontrado clases ni exámenes con hora en ese .ics");
+    setFound(r);
+  }
+  return (
+    <div className="grid gap-2 text-sm">
+      <Input aria-label="Horario de la universidad (.ics)" type="file" accept=".ics,text/calendar" onChange={(e) => e.target.files?.[0] && void read(e.target.files[0])} />
+      <p className="text-xs text-muted-foreground">Descárgalo del campus virtual o de tu calendario de la universidad (exportar → .ics).</p>
+      {found?.slots.length ? (
+        <>
+          <ul className="grid max-h-56 gap-0.5 overflow-auto text-xs" aria-label="Clases y exámenes encontrados">
+            {found.slots.map((s, i) => (
+              <li key={i}>
+                {s.kind === "CLASS" ? `${WEEKDAY_NAMES[s.weekday]} ${s.start}–${s.end}` : `Examen ${s.date} ${s.start}`} · {s.subject}
+                {s.location ? ` · ${s.location}` : ""}
+                {s.kind === "CLASS" && s.validFrom ? ` (del ${s.validFrom}${s.validTo ? ` al ${s.validTo}` : ""})` : ""}
+              </li>
+            ))}
+          </ul>
+          {found.ignored ? <p className="text-xs text-muted-foreground">{found.ignored} eventos sueltos o de día entero no se importan.</p> : null}
+          <Button
+            type="button"
+            className="justify-self-start"
+            onClick={async () => {
+              try {
+                const r = await api<{ added: number; skipped: number }>("/api/study/classes/import", { body: { slots: found.slots } });
+                toast.success(`${r.added} añadidos${r.skipped ? ` (${r.skipped} ya estaban)` : ""}`);
+                setFound(null);
+                router.refresh();
+              } catch (e) {
+                toast.error((e as Error).message);
+              }
+            }}
+          >
+            Añadir {found.slots.length} al horario
+          </Button>
+        </>
+      ) : null}
+    </div>
   );
 }

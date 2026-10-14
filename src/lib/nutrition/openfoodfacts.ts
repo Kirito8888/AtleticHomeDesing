@@ -27,6 +27,13 @@ export interface OffNutriments {
   fiber_100g?: number;
   salt_100g?: number;
   iron_100g?: number; // g
+  // v1.10 · micronutrientes (OFF los da en gramos por 100 g)
+  calcium_100g?: number;
+  "vitamin-d_100g"?: number;
+  "vitamin-b12_100g"?: number;
+  magnesium_100g?: number;
+  sodium_100g?: number;
+  potassium_100g?: number;
 }
 
 export interface OffProduct {
@@ -56,12 +63,25 @@ export interface NormalizedFood {
   saltPer100g: number | null;
   /** mg (OFF lo da en g); a menudo no viene. */
   ironPer100g: number | null;
+  /** v1.10 · mg, salvo vitamina D y B12 en µg. Casi siempre vienen vacíos salvo en lácteos y enriquecidos. */
+  calciumPer100g: number | null;
+  vitDPer100g: number | null;
+  b12Per100g: number | null;
+  magnesiumPer100g: number | null;
+  sodiumPer100g: number | null;
+  potassiumPer100g: number | null;
   nutriScore: string | null;
 }
 
 function num(v: unknown): number | null {
   const n = typeof v === "string" ? Number.parseFloat(v) : typeof v === "number" ? v : NaN;
   return Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
+}
+
+/** g → mg (×1000) o µg (×1e6), redondeado; null si no viene. */
+function scaled(v: unknown, factor: number): number | null {
+  const n = num(typeof v === "number" ? v * factor : typeof v === "string" ? Number.parseFloat(v) * factor : undefined);
+  return n;
 }
 
 /** Normaliza un producto OFF. Devuelve null si no tiene nombre (inútil para el usuario). */
@@ -87,6 +107,13 @@ export function normalizeOffProduct(p: OffProduct): NormalizedFood | null {
     fiberPer100g: num(n.fiber_100g),
     saltPer100g: num(n.salt_100g),
     ironPer100g: num(n.iron_100g) != null ? num(n.iron_100g! * 1000) : null,
+    calciumPer100g: scaled(n.calcium_100g, 1000),
+    vitDPer100g: scaled(n["vitamin-d_100g"], 1e6),
+    b12Per100g: scaled(n["vitamin-b12_100g"], 1e6),
+    magnesiumPer100g: scaled(n.magnesium_100g, 1000),
+    // Si no viene el sodio, se deduce de la sal (sal = sodio × 2,5)
+    sodiumPer100g: scaled(n.sodium_100g, 1000) ?? scaled(n.salt_100g != null ? n.salt_100g / 2.5 : undefined, 1000),
+    potassiumPer100g: scaled(n.potassium_100g, 1000),
     nutriScore: grade && /^[A-E]$/.test(grade) ? grade : null,
   };
 }
@@ -139,6 +166,17 @@ export function createOffClient(opts: OffClientOptions) {
         fields: OFF_FIELDS,
       });
       const data = await get<{ count?: number; products?: OffProduct[] }>(`${base}/cgi/search.pl?${params}`);
+      const products = (data.products ?? []).map(normalizeOffProduct).filter((p): p is NormalizedFood => p != null);
+      return { count: data.count ?? products.length, products };
+    },
+
+    /**
+     * v1.10 · Página de productos de una marca vendidos en España (API v2), para el catálogo local.
+     * Límite de OFF: 10 búsquedas por minuto por IP; quien llama espacia las peticiones.
+     */
+    async brandPage(brand: string, page: number, pageSize = 100): Promise<{ count: number; products: NormalizedFood[] }> {
+      const params = new URLSearchParams({ brands_tags: brand, countries_tags_en: "spain", page: String(page), page_size: String(pageSize), fields: OFF_FIELDS, sort_by: "code" });
+      const data = await get<{ count?: number; products?: OffProduct[] }>(`${base}/api/v2/search?${params}`);
       const products = (data.products ?? []).map(normalizeOffProduct).filter((p): p is NormalizedFood => p != null);
       return { count: data.count ?? products.length, products };
     },

@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 
 import type { Prisma } from "@/generated/prisma/client";
+import { notFromStrava, STRAVA } from "@/lib/strava/policy";
 import { generateJson } from "@/lib/ai/llm";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { addDays, round, startOfIsoWeek, toIsoDay } from "@/lib/dates";
@@ -26,11 +27,14 @@ export async function buildWeeklySnapshot(userId: string, weekStart: Date) {
   const weekEnd = addDays(weekStart, 6);
   const baselineStart = addDays(weekStart, -BASELINE_DAYS);
 
+  // La carga acumulada (PMC) se calcula con todas las sesiones: si hay de Strava en la ventana, no se envía
+  const stravaInWindow = await prisma.trainingSession.count({ where: { userId, source: STRAVA, date: { gte: baselineStart, lte: weekEnd } } });
   const [profile, loads, sessions, prevWeek, recovery, events, cycles] = await Promise.all([
     prisma.athleteProfile.findUnique({ where: { userId } }),
     prisma.dailyLoad.findMany({ where: { userId, date: { gte: baselineStart, lte: weekEnd } }, orderBy: { date: "asc" } }),
     prisma.trainingSession.findMany({
-      where: { userId, date: { gte: weekStart, lte: weekEnd } },
+      // v1.10 · Strava no permite usar sus datos en IA: sus actividades no entran
+      where: { userId, date: { gte: weekStart, lte: weekEnd }, ...notFromStrava },
       orderBy: { date: "asc" },
       include: {
         track: { select: { modality: true, distanceM: true, hrAvg: true, _count: { select: { intervals: true } } } },
@@ -39,7 +43,7 @@ export async function buildWeeklySnapshot(userId: string, weekStart: Date) {
       },
     }),
     prisma.trainingSession.aggregate({
-      where: { userId, status: "COMPLETED", date: { gte: addDays(weekStart, -7), lt: weekStart } },
+      where: { userId, status: "COMPLETED", date: { gte: addDays(weekStart, -7), lt: weekStart }, ...notFromStrava },
       _sum: { tss: true },
     }),
     prisma.recoveryMetrics.findMany({ where: { userId, date: { gte: baselineStart, lte: weekEnd } }, orderBy: { date: "asc" } }),
@@ -83,7 +87,7 @@ export async function buildWeeklySnapshot(userId: string, weekStart: Date) {
       previousWeekTss: round(prevWeek._sum.tss ?? 0),
       byType,
       plannedNotDone: sessions.filter((s) => s.status === "PLANNED" || s.status === "SKIPPED").length,
-      pmc: last
+      pmc: last && !stravaInWindow
         ? {
             ctlStart: first?.ctl ?? null,
             ctlEnd: last.ctl,

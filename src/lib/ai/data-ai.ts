@@ -5,6 +5,7 @@ import { z } from "zod";
 import { generateJson, generateText } from "@/lib/ai/llm";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { aiAvailable } from "@/lib/ai/provider";
+import { notFromStrava, STRAVA } from "@/lib/strava/policy";
 import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { weekOf } from "@/lib/rules/engine";
@@ -24,8 +25,10 @@ const fakeAi = () => process.env.LIFEOS_FAKE_AI === "1";
  */
 export async function trainingSummary(userId: string, day = toIsoDay(today())) {
   const from = addDays(dateOnly(day), -55);
+  // La forma (CTL/ATL) se calcula con todas las sesiones: si hay de Strava en el periodo, no se envía
+  const strava = await prisma.trainingSession.count({ where: { userId, source: STRAVA, date: { gte: from, lte: dateOnly(day) } } });
   const [sessions, perf, bests, rms, tests, rule] = await Promise.all([
-    prisma.trainingSession.findMany({ where: { userId, status: "COMPLETED", date: { gte: from, lte: dateOnly(day) } }, select: { date: true, type: true, durationSec: true, sessionRpe: true, tss: true } }),
+    prisma.trainingSession.findMany({ where: { userId, status: "COMPLETED", date: { gte: from, lte: dateOnly(day) }, ...notFromStrava }, select: { date: true, type: true, durationSec: true, sessionRpe: true, tss: true } }),
     getPerformanceSeries(userId, 56),
     implementBestsFor(userId),
     currentRms(userId),
@@ -51,7 +54,7 @@ export async function trainingSummary(userId: string, day = toIsoDay(today())) {
   return {
     hoy: day,
     semanas: [...weeks.values()].sort((a, b) => (a.semana < b.semana ? -1 : 1)),
-    forma: cur ? { ctl: Math.round(cur.ctl), atl: Math.round(cur.atl), tsb: Math.round(cur.tsb), acwr: cur.acwr != null ? Math.round(cur.acwr * 100) / 100 : null } : null,
+    forma: cur && !strava ? { ctl: Math.round(cur.ctl), atl: Math.round(cur.atl), tsb: Math.round(cur.tsb), acwr: cur.acwr != null ? Math.round(cur.acwr * 100) / 100 : null } : null,
     mejoresMarcas: bests.slice(0, 6).map((b) => ({ implemento: b.label, top3: b.top.map((t) => ({ m: t.markM, fecha: t.date, competicion: t.isCompetition })) })),
     rm: rms.map((r) => ({ ejercicio: r.name, kg: r.kg, porMano: r.perHand })),
     tests: summarizeTests(tests.map((t) => ({ ...t, date: toIsoDay(t.date) }))).map((t) => ({ test: t.name, unidad: t.unit, ultimo: t.last.value, mejor: t.best.value, cambioPct: t.changePct })),

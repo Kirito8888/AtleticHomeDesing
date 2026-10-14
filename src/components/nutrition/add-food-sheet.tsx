@@ -63,7 +63,7 @@ export function AddFoodSheet({ date }: { date: string }) {
       .then((r) => {
         if (cancelled) return;
         setResults(r.products);
-        setWarning(r.source === "cache" ? `OpenFoodFacts no disponible (${r.warning}); resultados de tu caché local.` : null);
+        setWarning(r.source === "cache" ? `OpenFoodFacts no disponible (${r.warning}); resultados del catálogo local.` : null);
       })
       .catch((e) => !cancelled && toast.error((e as Error).message))
       .finally(() => !cancelled && setSearching(false));
@@ -114,7 +114,7 @@ export function AddFoodSheet({ date }: { date: string }) {
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Añadir alimento</SheetTitle>
-          <SheetDescription>OpenFoodFacts España, escáner o manual.</SheetDescription>
+          <SheetDescription>Catálogo local (Hacendado y otras marcas españolas), OpenFoodFacts, escáner o manual.</SheetDescription>
         </SheetHeader>
         <Field label="Comida" htmlFor="meal">
           <Select id="meal" value={meal} onChange={(e) => setMeal(e.target.value)}>
