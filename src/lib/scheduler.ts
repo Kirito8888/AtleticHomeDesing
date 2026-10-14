@@ -20,6 +20,7 @@ import { periodStarts } from "@/lib/health/cycle";
 import { getCycle } from "@/lib/health/cycle-service";
 import { runSafetyJob } from "@/lib/health/safety-service";
 import { runWatchJob } from "@/lib/admin/watch";
+import { withJobLock } from "@/lib/job-lock";
 import { pollTelegram } from "@/lib/telegram/link";
 import { runCatalogSyncJob } from "@/lib/nutrition/catalog-sync";
 import { runStravaSyncJob } from "@/lib/strava/service";
@@ -300,26 +301,36 @@ export async function runDeadlineReminders(now = new Date()): Promise<number> {
   return sent;
 }
 
+/** v2.0 · Cada tarea con su cerrojo: con varias réplicas la ejecuta solo una a la vez. */
+async function job<T>(name: string, fn: () => Promise<T>): Promise<T | undefined> {
+  const r = await withJobLock(`scheduler:${name}`, fn);
+  if (!r.ran) {
+    console.debug(`[scheduler] ${name}: la lleva otra réplica`);
+    return undefined;
+  }
+  return r.value;
+}
+
 async function tick() {
   g.__lifeosSchedulerLastTick = new Date();
   try {
-    await pruneAuditJob();
-    await runDailyDigestJob();
-    await runRemindersJob();
-    await runPeriodReminderJob();
-    await runAppointmentReminders();
-    await runDeadlineReminders();
-    await runAdminOpsJob();
-    await runWeeklyReviewJob();
-    const posted = await runSubscriptionsJob();
-    const reports = await runWeeklyCoachJob();
-    if (posted || reports) console.info(`[scheduler] ${posted} cobro(s) de suscripciones, ${reports} informe(s) del coach`);
+    await job("prune", () => pruneAuditJob());
+    await job("digest", () => runDailyDigestJob());
+    await job("reminders", () => runRemindersJob());
+    await job("period", () => runPeriodReminderJob());
+    await job("appointments", () => runAppointmentReminders());
+    await job("deadlines", () => runDeadlineReminders());
+    await job("admin-ops", () => runAdminOpsJob());
+    await job("weekly-review", () => runWeeklyReviewJob());
+    const posted = await job("subscriptions", () => runSubscriptionsJob());
+    const reports = await job("coach", () => runWeeklyCoachJob());
+    if (posted || reports) console.info(`[scheduler] ${posted ?? 0} cobro(s) de suscripciones, ${reports ?? 0} informe(s) del coach`);
     // v1.10 · Actividades nuevas de Strava de quien lo haya conectado
-    const strava = await runStravaSyncJob();
+    const strava = await job("strava", () => runStravaSyncJob());
     if (strava) console.info(`[scheduler] ${strava} actividad(es) importadas de Strava`);
     // v1.10 · Catálogo de alimentos (OFF): unas 50 páginas por hora como mucho, al final de la pasada
-    const sync = await runCatalogSyncJob();
-    if (sync.pages) console.info(`[scheduler] catálogo de alimentos: ${sync.products} productos en ${sync.pages} página(s)`);
+    const sync = await job("catalog-sync", () => runCatalogSyncJob());
+    if (sync?.pages) console.info(`[scheduler] catálogo de alimentos: ${sync.products} productos en ${sync.pages} página(s)`);
   } catch (err) {
     console.error("[scheduler]", err);
   }
@@ -330,20 +341,20 @@ const g = globalThis as unknown as { __lifeosScheduler?: NodeJS.Timeout; __lifeo
 /** «Entreno sola, con aviso»: cada 5 min (aparte del horario de las demás tareas). */
 async function safetyTick() {
   try {
-    const n = await runSafetyJob();
+    const n = await job("safety", () => runSafetyJob());
     if (n) console.info(`[scheduler] ${n} aviso(s) de «entreno sola»`);
   } catch (err) {
     console.error("[scheduler] entreno sola:", err);
   }
   // v1.8 · notificaciones pospuestas
   try {
-    await runSnoozedJob();
+    await job("snoozed", () => runSnoozedJob());
   } catch (err) {
     console.error("[scheduler] pospuestas:", err);
   }
   // v1.9 · vigilancia interna (avisos por Telegram a la administración)
   try {
-    await runWatchJob();
+    await job("watch", () => runWatchJob());
   } catch (err) {
     console.error("[scheduler] vigilancia:", err);
   }

@@ -14,6 +14,6 @@ const schema = z.object({
 /** Pregunta sobre los apuntes (RAG). Devuelve la respuesta con citas [n]. */
 export const POST = route(async (req) => {
   const user = await requireUser();
-  enforceRateLimit("aiChat", user.id);
+  await enforceRateLimit("aiChat", user.id);
   return askStudyQuestion(user.id, await parseBody(req, schema));
 });

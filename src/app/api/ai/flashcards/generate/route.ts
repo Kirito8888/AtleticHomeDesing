@@ -13,7 +13,7 @@ const schema = z.object({
 
 export const POST = route(async (req) => {
   const user = await requireUser();
-  enforceRateLimit("aiGenerate", user.id);
+  await enforceRateLimit("aiGenerate", user.id);
   const deck = await generateFlashcards(user.id, await parseBody(req, schema));
   return NextResponse.json(deck, { status: 201 });
 });

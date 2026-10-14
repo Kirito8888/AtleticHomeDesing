@@ -4,6 +4,7 @@ import { createHash, randomInt } from "node:crypto";
 
 import { sendTelegram, telegramApi, telegramBotConfigured } from "@/lib/admin/telegram";
 import { ApiError } from "@/lib/api";
+import { withJobLock } from "@/lib/job-lock";
 import { prisma } from "@/lib/prisma";
 import { recordEvent, type AuditContext } from "@/lib/security/audit";
 
@@ -97,21 +98,24 @@ export async function handleUpdate(u: Update, send: (chatId: string, text: strin
   return reply;
 }
 
-const g = globalThis as unknown as { __lifeosTgOffset?: number; __lifeosTgPolling?: boolean };
-
-/** Lee los mensajes nuevos al bot (getUpdates) y los procesa. Lo llama el planificador cada 30 s. */
+/**
+ * Lee los mensajes nuevos al bot (getUpdates) y los procesa. Lo llama el planificador cada 30 s.
+ * Sin estado en memoria: el cerrojo `telegram-poll` evita que dos réplicas lean a la vez y el «offset»
+ * lo guarda Telegram (los mensajes no confirmados se devuelven de nuevo). Entrega al menos una vez.
+ */
 export async function pollTelegram(fetcher: typeof fetch = fetch): Promise<number> {
-  if (!telegramBotConfigured() || g.__lifeosTgPolling) return 0;
-  g.__lifeosTgPolling = true;
-  try {
-    const updates = await telegramApi<Update[]>("getUpdates", { offset: g.__lifeosTgOffset ?? 0, timeout: 0, allowed_updates: ["message"] }, fetcher);
+  if (!telegramBotConfigured()) return 0;
+  const r = await withJobLock("telegram-poll", async () => {
+    const updates = await telegramApi<Update[]>("getUpdates", { offset: 0, timeout: 0, allowed_updates: ["message"] }, fetcher);
     if (!updates?.length) return 0;
+    let last = 0;
     for (const u of updates) {
-      g.__lifeosTgOffset = u.update_id + 1;
+      last = Math.max(last, u.update_id);
       await handleUpdate(u, (c, t) => sendTelegram(c, t, fetcher)).catch((e) => console.error("[telegram] mensaje:", e));
     }
+    // Confirma el lote: pedir con offset = último + 1 descarta lo anterior en Telegram
+    await telegramApi("getUpdates", { offset: last + 1, limit: 1, timeout: 0, allowed_updates: ["message"] }, fetcher);
     return updates.length;
-  } finally {
-    g.__lifeosTgPolling = false;
-  }
+  });
+  return r.ran ? r.value : 0;
 }

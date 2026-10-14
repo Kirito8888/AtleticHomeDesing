@@ -7,7 +7,7 @@ import { clientIp } from "@/lib/rate-limit";
  * el token de 32 bytes; caduca a los 7 días y se puede revocar. HTML sin JavaScript.
  */
 export const GET = route<RouteContext<"/api/shared/health/[token]">>(async (req, ctx) => {
-  enforceRateLimit("sharedReport", clientIp(req.headers));
+  await enforceRateLimit("sharedReport", clientIp(req.headers));
   const { token } = await ctx.params;
   const html = await healthReportHtml(token);
   if (!html) throw new ApiError(404, "Este enlace no existe o ha caducado");

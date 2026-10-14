@@ -11,7 +11,7 @@ import { decodeStatement, importStatement, previewStatement } from "@/lib/financ
  */
 export const POST = route(async (req) => {
   const user = await requireUser();
-  enforceRateLimit("import", user.id);
+  await enforceRateLimit("import", user.id);
   const form = await req.formData().catch(() => {
     throw new ApiError(400, "Se esperaba multipart/form-data");
   });
