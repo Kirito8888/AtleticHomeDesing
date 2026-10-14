@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { pageUser } from "@/lib/auth/page";
 import { formatDate, formatNum, TECHNICAL_EVENT_LABEL } from "@/lib/format";
+import { sessionHeadline } from "@/lib/training/disciplines";
 import { technicalDiary } from "@/lib/training/diary-service";
 
 export const metadata = { title: "Diario técnico · Atlenza" };
@@ -18,7 +19,7 @@ export default async function DiaryPage({ searchParams }: PageProps<"/training/d
   const { rows, tags } = await technicalDiary(user.id, q, tag);
   return (
     <>
-      <PageHeader title="Diario técnico" description="Lo que trabajaste y sentiste en cada sesión técnica. Etiqueta las sesiones al registrarlas para encontrarlas luego." />
+      <PageHeader title="Diario técnico" description="Lo que trabajaste y sentiste en cada sesión técnica o de pista. Etiqueta las sesiones al registrarlas para encontrarlas luego." />
       <form className="mb-3 flex gap-2" role="search">
         <Input name="q" aria-label="Buscar en el diario" placeholder="Buscar: bloqueo, viento, brazo…" defaultValue={q ?? ""} />
         {tag ? <input type="hidden" name="tag" value={tag} /> : null}
@@ -41,7 +42,7 @@ export default async function DiaryPage({ searchParams }: PageProps<"/training/d
             <Link href={`/training/${r.id}`} className="block rounded-md border p-3 text-sm hover:bg-accent">
               <p className="flex justify-between gap-2">
                 <span className="font-medium">
-                  {formatDate(r.date, { weekday: "short", day: "numeric", month: "short", year: "numeric" })} · {r.technical ? (TECHNICAL_EVENT_LABEL[r.technical.event] ?? r.technical.event) : ""}
+                  {formatDate(r.date, { weekday: "short", day: "numeric", month: "short", year: "numeric" })} · {r.technical ? (TECHNICAL_EVENT_LABEL[r.technical.event] ?? r.technical.event) : r.track ? (sessionHeadline({ track: r.track }) || (r.title ?? "Pista")) : ""}
                   {r.technical?.implementWeightG ? ` ${r.technical.implementWeightG} g` : ""}
                 </span>
                 {r.technical?.bestMarkM ? <span className="shrink-0 tabular-nums">{formatNum(r.technical.bestMarkM, 2)} m</span> : null}

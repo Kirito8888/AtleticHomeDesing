@@ -3,7 +3,7 @@
 import { localDay, toIsoDay } from "@/lib/dates";
 
 export interface AgendaInput {
-  sessions: Array<{ id: string; date: Date; title: string | null; type: string; status: string; tss: number | null }>;
+  sessions: Array<{ id: string; date: Date; title: string | null; type: string; status: string; tss: number | null; headline?: string }>;
   events: Array<{ id: string; type: string; title: string; startAt: Date; endAt: Date | null; allDay: boolean }>;
   tasks: Array<{ id: string; title: string; dueDate: Date | null; status: string; priority: string }>;
   cycles: Array<{ id: string; name: string; level: string; startDate: Date; endDate: Date }>;

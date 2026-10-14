@@ -159,6 +159,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               heightCm: p?.heightCm ?? null,
               bodyWeightKg: p?.bodyWeightKg ?? null,
               primaryDiscipline: p?.primaryDiscipline ?? null,
+              primaryEvent: p?.primaryEvent ?? null,
               disciplines: p?.disciplines ?? [],
               ctlTimeConstant: p?.ctlTimeConstant ?? 42,
               atlTimeConstant: p?.atlTimeConstant ?? 7,

@@ -11,6 +11,7 @@ import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/client-api";
 import { parseDuration } from "@/lib/format";
+import { EVENTS } from "@/lib/training/disciplines";
 import { cn } from "@/lib/utils";
 
 export const DISCIPLINES = {
@@ -66,6 +67,7 @@ export interface ProfileValues {
   heightCm: number | null;
   bodyWeightKg: number | null;
   primaryDiscipline: string | null;
+  primaryEvent: string | null;
   disciplines: string[];
   ctlTimeConstant: number;
   atlTimeConstant: number;
@@ -89,6 +91,7 @@ export function ProfileForm({ initial }: { initial: ProfileValues }) {
             heightCm: n(f, "heightCm"),
             bodyWeightKg: n(f, "bodyWeightKg"),
             primaryDiscipline: s(f, "primaryDiscipline"),
+            primaryEvent: s(f, "primaryEvent"),
             disciplines,
             ctlTimeConstant: n(f, "ctl") ?? undefined,
             atlTimeConstant: n(f, "atl") ?? undefined,
@@ -130,6 +133,25 @@ export function ProfileForm({ initial }: { initial: ProfileValues }) {
                   {l}
                 </option>
               ))}
+            </Select>
+          </Field>
+        </div>
+        <div className="col-span-2">
+          <Field label="Mi prueba" htmlFor="p-event" hint="Abre el registro en tu pestaña y con tus métricas (tiempos, ritmos, marcas). Ajusta la disciplina principal.">
+            <Select id="p-event" name="primaryEvent" defaultValue={initial.primaryEvent ?? ""}>
+              <option value="">—</option>
+              {Object.entries(DISCIPLINES).map(([d, l]) => {
+                const evs = Object.entries(EVENTS).filter(([, e]) => e.discipline === d);
+                return evs.length ? (
+                  <optgroup key={d} label={l}>
+                    {evs.map(([k, e]) => (
+                      <option key={k} value={k}>
+                        {e.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null;
+              })}
             </Select>
           </Field>
         </div>
