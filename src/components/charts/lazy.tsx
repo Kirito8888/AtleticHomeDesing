@@ -16,3 +16,4 @@ export const E1rmChart = dynamic(() => import("@/components/training/e1rm-chart"
 export const AttemptsScatter = dynamic(() => import("@/components/training/attempts-scatter").then((m) => m.AttemptsScatter), { ssr: false, loading: () => <Hold /> });
 export const MarksChart = dynamic(() => import("@/components/training/marks-chart").then((m) => m.MarksChart), { ssr: false, loading: () => <Hold /> });
 export const PmcCharts = dynamic(() => import("@/components/training/pmc-charts").then((m) => m.PmcCharts), { ssr: false, loading: () => <Hold h="h-72" /> });
+export const ReferenceChart = dynamic(() => import("@/components/training/reference-chart").then((m) => m.ReferenceChart), { ssr: false, loading: () => <Hold h="h-56" /> });
