@@ -32,7 +32,7 @@ export const GET = route(async () => {
  */
 export const POST = route(async (req) => {
   const user = await requireUser();
-  enforceRateLimit("aiUpload", user.id);
+  await enforceRateLimit("aiUpload", user.id);
   const form = await req.formData().catch(() => {
     throw new ApiError(400, "Se esperaba multipart/form-data");
   });

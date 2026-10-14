@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión fusionada:** v1.10 (PR #24, 14/10/2026). CI en verde.
 - **Siguiente:** v2.0, por bloques; **una sesión por bloque**. Cierre con PR al final de la versión.
-- **Bloque en curso:** ninguno. Hecho: **Salto**, **A**, **B**, **C** (fusionados) y **D (tendencias y semanas VFC)** (PR pendiente). **Siguiente: E.**
+- **Bloque en curso:** ninguno. Hecho: **Salto**, **A**, **B**, **C**, **D** (fusionados) y **E (varias réplicas)** (PR pendiente). **Siguiente: cierre v2.0.**
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
 Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
@@ -60,9 +60,19 @@ Antes del bloque A: `scripts/dev/snapshot.sh` (foto de la BD v1.10 para la migra
   aviso combinado. Umbrales nuevos en prefs (`trendMonths/SleepDropH/HrvDropPct/LoadRisePct/PainDaysRise`, en Mis reglas). La VFC de
   tendencias usa todas las mañanas, no solo las de semanas marcadas. Solo datos sin cifrar; nada a la IA ni a la entrenadora.
   Tests: `plan-import.test.ts`, `engine.test.ts`, `trends.test.ts`, `trends.int.test.ts`; E2E `e2e:v20d`.
-- **E · Varias réplicas.** Planificador sin bloqueo (`src/lib/scheduler.ts`): `pg_advisory_lock` por tarea; sondeo de
-  Telegram con estado en `globalThis` (`telegram/link.ts`); limitador en memoria (`rate-limit.ts`) → `rate-limit-db.ts`
-  donde importe. pg-boss ya es seguro entre réplicas.
+- **E · Varias réplicas — HECHO.** Sin cambios de esquema (`RateLimitHit` ya existía). `src/lib/job-lock.ts`: `withJobLock(nombre, fn)` con
+  `pg_try_advisory_lock(20020, hashtext(nombre))` en una conexión propia (`pg.Pool` de 2; el pool de Prisma no garantiza lock/unlock en la
+  misma conexión) y `pg_advisory_unlock` en `finally` (si falla, se destruye la conexión y Postgres suelta el cerrojo). `scheduler.ts`:
+  cada tarea de `tick()` y `safetyTick()` lleva su cerrojo (`job(nombre, fn)`); los timers de proceso siguen en `globalThis` a propósito.
+  Telegram (`link.ts`): sin `globalThis`; `pollTelegram` bajo el cerrojo `telegram-poll` y el offset lo guarda Telegram (se confirma el
+  lote con `offset = último+1`). **Decisión:** entrega «al menos una vez» (si muere entre procesar y confirmar, el `/start` se repite y
+  responde «código no vale»; `/stop` es idempotente). Límite: `enforceRateLimit` es ahora **async** y usa `rateLimitPersistent` (Postgres,
+  `INSERT … ON CONFLICT` atómico) en las 36 rutas + `csp-report`; `rate-limit.ts` queda solo como respaldo si la BD falla (+ `LIMITS`,
+  `clientIp`). La clave se guarda como HMAC-SHA256(`AUTH_SECRET`) (SHA-256 sin secreto): ya no hay IPs ni ids en claro; al desplegar los
+  contadores vigentes se reinician. Ventana **fija** (en el borde caben hasta 2× el límite). Tests: `job-lock.int.test.ts`,
+  `rate-limit-db.int.test.ts`, `telegram.int.test.ts`, `ops.int.test.ts`; E2E `e2e:v20e` (también en `e2e.sh all`).
+  Pendiente (no tocado): `admin/watch.ts`, `admin/metrics.ts` y `weather.ts` siguen en memoria por réplica (un aviso de vigilancia
+  podría repetirse si alternan réplicas).
 - **Cierre v2.0:** export/restaurar, CHANGELOG, guía, manual «De v1.10 a v2.0», `test-migration.sh`, todas las E2E, PR.
 
 ## v2.1 (después)

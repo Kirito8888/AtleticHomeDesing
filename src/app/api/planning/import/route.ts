@@ -12,7 +12,7 @@ import { commitPlanImport, previewPlanImport } from "@/lib/planning/plan-import/
  */
 export const POST = route(async (req) => {
   const user = await requireUser();
-  enforceRateLimit("planImport", user.id);
+  await enforceRateLimit("planImport", user.id);
   const declared = Number(req.headers.get("content-length") ?? 0);
   if (declared > PLAN_LIMITS.uploadBytes + 64 * 1024) throw new ApiError(413, "El plan supera 30 MB");
   const form = await req.formData().catch(() => {

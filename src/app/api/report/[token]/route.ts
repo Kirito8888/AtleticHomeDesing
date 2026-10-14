@@ -8,7 +8,7 @@ import { reportHtml } from "@/lib/report/service";
  * HTML sin JavaScript con una CSP que no permite cargar nada.
  */
 export const GET = route<RouteContext<"/api/report/[token]">>(async (req, ctx) => {
-  enforceRateLimit("sharedReport", clientIp(req.headers));
+  await enforceRateLimit("sharedReport", clientIp(req.headers));
   const { token } = await ctx.params;
   const html = await reportHtml(token);
   if (!html) throw new ApiError(404, "Este enlace no existe o ha caducado");

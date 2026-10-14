@@ -7,7 +7,7 @@ import { clientIp } from "@/lib/rate-limit";
  * es el token de 32 bytes. Solo títulos, fechas y lugar; límite por IP.
  */
 export const GET = route<RouteContext<"/api/calendar/ics/[token]">>(async (req, ctx) => {
-  enforceRateLimit("calendarFeed", clientIp(req.headers));
+  await enforceRateLimit("calendarFeed", clientIp(req.headers));
   const { token } = await ctx.params;
   const ics = await feedIcs(token);
   if (!ics) throw new ApiError(404, "No encontrado");
