@@ -14,6 +14,9 @@ if [ "$1" = "--before" ] && [ -n "$2" ]; then
   pg_restore --no-owner -d "$ROOT/atlenza_snap" /tmp/atlenza-dev.dump 2>/dev/null || true
   grep -o '^CREATE TABLE "[A-Za-z_]*"' $F | cut -d'"' -f2 | while read -r t; do psql "$ROOT/atlenza_snap" -qc "drop table if exists \"$t\" cascade"; done
   grep -o '^CREATE TYPE "[A-Za-z_]*"' $F | cut -d'"' -f2 | while read -r t; do psql "$ROOT/atlenza_snap" -qc "drop type if exists \"$t\" cascade"; done
+  # Columnas añadidas a tablas previas (ALTER TABLE "T" ADD COLUMN "c", también en líneas de continuación)
+  awk '/^ALTER TABLE "/ { split($0, a, "\""); t = a[2] } /ADD COLUMN/ && t != "" { n = split($0, s, "ADD COLUMN"); for (i = 2; i <= n; i++) { split(s[i], c, "\""); print t, c[2] } } /;[[:space:]]*$/ { t = "" }' $F |
+    while read -r t c; do psql "$ROOT/atlenza_snap" -qc "alter table if exists \"$t\" drop column if exists \"$c\" cascade"; done
   psql "$ROOT/atlenza_snap" -qc "delete from \"_prisma_migrations\" where migration_name='$2'"
   pg_dump -Fc "$ROOT/atlenza_snap" > $OUT
   psql "$ROOT/postgres" -qc "drop database atlenza_snap"

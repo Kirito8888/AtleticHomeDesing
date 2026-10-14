@@ -166,6 +166,10 @@ model User {
   telegramLink           TelegramLink?
   telegramLinkCodes      TelegramLinkCode[]
   ownFoods               FoodProduct[]          @relation("OwnFoods")
+  referenceCurves        ReferenceCurve[]
+  physioProtocols        PhysioProtocol[]
+  physioShares           PhysioProtocolShare[]  @relation("PhysioShareAthlete")
+  physioSharesGiven      PhysioProtocolShare[]  @relation("PhysioShareBy")
   stravaLink             StravaLink?
 }
 
@@ -2624,4 +2628,70 @@ model StravaLink {
   createdAt   DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// =============================================================================
+// v2.1 bloque 3 — Curvas de referencia citadas y protocolos de fisio compartidos
+// =============================================================================
+
+/// Curva publicada (tabulada a mano desde el artículo). La atribución es obligatoria; global solo si la crea la ADMIN.
+model ReferenceCurve {
+  id             String      @id @default(cuid())
+  createdById    String
+  global         Boolean     @default(false)
+  testKey        String
+  unit           String
+  higherIsBetter Boolean
+  title          String
+  sex            Sex?
+  level          String?
+  discipline     Discipline?
+  study          String
+  authors        String
+  year           Int
+  citation       String
+  doi            String?
+  sourceUrl      String?
+  points         Json // [{ x: edad, p50, low?, high? }]
+  createdAt      DateTime    @default(now())
+
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([testKey])
+  @@index([createdById])
+}
+
+/// Protocolo de readaptación (fases, ejercicios, criterios). Lo crea una entrenadora/fisio y lo comparte en lectura.
+model PhysioProtocol {
+  id        String    @id @default(cuid())
+  ownerId   String
+  title     String
+  area      BodyArea?
+  notes     String?
+  phases    Json // [{ name, goal?, maxPain, exercises: [{ name, dose }], criteria: [{ text }] }]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  owner  User                  @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  shares PhysioProtocolShare[]
+
+  @@index([ownerId])
+}
+
+model PhysioProtocolShare {
+  id         String   @id @default(cuid())
+  protocolId String
+  athleteId  String
+  sharedById String
+  progress   Json // criterios hechos por fase: [[bool]]
+  painToday  Int?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  protocol PhysioProtocol @relation(fields: [protocolId], references: [id], onDelete: Cascade)
+  athlete  User           @relation("PhysioShareAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  sharedBy User           @relation("PhysioShareBy", fields: [sharedById], references: [id], onDelete: Cascade)
+
+  @@unique([protocolId, athleteId])
+  @@index([athleteId])
 }

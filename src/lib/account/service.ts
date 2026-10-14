@@ -135,7 +135,7 @@ export async function exportAccount(userId: string) {
     // v2.0 · Mis membresías de club y mis propias cuotas (nunca las de otras personas del club).
     prisma.orgMember.findMany({ where, include: { org: { select: { name: true } }, fees: true } }),
   ]);
-  const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos, cycle, oneRepMaxes, exerciseAliases, sharedReports, calendarFeeds, women] = await Promise.all([
+  const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos, cycle, oneRepMaxes, exerciseAliases, sharedReports, calendarFeeds, women, referenceCurves, physioProtocols, physioReceived] = await Promise.all([
     prisma.securityEvent.findMany({ where, orderBy: { createdAt: "desc" }, omit: { userId: true } }),
     prisma.injury.findMany({ where, orderBy: { startedOn: "asc" } }),
     prisma.sessionTemplate.findMany({ where }),
@@ -150,6 +150,10 @@ export async function exportAccount(userId: string) {
     prisma.calendarFeed.findMany({ where, omit: { tokenHash: true } }),
     // Salud de la mujer descifrada para su dueña (si el servidor tiene la clave).
     dataKeyConfigured() ? getWomen(userId) : Promise.resolve(null),
+    // v2.1 · Curvas propias, protocolos propios (sin el seguimiento de las atletas: es de ellas) y lo que me compartieron con mi seguimiento.
+    prisma.referenceCurve.findMany({ where: { createdById: userId } }),
+    prisma.physioProtocol.findMany({ where: { ownerId: userId }, include: { shares: { select: { athleteId: true, createdAt: true } } } }),
+    prisma.physioProtocolShare.findMany({ where: { athleteId: userId }, include: { protocol: { select: { title: true, phases: true } } } }),
   ]);
   // v1.5: tests físicos, vuelta por fases, agua, horario, estudio, hábitos, material y comentarios
   const [testResults, returnProtocols, hydration, classSlots, studySessions, habits, equipment, sessionComments] = await Promise.all([
@@ -271,6 +275,7 @@ export async function exportAccount(userId: string) {
     study: { documents: studyDocuments, chatThreads, flashcardDecks, flashcardReviews, classSlots, sessions: studySessions, habits, planBlocks: studyPlanBlocks, grades, assignments },
     coach: { reports: coachReports, links: coachLinks, sharedReports },
     clubs: { memberships: clubMemberships },
+    training21: { referenceCurves, physioProtocols, physioReceived },
     calendarFeeds,
     security: { events: securityEvents, passkeys },
     privacy: { consents, requests: privacyRequests, aiProvider, telegram, strava },
