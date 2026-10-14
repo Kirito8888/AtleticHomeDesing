@@ -6,7 +6,8 @@ import { Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { formatDuration, formatPace, parseDuration } from "@/lib/format";
+import { formatDuration, formatNum, formatPace, parseDuration } from "@/lib/format";
+import { formatSeconds, intervalMetric, intervalStats } from "@/lib/training/disciplines";
 
 export interface IntervalRow {
   distanceM: string;
@@ -66,6 +67,7 @@ export function TrackLogger({ value, onChange }: { value: TrackState; onChange: 
   const isSwim = value.modality === "SWIM";
   const dist = num(value.distanceKm);
   const time = parseDuration(value.time);
+  const stats = intervalStats(value.intervals.map((iv) => ({ distanceM: num(iv.distanceM), timeSec: parseDuration(iv.time) })));
   const pace = dist && time ? (isSwim ? time / ((dist * 1000) / 100) : time / dist) : null;
 
   return (
@@ -126,8 +128,16 @@ export function TrackLogger({ value, onChange }: { value: TrackState; onChange: 
             <span />
           </div>
         ) : null}
-        {value.intervals.map((iv, i) => (
-          <div key={i} className="grid grid-cols-[1.5rem_1fr_1fr_1fr_2rem] items-center gap-1.5">
+        {stats.count ? (
+          <p className="text-sm text-muted-foreground" data-testid="track-summary">
+            {stats.count} {stats.count === 1 ? "serie" : "series"} · {formatNum(stats.totalM)} m
+            {stats.bestTimeSec != null && stats.bestDistanceM ? <> · mejor {formatNum(stats.bestDistanceM)} m: <span className="font-semibold text-foreground tabular-nums">{formatSeconds(stats.bestTimeSec)}</span></> : null}
+          </p>
+        ) : null}
+        {value.intervals.map((iv, i) => {
+          const metric = intervalMetric(value.modality, num(iv.distanceM), parseDuration(iv.time));
+          return (
+          <div key={i} className="grid grid-cols-[1.5rem_1fr_1fr_1fr_2rem] items-center gap-x-1.5 gap-y-0.5">
             <span className="text-sm text-muted-foreground tabular-nums">{i + 1}</span>
             <Input aria-label={`Distancia serie ${i + 1}`} inputMode="numeric" value={iv.distanceM} onChange={(e) => setIv(i, { distanceM: e.target.value })} placeholder="300" />
             <Input aria-label={`Tiempo serie ${i + 1}`} inputMode="decimal" value={iv.time} onChange={(e) => setIv(i, { time: e.target.value })} placeholder="42,3" />
@@ -135,8 +145,10 @@ export function TrackLogger({ value, onChange }: { value: TrackState; onChange: 
             <Button type="button" variant="ghost" size="icon" className="size-8" aria-label={`Borrar serie ${i + 1}`} onClick={() => set({ intervals: value.intervals.filter((_, j) => j !== i) })}>
               <Trash2 className="size-4" />
             </Button>
+            {metric ? <span className="col-start-2 col-span-3 text-xs text-muted-foreground tabular-nums">{metric}</span> : null}
           </div>
-        ))}
+          );
+        })}
         <Button
           type="button"
           variant="outline"

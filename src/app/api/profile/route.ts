@@ -4,7 +4,8 @@ import { parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { dateOnly, isoDate, today } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
-import { disciplineEnum } from "@/lib/training/schemas";
+import { EVENTS } from "@/lib/training/disciplines";
+import { disciplineEnum, eventKeyEnum } from "@/lib/training/schemas";
 import { recomputeDailyLoads } from "@/lib/training/service";
 
 export const GET = route(async () => {
@@ -22,6 +23,7 @@ const schema = z.object({
   heightCm: z.number().min(100).max(250).nullish(),
   bodyWeightKg: z.number().min(20).max(300).nullish(),
   primaryDiscipline: disciplineEnum.nullish(),
+  primaryEvent: eventKeyEnum.nullish(),
   disciplines: z.array(disciplineEnum).max(11).optional(),
   ctlTimeConstant: z.number().int().min(14).max(90).optional(),
   atlTimeConstant: z.number().int().min(3).max(21).optional(),
@@ -30,6 +32,8 @@ const schema = z.object({
 export const PATCH = route(async (req) => {
   const user = await requireUser();
   const { name, birthDate, ...profile } = await parseBody(req, schema);
+  // La especialidad manda: fija la disciplina principal coherente con ella
+  if (profile.primaryEvent) profile.primaryDiscipline = EVENTS[profile.primaryEvent].discipline;
   const data = { ...profile, birthDate: birthDate === undefined ? undefined : birthDate ? dateOnly(birthDate) : null };
   const [, updated] = await prisma.$transaction([
     prisma.user.update({ where: { id: user.id }, data: { name } }),

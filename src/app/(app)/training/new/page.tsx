@@ -14,6 +14,7 @@ import { today, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { sessionToFormInitial, templateToFormInitial } from "@/lib/training/form-initial";
 import { exerciseOptions, formSessionInclude } from "@/lib/training/session-queries";
+import { defaultsFor } from "@/lib/training/disciplines";
 import { autoregContext } from "@/lib/training/rm-service";
 
 export const metadata = { title: "Nueva sesión · Atlenza" };
@@ -24,7 +25,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
   const { type, repeat, template } = await searchParams;
   const [exercises, profile, lastStrength, templates, library] = await Promise.all([
     exerciseOptions(user.id),
-    prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { bodyWeightKg: true } }),
+    prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { bodyWeightKg: true, primaryDiscipline: true, primaryEvent: true } }),
     prisma.trainingSession.findFirst({
       where: { userId: user.id, type: "STRENGTH", status: "COMPLETED" },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
@@ -49,7 +50,10 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
     (repeat === "strength" && lastStrength
       ? sessionToFormInitial(lastStrength, { date: todayIso, planned: false, rpe: null, notes: "", feelings: [] }, { repeat: true })
       : undefined);
-  const initialType = type === "TECHNICAL" || type === "TRACK" ? type : "STRENGTH";
+  // v2.1 · la prueba del perfil abre la pestaña y los valores de su familia (lanzamientos: como siempre)
+  const defaults = defaultsFor(profile?.primaryDiscipline, profile?.primaryEvent);
+  const explicit = type === "TECHNICAL" || type === "TRACK" || type === "STRENGTH" ? type : null;
+  const initialType = explicit ?? defaults.type ?? "STRENGTH";
   return (
     <>
       <PageHeader
@@ -83,6 +87,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
         initialType={initialType}
         initial={initial}
         autoreg={autoreg}
+        eventDefaults={{ modality: defaults.modality, technicalEvent: defaults.technicalEvent, profileDiscipline: profile?.primaryDiscipline ?? null }}
       />
     </>
   );

@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión fusionada:** v1.10 (PR #24, 14/10/2026). CI en verde.
 - **Siguiente:** v2.0, por bloques; **una sesión por bloque**. Cierre con PR al final de la versión.
-- **Bloque en curso:** ninguno. Hecho: **Salto**, **A–E** (fusionados). **Cierre v2.0 hecho; PR a main abierto (lo fusiona la usuaria).** Siguiente: v2.1.
+- **Bloque en curso:** ninguno. Hecho: **Salto**, **A–E** y cierre v2.0. **v2.1 bloque 1 hecho (PR abierto).** Siguiente: v2.1 bloque 2 (biblioteca de ejercicios con vídeo).
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
 Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
@@ -80,10 +80,20 @@ Antes del bloque A: `scripts/dev/snapshot.sh` (foto de la BD v1.10 para la migra
   antes; (2) `pgrep -f next-server` casa con cualquier comando que contenga esa cadena y salta el arranque: usa `serve.sh true` a mano;
   (3) `e2e` y `e2e:security` necesitan claves VAPID en `.env.local` (añadidas en local, no en el repo; `session-start.sh` no las genera).
 
-## v2.1 (después)
-Más disciplinas (enum `Discipline` ya existe; la lógica es de lanzamientos: `javelin-insights.ts`, reglas de
-`rules/engine.ts`), biblioteca de ejercicios con vídeo propio (`Exercise` no tiene descripción ni vídeo; `sealed-files`
-solo admite imágenes y PDF), comparativas con curvas publicadas y citadas, protocolos de fisio compartidos.
+## v2.1 · bloques
+- **1 · Más disciplinas — HECHO.** Migración `20270201080000_v2_1_features` (solo `AthleteProfile.primaryEvent String?`; en los bloques
+  siguientes: `snapshot.sh --before 20270201080000_v2_1_features` y regenerar). `Discipline`, `TrackSession` y `TrackInterval` ya cubrían el
+  dato: el bloque añade **especialidad** y una capa pura `training/disciplines.ts` (catálogo `EVENTS` 100 m…decatlón, `familyOf`, `defaultsFor`,
+  `intervalStats`, `sessionHeadline`, `intervalMetric`). Elegir «Mi prueba» en Ajustes fija la disciplina principal (la prueba manda).
+  `/training/new` abre en Pista (velocidad/vallas/fondo/combinadas) o Técnica (saltos); sin perfil o lanzamientos: como siempre (Fuerza).
+  Pista guarda `discipline`. Series: m/s en velocidad, ritmo en fondo; resumen con mejor tiempo (centésimas). Lista, diario (ahora también
+  sesiones de pista) y calendario usan `sessionHeadline`; la semana muestra «Distancia/Intentos esta semana» salvo en lanzamientos (tope de
+  lanzamientos intacto) y el enlace a jabalina solo para esa familia. Lanzamientos/tonelaje/TSS sin tocar (test de regresión).
+  Tests: `disciplines.test.ts`, `disciplines.int.test.ts`; E2E `e2e:v21a` (también en `e2e.sh all`).
+  Pendiente/fuera: no se crean `PersonalRecord` `TRACK_TIME` al guardar; reglas de `rules/engine.ts` y plan IA siguen centrados en lanzamientos;
+  el selector de disciplinas del asistente de bienvenida no pide la prueba.
+- **2 · Biblioteca de ejercicios con vídeo propio** (`Exercise` sin descripción ni vídeo; `sealed-files` solo admite imágenes y PDF).
+- **3 · Comparativas con curvas publicadas y citadas; protocolos de fisio compartidos.**
 
 ## Decisiones tomadas
 - LEAF-Q: se mantiene el cribado propio (`health/women.ts`); opcional cargar el texto oficial desde un fichero local
