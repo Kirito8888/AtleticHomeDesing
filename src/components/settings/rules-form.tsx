@@ -37,7 +37,12 @@ type RuleKeys =
   | "lightHooperAmber"
   | "lightHooperRed"
   | "lightPainRed"
-  | "lightZoneAmber";
+  | "lightZoneAmber"
+  | "trendMonths"
+  | "trendSleepDropH"
+  | "trendHrvDropPct"
+  | "trendLoadRisePct"
+  | "trendPainDaysRise";
 export type RuleValues = Pick<Prefs, RuleKeys>;
 
 const KG_STEPS = [0.5, 1, 1.25, 2.5] as const;
@@ -110,6 +115,11 @@ export function RulesForm({ initial }: { initial: RuleValues }) {
         {num("lightHooperRed", "Semáforo: índice Hooper rojo desde", { step: 1, min: 4, max: 20 })}
         {num("lightPainRed", "Semáforo: dolor rojo desde", { step: 1, min: 1, max: 10, suffix: "/10" })}
         {num("lightZoneAmber", "Semáforo: fatiga de una zona ámbar desde", { step: 1, min: 1, max: 10, suffix: "/10" })}
+        {num("trendMonths", "Tendencias: meses a mostrar", { step: 1, min: 3, max: 12, suffix: "meses" })}
+        {num("trendSleepDropH", "Tendencias: bajada de sueño", { step: 0.1, decimals: 1, min: 0.1, max: 3, suffix: "h" }, "Mes reciente frente a los anteriores")}
+        {num("trendHrvDropPct", "Tendencias: caída de VFC", { step: 0.5, decimals: 1, min: 1, max: 40, suffix: "%" })}
+        {num("trendLoadRisePct", "Tendencias: subida de carga", { step: 5, min: 5, max: 200, suffix: "%" })}
+        {num("trendPainDaysRise", "Tendencias: más días con molestia", { step: 1, min: 1, max: 30, suffix: "días/30" })}
         {num("sleepDebtMaxH", "Deuda de sueño (7 días): avisar desde", { step: 0.5, decimals: 1, min: 1, max: 30, suffix: "h" })}
       </div>
       <Button type="button" onClick={save} disabled={saving}>

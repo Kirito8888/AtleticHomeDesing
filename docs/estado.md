@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión fusionada:** v1.10 (PR #24, 14/10/2026). CI en verde.
 - **Siguiente:** v2.0, por bloques; **una sesión por bloque**. Cierre con PR al final de la versión.
-- **Bloque en curso:** ninguno. Hecho: **Salto**, **A**, **B** (fusionados) y **C (flashcards compartidas)** (PR pendiente). **Siguiente: D.**
+- **Bloque en curso:** ninguno. Hecho: **Salto**, **A**, **B**, **C** (fusionados) y **D (tendencias y semanas VFC)** (PR pendiente). **Siguiente: E.**
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
 Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
@@ -47,9 +47,19 @@ Antes del bloque A: `scripts/dev/snapshot.sh` (foto de la BD v1.10 para la migra
   en ese mazo. La IA que genera tarjetas, sin cambios. UI: «Mis mazos» / «Compartidos conmigo» + panel Compartir
   (`components/study/deck-shares.tsx`). Exportar cuenta incluye solo mis reviews. Tests: `sm2.test.ts`, `flashcards.int.test.ts`; E2E `e2e:v20c`.
   Fuera/pendiente: el examen simulado ya admite mazos compartidos; no hay aviso a la invitada (sin email).
-- **D · Tendencias y semanas de VFC del PDF.** El lector (`planning/plan-import/parse.ts`) no detecta «VFC»; la alerta de
-  `rules/engine.ts` (~l.170) usa cualquier semana con ≥ 3 mañanas (el comentario de `prefs.hrvDropPct` habla de «semana
-  marcada»). Marcar semanas VFC al importar y usarlas. Tendencias de meses (sueño, VFC, carga, molestias) con alertas explicables.
+- **D · Tendencias y semanas de VFC del PDF — HECHO.** Sin cambios de esquema (`PlanMeso.weeks` es Json: `ParsedWeek.hrv?`).
+  `parse.ts` marca `hrv` si el encabezado de la semana lleva «VFC» o su texto dice «semana VFC», «(VFC)» o empieza por «VFC:»
+  (`isHrvWeek`); mencionar la VFC sin más no marca. Planes antiguos sin `hrv` = sin semanas marcadas. El MICRO de la semana lleva «· VFC»
+  y el calendario pinta una etiqueta «VFC» en sus días (`plan-import/hrv-weeks.ts`, solo planes ACTIVE y variante elegida).
+  **Regla** (`rules/engine.ts`): el aviso de caída de VFC (`prefs.hrvDropPct`) solo salta en la semana de hoy si está marcada y tiene
+  ≥ 3 mañanas; base = media de las semanas previas con ≥ 3 mañanas (basta 1); el mensaje trae medias, nº de semanas y umbral.
+  **Decisión:** sin ninguna semana marcada en el plan no hay aviso semanal de VFC (antes saltaba con cualquier semana).
+  **Tendencias** `/recovery/trends` + `GET /api/recovery/trends`: `recovery/trends.ts` (puro) y `trends-service.ts`. Por mes: sueño, VFC,
+  carga sRPE semanal, días con molestia (sesiones, squeeze, talón sobre tus umbrales). Compara el último mes con datos suficientes con la
+  media de los anteriores (mín. 2 meses de base, 7 noches / 3 mañanas por mes) y avisa con causa + valores + umbral; si coinciden ≥ 2,
+  aviso combinado. Umbrales nuevos en prefs (`trendMonths/SleepDropH/HrvDropPct/LoadRisePct/PainDaysRise`, en Mis reglas). La VFC de
+  tendencias usa todas las mañanas, no solo las de semanas marcadas. Solo datos sin cifrar; nada a la IA ni a la entrenadora.
+  Tests: `plan-import.test.ts`, `engine.test.ts`, `trends.test.ts`, `trends.int.test.ts`; E2E `e2e:v20d`.
 - **E · Varias réplicas.** Planificador sin bloqueo (`src/lib/scheduler.ts`): `pg_advisory_lock` por tarea; sondeo de
   Telegram con estado en `globalThis` (`telegram/link.ts`); limitador en memoria (`rate-limit.ts`) → `rate-limit-db.ts`
   donde importe. pg-boss ya es seguro entre réplicas.

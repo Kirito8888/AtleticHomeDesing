@@ -88,6 +88,7 @@ export function parsePlanPdf(lines: PdfLine[]): ParsedMeso | null {
           start: dateFromDdMm(w[3], dateIn),
           end: dateFromDdMm(w[4], dateIn),
           text: "",
+          hrv: isHrvWeek(full, ""),
         };
         meso.weeks.push(week);
         day = null;
@@ -197,6 +198,14 @@ const DAY_REL_RE = /^D(?:\s*[−-]\s*(\d+))?$/;
 // «S1», «A», «A·S2-V», «B·S1», «C·D−5», «S2·A», «S1·sáb»
 const CODE_RE = /^(?:([A-Z])(?:·|$))?(?:S(\d+)(?:-([A-Z]))?(?:·([A-Za-zÁÉÍÓÚáéíóú]{1,5}))?|D(?:\s*[−-]\s*(\d+))?)?$/;
 const WHY_RE = /^Por qué:\s*/;
+// Semana de VFC: «· VFC» en el encabezado, o el texto de la semana la marca («Semana VFC», «(VFC)», «VFC: …»).
+// «Mide la VFC al despertar» suelto no marca la semana.
+const VFC_TITLE_RE = /\bVFC\b/;
+/** ¿La semana va marcada «VFC»? Por su encabezado o por el texto explicativo. */
+export function isHrvWeek(heading: string, text: string): boolean {
+  return VFC_TITLE_RE.test(heading) || VFC_TEXT_RE.test(text);
+}
+const VFC_TEXT_RE = /\bsemana\s+(?:de\s+(?:la\s+)?)?VFC\b|\(VFC\)|^\s*VFC\s*[:·]/i;
 const ANNEX_RE = /^Anexo\s+[A-Z0-9]+\b/;
 const RAMP_RE = /^\W*Rampa\b/;
 const DURATION_RE = /~\s*(\d+)\s*min/;
@@ -366,6 +375,8 @@ function finalize(meso: ParsedMeso) {
   meso.variants = leaves.map((code): VariantOption => ({ code, label: variantLabel(meso, code) }));
   // «VERSIÓN A/B»: por defecto la B (la que no depende de clasificarse). Rama «Si me
   // clasifico»: el plan normal. Día de competición sin confirmar: el primero del PDF.
+  for (const w of meso.weeks) w.hrv = Boolean(w.hrv) || isHrvWeek("", w.text);
+
   const versioned = meso.weeks.some((w) => w.title && /^[A-Z]/.test(w.variant ?? "") && leaves.includes("B"));
   meso.defaultVariant = leaves.length ? ((versioned ? "B" : null) ?? leaves.find((c) => c === "N") ?? leaves[0]) : null;
 
