@@ -1,0 +1,222 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+
+import { Chips, Field } from "@/components/form/chips";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { api } from "@/lib/client-api";
+import { formatNum } from "@/lib/format";
+import { CAPTURE_FPS, computeAttempt, type CaptureFps, fpsWarning, JUMP_TYPES, type JumpFrames, type JumpType, summarizeAttempts } from "@/lib/training/jump";
+
+const TYPE_OPTIONS = (Object.keys(JUMP_TYPES) as JumpType[]).map((k) => ({ value: k, label: k === "dj" ? "DJ" : k === "cmj" ? "CMJ" : k === "sj" ? "SJ" : "Abalakov" }));
+const FPS_OPTIONS = CAPTURE_FPS.map((f) => ({ value: f, label: `${f} fps` }));
+
+const COMMON_FPS = [24, 25, 30, 48, 50, 60, 100, 120, 240];
+
+/** Mide los fps del fichero reproduciéndolo en silencio unos fotogramas (requestVideoFrameCallback). */
+function detectFileFps(v: HTMLVideoElement): Promise<number | null> {
+  return new Promise((resolve) => {
+    if (!("requestVideoFrameCallback" in v)) return resolve(null);
+    const times: number[] = [];
+    const stop = (r: number | null) => {
+      v.pause();
+      v.playbackRate = 1;
+      v.currentTime = 0;
+      resolve(r);
+    };
+    const timer = setTimeout(() => stop(null), 6000);
+    const tick = (_: number, meta: VideoFrameCallbackMetadata) => {
+      times.push(meta.mediaTime);
+      if (times.length >= 20) {
+        clearTimeout(timer);
+        // Si el navegador se salta fotogramas, los saltos agrandan el intervalo: el mínimo es el real.
+        const d = times.slice(1).map((t, i) => t - times[i]).filter((x) => x > 0);
+        const raw = d.length ? 1 / Math.min(...d) : null;
+        stop(raw ? COMMON_FPS.reduce((a, b) => (Math.abs(b - raw) < Math.abs(a - raw) ? b : a)) : null);
+      } else v.requestVideoFrameCallback(tick);
+    };
+    v.muted = true;
+    v.playbackRate = 0.25; // lento para que el navegador presente todos los fotogramas
+    v.requestVideoFrameCallback(tick);
+    v.play().catch(() => {
+      clearTimeout(timer);
+      resolve(null);
+    });
+  });
+}
+
+type Marks = { contact: number | null; takeoff: number | null; landing: number | null };
+const NO_MARKS: Marks = { contact: null, takeoff: null, landing: null };
+
+/** Medidor de salto por tiempo de vuelo: el vídeo no sale del navegador; solo se guardan los resultados. */
+export function JumpMeter({ today }: { today: string }) {
+  const router = useRouter();
+  const video = useRef<HTMLVideoElement>(null);
+  const [src, setSrc] = useState<string | null>(null);
+  const [fileFps, setFileFps] = useState(30);
+  const [detected, setDetected] = useState<number | null>(null);
+  const [fps, setFps] = useState<CaptureFps>(240);
+  const [type, setType] = useState<JumpType>("cmj");
+  const [frame, setFrame] = useState(0);
+  const [maxFrame, setMaxFrame] = useState(0);
+  const [marks, setMarks] = useState<Marks>(NO_MARKS);
+  const [attempts, setAttempts] = useState<JumpFrames[]>([]);
+  const [date, setDate] = useState(today);
+  const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => () => { if (src) URL.revokeObjectURL(src); }, [src]);
+
+  function seek(n: number) {
+    const f = Math.max(0, Math.min(maxFrame, n));
+    setFrame(f);
+    if (video.current) video.current.currentTime = (f + 0.5) / fileFps;
+  }
+
+  function pick(file: File | undefined) {
+    if (!file) return;
+    setSrc(URL.createObjectURL(file));
+    setMarks(NO_MARKS);
+    setAttempts([]);
+    setFrame(0);
+    setDetected(null);
+    setReady(false);
+  }
+
+  async function onLoaded() {
+    const v = video.current!;
+    const d = await detectFileFps(v);
+    const ff = d && d >= 10 && d <= 480 ? d : 30;
+    setFileFps(ff);
+    setMaxFrame(Math.max(0, Math.floor(v.duration * ff) - 1));
+    setDetected(d);
+    // Propuesta: si el fichero tiene ≥ 120 fps, lo habitual es que sean los de captura.
+    if (d && (CAPTURE_FPS as readonly number[]).includes(d)) setFps(d as CaptureFps);
+    v.currentTime = 0.5 / ff;
+    setReady(true);
+  }
+
+  const m = marks;
+  const frames: JumpFrames | null =
+    m.takeoff != null && m.landing != null && m.landing > m.takeoff && (type !== "dj" || (m.contact != null && m.contact < m.takeoff))
+      ? { takeoff: m.takeoff, landing: m.landing, contact: type === "dj" ? m.contact : null }
+      : null;
+  const current = frames ? computeAttempt(type, fps, frames) : null;
+  const all = attempts.map((a) => computeAttempt(type, fps, a));
+  const sum = summarizeAttempts(type, all);
+  const warn = fpsWarning(fps, current?.flightS);
+  const unit = type === "dj" ? "m/s" : "cm";
+
+  function addAttempt() {
+    if (!frames) return;
+    setAttempts([...attempts, frames]);
+    setMarks(NO_MARKS);
+  }
+
+  async function save() {
+    setBusy(true);
+    try {
+      await api("/api/training/tests/jump", { body: { type, fps, date, attempts } });
+      toast.success("Intentos guardados");
+      router.push("/training/tests");
+      router.refresh();
+    } catch (e) {
+      toast.error((e as Error).message);
+      setBusy(false);
+    }
+  }
+
+  const step = (label: string, d: number) => (
+    <Button type="button" variant="outline" className="min-h-11 flex-1 tabular-nums" onClick={() => seek(frame + d)} disabled={!ready}>
+      {label}
+    </Button>
+  );
+
+  return (
+    <div className="grid gap-4">
+      <Chips label="Tipo de salto" options={TYPE_OPTIONS} value={type} onChange={(v) => { if (v) { setType(v); setMarks(NO_MARKS); setAttempts([]); } }} />
+      <Field label="Vídeo del salto (se queda en tu móvil; no se sube)" htmlFor="j-file">
+        <Input id="j-file" type="file" accept="video/*" onChange={(e) => pick(e.target.files?.[0])} />
+      </Field>
+      {src ? (
+        <>
+          <video ref={video} src={src} playsInline muted preload="auto" onLoadedMetadata={onLoaded} className="w-full rounded-md bg-black" aria-label="Vídeo del salto" />
+          <p className="text-sm tabular-nums" aria-live="polite">
+            Fotograma <strong>{frame}</strong> de {maxFrame} · {formatNum(frame / fps, 2)} s
+          </p>
+          <div className="flex gap-2" role="group" aria-label="Avance fotograma a fotograma">
+            {step("−10", -10)}
+            {step("−1", -1)}
+            {step("+1", 1)}
+            {step("+10", 10)}
+          </div>
+          <Field label="Fps a los que grabaste" htmlFor="j-fps">
+            <Chips label="Fps de captura" options={FPS_OPTIONS} value={fps} onChange={(v) => v && setFps(v)} />
+          </Field>
+          <p className="text-xs text-muted-foreground">
+            {!ready ? "Analizando el vídeo…" : detected ? `El fichero tiene ${detected} fps.` : "No se pudieron detectar los fps del fichero."} Si lo exportaste y el móvil lo convirtió a 30 fps, indica aquí los fps de la grabación original.
+          </p>
+          {warn ? <p role="alert" className="rounded-md border border-destructive/40 p-2 text-sm">{warn}</p> : null}
+          <div className="grid grid-cols-2 gap-2">
+            {type === "dj" ? (
+              <Button type="button" variant={m.contact != null ? "secondary" : "outline"} className="col-span-2 min-h-11" onClick={() => setMarks({ ...m, contact: frame })}>
+                Marcar contacto{m.contact != null ? ` (${m.contact})` : ""}
+              </Button>
+            ) : null}
+            <Button type="button" variant={m.takeoff != null ? "secondary" : "outline"} className="min-h-11" onClick={() => setMarks({ ...m, takeoff: frame })}>
+              Marcar despegue{m.takeoff != null ? ` (${m.takeoff})` : ""}
+            </Button>
+            <Button type="button" variant={m.landing != null ? "secondary" : "outline"} className="min-h-11" onClick={() => setMarks({ ...m, landing: frame })}>
+              Marcar aterrizaje{m.landing != null ? ` (${m.landing})` : ""}
+            </Button>
+          </div>
+          <div className="rounded-md border p-3 text-sm" aria-live="polite" data-testid="jump-result">
+            {current ? (
+              <>
+                <p>
+                  Altura: <strong className="tabular-nums">{formatNum(current.heightCm, 1)} cm</strong> · Velocidad de despegue: <strong className="tabular-nums">{formatNum(current.velocity, 2)} m/s</strong>
+                </p>
+                <p className="text-muted-foreground">Tiempo de vuelo {formatNum(current.flightS, 2)} s{current.rsi ? ` · contacto ${formatNum(current.contactS, 2)} s · RSI ${formatNum(current.rsi, 2)}` : ""}</p>
+              </>
+            ) : (
+              <p className="text-muted-foreground">Marca {type === "dj" ? "contacto, " : ""}despegue y aterrizaje para ver el resultado.</p>
+            )}
+          </div>
+          <Button type="button" onClick={addAttempt} disabled={!frames || !ready} className="min-h-11">
+            Añadir intento
+          </Button>
+        </>
+      ) : null}
+      {all.length ? (
+        <div className="grid gap-2">
+          <ul className="grid gap-1 text-sm" aria-label="Intentos">
+            {all.map((a, i) => (
+              <li key={i} className="flex items-center justify-between gap-2 tabular-nums">
+                <span>
+                  {i + 1}. {type === "dj" ? `RSI ${formatNum(a.rsi, 2)}` : `${formatNum(a.heightCm, 1)} cm`} · {formatNum(a.velocity, 2)} m/s
+                </span>
+                <Button type="button" variant="ghost" className="min-h-11" aria-label={`Quitar intento ${i + 1}`} onClick={() => setAttempts(attempts.filter((_, j) => j !== i))}>
+                  Quitar
+                </Button>
+              </li>
+            ))}
+          </ul>
+          {sum ? (
+            <p className="text-sm">
+              Mejor: <strong className="tabular-nums">{formatNum(sum.bestValue, type === "dj" ? 2 : 1)} {unit}</strong> · media: <strong className="tabular-nums">{formatNum(sum.mean, type === "dj" ? 2 : 1)} {unit}</strong>
+            </p>
+          ) : null}
+          <Field label="Fecha" htmlFor="j-date">
+            <Input id="j-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+          <Button type="button" onClick={save} disabled={busy} className="min-h-11">
+            Guardar {all.length} intento{all.length === 1 ? "" : "s"}
+          </Button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
