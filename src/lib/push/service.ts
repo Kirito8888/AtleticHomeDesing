@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { type PushMessage, sendPush, type SendResult, type VapidKeys } from "@/lib/push/send";
 import { inQuietHours, isUrgent } from "@/lib/push/quiet";
 import { readPrefs } from "@/lib/rules/prefs";
+import { sendTelegram } from "@/lib/admin/telegram";
 
 export function vapidKeys(): VapidKeys | null {
   const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT } = env();
@@ -49,13 +50,15 @@ export async function sendToUser(userId: string, msg: PushMessage, send: Sender 
   }
   // Las urgentes no se posponen
   if (logId && !isUrgent(msg.tag)) msg = { ...msg, logId };
-  const vapid = vapidKeys();
-  if (!vapid) return { sent: 0, removed: 0 };
-  // v1.8 · Horas de silencio (salvo seguridad y «entreno sola»): queda en la bandeja, sin push
+  // v1.8 · Horas de silencio (salvo seguridad y «entreno sola»): queda en la bandeja, sin push ni Telegram
   if (!isUrgent(msg.tag)) {
     const p = await prisma.athleteProfile.findUnique({ where: { userId }, select: { prefs: true } }).catch(() => null);
     if (inQuietHours(new Date(), readPrefs(p?.prefs).quietHours)) return { sent: 0, removed: 0 };
   }
+  // v1.10 · También por Telegram si la persona lo vinculó
+  const telegram = await sendUserTelegram(userId, msg);
+  const vapid = vapidKeys();
+  if (!vapid) return { sent: 0, removed: 0, telegram };
   let sent = 0;
   let removed = 0;
   try {
@@ -75,7 +78,22 @@ export async function sendToUser(userId: string, msg: PushMessage, send: Sender 
   } catch (err) {
     console.error("[push]", err);
   }
-  return { sent, removed };
+  return { sent, removed, telegram };
+}
+
+/** Avisos con datos de salud (regla, citas médicas, peso): por Telegram solo un texto genérico. */
+const SENSITIVE = /^(period|appt-|weigh|cycle|health|injury)/;
+export const telegramText = (msg: PushMessage) =>
+  msg.tag && SENSITIVE.test(msg.tag) ? "Atlenza: tienes un aviso nuevo. Ábrelo en la app." : [msg.title, msg.body].filter(Boolean).join("\n").slice(0, 1000);
+
+async function sendUserTelegram(userId: string, msg: PushMessage): Promise<boolean> {
+  try {
+    const link = await prisma.telegramLink.findUnique({ where: { userId }, select: { chatId: true, enabled: true } });
+    if (!link?.enabled) return false;
+    return await sendTelegram(link.chatId, telegramText(msg));
+  } catch {
+    return false;
+  }
 }
 
 /**

@@ -113,9 +113,20 @@ export function CompetitionImport() {
   });
   async function read(file: File) {
     if (file.size > 2 * 1024 * 1024) return toast.error("Fichero demasiado grande (máx. 2 MB)");
-    const text = await file.text();
-    const ev = /BEGIN:VCALENDAR/.test(text) ? parseIcsEvents(text) : parseCompetitionCsv(text);
-    if (!ev.length) toast.error("No se encontró ninguna competición (formato .ics o CSV «fecha;nombre;lugar»)");
+    let ev: ImportedEvent[];
+    // v1.10 · Excel y PDF de la federación se leen en el servidor; .ics y CSV aquí
+    if (/\.(xlsx|pdf)$/i.test(file.name) || /pdf|spreadsheetml/.test(file.type)) {
+      const body = new FormData();
+      body.set("file", file);
+      const res = await fetch("/api/planning/competitions/parse", { method: "POST", body });
+      const data = (await res.json()) as { events?: ImportedEvent[]; error?: string };
+      if (!res.ok) return toast.error(data.error ?? `Error ${res.status}`);
+      ev = data.events ?? [];
+    } else {
+      const text = await file.text();
+      ev = /BEGIN:VCALENDAR/.test(text) ? parseIcsEvents(text) : parseCompetitionCsv(text);
+    }
+    if (!ev.length) toast.error("No se encontró ninguna competición (.ics, CSV «fecha;nombre;lugar», Excel o PDF con una fecha al principio de cada línea)");
     setFound(ev);
   }
   async function save() {
@@ -130,7 +141,7 @@ export function CompetitionImport() {
   }
   return (
     <div ref={box} className="grid gap-2 text-sm">
-      <Input aria-label="Calendario de competiciones (.ics o CSV)" type="file" accept=".ics,.csv,text/calendar,text/csv" onChange={(e) => e.target.files?.[0] && void read(e.target.files[0])} />
+      <Input aria-label="Calendario de competiciones (.ics, CSV, Excel o PDF)" type="file" accept=".ics,.csv,.xlsx,.pdf,text/calendar,text/csv,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(e) => e.target.files?.[0] && void read(e.target.files[0])} />
       {found?.length ? (
         <>
           <ul className="grid max-h-48 gap-0.5 overflow-auto text-xs" aria-label="Competiciones encontradas">

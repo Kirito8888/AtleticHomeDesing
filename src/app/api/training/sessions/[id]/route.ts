@@ -4,6 +4,7 @@ import { requireUser, resolveAthleteId } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { createSessionSchema } from "@/lib/training/schemas";
 import { updateTrainingSession } from "@/lib/training/service";
+import { notFromStrava } from "@/lib/strava/policy";
 
 type Ctx = RouteContext<"/api/training/sessions/[id]">;
 
@@ -12,7 +13,8 @@ export const GET = route(async (req, ctx: Ctx) => {
   const { id } = await ctx.params;
   const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "SESSIONS");
   const session = await prisma.trainingSession.findFirst({
-    where: { id, userId },
+    // v1.10 · Lo importado de Strava solo lo ve su dueño
+    where: { id, userId, ...(userId !== user.id ? notFromStrava : {}) },
     // Las sensaciones (molestias) son datos de salud: solo para su dueño.
     omit: { feelings: userId !== user.id },
     include: {

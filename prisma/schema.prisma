@@ -158,6 +158,11 @@ model User {
   invitationsCreated     Invitation[]           @relation("InvitationCreatedBy")
   passwordResets         PasswordReset[]
   aiCredential           AiCredential?
+  // v1.10
+  telegramLink           TelegramLink?
+  telegramLinkCodes      TelegramLinkCode[]
+  ownFoods               FoodProduct[]      @relation("OwnFoods")
+  stravaLink             StravaLink?
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.
@@ -202,6 +207,11 @@ enum SecurityEventType {
   PASSWORD_RESET_ISSUED
   PASSWORD_RESET_USED
   TERMS_ACCEPTED
+  // v1.10
+  TELEGRAM_LINKED
+  TELEGRAM_UNLINKED
+  STRAVA_LINKED
+  STRAVA_UNLINKED
 }
 
 /// Registro de auditoría visible por el usuario (Ajustes → Actividad). Se borra con la cuenta
@@ -430,6 +440,11 @@ model TrainingSession {
   strength        StrengthSession?
   personalRecords PersonalRecord[]
 
+  // v1.10 · origen externo (p. ej. STRAVA) e id allí: sin duplicados; lo de Strava no va a la IA ni a la entrenadora
+  source        String?
+  externalId    String?
+
+  @@unique([userId, externalId])
   @@unique([userId, clientId])
   @@index([userId, date])
   @@index([cycleId])
@@ -1070,16 +1085,28 @@ model FoodProduct {
   fiberPer100g   Float?
   saltPer100g    Float?
   ironPer100g    Float? // v1.6 (mg)
+  // v1.10 · micronutrientes por 100 g (mg salvo vitamina D y B12 en µg)
+  calciumPer100g   Float?
+  vitDPer100g      Float?
+  b12Per100g       Float?
+  magnesiumPer100g Float?
+  sodiumPer100g    Float?
+  potassiumPer100g Float?
   nutriScore     String?  @db.Char(1)
-  source         String   @default("openfoodfacts")
+  source         String   @default("openfoodfacts") // openfoodfacts | own (v1.10)
   raw            Json? // respuesta original para reprocesar
   fetchedAt      DateTime @default(now())
+  // v1.10 · alimento propio de un usuario (null = catálogo común) y última sincronización con OFF
+  ownerId        String?
+  syncedAt       DateTime?
 
   entries       Macros[]
   templateItems MealTemplateItem[]
+  owner         User?              @relation("OwnFoods", fields: [ownerId], references: [id], onDelete: Cascade)
 
   @@index([name])
   @@index([brand])
+  @@index([ownerId])
 }
 
 enum MealType {
@@ -1111,6 +1138,13 @@ model Macros {
   fiberG        Float?
   ironMg        Float? // v1.6: hierro (si el producto lo trae)
   ironRich      Boolean  @default(false) // v1.6: marcado a mano como rico en hierro
+  // v1.10 · micronutrientes de la toma (si el alimento los trae)
+  calciumMg     Float?
+  vitDUg        Float?
+  b12Ug         Float?
+  magnesiumMg   Float?
+  sodiumMg      Float?
+  potassiumMg   Float?
   createdAt     DateTime @default(now())
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2420,6 +2454,55 @@ model AiCredential {
   verifiedAt     DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// v1.10 · Chat de Telegram vinculado (con `/start CÓDIGO` al bot). Los avisos de la app llegan también ahí.
+model TelegramLink {
+  userId   String   @id
+  chatId   String   @unique
+  enabled  Boolean  @default(true)
+  linkedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Código de un solo uso (15 min) para vincular Telegram; solo se guarda su SHA-256.
+model TelegramLinkCode {
+  id        String   @id @default(cuid())
+  userId    String
+  codeHash  String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// v1.10 · Progreso de la sincronización del catálogo con OpenFoodFacts, por marca (se reanuda).
+model CatalogSyncState {
+  brand      String    @id // etiqueta de OFF, p. ej. "hacendado"
+  page       Int       @default(0) // última página guardada
+  total      Int?
+  products   Int       @default(0)
+  startedAt  DateTime?
+  finishedAt DateTime?
+  error      String?
+  updatedAt  DateTime  @updatedAt
+}
+
+/// v1.10 · Cuenta de Strava conectada (OAuth). Los tokens van cifrados (DATA_ENCRYPTION_KEY).
+model StravaLink {
+  userId      String    @id
+  athleteId   String    @unique // id del atleta en Strava
+  tokenSealed String // { access, refresh, expiresAt } cifrado
+  scope       String?
+  lastSyncAt  DateTime?
+  syncedUntil DateTime? // fecha de la última actividad importada (para pedir solo las nuevas)
+  lastError   String?
+  createdAt   DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

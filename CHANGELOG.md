@@ -2,6 +2,50 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v1.10 — datos e integraciones: Telegram, alimentos españoles, OCR, calendarios, IA en nutrición y Strava (10/10/2026)
+
+**Telegram por usuario**
+- **Vincular:** Ajustes → Notificaciones: código de un solo uso que envías al bot (`/start CÓDIGO`); `/stop` lo desvincula.
+- **Avisos:** te llegan los mismos que en el móvil y respetan tus horas de silencio. Los de salud llegan sin detalles.
+- **«Entreno sola»** avisa a tu contacto también por Telegram.
+- **Administración:** el enlace de contraseña nueva se puede enviar por Telegram.
+- **Seguridad:** el bot se consulta desde el servidor; no se abre nada hacia fuera.
+
+**Alimentos**
+- **Catálogo local de marcas españolas** (Hacendado, Carrefour, Dia, Eroski, Alcampo, Consum, Milbona, Chef Select y Aldi) desde Open Food Facts:
+  - se actualiza solo cada semana, sin pasar de su límite de 10 búsquedas por minuto;
+  - buscar un alimento ya no depende de la red.
+- **Mis alimentos:** los tuyos, por 100 g, que solo ves tú. Puedes leer la tabla de la etiqueta con la cámara.
+- **Micronutrientes:** hierro, calcio, vitamina D, B12, magnesio, sodio y potasio.
+  - Media de 7 días frente a tus objetivos (referencia general de la EFSA, editable).
+  - Avisa si pocos alimentos traen el dato.
+- **BEDCA no se incluye:** su licencia no lo permite sin autorización expresa.
+
+**OCR en tu servidor (Tesseract)**
+- Apuntes escaneados (PDF sin texto).
+- «Rellenar desde un ticket» en los movimientos.
+- «Leer la etiqueta» en tus alimentos.
+- Todo se revisa antes de guardar y nada sale del servidor.
+
+**Calendarios y suplementos**
+- **Horario de la universidad:** importar su `.ics` (clases semanales y exámenes) con vista previa.
+- **Calendario de la federación o del club:** también en Excel (.xlsx) y PDF. Sin *scraping*.
+- **Suplementos:** aviso con enlaces a la Lista de Prohibiciones de la AMA y a la CELAD.
+
+**IA en nutrición (con tu IA y tu permiso)**
+- **Foto de la comida:** propone alimentos y gramos del catálogo; la foto no se guarda.
+- **Proponer la semana:** con tus recetas, según tus objetivos; aceptas los días que quieras.
+- **Proveedores:** la capa de IA acepta imágenes en Gemini, OpenAI y compatibles, y Anthropic.
+
+**Strava**
+- **Conectar:** Ajustes → Strava. Se importan tus actividades como sesiones: los últimos 30 días y después cada hora.
+- **Sus condiciones:** lo importado no va a la IA y no lo ve tu entrenador/a.
+- **Desconectar:** revoca el permiso y, si quieres, borra lo importado.
+
+**Pruebas**
+- Anonimizador de actividades reales (`scripts/anonymize-activity.mts`) para usarlas en los tests sin datos personales.
+- Nueva suite E2E v110.
+
 ## v1.9 — Atlenza: uso solo con permiso, IA propia de cada usuario y vigilancia interna (10/10/2026)
 
 **Licencia y autoría**

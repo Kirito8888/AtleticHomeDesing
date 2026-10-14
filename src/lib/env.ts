@@ -71,7 +71,17 @@ const schema = z.object({
   GEMINI_EMBEDDING_MODEL: z.string().default("gemini-embedding-001"),
   GEMINI_EMBEDDING_DIM: z.coerce.number().int().positive().default(768),
   OFF_BASE_URL: z.string().url().default("https://es.openfoodfacts.org"),
-  OFF_USER_AGENT: z.string().default("Atlenza/1.9 (uso personal)"),
+  OFF_USER_AGENT: z.string().default("Atlenza/1.10 (uso personal)"),
+  // v1.10 · Catálogo local de marcas españolas desde OpenFoodFacts (semanal). Marcas separadas por comas.
+  OFF_SYNC_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
+  OFF_SYNC_BRANDS: z.string().optional(),
+  // v1.10 · Strava: app propia (gratis en strava.com/settings/api). Callback: <AUTH_URL>/api/strava/callback
+  STRAVA_CLIENT_ID: z.string().regex(/^\d+$/, "STRAVA_CLIENT_ID es un número").optional(),
+  STRAVA_CLIENT_SECRET: z.string().min(10).optional(),
+  STRAVA_BASE_URL: z.string().url().default("https://www.strava.com"),
   UPLOAD_DIR: z.string().default("./uploads"),
 });
 

@@ -37,7 +37,7 @@ describe.skipIf(!HAS_DB)("notificaciones push (BD real)", () => {
       seen.push(t.endpoint);
       return t.endpoint === dead.endpoint ? { ok: false, gone: true, status: 410 } : { ok: true };
     });
-    expect(r).toEqual({ sent: 1, removed: 1 });
+    expect(r).toMatchObject({ sent: 1, removed: 1 });
     expect(seen.sort()).toEqual([alive.endpoint, dead.endpoint].sort());
     const left = await prisma.pushSubscription.findMany({ where: { userId } });
     expect(left.map((s) => s.endpoint)).toEqual([alive.endpoint]);
@@ -54,7 +54,7 @@ describe.skipIf(!HAS_DB)("notificaciones push (BD real)", () => {
 
   it("un error de envío no rompe nada ni borra la suscripción", async () => {
     const r = await push.sendToUser(userId, { title: "t", body: "b" }, async () => ({ ok: false, gone: false, status: 500 }));
-    expect(r).toEqual({ sent: 0, removed: 0 });
+    expect(r).toMatchObject({ sent: 0, removed: 0 });
     expect(await prisma.pushSubscription.count({ where: { userId } })).toBe(1);
   });
 });

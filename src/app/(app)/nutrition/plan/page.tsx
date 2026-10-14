@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MealPlanWeek } from "@/components/nutrition/planning";
+import { PlanSuggest } from "@/components/nutrition/food-ai";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, dateOnly, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
@@ -36,7 +37,8 @@ export default async function MealPlanPage({ searchParams }: PageProps<"/nutriti
             </Link>
           </Button>
         </CardHeader>
-        <CardContent className="px-4">
+        <CardContent className="grid gap-4 px-4">
+          <PlanSuggest weekStart={ws} />
           <MealPlanWeek
             week={ws}
             days={weekDays(ws)}

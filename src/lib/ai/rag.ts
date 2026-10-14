@@ -6,6 +6,7 @@ import { extractText } from "unpdf";
 
 import { Prisma } from "@/generated/prisma/client";
 import { chunkDocument } from "@/lib/ai/chunking";
+import { ocrAvailable, ocrPdf } from "@/lib/files/ocr";
 import { embedTexts, generateText, toVectorLiteral } from "@/lib/ai/llm";
 import type { EmbedTask } from "@/lib/ai/provider";
 import { assertAiAllowed } from "@/lib/ai/guard";
@@ -55,6 +56,8 @@ async function assertQuota(userId: string, incoming: number) {
 async function extractPages(buf: Buffer, mime: string): Promise<string[]> {
   if (mime === "application/pdf") {
     const { text } = await extractText(new Uint8Array(buf), { mergePages: false });
+    // v1.10 · PDF escaneado (sin capa de texto): OCR en el servidor si está disponible
+    if (text.every((p) => !p.trim()) && (await ocrAvailable())) return ocrPdf(buf);
     return text;
   }
   return [buf.toString("utf8")];
@@ -126,7 +129,7 @@ export async function processDocument(documentId: string, deps: ProcessDeps = de
     await deps.assertAllowed(doc.userId);
     const buf = await readFile(doc.storagePath);
     const chunks = chunkDocument(await extractPages(buf, doc.mimeType));
-    if (!chunks.length) throw new ApiError(422, "No se pudo extraer texto (¿PDF escaneado sin OCR?)");
+    if (!chunks.length) throw new ApiError(422, "No se pudo extraer texto (¿PDF escaneado? El OCR del servidor no encontró texto o no está instalado)");
     const embedded = await deps.embed(doc.userId, chunks.map((c) => c.content), "RETRIEVAL_DOCUMENT");
     if (embedded && embedded.vectors.length !== chunks.length) throw new ApiError(502, "Respuesta de embeddings incompleta");
 
