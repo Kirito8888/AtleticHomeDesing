@@ -19,7 +19,9 @@ flowchart LR
     F2B["fail2ban<br/>lee journald"]
   end
   GEM["IA de cada usuario<br/>(Gemini, OpenAI o compatible, Anthropic o local;<br/>solo con consentimiento)"]
-  OFF["OpenFoodFacts"]
+  OFF["OpenFoodFacts<br/>(catálogo local de marcas españolas, sincronización semanal)"]
+  TG["Telegram Bot API<br/>(sondeo getUpdates; sin webhook)"]
+  STR["Strava API<br/>(OAuth por usuario; sondeo horario)"]
   PUSH["Servicios push<br/>FCM · Mozilla · Apple · WNS"]
 
   PWA -- HTTPS --> NPM --> WEB
@@ -30,6 +32,8 @@ flowchart LR
   WEB -. "logs [auth] login fallido" .-> F2B
   WEB --> GEM
   WEB --> OFF
+  WEB --> TG
+  WEB --> STR
   WEB --> PUSH
 ```
 
@@ -37,7 +41,10 @@ flowchart LR
 
 - las páginas (Server Components) y la API REST;
 - el **planificador**: tareas horarias en `src/lib/scheduler.ts`, arrancadas desde `src/instrumentation.ts`;
-- el **trabajador de la cola** de ingesta de apuntes (pg-boss sobre la misma PostgreSQL; sin Redis).
+- el **trabajador de la cola** de ingesta de apuntes (pg-boss sobre la misma PostgreSQL; sin Redis);
+- desde la v1.10, el **OCR** con `tesseract` y `pdftoppm`, instalados en la imagen y llamados con `execFile` (`src/lib/files/ocr.ts`).
+
+Todas las conexiones salen de `web`; nada externo llama al servidor salvo la vuelta de OAuth de Strava (`/api/strava/callback`), que pasa por el navegador de la persona.
 
 ## Capas del código
 
@@ -117,11 +124,12 @@ Reimportar respeta lo ya hecho. Detalle en `manual_backend.md` § 3.1b.
 | `src/lib/finance/` | Contabilidad, presupuestos, importar extractos, viajes de competición y plazos; v1.7: presupuesto de temporada, justificantes y subidas de precio |
 | `src/lib/ai/` | Proveedores de IA por usuario (`provider.ts`, `credentials.ts`), RAG, flashcards, coach semanal |
 | `src/lib/security/` · `src/lib/auth/` · `src/lib/privacy/` · `src/lib/files/` | 2FA, auditoría encadenada, cifrado y rotación de claves, CSP · sesión, permisos del coach, Argon2id y llaves de acceso · consentimientos, derechos, limitación y conservación · ficheros cifrados (fotos y justificantes) |
-| `src/lib/push/` · `src/lib/jobs/` · `src/lib/scheduler.ts` | Notificaciones · cola · tareas programadas |
+| `src/lib/push/` · `src/lib/jobs/` · `src/lib/scheduler.ts` | Notificaciones (push y, desde la v1.10, Telegram) · cola · tareas programadas |
+| `src/lib/telegram/` · `src/lib/strava/` | v1.10 · Vincular Telegram con código y sondeo del bot · OAuth, sincronización y la política que deja fuera de la IA y del coach lo que llega de Strava (`policy.ts`) |
 | `prisma/` | Esquema, migraciones, seed y `scripts/user-admin.ts` |
 | `deploy/` · `scripts/update.sh` | Copias, fail2ban · actualizar con vuelta atrás |
-| `src/lib/recovery/` · `src/lib/nutrition/` · `src/lib/study/` | Readiness, importaciones (CSV, Apple Health), antropometría, citas y suplementos, bienestar y fotos de lesión · OpenFoodFacts, agua, cocina (recetas, compra, comida de competición, plan semanal), sudoración y calendario de suplementos · horario, pomodoro, hábitos, plan hasta el examen, notas, tarjetas a mano, trabajos y franjas |
+| `src/lib/recovery/` · `src/lib/nutrition/` · `src/lib/study/` | Readiness, importaciones (CSV, Apple Health), antropometría, citas y suplementos, bienestar y fotos de lesión · OpenFoodFacts y catálogo local, micronutrientes, foto de la comida y plan con IA (v1.10), agua, cocina (recetas, compra, comida de competición, plan semanal), sudoración y calendario de suplementos · horario, pomodoro, hábitos, plan hasta el examen, notas, tarjetas a mano, trabajos y franjas |
 | `src/lib/offline/` · `src/lib/account/` · `src/lib/demo/` | Bandeja sin conexión (IndexedDB: sesiones, agua, hábitos y comidas) · exportar, restaurar y borrar la cuenta · cuentas demo con datos sintéticos |
 | `src/lib/goals/` · `src/lib/review/` · `src/lib/admin/` | v1.8 · Objetivos (progreso puro + servicio) · revisión semanal · uso local, errores del servidor, integridad, aviso de copias y de versión nueva |
 | `src/lib/share*.ts` · `public/sw.js` | v1.8 · Compartir con Atlenza: el service worker guarda lo compartido en Cache Storage y `/share` propone el destino |
-| `e2e/` | Recorridos en Chromium: uso diario, seguridad, importar el plan, v1.4, v1.5, v1.6, v1.7 y v1.8 (con axe en `e2e/a11y.mts`) |
+| `e2e/` | Recorridos en Chromium: uso diario, seguridad, importar el plan y de la v1.4 a la v1.10 (con axe en `e2e/a11y.mts`) |
