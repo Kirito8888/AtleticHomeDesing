@@ -3,9 +3,8 @@ import { z } from "zod";
 
 import { generateJson } from "@/lib/ai/llm";
 import { assertAiAllowed } from "@/lib/ai/guard";
-import { sm2 } from "@/lib/ai/sm2";
+import { nextReview } from "@/lib/ai/sm2";
 import { ApiError } from "@/lib/api";
-import { addDays } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 
 /** Límite de texto enviado al modelo por generación (~10k tokens). */
@@ -73,13 +72,168 @@ export async function generateFlashcards(userId: string, params: { documentId: s
   });
 }
 
-export async function reviewFlashcard(userId: string, cardId: string, grade: number) {
-  const card = await prisma.flashcard.findFirst({ where: { id: cardId, deck: { userId } } });
-  if (!card) throw new ApiError(404, "Tarjeta no encontrada");
-  const next = sm2(card, grade);
-  const now = new Date();
-  return prisma.flashcard.update({
-    where: { id: card.id },
-    data: { ...next, lastReviewedAt: now, dueAt: addDays(now, next.intervalDays) },
+// ---------------------------------------------------------------------------
+// v2.0 C · Mazos compartidos en solo lectura. El contenido es de la dueña; el SM-2 es de cada persona.
+// ---------------------------------------------------------------------------
+
+export type DeckAccess = "owner" | "reader";
+
+/** Rol de la persona en el mazo; null si no lo ve (no se distingue «no existe» de «no es tuyo»). */
+export async function deckAccess(userId: string, deckId: string): Promise<DeckAccess | null> {
+  const deck = await prisma.flashcardDeck.findUnique({
+    where: { id: deckId },
+    select: { userId: true, shares: { where: { userId }, select: { id: true } } },
   });
+  if (!deck) return null;
+  if (deck.userId === userId) return "owner";
+  return deck.shares.length ? "reader" : null;
+}
+
+/** Solo la dueña edita o borra: la lectora recibe 403, quien no ve el mazo recibe 404. */
+export async function assertDeckOwner(userId: string, deckId: string) {
+  const access = await deckAccess(userId, deckId);
+  if (!access) throw new ApiError(404, "Mazo no encontrado");
+  if (access === "reader") throw new ApiError(403, "Mazo compartido en solo lectura");
+}
+
+/** Mazos visibles por la persona (propios y compartidos) en un `where` de tarjetas. */
+export const visibleCards = (userId: string) => ({ deck: { OR: [{ userId }, { shares: { some: { userId } } }] } });
+
+const isDue = (r: { dueAt: Date } | undefined, now: Date) => !r || r.dueAt <= now;
+
+export async function reviewFlashcard(userId: string, cardId: string, grade: number) {
+  const card = await prisma.flashcard.findFirst({ where: { id: cardId, ...visibleCards(userId) }, select: { id: true } });
+  if (!card) throw new ApiError(404, "Tarjeta no encontrada");
+  const prev = await prisma.flashcardReview.findUnique({ where: { userId_cardId: { userId, cardId } } });
+  const r = nextReview(prev, grade, new Date());
+  const data = { ...r.state, dueAt: r.dueAt, lastReviewedAt: r.lastReviewedAt, lastGrade: r.lastGrade };
+  return prisma.flashcardReview.upsert({
+    where: { userId_cardId: { userId, cardId } },
+    create: { userId, cardId, ...data },
+    update: data,
+  });
+}
+
+/** Tarjetas que tocan hoy a esta persona (las que aún no ha visto cuentan como nuevas), las más atrasadas primero. */
+export async function dueCards(userId: string, opts: { deckId?: string; limit: number }) {
+  const now = new Date();
+  const cards = await prisma.flashcard.findMany({
+    where: { ...visibleCards(userId), deckId: opts.deckId },
+    select: { id: true, front: true, back: true, deckId: true, createdAt: true, reviews: { where: { userId }, select: { dueAt: true } } },
+  });
+  return cards
+    .filter((c) => isDue(c.reviews[0], now))
+    .sort((a, b) => (a.reviews[0]?.dueAt ?? a.createdAt).getTime() - (b.reviews[0]?.dueAt ?? b.createdAt).getTime())
+    .slice(0, opts.limit)
+    .map((c) => ({ id: c.id, front: c.front, back: c.back, deckId: c.deckId }));
+}
+
+/** Cuántas tarjetas tocan hoy por mazo (propios y compartidos). */
+export async function dueCounts(userId: string): Promise<Map<string, number>> {
+  const now = new Date();
+  const cards = await prisma.flashcard.findMany({
+    where: visibleCards(userId),
+    select: { deckId: true, reviews: { where: { userId }, select: { dueAt: true } } },
+  });
+  const out = new Map<string, number>();
+  for (const c of cards) if (isDue(c.reviews[0], now)) out.set(c.deckId, (out.get(c.deckId) ?? 0) + 1);
+  return out;
+}
+
+export interface DeckSummary {
+  id: string;
+  name: string;
+  subject: string | null;
+  total: number;
+  due: number;
+  /** Tarjetas con ≥ 3 repeticiones seguidas, solo del progreso de esta persona. */
+  mastered: number;
+  reviewed: number;
+  shared: boolean;
+  ownerName: string | null;
+  sharedWith: number;
+}
+
+export async function listDecks(userId: string): Promise<DeckSummary[]> {
+  const decks = await prisma.flashcardDeck.findMany({
+    where: { OR: [{ userId }, { shares: { some: { userId } } }] },
+    orderBy: { updatedAt: "desc" },
+    include: {
+      user: { select: { name: true, email: true } },
+      _count: { select: { cards: true, shares: true } },
+      cards: { select: { reviews: { where: { userId }, select: { repetitions: true, lastReviewedAt: true } } } },
+    },
+  });
+  const due = await dueCounts(userId);
+  return decks.map((d) => {
+    const mine = d.cards.flatMap((c) => c.reviews);
+    const owner = d.userId === userId;
+    return {
+      id: d.id,
+      name: d.name,
+      subject: d.subject,
+      total: d._count.cards,
+      due: due.get(d.id) ?? 0,
+      mastered: mine.filter((r) => r.repetitions >= 3).length,
+      reviewed: mine.filter((r) => r.lastReviewedAt).length,
+      shared: !owner,
+      ownerName: owner ? null : (d.user.name ?? d.user.email),
+      sharedWith: owner ? d._count.shares : 0,
+    };
+  });
+}
+
+/** Comparte por email. Mismo 404 genérico exista o no la persona (no se puede sondear qué emails existen). */
+export async function shareDeck(ownerId: string, deckId: string, email: string) {
+  await assertDeckOwner(ownerId, deckId);
+  const target = await prisma.user.findUnique({ where: { email: email.trim().toLowerCase() }, select: { id: true } });
+  if (!target || target.id === ownerId) throw new ApiError(404, "No se pudo compartir el mazo");
+  await prisma.flashcardDeckShare.upsert({
+    where: { deckId_userId: { deckId, userId: target.id } },
+    create: { deckId, userId: target.id },
+    update: {},
+  });
+  return { ok: true };
+}
+
+export async function listShares(ownerId: string, deckId: string) {
+  await assertDeckOwner(ownerId, deckId);
+  const rows = await prisma.flashcardDeckShare.findMany({
+    where: { deckId },
+    orderBy: { createdAt: "asc" },
+    select: { createdAt: true, user: { select: { id: true, name: true, email: true } } },
+  });
+  return rows.map((r) => ({ userId: r.user.id, name: r.user.name, email: r.user.email, since: r.createdAt }));
+}
+
+/** La dueña quita a alguien, o la propia lectora deja el mazo (borra también su progreso en él). */
+export async function unshareDeck(actorId: string, deckId: string, targetUserId: string) {
+  if (actorId !== targetUserId) await assertDeckOwner(actorId, deckId);
+  else if ((await deckAccess(actorId, deckId)) !== "reader") throw new ApiError(404, "Mazo no encontrado");
+  await prisma.$transaction([
+    prisma.flashcardDeckShare.deleteMany({ where: { deckId, userId: targetUserId } }),
+    prisma.flashcardReview.deleteMany({ where: { userId: targetUserId, card: { deckId } } }),
+  ]);
+  return { ok: true };
+}
+
+export async function updateCard(userId: string, cardId: string, data: { front?: string; back?: string }) {
+  const card = await prisma.flashcard.findUnique({ where: { id: cardId }, select: { deckId: true } });
+  if (!card) throw new ApiError(404, "Tarjeta no encontrada");
+  await assertDeckOwner(userId, card.deckId);
+  return prisma.flashcard.update({ where: { id: cardId }, data, select: { id: true, front: true, back: true } });
+}
+
+export async function deleteCard(userId: string, cardId: string) {
+  const card = await prisma.flashcard.findUnique({ where: { id: cardId }, select: { deckId: true } });
+  if (!card) throw new ApiError(404, "Tarjeta no encontrada");
+  await assertDeckOwner(userId, card.deckId);
+  await prisma.flashcard.delete({ where: { id: cardId } });
+  return { ok: true };
+}
+
+export async function deleteDeck(userId: string, deckId: string) {
+  await assertDeckOwner(userId, deckId);
+  await prisma.flashcardDeck.delete({ where: { id: deckId } });
+  return { ok: true };
 }
