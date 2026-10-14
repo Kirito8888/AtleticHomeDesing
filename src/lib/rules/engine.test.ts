@@ -50,13 +50,34 @@ describe("motor de reglas", () => {
     expect(ids(evaluateRules({ today: TODAY, prefs, checks: [c("2026-11-02", { bodyWeightKg: 70.2 }), c("2026-11-09", { bodyWeightKg: 69.5 })], throws: [] }))).toEqual(["weight-min"]);
   });
 
-  it("VFC: caída con salto más bajo → aviso; sin otras señales → solo nota", () => {
-    const hrv = (week: string, v: number) => [0, 1, 2].map((i) => c(new Date(Date.parse(`${week}T00:00:00Z`) + i * 864e5).toISOString().slice(0, 10), { hrvRmssdMs: v }));
+  describe("VFC (solo semanas marcadas, ≥ 3 mañanas)", () => {
+    const hrv = (week: string, v: number, n = 3) => Array.from({ length: n }, (_, i) => c(new Date(Date.parse(`${week}T00:00:00Z`) + i * 864e5).toISOString().slice(0, 10), { hrvRmssdMs: v }));
     const base = [...hrv("2026-10-26", 100), ...hrv("2026-11-02", 100)];
-    const now = hrv("2026-11-09", 90);
-    expect(ids(evaluateRules({ today: TODAY, prefs, checks: [...base, ...now], throws: [] }))).toEqual(["hrv-info"]);
-    const jumps = [c("2026-11-02", { jumpCm: 300 / 10 }), c("2026-11-09", { jumpCm: 28 })];
-    expect(ids(evaluateRules({ today: TODAY, prefs, checks: [...base, ...now, ...jumps], throws: [] }))).toEqual(["hrv"]);
+    const now = hrv("2026-11-09", 90); // −10 % frente a la base
+    const marked = ["2026-11-09"];
+
+    it("semana marcada: caída conocida → nota; con salto más bajo → aviso, y explica los valores", () => {
+      const info = evaluateRules({ today: TODAY, prefs, checks: [...base, ...now], throws: [], hrvWeeks: marked });
+      expect(ids(info)).toEqual(["hrv-info"]);
+      expect(info[0].title).toBe("VFC −10 % esta semana");
+      expect(info[0].message).toContain("Media de 3 mañanas: 90 ms frente a 100 ms de base (2 semanas con ≥3 mañanas); umbral 3 %.");
+      const jumps = [c("2026-11-02", { jumpCm: 30 }), c("2026-11-09", { jumpCm: 28 })];
+      expect(ids(evaluateRules({ today: TODAY, prefs, checks: [...base, ...now, ...jumps], throws: [], hrvWeeks: marked }))).toEqual(["hrv"]);
+    });
+
+    it("la misma caída en una semana sin marcar (o sin ninguna marcada) no avisa", () => {
+      expect(ids(evaluateRules({ today: TODAY, prefs, checks: [...base, ...now], throws: [] }))).toEqual([]);
+      expect(ids(evaluateRules({ today: TODAY, prefs, checks: [...base, ...now], throws: [], hrvWeeks: ["2026-11-02"] }))).toEqual([]);
+    });
+
+    it("semana marcada con solo 2 mañanas → nada; caída bajo el umbral → nada", () => {
+      expect(ids(evaluateRules({ today: TODAY, prefs, checks: [...base, ...hrv("2026-11-09", 90, 2)], throws: [], hrvWeeks: marked }))).toEqual([]);
+      expect(ids(evaluateRules({ today: TODAY, prefs, checks: [...base, ...hrv("2026-11-09", 98)], throws: [], hrvWeeks: marked }))).toEqual([]);
+    });
+
+    it("una sola semana previa basta como base", () => {
+      expect(ids(evaluateRules({ today: TODAY, prefs, checks: [...hrv("2026-11-02", 100), ...now], throws: [], hrvWeeks: marked }))).toEqual(["hrv-info"]);
+    });
   });
 
   it("lanzamientos: tope, 48 h y vuelta tras parar", () => {

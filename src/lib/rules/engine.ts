@@ -83,6 +83,8 @@ export function evaluateRules(input: {
   loads?: number[];
   /** Hay una vuelta tras lesión por fases activa: manda ella, no la rampa genérica. */
   returnProtocol?: { phase: string } | null;
+  /** Lunes ISO de las semanas marcadas «VFC» en el plan importado. Sin marca no hay aviso de VFC. */
+  hrvWeeks?: string[];
 }): Alert[] {
   const { today, prefs, checks } = input;
   const alerts: Alert[] = [];
@@ -167,19 +169,22 @@ export function evaluateRules(input: {
     }
   }
 
-  // VFC: media de la semana (≥3 mañanas) frente a la media de las semanas anteriores con ≥3
+  // VFC: solo en semanas marcadas «VFC» del plan y con ≥3 mañanas; frente a la media de las semanas anteriores con ≥3
   const hm = weeklyMeans(checks, (c) => c.hrvRmssdMs, 3);
-  if (hm.length >= 3 && hm.at(-1)!.week === weekOf(today)) {
+  const thisWeek = weekOf(today);
+  if ((input.hrvWeeks ?? []).includes(thisWeek) && hm.length >= 2 && hm.at(-1)!.week === thisWeek) {
     const cur = hm.at(-1)!;
-    const ref = mean(hm.slice(0, -1).map((w) => w.mean))!;
+    const prior = hm.slice(0, -1);
+    const ref = mean(prior.map((w) => w.mean))!;
     const drop = ((ref - cur.mean) / ref) * 100;
     const jumps = weeklyMeans(checks, (c) => c.jumpCm);
     const jumpDown = jumps.length >= 2 && jumps.at(-1)!.mean < jumps.at(-2)!.mean;
     const squeezeHigh = Boolean(sq && sq.squeezePain! > prefs.squeezeMax);
+    const why = `Media de ${cur.n} mañanas: ${r1(cur.mean)} ms frente a ${r1(ref)} ms de base (${prior.length} semana${prior.length === 1 ? "" : "s"} con ≥3 mañanas); umbral ${prefs.hrvDropPct} %.`;
     if (drop > prefs.hrvDropPct && (jumpDown || squeezeHigh)) {
-      alerts.push({ id: "hrv", level: "warn", title: `VFC −${r1(drop)} % esta semana`, message: "Con el salto más bajo o el squeeze alto: quita el contraste y los saltos reactivos esta semana; mantén cargas y lanzamientos." });
+      alerts.push({ id: "hrv", level: "warn", title: `VFC −${r1(drop)} % esta semana`, message: `${why} Con el salto más bajo o el squeeze alto: quita el contraste y los saltos reactivos esta semana; mantén cargas y lanzamientos.` });
     } else if (drop > prefs.hrvDropPct) {
-      alerts.push({ id: "hrv-info", level: "info", title: `VFC −${r1(drop)} % esta semana`, message: "Solo lo anoto: sin otras señales no cambia nada." });
+      alerts.push({ id: "hrv-info", level: "info", title: `VFC −${r1(drop)} % esta semana`, message: `${why} Solo lo anoto: sin otras señales no cambia nada.` });
     }
   }
 

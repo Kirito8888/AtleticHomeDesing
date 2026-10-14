@@ -207,7 +207,7 @@ export async function materialize(tx: Tx, userId: string, mesoId: string) {
           userId,
           parentId: mesoCycleId,
           level: "MICRO",
-          name: `${meso.code} · S${w.number}${w.title ? ` · ${w.title}` : ""}`.slice(0, 120),
+          name: `${meso.code} · S${w.number}${w.title ? ` · ${w.title}` : ""}${w.hrv && !/\bVFC\b/.test(w.title) ? " · VFC" : ""}`.slice(0, 120),
           startDate: dateOnly(w.start),
           endDate: dateOnly(w.end),
         },

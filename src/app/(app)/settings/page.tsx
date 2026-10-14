@@ -223,6 +223,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               lightHooperRed: prefs.lightHooperRed,
               lightPainRed: prefs.lightPainRed,
               lightZoneAmber: prefs.lightZoneAmber,
+              trendMonths: prefs.trendMonths,
+              trendSleepDropH: prefs.trendSleepDropH,
+              trendHrvDropPct: prefs.trendHrvDropPct,
+              trendLoadRisePct: prefs.trendLoadRisePct,
+              trendPainDaysRise: prefs.trendPainDaysRise,
             }}
           />
         </Section>
