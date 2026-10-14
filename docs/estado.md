@@ -104,6 +104,8 @@ Antes del bloque A: `scripts/dev/snapshot.sh` (foto de la BD v1.10 para la migra
   (5) Subida solo por `multipart` con fichero: no hay campo de URL ni descarga de terceros. Rotación de clave incluye los vídeos (`rotate.ts`);
   exportar cuenta lleva `description` pero no los vídeos; restaurar ignora `videoPath/Mime/Bytes`.
   Tests: `files/video.test.ts`, `training/exercise-library.int.test.ts`; E2E `e2e:v21b` (también en `e2e.sh all`).
+  **Trampa:** `snapshot.sh --before` solo borra tablas/tipos, no columnas añadidas: si el bloque anterior añadió columnas, `regen-mig.sh` las pierde
+  (CI: «AthleteProfile.primaryEvent does not exist»). Comprobar que el `migration.sql` conserva las de los bloques previos y probar con una foto sin ellas.
   Pendiente/fuera: la descripción no va a la IA ni al plan; no hay borrado de ejercicios propios (si se añade, borrar también el clip);
   sin recorte ni análisis del vídeo.
 - **3 · Comparativas con curvas publicadas y citadas; protocolos de fisio compartidos.**
