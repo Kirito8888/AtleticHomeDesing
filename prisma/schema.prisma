@@ -63,8 +63,10 @@ model User {
   accounts Account[]
   sessions Session[]
 
-  coaching  CoachAthlete[] @relation("CoachLinks")
-  coachedBy CoachAthlete[] @relation("AthleteLinks")
+  coaching       CoachAthlete[] @relation("CoachLinks")
+  coachedBy      CoachAthlete[] @relation("AthleteLinks")
+  // v2.0 · clubes
+  orgMemberships OrgMember[]    @relation("OrgMemberUser")
 
   athleteProfile         AthleteProfile?
   thresholds             ThresholdHistory[]
@@ -161,7 +163,7 @@ model User {
   // v1.10
   telegramLink           TelegramLink?
   telegramLinkCodes      TelegramLinkCode[]
-  ownFoods               FoodProduct[]      @relation("OwnFoods")
+  ownFoods               FoodProduct[]          @relation("OwnFoods")
   stravaLink             StravaLink?
 }
 
@@ -311,6 +313,76 @@ model CoachAthlete {
   @@index([athleteId])
 }
 
+// v2.0 · Clubes: varias entrenadoras y atletas agrupados. Igual que CoachAthlete, la atleta acepta
+// la invitación y decide qué ámbitos (`scopes`) y si puede planificar (`canPlan`) el staff del club.
+enum OrgRole {
+  ADMIN
+  COACH
+  ATHLETE
+}
+
+enum OrgMemberStatus {
+  PENDING
+  ACTIVE
+}
+
+enum FeeStatus {
+  PENDING
+  PAID
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  members OrgMember[]
+  fees    OrgFee[]
+}
+
+model OrgMember {
+  id          String          @id @default(cuid())
+  orgId       String
+  userId      String
+  role        OrgRole         @default(ATHLETE)
+  status      OrgMemberStatus @default(PENDING)
+  scopes      CoachScope[]    @default([LOAD, SESSIONS, RECOVERY, PLANNING, REPORTS])
+  canPlan     Boolean         @default(false)
+  invitedById String?
+  createdAt   DateTime        @default(now())
+  acceptedAt  DateTime?
+
+  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation("OrgMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  fees OrgFee[]
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+/// Apunte contable manual de una cuota (sin pasarela de pago).
+model OrgFee {
+  id           String    @id @default(cuid())
+  orgId        String
+  memberId     String
+  concept      String
+  amountCents  Int
+  currency     String    @default("EUR")
+  dueDate      DateTime  @db.Date
+  status       FeeStatus @default(PENDING)
+  paidAt       DateTime? @db.Date
+  recordedById String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  member OrgMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, dueDate])
+  @@index([memberId])
+}
+
 // =============================================================================
 // 2. PERFIL DEL ATLETA Y UMBRALES (versionados para no reescribir el TSS histórico)
 // =============================================================================
@@ -441,8 +513,8 @@ model TrainingSession {
   personalRecords PersonalRecord[]
 
   // v1.10 · origen externo (p. ej. STRAVA) e id allí: sin duplicados; lo de Strava no va a la IA ni a la entrenadora
-  source        String?
-  externalId    String?
+  source     String?
+  externalId String?
 
   @@unique([userId, externalId])
   @@unique([userId, clientId])
@@ -652,10 +724,10 @@ model Exercise {
   user            User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   sets            StrengthSet[]
   personalRecords PersonalRecord[]
-
-  @@unique([userId, name])
   // v1.9 · + índice único parcial "Exercise_global_name_key" (name WHERE userId IS NULL), creado en la
   // migración v1_9: con userId NULL el @@unique no impide duplicar un ejercicio global.
+
+  @@unique([userId, name])
 }
 
 model StrengthSession {
@@ -1070,21 +1142,21 @@ model Subscription {
 
 /// Caché compartida de productos de OpenFoodFacts (no pertenece a un usuario).
 model FoodProduct {
-  id             String   @id @default(cuid())
-  barcode        String?  @unique
-  name           String
-  brand          String?
-  imageUrl       String?
-  servingSizeG   Float?
-  kcalPer100g    Float?
-  proteinPer100g Float?
-  carbsPer100g   Float?
-  sugarsPer100g  Float?
-  fatPer100g     Float?
-  satFatPer100g  Float?
-  fiberPer100g   Float?
-  saltPer100g    Float?
-  ironPer100g    Float? // v1.6 (mg)
+  id               String    @id @default(cuid())
+  barcode          String?   @unique
+  name             String
+  brand            String?
+  imageUrl         String?
+  servingSizeG     Float?
+  kcalPer100g      Float?
+  proteinPer100g   Float?
+  carbsPer100g     Float?
+  sugarsPer100g    Float?
+  fatPer100g       Float?
+  satFatPer100g    Float?
+  fiberPer100g     Float?
+  saltPer100g      Float?
+  ironPer100g      Float? // v1.6 (mg)
   // v1.10 · micronutrientes por 100 g (mg salvo vitamina D y B12 en µg)
   calciumPer100g   Float?
   vitDPer100g      Float?
@@ -1092,13 +1164,13 @@ model FoodProduct {
   magnesiumPer100g Float?
   sodiumPer100g    Float?
   potassiumPer100g Float?
-  nutriScore     String?  @db.Char(1)
-  source         String   @default("openfoodfacts") // openfoodfacts | own (v1.10)
-  raw            Json? // respuesta original para reprocesar
-  fetchedAt      DateTime @default(now())
+  nutriScore       String?   @db.Char(1)
+  source           String    @default("openfoodfacts") // openfoodfacts | own (v1.10)
+  raw              Json? // respuesta original para reprocesar
+  fetchedAt        DateTime  @default(now())
   // v1.10 · alimento propio de un usuario (null = catálogo común) y última sincronización con OFF
-  ownerId        String?
-  syncedAt       DateTime?
+  ownerId          String?
+  syncedAt         DateTime?
 
   entries       Macros[]
   templateItems MealTemplateItem[]
