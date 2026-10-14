@@ -299,6 +299,40 @@ dc up -d --build web
 docker image prune -f
 ```
 
+#### De v1.9 a v1.10 (Telegram por usuario, Strava, OCR, catálogo español y micronutrientes)
+
+**Lo que cambia para quien usa la app:**
+- **Telegram por usuario:** con el bot de la v1.9 (`TELEGRAM_BOT_TOKEN`), cada persona lo vincula en *Ajustes → Notificaciones*. El servidor **consulta** a Telegram cada 30 s (`getUpdates`), así que no hay que abrir ningún puerto ni webhook. Si el mismo token lo usa otro programa con webhook, quítaselo: Telegram no permite las dos cosas.
+- **Strava:** cada persona conecta su cuenta en *Ajustes → Strava*. Las sesiones importadas **no van a la IA ni a la entrenadora** (condiciones de la API de Strava).
+- **Catálogo local de alimentos españoles** desde OpenFoodFacts, **micronutrientes**, **foto de la comida** y **plan de comidas** con la IA de cada persona, **horario de la universidad** (.ics), **calendario de la federación** (Excel o PDF) y **OCR** de tickets, etiquetas y apuntes escaneados.
+
+**Antes de actualizar:**
+- **Strava necesita `AUTH_URL`** con la URL pública https: con ella se construye la dirección de vuelta (`https://TU_DOMINIO/api/strava/callback`). Sin `AUTH_URL`, el botón «Conectar» da error.
+- La imagen `web` pesa algo más: lleva `tesseract-ocr` (español e inglés) y `poppler-utils`. No hay que instalar nada en el host.
+- El primer arranque del catálogo descarga ~11.000 productos de Hacendado y el resto de marcas **a menos de 10 peticiones por minuto**: tarda horas en completarse y se reanuda solo si reinicias. Lo ves en `/admin` → «Catálogo de alimentos».
+
+**Base de datos:**
+- Una migración: `v1_10_features`. Solo **añade**: tablas `TelegramLink`, `TelegramLinkCode`, `StravaLink` y `CatalogSyncState`; columnas de micronutrientes en `FoodProduct` y `Macros`; `FoodProduct.ownerId` (alimentos propios); `TrainingSession.source` y `externalId` (con índice único por usuario). No modifica datos existentes y se ha probado sobre una copia de la v1.9 (mismos recuentos y esquema idéntico al de Prisma).
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh
+```
+
+**Variables nuevas** (todas opcionales):
+
+| Variable | Para qué |
+|---|---|
+| `STRAVA_CLIENT_ID` y `STRAVA_CLIENT_SECRET` | Crea una app gratis en <https://www.strava.com/settings/api>. En «Authorization Callback Domain» pon **solo el dominio** de `AUTH_URL` (p. ej. `atlenza.tudominio.es`, sin https ni ruta). Sin estas variables, Ajustes dice «Strava no está activado». |
+| `OFF_SYNC_ENABLED` | `true` por defecto. Pon `false` para no sincronizar el catálogo (la búsqueda seguirá yendo a OpenFoodFacts en línea). |
+| `OFF_SYNC_BRANDS` | Marcas a sincronizar, como etiquetas de OFF separadas por comas. Por defecto: `hacendado,carrefour,dia,eroski,alcampo,consum,milbona,chef-select,aldi`. |
+| `OFF_USER_AGENT` | Ya existía; actualízalo a `Atlenza/1.10 (tu-email)`. OFF lo exige para identificar quién hace las peticiones. |
+
+**Comprobar tras actualizar:**
+1. `/admin` → «Catálogo de alimentos»: la primera marca debe aparecer en curso tras la siguiente pasada horaria del planificador (unas 5.000 fichas por hora).
+2. *Ajustes → Notificaciones* → «Vincular Telegram» y escribe al bot `/start CÓDIGO`: en 30 s el bot debe responder «✅ Listo: recibirás aquí los avisos de Atlenza».
+3. Sube un ticket en *Finanzas → Movimiento → Rellenar desde un ticket*: si dice «La lectura de texto (OCR) no está disponible», la imagen no se reconstruyó (`dc up -d --build web`).
+
 #### De v1.8 a v1.9 (Atlenza: uso solo con permiso, IA propia de cada usuario y vigilancia interna)
 
 **Lo que cambia para quien usa la app:**

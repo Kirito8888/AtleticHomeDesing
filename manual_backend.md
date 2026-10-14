@@ -360,6 +360,53 @@ rulesToday(userId, día)                                      src/lib/rules/rule
   - limpieza de huérfanos y reintento;
   - actualización del servicio de copias.
 
+### 3.1i Novedades de la v1.10
+
+**Telegram por usuario** (`lib/telegram/link.ts`, `lib/admin/telegram.ts`):
+- Recepción por **sondeo**: el planificador llama a `getUpdates` cada 30 s si hay `TELEGRAM_BOT_TOKEN`. No hay webhook ni puerto abierto.
+- Vincular: `POST /api/account/telegram` crea un código de 8 caracteres (sin 0/O/1/I), 15 min, guardado como hash (`TelegramLinkCode`). `/start CÓDIGO` en un chat **privado** crea `TelegramLink`; un chat solo pertenece a una cuenta. `/stop` lo borra.
+- Envío: `sendToUser` (`push/service.ts`) manda también a Telegram tras las mismas horas de silencio. Las etiquetas de salud (`period`, `appt-`, `weigh`, `cycle`, `health`, `injury`) salen con texto genérico. `telegramApi` exige `ok: true` y tacha el token en los logs.
+- Administración: acción `reset-password-telegram` en `PATCH /api/admin/users/[id]`.
+
+**Catálogo local y micronutrientes** (`nutrition/catalog-sync.ts`, `micros.ts`):
+- `runCatalogSyncJob` (tick horario): por cada marca de `OFF_SYNC_BRANDS`, pide `/api/v2/search?brands_tags=…&countries_tags_en=spain&page_size=100&sort_by=code`, hasta 50 páginas por pasada con 6,5 s entre peticiones (< 10/min). Estado reanudable en `CatalogSyncState`; cada marca se renueva a los 7 días.
+- Micronutrientes en `FoodProduct` (por 100 g) y copia en `Macros`: calcio, magnesio, sodio y potasio en mg; vitamina D y B12 en µg. OFF da g/100 g y se escala; el sodio se deriva de la sal (÷ 2,5) si falta.
+- Objetivos en `prefs.microTargets` (sin umbrales personales en el código); referencias generales de la EFSA en `MICRO_INFO`.
+- Alimentos propios: `FoodProduct.ownerId` (cascada). La búsqueda local los ve solo su dueño, y `createEntry` da 404 con el alimento propio de otra persona.
+- **BEDCA no se incluye:** su licencia no permite reutilizar la base sin autorización expresa.
+
+**OCR** (`files/ocr.ts`, `ocr-parse.ts`):
+- `tesseract` (spa+eng) y `pdftoppm` a 200 ppp, llamados con `execFile` (sin shell), 60 s por página, máximo 20 páginas y temporales en `/tmp`.
+- Sin Tesseract: 503 con `code: "ocr_unavailable"`.
+- Usos:
+  - `rag.ts`: los PDF sin capa de texto pasan por OCR en lugar de dar 422;
+  - `POST /api/ocr/receipt`: `{amount, date, merchant}`;
+  - `POST /api/ocr/label`: valores por 100 g.
+- Límite `ocr`: 30 por hora. Todo es **propuesta**: el formulario se rellena y la persona guarda.
+
+**Calendarios** (`planning/calendar-import.ts`, `study/schedule-import.ts`):
+- Excel: `readXlsxRows`, que lee el XML con `fflate` y respeta `r` (no usa el paquete `xlsx`).
+- PDF: `eventsFromPdfText`, por líneas «fecha + nombre + lugar».
+- `.ics` de la universidad: `parseIcsSchedule` pasa `RRULE:FREQ=WEEKLY` (BYDAY, UNTIL o COUNT) a `ClassSlot` con `validFrom`/`validTo`; los eventos sueltos con «examen» pasan a `EXAM`. Convierte UTC a Europe/Madrid. `POST /api/study/classes/import` no duplica.
+
+**IA con imágenes** (`ai/provider.ts`, `nutrition/food-ai.ts`):
+- `ChatTurn.images` en los tres proveedores (Gemini `inlineData`, OpenAI `image_url` en data URL, Anthropic `image`).
+- `photoToDraft`: la foto se re-codifica en el cliente (`client-image.ts`, sin EXIF) y no se guarda. Devuelve alimentos y gramos emparejados con el catálogo.
+- `suggestMealPlan`: solo recetas propias (mínimo 3) y raciones a medias. `plan/accept` crea las `MealPlanEntry` de los días elegidos.
+
+**Strava** (`lib/strava/*`):
+- OAuth: `GET /api/strava/connect` redirige con `state` firmado (HMAC con `AUTH_SECRET`, 10 min) y `redirect_uri = AUTH_URL + /api/strava/callback`. Se pide el permiso `activity:read_all`.
+- Tokens: cifrados con `sealJson` en `StravaLink.tokenSealed` y refrescados al caducar.
+- Sincronización: horaria, `athlete/activities?after=` desde `syncedUntil` (30 días la primera vez). Detalle y streams se convierten en `ParsedActivity` y pasan por el guardado de FIT/GPX con `source = "STRAVA"` y `externalId`; `@@unique([userId, externalId])` evita duplicados. Un 429 se deja para la siguiente pasada.
+- **Política** (`strava/policy.ts`, `notFromStrava`): excluye esas sesiones de
+  - `data-ai.ts`;
+  - el snapshot del coach (`coach.ts`; si hay Strava en la ventana, el PMC se omite);
+  - las rutas de sesiones cuando quien mira no es el dueño.
+- Desconectar: `deauthorize` en Strava y, si se pide, borra las sesiones importadas y recalcula la carga.
+- Exportación: incluye el vínculo de Strava y de Telegram **sin tokens** y los alimentos propios.
+
+**Ficheros reales anonimizados:** `scripts/anonymize-activity.mts` y `training/anonymize.ts` convierten un FIT, GPX o TCX en un TCX de 2020, sin GPS (o con la forma recolocada), sin dispositivo ni nombre. Van a `e2e/fixtures/real/`.
+
 ### 3.2 Recuperación
 
 ```
@@ -372,7 +419,7 @@ POST /api/recovery  (upsert por fecha)
 
 ### 3.3 Nutrición (OpenFoodFacts)
 
-- **Búsqueda:** `GET /api/nutrition/search?q=hacendado yogur` llama a `https://es.openfoodfacts.org/cgi/search.pl` y guarda los productos con código de barras en `FoodProduct`.
+- **Búsqueda (v1.10):** `GET /api/nutrition/search?q=hacendado yogur` busca primero en el catálogo local (sincronizado y alimentos propios). Si hay 8 o más resultados, responde sin red. Si no, llama a `https://es.openfoodfacts.org/cgi/search.pl` y guarda los productos con código de barras en `FoodProduct`.
 - **Código de barras:** `GET /api/nutrition/products/{ean}` consulta `/api/v2/product/{ean}`.
   - Caché local de 30 días.
   - Si OFF falla, se devuelve el dato en caché aunque esté caducado.
@@ -833,7 +880,15 @@ Las imágenes de Docker Hub pasan por el espejo `mirror.gcr.io`, para no chocar 
 - **Importar del reloj:** los tests usan ficheros FIT generados con el codificador de `fit-file-parser` (MIT, `e2e/fit-builder.mjs`) imitando a cada marca, y GPX/TCX escritos según cada formato; **no** ficheros exportados de relojes físicos. Si un reloj concreto escribe algo inesperado, la vista previa lo muestra antes de guardar.
 - **Notificaciones en iPhone:** solo con la PWA instalada en la pantalla de inicio (iOS 16.4+). La vibración del temporizador no existe en Safari.
 - **Commits de la v1.2 no del todo independientes:** comparten una migración y algún módulo (p. ej. la auditoría se usa en los permisos del coach); revertir uno puede exigir revertir otro.
-- **PDFs escaneados sin capa de texto:** devuelven 422. El OCR local (Tesseract) llega en la v1.10.
+- **OCR (v1.10):** Tesseract acierta bien con tickets y etiquetas nítidos. Con fotos torcidas, poca luz o letra térmica gastada, el importe o la fecha pueden salir mal o vacíos. Por eso todo queda en el formulario para revisar. Un PDF escaneado de más de 20 páginas solo se lee hasta la 20.
+- **Catálogo de OpenFoodFacts (v1.10):** son datos de la comunidad: hay productos sin micronutrientes, con valores por ración en vez de por 100 g o desactualizados. La primera sincronización completa tarda horas por el límite de 10 peticiones por minuto. BEDCA no se incluye por su licencia.
+- **Strava (v1.10):**
+  - por sus condiciones de API, las sesiones importadas no llegan a la IA ni a la entrenadora. El coach semanal ve menos carga de la real si entrenas sobre todo con Strava y omite el PMC esa semana;
+  - es por sondeo horario, sin webhook: una actividad puede tardar hasta una hora en aparecer;
+  - no se ha probado contra la API real de Strava (la CI usa un servidor simulado).
+- **Telegram (v1.10):** el sondeo cada 30 s hace que vincular tarde hasta 30 s. Si el mismo bot tiene un webhook puesto por otro programa, `getUpdates` falla.
+- **Foto de la comida y plan con IA (v1.10):** probados con una IA simulada; la estimación de gramos de una foto es aproximada y depende del modelo. Los modelos sin visión devuelven un error.
+- **Calendarios en PDF (v1.10):** se leen por líneas «fecha + nombre + lugar». Una tabla con columnas partidas en varias líneas puede no reconocerse; la vista previa lo muestra antes de añadir nada.
 - **Salud de la mujer:** el cribado de RED-S no es el LEAF-Q validado y la disponibilidad energética es una estimación (MET por RPE, % de grasa de báscula). Sirven para detectar señales, no para diagnosticar.
 - **Pregunta a tus datos y dictado:** probados con una IA simulada; la calidad real depende del modelo. El dictado depende de la API de voz del navegador (Chrome/Android sí; Firefox no).
 - **Estado del servidor:** la «última copia» solo aparece si el servicio `backup` está activo y reconstruido desde la v1.5; la copia previa de `update.sh` no se registra.

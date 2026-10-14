@@ -190,6 +190,35 @@ Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Pri
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
 - **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
 
+## Novedades de la v1.10 (dónde está cada cosa)
+
+**Telegram** (**Ajustes → Notificaciones**)
+- Pulsa **«Vincular Telegram»**: te da un código de 8 caracteres que dura 15 minutos. Escribe al bot del servidor `/start CÓDIGO` y queda vinculado.
+- Te llegan por Telegram los mismos avisos que por push, respetando tus horas de silencio. Los avisos de salud (ciclo, molestias, citas) solo dicen «Tienes un aviso en Atlenza», sin detalles.
+- `/stop` en el bot, o «Desvincular» en Ajustes, lo corta. La administración puede mandarte por ahí el enlace de contraseña nueva.
+
+**Strava** (**Ajustes → Strava**, si la administración lo ha activado)
+- **«Conectar con Strava»** te lleva a Strava para dar permiso de leer tus actividades. Cada hora se importan las nuevas como sesiones, sin duplicados.
+- **Por las condiciones de Strava, esas sesiones no se envían a la IA ni las ve tu entrenadora.** Cuentan en tu carga y tus gráficas, pero el coach semanal y «Pregunta a tus datos» no las usan.
+- Al desconectar eliges si conservar o borrar las sesiones importadas.
+
+**Nutrición**
+- **Catálogo local de marcas españolas** (Hacendado, Carrefour, Dia, Eroski, Alcampo, Consum, Lidl y Aldi): se copia cada semana desde OpenFoodFacts y la búsqueda funciona aunque OFF no responda. Son datos de la comunidad: revisa la etiqueta si algo no cuadra.
+- **Micronutrientes** (Nutrición → Micronutrientes): calcio, vitamina D, B12, magnesio, sodio, potasio y hierro, con la media de 7 días frente a tu objetivo. Los objetivos vienen con referencias generales (EFSA) y los puedes cambiar.
+- **Mis alimentos:** crea los tuyos con sus valores por 100 g. Con **«Leer la etiqueta con la cámara»** se proponen los valores a partir de una foto (OCR); tú los revisas antes de guardar.
+- **Foto de la comida** (en el diario, con tu IA y su permiso): la IA propone alimentos y gramos y tú confirmas o descartas cada uno. La foto no se guarda.
+- **Plan de la semana con IA** (Nutrición → Plan): con al menos 3 recetas tuyas, propone una semana; eliges qué días añadir. No escribe nada sin tu confirmación.
+
+**Estudio y planificación**
+- **Horario de la universidad** (Estudio → Horario → «Importar el horario de la universidad (.ics)»): clases semanales y exámenes, con vista previa y sin duplicados.
+- **Calendario de la federación** (Planificación → Competiciones): además de `.ics` y CSV, ahora acepta **Excel** y **PDF**. Revisa la vista previa: el PDF se lee por líneas «fecha + nombre + lugar».
+
+**Finanzas y apuntes**
+- **«Rellenar desde un ticket»** en «Movimiento»: lee el importe, la fecha y el comercio de una foto o PDF del ticket. Revísalo antes de guardar.
+- Los **PDF escaneados** de apuntes ya se pueden subir: se leen con OCR en el propio servidor.
+
+**Suplementos** (Recuperación → Salud): aviso con enlaces a la Lista de Prohibiciones de la AMA y a la CELAD. La responsabilidad de comprobarlo es tuya; Atlenza no copia ninguna lista.
+
 ## Novedades de la v1.9 (dónde está cada cosa)
 
 **Entrar y permisos**

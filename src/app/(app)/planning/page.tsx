@@ -351,7 +351,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
         <TaskList tasks={taskItems} todayIso={todayIso} />
       </section>
       <details id="competiciones" className="mt-4 rounded-md border p-3 text-sm">
-        <summary className="cursor-pointer font-medium">Importar calendario de competiciones (.ics o CSV)</summary>
+        <summary className="cursor-pointer font-medium">Importar calendario de competiciones (.ics, CSV, Excel o PDF)</summary>
         <div className="mt-3">
           <CompetitionImport />
         </div>
