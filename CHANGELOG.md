@@ -2,6 +2,37 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v2.0 — clubes, planificar varias atletas, flashcards compartidas, VFC y tendencias, varias réplicas (14/10/2026)
+
+**Clubes y cuotas internas**
+- **Clubes** (`/clubs`): una administradora crea el club e invita a entrenadoras y atletas. Pertenecer a un club **no da acceso** a tus datos: tú aceptas y eliges qué ámbitos ve y si puede planificar.
+- **Cuotas:** solo la administradora del club las apunta y marca como pagadas; tú ves las tuyas. Sin pasarela de pago ni email.
+
+**Entrenadora**
+- **Planificar varias atletas** (`/coach/multi`): copia una semana tipo o un plan propio a varias atletas a la vez. Cada una recibe un **borrador** que activa ella.
+- **«Qué pasa si»:** simula sin escribir nada la carga prevista con la copia, con afinamiento o recolocando choques.
+
+**Estudio**
+- **Flashcards compartidas:** comparte un mazo por email. Cada persona repasa con **su propio progreso** (SM-2); quien lo recibe no puede editarlo ni borrarlo. Quitar el acceso borra su progreso en ese mazo.
+
+**Recuperación**
+- **Semanas de VFC del PDF:** se marcan las semanas «VFC» del plan y el calendario las etiqueta. El aviso de caída de VFC solo salta en esas semanas (con al menos 3 mañanas de datos).
+- **Tendencias** (`/recovery/trends`): sueño, VFC, carga y días con molestia por meses, con aviso si el último mes se aleja de los anteriores. Umbrales editables en Mis reglas.
+
+**Salto**
+- **Medidor de salto por vídeo** (`/training/tests/salto`): CMJ, SJ, Abalakov y DJ por tiempo de vuelo. El vídeo no sale de tu navegador.
+
+**Varias réplicas**
+- Las tareas programadas y el sondeo de Telegram llevan un cerrojo en la base de datos: puedes ejecutar más de una réplica sin duplicar avisos.
+- El límite de peticiones pasa a la base de datos, con claves cifradas (ya no hay IPs en claro). Al actualizar, los contadores vigentes se reinician.
+
+**Datos**
+- Una migración aditiva (`v2_0_features`): clubes, cuotas y progreso de flashcards por persona. El estado de repaso de tus tarjetas se copia solo a la tabla nueva. Probada sobre una copia de la v1.10.
+- **Exportar tu cuenta** incluye ahora tu progreso de flashcards y tus clubes y cuotas. Restaurar sigue siendo en una cuenta vacía; los clubes y mazos compartidos no se restauran (son vínculos).
+
+**Pruebas**
+- Nuevas suites E2E: salto, v20a–v20e.
+
 ## v1.10 — datos e integraciones: Telegram, alimentos españoles, OCR, calendarios, IA en nutrición y Strava (10/10/2026)
 
 **Telegram por usuario**

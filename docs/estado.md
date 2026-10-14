@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión fusionada:** v1.10 (PR #24, 14/10/2026). CI en verde.
 - **Siguiente:** v2.0, por bloques; **una sesión por bloque**. Cierre con PR al final de la versión.
-- **Bloque en curso:** ninguno. Hecho: **Salto**, **A**, **B**, **C**, **D** (fusionados) y **E (varias réplicas)** (PR pendiente). **Siguiente: cierre v2.0.**
+- **Bloque en curso:** ninguno. Hecho: **Salto**, **A–E** (fusionados). **Cierre v2.0 hecho; PR a main abierto (lo fusiona la usuaria).** Siguiente: v2.1.
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
 Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
@@ -73,7 +73,12 @@ Antes del bloque A: `scripts/dev/snapshot.sh` (foto de la BD v1.10 para la migra
   `rate-limit-db.int.test.ts`, `telegram.int.test.ts`, `ops.int.test.ts`; E2E `e2e:v20e` (también en `e2e.sh all`).
   Pendiente (no tocado): `admin/watch.ts`, `admin/metrics.ts` y `weather.ts` siguen en memoria por réplica (un aviso de vigilancia
   podría repetirse si alternan réplicas).
-- **Cierre v2.0:** export/restaurar, CHANGELOG, guía, manual «De v1.10 a v2.0», `test-migration.sh`, todas las E2E, PR.
+- **Cierre v2.0 — HECHO.** `test-migration.sh` OK (foto con `snapshot.sh --before`); el SQL de datos de C copia 3 tarjetas → 3 reviews y es
+  idempotente. Exportar cuenta ahora incluye `clubs.memberships` (con mis cuotas) y ya traía `study.flashcardReviews`; restaurar no recrea clubes
+  ni mazos compartidos (vínculos). Versión 2.0.0, CHANGELOG, guía y manual «De v1.10 a v2.0». Typecheck, lint, 789 tests, Semgrep, licencias y
+  las 16 suites E2E en verde. **Trampas de entorno:** (1) `e2e.sh all` con un servidor viejo en marcha deja chunks desfasados: para el servidor
+  antes; (2) `pgrep -f next-server` casa con cualquier comando que contenga esa cadena y salta el arranque: usa `serve.sh true` a mano;
+  (3) `e2e` y `e2e:security` necesitan claves VAPID en `.env.local` (añadidas en local, no en el repo; `session-start.sh` no las genera).
 
 ## v2.1 (después)
 Más disciplinas (enum `Discipline` ya existe; la lógica es de lanzamientos: `javelin-insights.ts`, reglas de
