@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión fusionada:** v1.10 (PR #24, 14/10/2026). CI en verde.
 - **Siguiente:** v2.0, por bloques; **una sesión por bloque**. Cierre con PR al final de la versión.
-- **Bloque en curso:** ninguno. Hecho: **Salto** (medidor de salto por vídeo, PR pendiente de fusionar). **A (clubes)** se aplaza; sigue pendiente.
+- **Bloque en curso:** ninguno. Hecho: **Salto** (fusionado) y **A (clubes y cuotas)** (PR pendiente de fusionar). **Siguiente: B.**
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
 Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
@@ -17,12 +17,14 @@ reexportó la cámara lenta): la atleta confirma los fps de captura. Fuera: perf
 ## v2.0 · bloques (en orden)
 Antes del bloque A: `scripts/dev/snapshot.sh` (foto de la BD v1.10 para la migración `v2_0_features`).
 
-- **A · Clubes y cuotas internas.** Modelos `Organization` + `OrgMember` (rol en el club: ADMIN, COACH, ATHLETE).
-  Panel de club: cumplimiento, alertas, calendario de grupo y registro interno de cuotas (sin pasarela de pago).
-  Hoy solo existe `CoachAthlete` (1:1, `scopes` + `canPlan`). El punto único de permisos es
-  `resolveAthleteId(user, athleteId, scope, mode)` en `src/lib/auth/session.ts`: ampliarlo, no duplicarlo.
-  `processingRestrictedAt` (RGPD art. 18) sigue bloqueando todo. Vista de coach actual: `src/app/(app)/coach/page.tsx`,
-  `src/lib/coach/compare.ts`.
+- **A · Clubes y cuotas internas — HECHO.** `Organization`, `OrgMember` (ADMIN/COACH/ATHLETE; estado PENDING→ACTIVE), `OrgFee`
+  (migración `20270101080000_v2_0_features`, ya creada: en el cierre solo se regenera con `regen-mig.sh` si B toca el esquema).
+  **Consentimiento:** pertenecer a un club no da acceso; la atleta acepta y elige `scopes`/`canPlan` (como `CoachAthlete`).
+  `resolveAthleteId` (`auth/session.ts`) une vínculo 1:1 y clubes (`mergeGrants`); `processingRestrictedAt` bloquea siempre.
+  Lógica en `src/lib/clubs/` (`service`, `club-panel`, `fees`), API `api/clubs/…`, UI `/clubs` y `/clubs/[id]`, E2E `e2e:v20a`.
+  Cuotas: solo la ADMIN del club apunta/marca; la atleta ve las suyas; la entrenadora no las ve. Sin pasarela ni email.
+  Pendiente/decisión: el ADMIN **global** sigue saltándose `processingRestrictedAt` (comportamiento previo, no tocado);
+  no se registran eventos de auditoría de club (habría que ampliar el enum `SecurityEventType`).
 - **B · Planificar varios atletas + «qué pasa si».** Copiar plan/plantilla a N atletas con `canPlan` (hoy todo es por
   `userId`: `src/lib/planning/manual-plan.ts`, `ai-plan/service.ts` `saveDraftPlan`, `WeekTemplate`). Simulación en
   borrador: `computePmc` (`src/lib/training/pmc.ts`) con TSS futuro de sesiones PLANNED, sembrado con CTL/ATL de hoy;
