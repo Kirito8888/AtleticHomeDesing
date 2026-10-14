@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { EVENT_KEYS } from "./disciplines";
 import { zoneFatigueSchema } from "./zone-fatigue";
 
 import { isoDate } from "@/lib/dates";
@@ -21,6 +22,9 @@ export const disciplineEnum = z.enum([
   "STRENGTH",
   "OTHER",
 ]);
+
+/** v2.1 · especialidad del perfil (clave de `EVENTS`). */
+export const eventKeyEnum = z.enum(EVENT_KEYS);
 
 export const trackIntervalSchema = z.object({
   repetition: z.number().int().min(1).default(1),

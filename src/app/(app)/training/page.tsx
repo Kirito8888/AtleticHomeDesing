@@ -9,8 +9,9 @@ import { pageUser } from "@/lib/auth/page";
 import { WeekStrip } from "@/components/training/week-strip";
 import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { throwWeeks } from "@/lib/rules/rules-service";
+import { familyOf, sessionHeadline } from "@/lib/training/disciplines";
 import { weekGrid } from "@/lib/training/week";
-import { formatDate, formatDuration, formatNum, formatPace, SESSION_TYPE_LABEL, TECHNICAL_EVENT_LABEL } from "@/lib/format";
+import { formatDate, formatDuration, formatNum, SESSION_TYPE_LABEL, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cyclePredictions } from "@/lib/health/cycle-service";
 
@@ -20,14 +21,14 @@ export default async function TrainingPage() {
   const user = await pageUser();
   const now = today();
   const monday = startOfIsoWeek(now);
-  const [sessions, records, upcoming, weekSessions, throwsInfo] = await Promise.all([
+  const [sessions, records, upcoming, weekSessions, throwsInfo, profile] = await Promise.all([
     // Historial: hasta hoy. Lo planificado a futuro va aparte (el plan importado son cientos de días).
     prisma.trainingSession.findMany({
       where: { userId: user.id, date: { lte: now } },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       take: 40,
       include: {
-        track: { select: { modality: true, distanceM: true, avgPaceSecPerKm: true } },
+        track: { select: { modality: true, distanceM: true, avgPaceSecPerKm: true, intervals: { select: { distanceM: true, timeSec: true } } } },
         technical: { select: { event: true, implementWeightG: true, bestMarkM: true } },
         strength: { select: { tonnageKg: true, _count: { select: { sets: true } } } },
       },
@@ -43,8 +44,9 @@ export default async function TrainingPage() {
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
       select: { id: true, date: true, title: true, type: true, durationSec: true },
     }),
-    prisma.trainingSession.findMany({ where: { userId: user.id, date: { gte: monday, lte: addDays(monday, 6) } }, select: { date: true, status: true } }),
+    prisma.trainingSession.findMany({ where: { userId: user.id, date: { gte: monday, lte: addDays(monday, 6) } }, select: { date: true, status: true, track: { select: { distanceM: true, intervals: { select: { distanceM: true } } } }, technical: { select: { _count: { select: { attempts: true } } } } } }),
     throwWeeks(user.id, toIsoDay(now)),
+    prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { primaryDiscipline: true, primaryEvent: true } }),
   ]);
   // Días previstos de regla o síntomas (solo para ella; cálculo local).
   const predicted = new Map((await cyclePredictions(user.id, toIsoDay(now), toIsoDay(addDays(now, 7)))).map((p) => [p.date, p]));
@@ -53,6 +55,14 @@ export default async function TrainingPage() {
     toIsoDay(monday),
     toIsoDay(now),
   );
+
+  // v2.1 · la línea de la semana depende de la prueba (lanzamientos: tope de lanzamientos, como siempre)
+  const family = familyOf(profile?.primaryDiscipline, profile?.primaryEvent);
+  const done = weekSessions.filter((s) => s.status === "COMPLETED");
+  const weekMeters = done.reduce((a, s) => a + (s.track ? (s.track.distanceM ?? s.track.intervals.reduce((x, i) => x + (i.distanceM ?? 0), 0)) : 0), 0);
+  const weekJumps = done.reduce((a, s) => a + (s.technical?._count.attempts ?? 0), 0);
+  const weekMetric =
+    family === "throws" ? undefined : family === "jumps" ? (weekJumps ? `Intentos esta semana: ${weekJumps}` : null) : weekMeters ? `Distancia esta semana: ${formatNum(weekMeters / 1000, 1)} km` : null;
 
   return (
     <>
@@ -99,9 +109,11 @@ export default async function TrainingPage() {
         <Link href="/training/compare" className="underline underline-offset-4">
           Comparar sesiones
         </Link>
-        <Link href="/training/javelin" className="underline underline-offset-4">
-          Análisis de jabalina
-        </Link>
+        {family === "throws" ? (
+          <Link href="/training/javelin" className="underline underline-offset-4">
+            Análisis de jabalina
+          </Link>
+        ) : null}
         <Link href="/training/prehab" className="underline underline-offset-4">
           Prehabilitación
         </Link>
@@ -110,7 +122,7 @@ export default async function TrainingPage() {
         </Link>
       </nav>
 
-      <WeekStrip days={week} today={toIsoDay(now)} throws={throwsInfo.weeks.at(-1)?.throws ?? 0} cap={throwsInfo.cap} />
+      <WeekStrip days={week} today={toIsoDay(now)} throws={throwsInfo.weeks.at(-1)?.throws ?? 0} cap={throwsInfo.cap} metric={weekMetric} />
 
       {upcoming.length ? (
         <Card className="mb-4 gap-3 py-4">
@@ -168,13 +180,11 @@ export default async function TrainingPage() {
       {sessions.length ? (
         <ul className="grid gap-2">
           {sessions.map((s) => {
-            const detail = s.technical
-              ? `${TECHNICAL_EVENT_LABEL[s.technical.event]}${s.technical.bestMarkM != null ? ` · ${formatNum(s.technical.bestMarkM, 2)} m` : ""}`
-              : s.strength
-                ? `${s.strength._count.sets} series · ${formatNum(s.strength.tonnageKg ?? 0, 1)} kg`
-                : s.track
-                  ? `${s.track.distanceM ? `${formatNum(s.track.distanceM / 1000, 2)} km` : ""}${s.track.avgPaceSecPerKm ? ` · ${formatPace(s.track.avgPaceSecPerKm)}` : ""}`
-                  : "";
+            const detail = sessionHeadline({
+              technical: s.technical,
+              strength: s.strength ? { tonnageKg: s.strength.tonnageKg, setCount: s.strength._count.sets } : null,
+              track: s.track,
+            });
             return (
               <li key={s.id}>
                 <Link href={`/training/${s.id}`} className="flex items-center gap-3 rounded-lg border p-3 hover:bg-accent">

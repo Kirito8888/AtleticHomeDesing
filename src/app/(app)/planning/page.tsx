@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { capitalizeFirst, formatDate, formatNum, SESSION_TYPE_LABEL } from "@/lib/format";
+import { sessionHeadline } from "@/lib/training/disciplines";
 import { agendaForDay, tasksDuePerDay } from "@/lib/planning/agenda";
 import { hrvWeekRanges } from "@/lib/planning/plan-import/hrv-weeks";
 import { planOverview } from "@/lib/planning/plan-import/service";
@@ -49,7 +50,12 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
     prisma.trainingSession.findMany({
       where: { userId: user.id, date: { gte: gridStart, lte: gridEnd } },
       orderBy: { createdAt: "asc" },
-      select: { id: true, date: true, title: true, type: true, status: true, tss: true },
+      select: {
+        id: true, date: true, title: true, type: true, status: true, tss: true,
+        track: { select: { modality: true, distanceM: true, avgPaceSecPerKm: true, intervals: { select: { distanceM: true, timeSec: true } } } },
+        technical: { select: { event: true, bestMarkM: true } },
+        strength: { select: { tonnageKg: true, _count: { select: { sets: true } } } },
+      },
     }),
     prisma.trainingCycle.findMany({ where: { userId: user.id, endDate: { gte: addDays(now, -365) } }, select: { id: true, name: true, level: true }, orderBy: { startDate: "desc" } }),
     prisma.task.findMany({ where: { userId: user.id, status: { in: ["TODO", "IN_PROGRESS"] } }, orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }] }),
@@ -75,7 +81,17 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
   const predicted = new Map((await cyclePredictions(user.id, toIsoDay(gridStart), toIsoDay(gridEnd))).map((p) => [p.date, p]));
   const dueByDay = tasksDuePerDay(tasks);
   const selectedDay = typeof rawDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : null;
-  const agenda = selectedDay ? agendaForDay(selectedDay, { sessions, events, tasks, cycles }) : null;
+  const agenda = selectedDay
+    ? agendaForDay(selectedDay, {
+        sessions: sessions.map((s) => ({
+          ...s,
+          headline: s.status === "COMPLETED" ? sessionHeadline({ technical: s.technical, track: s.track, strength: s.strength ? { tonnageKg: s.strength.tonnageKg, setCount: s.strength._count.sets } : null }) : "",
+        })),
+        events,
+        tasks,
+        cycles,
+      })
+    : null;
   const daySlots = selectedDay ? slotsOnDay(slots, selectedDay) : [];
 
   const days: Date[] = [];
@@ -214,9 +230,12 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                 {agenda.sessions.map((s) => (
                   <li key={s.id}>
                     <Link href={`/training/${s.id}`} className="flex justify-between gap-2 rounded-md border px-2 py-1.5 hover:bg-accent">
-                      <span className="truncate">
-                        {s.status === "PLANNED" ? "○ " : "✓ "}
-                        {s.title ?? SESSION_TYPE_LABEL[s.type as keyof typeof SESSION_TYPE_LABEL]}
+                      <span className="min-w-0">
+                        <span className="block truncate">
+                          {s.status === "PLANNED" ? "○ " : "✓ "}
+                          {s.title ?? SESSION_TYPE_LABEL[s.type as keyof typeof SESSION_TYPE_LABEL]}
+                        </span>
+                        {s.headline ? <span className="block truncate text-xs text-muted-foreground tabular-nums">{s.headline}</span> : null}
                       </span>
                       <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{s.tss != null ? `${formatNum(s.tss)} TSS` : s.status === "PLANNED" ? "planificada" : ""}</span>
                     </Link>

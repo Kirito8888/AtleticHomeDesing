@@ -12,7 +12,7 @@ const STATE: Record<WeekDay["state"], { icon: string; text: string; cls: string 
 };
 
 /** Semana L–D: estado de cada día y lanzamientos frente al tope. */
-export function WeekStrip({ days, today, throws, cap }: { days: WeekDay[]; today: string; throws: number; cap: number | null }) {
+export function WeekStrip({ days, today, throws, cap, metric }: { days: WeekDay[]; today: string; throws: number; cap: number | null; /** v2.1 · línea propia de la disciplina (carreras, saltos); sustituye a la de lanzamientos. */ metric?: string | null }) {
   return (
     <section aria-label="Esta semana" className="mb-4 grid gap-2">
       <ol className="grid grid-cols-7 gap-1">
@@ -32,7 +32,9 @@ export function WeekStrip({ days, today, throws, cap }: { days: WeekDay[]; today
           );
         })}
       </ol>
-      {throws > 0 || cap != null ? (
+      {metric !== undefined ? (
+        metric ? <p className="text-xs text-muted-foreground tabular-nums">{metric}</p> : null
+      ) : throws > 0 || cap != null ? (
         <p className={cn("text-xs text-muted-foreground tabular-nums", cap != null && throws > cap && "font-medium text-destructive")}>
           Lanzamientos esta semana: {throws}
           {cap != null ? ` de ${cap} (tope)` : " · sin tope (faltan semanas de base)"}
