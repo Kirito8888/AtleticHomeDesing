@@ -40,10 +40,17 @@ describe.skipIf(!HAS_DB)("restaurar una exportación (BD real)", () => {
     const habit = await prisma.habit.findFirstOrThrow({ where: { userId: from } });
     await prisma.goal.create({ data: { userId: from, kind: "HABIT", title: "Racha", target: 30, linkRef: habit.id } });
     await prisma.goal.create({ data: { userId: from, kind: "CUSTOM", title: "Libros", target: 12, current: 4 } });
+    // v2.0: mazo con progreso propio y club con cuota (se exportan; no se restauran)
+    const deck = await prisma.flashcardDeck.create({ data: { userId: from, name: "Huesos", cards: { create: [{ front: "a", back: "b" }] } }, include: { cards: true } });
+    await prisma.flashcardReview.create({ data: { userId: from, cardId: deck.cards[0].id } });
+    const org = await prisma.organization.create({ data: { name: "Club test" } });
+    const member = await prisma.orgMember.create({ data: { orgId: org.id, userId: from, status: "ACTIVE" } });
+    await prisma.orgFee.create({ data: { orgId: org.id, memberId: member.id, concept: "Cuota", amountCents: 2000, dueDate: new Date("2026-10-31") } });
   });
 
   afterAll(async () => {
     await prisma.user.deleteMany({ where: { id: { in: [from, to].filter(Boolean) } } });
+    await prisma.organization.deleteMany({ where: { name: "Club test" } });
   });
 
   it("restaura entrenos, recuperación y hábitos; no en una cuenta con datos", async () => {
@@ -67,6 +74,9 @@ describe.skipIf(!HAS_DB)("restaurar una exportación (BD real)", () => {
     const newHabit = await prisma.habit.findFirstOrThrow({ where: { userId: to } });
     expect(await prisma.goal.findFirstOrThrow({ where: { userId: to, kind: "HABIT" } })).toMatchObject({ linkRef: newHabit.id });
     expect(data.app.notifications).toBeDefined();
+    expect(data.study.flashcardReviews).toHaveLength(1);
+    expect(data.clubs.memberships).toEqual([expect.objectContaining({ org: { name: "Club test" }, fees: [expect.objectContaining({ amountCents: 2000 })] })]);
+    expect(await prisma.orgMember.count({ where: { userId: to } })).toBe(0);
     const [plan, recipe, supp] = await Promise.all([prisma.mealPlanEntry.findFirstOrThrow({ where: { userId: to } }), prisma.recipe.findFirstOrThrow({ where: { userId: to } }), prisma.supplement.findFirstOrThrow({ where: { userId: to }, include: { logs: true } })]);
     expect(plan.recipeId).toBe(recipe.id);
     expect(supp).toMatchObject({ days: [1, 3, 5], logs: [expect.objectContaining({ supplementId: supp.id })] });
