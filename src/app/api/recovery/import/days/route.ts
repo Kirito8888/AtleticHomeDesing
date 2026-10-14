@@ -15,7 +15,7 @@ const schema = z.object({
 /** Totales diarios ya calculados en el navegador (Apple Health): sueño y FC en reposo. */
 export const POST = route(async (req) => {
   const user = await requireUser();
-  enforceRateLimit("import", user.id);
+  await enforceRateLimit("import", user.id);
   const { days } = await parseBody(req, schema);
   await saveRecoveryRows(
     user.id,

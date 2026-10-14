@@ -1,18 +1,27 @@
 import "server-only";
 
+import { createHash, createHmac } from "node:crypto";
+
 import { prisma } from "@/lib/prisma";
 import { rateLimit, type RateLimitResult } from "@/lib/rate-limit";
 
 /**
  * v1.8 · Límite persistente (ventana fija en Postgres) para lo que protege cuentas: inicio de sesión,
  * llaves de acceso, registro y comprobación de contraseña. Sobrevive a reinicios y actualizaciones
- * (antes, reiniciar la web ponía el contador a cero). Si la BD no responde, usa el de memoria.
+ * (antes, reiniciar la web ponía el contador a cero) y es común a todas las réplicas (el INSERT … ON CONFLICT
+ * es atómico). La clave (IP, id de usuario) se guarda con HMAC, nunca en claro. Ventana fija. Si la BD no
+ * responde, usa el de memoria.
  */
+export const hashKey = (key: string) => {
+  const secret = process.env.AUTH_SECRET;
+  return secret ? createHmac("sha256", secret).update(key).digest("hex") : createHash("sha256").update(key).digest("hex");
+};
+
 export async function rateLimitPersistent(key: string, limit: number, windowMs: number, now = Date.now()): Promise<RateLimitResult> {
   const windowStart = new Date(Math.floor(now / windowMs) * windowMs);
   try {
     const rows = await prisma.$queryRaw<Array<{ count: number }>>`
-      INSERT INTO "RateLimitHit" ("key", "windowStart", "count") VALUES (${key}, ${windowStart}, 1)
+      INSERT INTO "RateLimitHit" ("key", "windowStart", "count") VALUES (${hashKey(key)}, ${windowStart}, 1)
       ON CONFLICT ("key", "windowStart") DO UPDATE SET "count" = "RateLimitHit"."count" + 1
       RETURNING "count"`;
     const count = Number(rows[0]?.count ?? 1);

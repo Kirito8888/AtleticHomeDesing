@@ -8,7 +8,7 @@ const MAX = 4 * 1024 * 1024;
 /** v1.10 · Foto de la comida → borrador de alimentos y gramos (con la IA del usuario). La foto no se guarda. */
 export const POST = route(async (req) => {
   const user = await requireUser();
-  enforceRateLimit("aiGenerate", user.id);
+  await enforceRateLimit("aiGenerate", user.id);
   const file = (await req.formData().catch(() => null))?.get("file");
   if (!(file instanceof File)) throw new ApiError(400, "Falta la foto");
   if (file.size > MAX) throw new ApiError(413, "La foto supera 4 MB");

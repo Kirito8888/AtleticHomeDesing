@@ -14,7 +14,7 @@ export const GET = route(async (_req, ctx: Ctx) => {
 
 export const POST = route(async (req, ctx: Ctx) => {
   const user = await requireUser();
-  enforceRateLimit("deckShare", user.id);
+  await enforceRateLimit("deckShare", user.id);
   const { email } = await parseBody(req, z.object({ email: z.string().email().max(200) }));
   return NextResponse.json(await shareDeck(user.id, (await ctx.params).id, email), { status: 201 });
 });

@@ -108,7 +108,7 @@ export const GET = route(async (req, ctx: RouteContext<"/api/export/[kind]">) =>
   const user = await requireUser();
   const { kind } = await ctx.params;
   if (!(kind in EXPORTS)) throw new ApiError(404, "Exportación desconocida");
-  enforceRateLimit("export", user.id);
+  await enforceRateLimit("export", user.id);
   const body = await EXPORTS[kind as keyof typeof EXPORTS](user.id);
   await recordEvent(user.id, "DATA_EXPORTED", auditContext(req.headers), `CSV ${kind}`);
   return csvResponse(`lifeos-${kind === "training" ? "entrenos" : "finanzas"}-${toIsoDay(today())}.csv`, body);

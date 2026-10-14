@@ -13,7 +13,7 @@ type Ctx = RouteContext<"/api/recovery/injuries/[id]/photos">;
  */
 export const POST = route(async (req, ctx: Ctx) => {
   const user = await requireUser();
-  enforceRateLimit("photoUpload", user.id);
+  await enforceRateLimit("photoUpload", user.id);
   const { id } = await ctx.params;
   if (Number(req.headers.get("content-length") ?? 0) > PHOTO_MAX_BYTES + 64 * 1024) throw new ApiError(413, "La foto ocupa demasiado (máx. 4 MB)");
   const form = await req.formData().catch(() => {

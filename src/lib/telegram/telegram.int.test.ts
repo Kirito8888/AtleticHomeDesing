@@ -13,6 +13,7 @@ describe.skipIf(!HAS_DB)("Telegram por usuario (BD real, bot simulado)", () => {
   let userId: string;
   const t = Date.now();
   const sent: Array<{ chat_id: string; text: string }> = [];
+  const polls: Array<{ offset: number }> = [];
   let updates: unknown[] = [];
 
   const fakeFetch = (async (url: string | URL, init?: RequestInit) => {
@@ -20,6 +21,7 @@ describe.skipIf(!HAS_DB)("Telegram por usuario (BD real, bot simulado)", () => {
     expect(u.startsWith(`https://tg.test/bot${TOKEN}/`)).toBe(true);
     const body = JSON.parse(String(init?.body ?? "{}"));
     if (u.endsWith("/sendMessage")) sent.push(body);
+    if (u.endsWith("/getUpdates")) polls.push(body);
     const result = u.endsWith("/getUpdates") ? updates.splice(0) : u.endsWith("/getMe") ? { username: "atlenza_test_bot" } : { message_id: 1 };
     return new Response(JSON.stringify({ ok: true, result }), { status: 200 });
   }) as typeof fetch;
@@ -47,7 +49,10 @@ describe.skipIf(!HAS_DB)("Telegram por usuario (BD real, bot simulado)", () => {
     expect(c.url).toBe(`https://t.me/atlenza_test_bot?start=${c.code}`);
     expect(await prisma.telegramLinkCode.count({ where: { codeHash: c.code } })).toBe(0);
     updates = [{ update_id: 10, message: { chat: { id: 777, type: "private" }, text: `/start ${c.code.toLowerCase()}` } }];
+    polls.length = 0;
     expect(await link.pollTelegram()).toBe(1);
+    // sin estado en memoria: lee desde 0 y confirma el lote con offset = último + 1
+    expect(polls.map((p) => p.offset)).toEqual([0, 11]);
     expect(await prisma.telegramLink.findUnique({ where: { userId } })).toMatchObject({ chatId: "777", enabled: true });
     expect(sent.at(-1)?.text).toMatch(/Listo/);
     // Reutilizar el código no vale

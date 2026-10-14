@@ -4,7 +4,8 @@ import { ZodError, type z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
 import { recordRequest } from "@/lib/admin/metrics";
-import { LIMITS, rateLimit } from "@/lib/rate-limit";
+import { LIMITS } from "@/lib/rate-limit";
+import { rateLimitPersistent } from "@/lib/rate-limit-db";
 
 export class ApiError extends Error {
   constructor(
@@ -92,9 +93,9 @@ export function parseQuery<T extends z.ZodType>(req: NextRequest, schema: T): z.
 }
 
 /** Aplica un límite de `LIMITS` a `key` (usuario o IP); si se supera, 429 con Retry-After. */
-export function enforceRateLimit(bucket: keyof typeof LIMITS, key: string): void {
+export async function enforceRateLimit(bucket: keyof typeof LIMITS, key: string): Promise<void> {
   const { limit, windowMs } = LIMITS[bucket];
-  const r = rateLimit(`${bucket}:${key}`, limit, windowMs);
+  const r = await rateLimitPersistent(`${bucket}:${key}`, limit, windowMs);
   if (!r.ok) {
     throw new ApiError(429, "Demasiadas peticiones, espera unos minutos", { retryAfterSec: r.retryAfterSec }, {
       "Retry-After": String(r.retryAfterSec),

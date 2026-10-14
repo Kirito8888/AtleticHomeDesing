@@ -12,7 +12,7 @@ export const GET = route(async () => {
 
 export const POST = route(async (req) => {
   const user = await requireUser();
-  enforceRateLimit("import", user.id);
+  await enforceRateLimit("import", user.id);
   const form = await req.formData();
   const file = form.get("file");
   if (!(file instanceof File)) throw new ApiError(400, "Falta el fichero");

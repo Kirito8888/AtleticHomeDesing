@@ -15,7 +15,7 @@ export const GET = route(async (req, ctx: RouteContext<"/api/training/sessions/[
 
 export const POST = route(async (req, ctx: RouteContext<"/api/training/sessions/[id]/comments">) => {
   const user = await requireUser();
-  enforceRateLimit("comment", user.id);
+  await enforceRateLimit("comment", user.id);
   const { id } = await ctx.params;
   const { body } = await parseBody(req, commentSchema);
   return addComment(user, id, parseQuery(req, q).athleteId, body);

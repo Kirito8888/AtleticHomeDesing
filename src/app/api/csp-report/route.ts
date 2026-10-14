@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { recordServerError } from "@/lib/admin/server-errors";
-import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { clientIp } from "@/lib/rate-limit";
+import { rateLimitPersistent } from "@/lib/rate-limit-db";
 
 const MAX_BYTES = 8 * 1024;
 
@@ -10,7 +11,7 @@ const MAX_BYTES = 8 * 1024;
  * limitada por IP, cuerpo máximo de 8 KB y solo se guarda la directiva y el origen bloqueado.
  */
 export async function POST(req: Request) {
-  if (!rateLimit(`csp:${clientIp(req.headers)}`, 30, 60 * 60_000).ok) return new NextResponse(null, { status: 204 });
+  if (!(await rateLimitPersistent(`csp:${clientIp(req.headers)}`, 30, 60 * 60_000)).ok) return new NextResponse(null, { status: 204 });
   const text = (await req.text().catch(() => "")).slice(0, MAX_BYTES);
   try {
     const body = JSON.parse(text) as { "csp-report"?: Record<string, string> } | Array<{ body?: Record<string, string> }>;
