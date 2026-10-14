@@ -74,6 +74,38 @@ export function computePmc(dailyTss: Array<{ date: string | Date; tss: number }>
   return out;
 }
 
+export interface PmcProjection {
+  /** Último CTL/ATL conocido y su fecha (p. ej. el último `DailyLoad`). Sin semilla se parte de 0. */
+  seed?: PmcSeed & { date: string | Date };
+  from: string | Date;
+  to: string | Date;
+  /** TSS previsto por día (sesiones planificadas o de un borrador). */
+  planned: Array<{ date: string | Date; tss: number }>;
+  ctlDays?: number;
+  atlDays?: number;
+}
+
+/**
+ * «Qué pasa si» (v2.0): decae la semilla con TSS 0 hasta la víspera de `from` y proyecta
+ * desde ahí con el TSS previsto. Puro: no lee ni escribe nada.
+ */
+export function projectPmc(p: PmcProjection): PmcDay[] {
+  const from = dateOnly(p.from);
+  let seed: PmcSeed | undefined = p.seed ? { ctl: p.seed.ctl, atl: p.seed.atl } : undefined;
+  if (p.seed) {
+    const gapStart = addDays(dateOnly(p.seed.date), 1);
+    const gapEnd = addDays(from, -1);
+    if (gapStart <= gapEnd) {
+      const last = computePmc([], { start: gapStart, end: gapEnd, seed, ctlDays: p.ctlDays, atlDays: p.atlDays }).at(-1)!;
+      seed = { ctl: last.ctl, atl: last.atl };
+    }
+  }
+  return computePmc(
+    p.planned.filter((d) => dateOnly(d.date) >= from),
+    { start: from, end: p.to, seed, ctlDays: p.ctlDays, atlDays: p.atlDays, historyStart: p.seed ? addDays(from, -60) : from },
+  );
+}
+
 /** Cambio de CTL en 7 días. > ~5–8 puntos/semana es una rampa agresiva. */
 export function rampRate(series: PmcDay[]): number | null {
   if (series.length < 8) return null;

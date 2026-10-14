@@ -184,3 +184,68 @@ export async function applyWeekTemplate(userId: string, code: string, week: numb
   if (meso.status === "ACTIVE") await rematerialize(userId, meso.id);
   return { applied };
 }
+
+// ---------- v2.0 B · Copiar a varios atletas (borrador en cada una) ----------
+
+export type DraftSourceDay = { date: string; title: string; durationMin: number | null; type: string; content: unknown };
+
+const mondayOf = (d: Date) => addDays(d, -((d.getUTCDay() + 6) % 7));
+
+/** Fechas concretas de una semana tipo de la entrenadora a partir de `start` (el lunes de esa semana; los días anteriores a `start` se omiten). */
+export async function templateSourceDays(coachId: string, templateId: string, start: string): Promise<DraftSourceDay[]> {
+  const tpl = await prisma.weekTemplate.findFirst({ where: { id: templateId, userId: coachId } });
+  if (!tpl) throw new ApiError(404, "Semana tipo no encontrada");
+  const first = dateOnly(start);
+  const monday = mondayOf(first);
+  return (tpl.days as WeekTemplateDay[])
+    .map((d) => ({ date: toIsoDay(addDays(monday, d.weekday)), title: d.title, durationMin: d.durationMin, type: d.type, content: d.content }))
+    .filter((d) => d.date >= toIsoDay(first))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Días de un plan propio de la entrenadora desplazados para que empiece el lunes de `start`. */
+export async function planSourceDays(coachId: string, code: string, start: string): Promise<DraftSourceDay[]> {
+  const meso = await prisma.planMeso.findUnique({ where: { userId_code: { userId: coachId, code } }, include: { days: true } });
+  if (!meso || meso.source !== "MANUAL") throw new ApiError(404, "Plan no encontrado");
+  const first = dateOnly(start);
+  const shift = Math.round((mondayOf(first).getTime() - meso.startDate.getTime()) / 864e5);
+  return meso.days
+    .filter((d) => d.date)
+    .map((d) => ({ date: toIsoDay(addDays(d.date!, shift)), title: d.title, durationMin: d.durationMin, type: d.type, content: d.content }))
+    .filter((d) => d.date >= toIsoDay(first))
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
+/** Crea un plan propio en BORRADOR con esos días (nunca activo, nunca crea sesiones: la atleta lo activa). */
+export async function createManualDraftFromDays(userId: string, input: { name: string; days: DraftSourceDay[]; meta: Record<string, unknown> }) {
+  if (!input.days.length) throw new ApiError(422, "No hay días que copiar a partir de esa fecha");
+  const dates = input.days.map((d) => dateOnly(d.date));
+  const monday = mondayOf(dates.reduce((a, b) => (a < b ? a : b)));
+  const last = dates.reduce((a, b) => (a > b ? a : b));
+  const nWeeks = Math.floor((last.getTime() - monday.getTime()) / (7 * 864e5)) + 1;
+  const code = await nextCode(userId);
+  const weeks = Array.from({ length: nWeeks }, (_, i) => ({ variant: null, number: i + 1, title: null, start: toIsoDay(addDays(monday, i * 7)), end: toIsoDay(addDays(monday, i * 7 + 6)), text: "" }));
+  return prisma.planMeso.create({
+    data: {
+      userId,
+      code,
+      name: input.name.slice(0, 80),
+      startDate: monday,
+      endDate: addDays(monday, nWeeks * 7 - 1),
+      intro: json([]),
+      weeks: json(weeks),
+      variants: json([]),
+      source: "MANUAL",
+      status: "DRAFT",
+      meta: json(input.meta),
+      days: {
+        create: input.days.map((d) => {
+          const date = dateOnly(d.date);
+          const week = Math.floor((date.getTime() - monday.getTime()) / (7 * 864e5)) + 1;
+          return { userId, key: `${code}|-|${d.date}|1`, week, code: `S${week}`, date, title: d.title, durationMin: d.durationMin, type: d.type as never, content: json(d.content) };
+        }),
+      },
+    },
+    select: { code: true },
+  });
+}

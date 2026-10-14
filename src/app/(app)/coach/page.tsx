@@ -73,6 +73,13 @@ export default async function CoachPage() {
           <p className="px-3 pb-2 text-xs text-muted-foreground">«—»: sin datos o sin permiso de carga. Nunca se muestran salud, ciclo ni finanzas.</p>
         </div>
       ) : null}
+      {links.some((l) => l.canPlan) ? (
+        <p className="mb-3 text-sm">
+          <Link href="/coach/multi" className="underline underline-offset-2">
+            Planificar varios atletas a la vez →
+          </Link>
+        </p>
+      ) : null}
       {links.length ? (
         <div className="mb-4">
           <BulkComment items={recentDone.map((s) => ({ id: s.id, athleteId: s.userId, label: `${nameOf.get(s.userId)} · ${formatDate(s.date, { weekday: "short", day: "numeric" })} · ${s.title ?? SESSION_TYPE_LABEL[s.type]}` }))} />
