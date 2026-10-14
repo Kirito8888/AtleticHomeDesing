@@ -16,5 +16,8 @@ echo "$DELTA" | grep -q "empty migration" || echo "$DELTA" | psql "$BASE" -q
 npx prisma migrate resolve --applied $NAME >/dev/null 2>&1 || true
 psql "$BASE" -qc "update \"_prisma_migrations\" set checksum='$(sha256sum $F | cut -d' ' -f1)' where migration_name='$NAME'"
 psql "$ROOT/postgres" -qc "drop database atlenza_mig_base"
+# SQL de datos de la versión (si existe): se añade al final para que sobreviva a cada regeneración
+D=prisma/data-migrations/$NAME.sql
+[ -f $D ] && { printf '\n'; cat $D; } >> $F
 echo "Tablas nuevas: $(grep -c 'CREATE TABLE' $F)"; grep -n "DROP\|ALTER COLUMN" $F || true
 npx prisma generate >/dev/null 2>&1

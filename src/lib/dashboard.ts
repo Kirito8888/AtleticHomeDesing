@@ -1,6 +1,7 @@
 import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
+import { dueCounts } from "@/lib/ai/flashcards";
 import { addDays, today, toIsoDay } from "@/lib/dates";
 import { budgetsStatus } from "@/lib/finance/service";
 import { cycleToday } from "@/lib/health/cycle-service";
@@ -31,7 +32,7 @@ export async function getDashboard(userId: string) {
     }),
     getDay(userId, day),
     budgetsStatus(userId, now),
-    prisma.flashcard.count({ where: { deck: { userId }, dueAt: { lte: new Date() } } }),
+    dueCounts(userId).then((m) => [...m.values()].reduce((a, b) => a + b, 0)),
     prisma.task.findMany({
       where: { userId, status: { in: ["TODO", "IN_PROGRESS"] }, OR: [{ dueDate: null }, { dueDate: { lte: addDays(now, 2) } }] },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }],

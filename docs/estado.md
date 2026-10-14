@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión fusionada:** v1.10 (PR #24, 14/10/2026). CI en verde.
 - **Siguiente:** v2.0, por bloques; **una sesión por bloque**. Cierre con PR al final de la versión.
-- **Bloque en curso:** ninguno. Hecho: **Salto**, **A (clubes y cuotas)** (fusionados) y **B (planificar varios atletas)** (PR pendiente). **Siguiente: C.**
+- **Bloque en curso:** ninguno. Hecho: **Salto**, **A**, **B** (fusionados) y **C (flashcards compartidas)** (PR pendiente). **Siguiente: D.**
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
 Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
@@ -34,9 +34,19 @@ Antes del bloque A: `scripts/dev/snapshot.sh` (foto de la BD v1.10 para la migra
   TSS previsto = `tss` guardado o sRPE con el RPE que elige la entrenadora. API `api/coach/multi-plan` (apply exige `confirm`).
   Tests: `pmc.test.ts`, `what-if.test.ts`, `multi-plan.int.test.ts`; E2E `e2e:v20b`. Fuera: `saveDraftPlan` (plan con IA)
   como origen — solo se copian semanas tipo y planes propios.
-- **C · Flashcards compartidas.** El estado SM-2 vive en `Flashcard` (por tarjeta): crear `FlashcardReview(userId, cardId, …)`
-  y migrar el estado existente al dueño del mazo. Compartir mazo con personas autorizadas (solo lectura del contenido).
-  Código: `src/lib/ai/flashcards.ts`, `sm2.ts`.
+- **C · Flashcards compartidas — HECHO.** Migración `20270101080000_v2_0_features` (ahora A + C): `FlashcardReview(userId, cardId,
+  easeFactor, intervalDays, repetitions, dueAt, lastReviewedAt, lastGrade)` y `FlashcardDeckShare(deckId, userId)`. El SM-2 ya no
+  se lee ni escribe en `Flashcard` (sus columnas quedan como legado; borrarlas sería no aditivo). Sin fila de review = tarjeta nueva.
+  **SQL de datos** (estado de cada `Flashcard` → review de la dueña, idempotente) en `prisma/data-migrations/<migración>.sql`:
+  `regen-mig.sh` lo añade al final del `migration.sql` en cada regeneración. `snapshot.sh --before <migración>` deja la foto como
+  antes de esa migración (necesario: si no, regenerar perdería las tablas del bloque A). Para el cierre: `snapshot.sh --before
+  20270101080000_v2_0_features` ya está hecho en esta sesión, pero /tmp no persiste: repetirlo antes de `regen-mig.sh` si hay más cambios de esquema.
+  Lógica en `ai/sm2.ts` (`nextReview`, pura) y `ai/flashcards.ts` (`deckAccess`, `assertDeckOwner`, `reviewFlashcard`, `dueCards`,
+  `listDecks`, compartir/quitar/dejar). La invitada repasa (progreso propio) pero edita/borra → 403; quien no ve el mazo → 404.
+  Compartir por email con 404 genérico. La dueña no ve el progreso de las invitadas. Quitar el acceso borra el progreso de la invitada
+  en ese mazo. La IA que genera tarjetas, sin cambios. UI: «Mis mazos» / «Compartidos conmigo» + panel Compartir
+  (`components/study/deck-shares.tsx`). Exportar cuenta incluye solo mis reviews. Tests: `sm2.test.ts`, `flashcards.int.test.ts`; E2E `e2e:v20c`.
+  Fuera/pendiente: el examen simulado ya admite mazos compartidos; no hay aviso a la invitada (sin email).
 - **D · Tendencias y semanas de VFC del PDF.** El lector (`planning/plan-import/parse.ts`) no detecta «VFC»; la alerta de
   `rules/engine.ts` (~l.170) usa cualquier semana con ≥ 3 mañanas (el comentario de `prefs.hrvDropPct` habla de «semana
   marcada»). Marcar semanas VFC al importar y usarlas. Tendencias de meses (sueño, VFC, carga, molestias) con alertas explicables.

@@ -4,6 +4,7 @@ import { Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { CoachPanel, type CoachReportView } from "@/components/study/coach-panel";
 import { DocumentsPanel } from "@/components/study/documents-panel";
+import { listDecks } from "@/lib/ai/flashcards";
 import { FlashcardReview } from "@/components/study/flashcard-review";
 import { ManualCards } from "@/components/study/coursework";
 import { StudyChat } from "@/components/study/study-chat";
@@ -20,8 +21,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   const user = await pageUser();
   const { tab } = await searchParams;
   const aiConfigured = await aiAvailable(user.id);
-  const now = new Date();
-  const [me, docs, threads, decks, due, reports] = await Promise.all([
+  const [me, docs, threads, decks, reports] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { aiConsentAt: true } }),
     prisma.studyDocument.findMany({
       where: { userId: user.id },
@@ -29,8 +29,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
       include: { _count: { select: { chunks: true, flashcards: true } } },
     }),
     prisma.chatThread.findMany({ where: { userId: user.id, kind: "STUDY" }, orderBy: { updatedAt: "desc" }, take: 30, select: { id: true, title: true } }),
-    prisma.flashcardDeck.findMany({ where: { userId: user.id }, orderBy: { updatedAt: "desc" }, include: { _count: { select: { cards: true } } } }),
-    prisma.flashcard.groupBy({ by: ["deckId"], where: { deck: { userId: user.id }, dueAt: { lte: now } }, _count: { _all: true } }),
+    listDecks(user.id),
     prisma.coachReport.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 8 }),
   ]);
   const aiConsent = me.aiConsentAt != null;
@@ -113,7 +112,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
         </TabsContent>
         <TabsContent value="cards">
           <div className="grid gap-4">
-            <FlashcardReview decks={decks.map((d) => ({ id: d.id, name: d.name, total: d._count.cards, due: due.find((x) => x.deckId === d.id)?._count._all ?? 0 }))} />
+            <FlashcardReview decks={decks} />
             <ManualCards decks={decks.map((d) => d.name)} />
             <Link href="/study/exam" className="text-sm font-medium underline underline-offset-4">
               Examen simulado con tus tarjetas →
