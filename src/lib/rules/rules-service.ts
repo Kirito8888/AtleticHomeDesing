@@ -2,13 +2,14 @@ import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
 import { addDays, dateOnly, toIsoDay } from "@/lib/dates";
+import { hrvWeekRanges } from "@/lib/planning/plan-import/hrv-weeks";
 import { prisma } from "@/lib/prisma";
 import { BODY_AREA_LABEL } from "@/lib/recovery/injury-rules";
 import { currentPhase, protocolPhasesSchema } from "@/lib/recovery/return-protocol";
 import { dailySrpe } from "@/lib/training/load-metrics";
 import { feelingSchema } from "@/lib/training/schemas";
 
-import { type Alert, type DayCheck, evaluateRules, type FeelingCheck, throwCap, type ThrowSession, weeklyThrows } from "./engine";
+import { type Alert, type DayCheck, evaluateRules, type FeelingCheck, throwCap, type ThrowSession, weekOf, weeklyThrows } from "./engine";
 import { getPrefs } from "./prefs-service";
 
 /** Pruebas que cuentan como lanzamientos (la pelota u otros implementos van en OTHER). */
@@ -19,7 +20,7 @@ const COMPETITION_THROWS = 6;
 export async function loadRuleInputs(userId: string, day: string, days = 63) {
   const from = addDays(dateOnly(day), -days);
   const to = dateOnly(day);
-  const [metrics, sessions, felt, recent, protocol] = await Promise.all([
+  const [metrics, sessions, felt, recent, protocol, hrvRanges] = await Promise.all([
     prisma.recoveryMetrics.findMany({
       where: { userId, date: { gte: from, lte: to } },
       select: { date: true, squeezePain: true, heelPain: true, jumpCm: true, elbowSymptoms: true, bodyWeightKg: true, bodyFatPct: true, hrvRmssdMs: true, sleepHours: true },
@@ -34,6 +35,7 @@ export async function loadRuleInputs(userId: string, day: string, days = 63) {
     }),
     prisma.trainingSession.findMany({ where: { userId, status: "COMPLETED", date: { gte: addDays(to, -6), lte: to } }, select: { date: true, sessionRpe: true, durationSec: true } }),
     prisma.returnProtocol.findFirst({ where: { userId, injury: { resolvedOn: null } }, orderBy: { updatedAt: "desc" }, select: { phases: true } }),
+    hrvWeekRanges(userId),
   ]);
   const loads = dailySrpe(recent.map((s) => ({ ...s, date: toIsoDay(s.date) })), toIsoDay(to));
   const phases = protocol ? protocolPhasesSchema.safeParse(protocol.phases) : null;
@@ -54,7 +56,8 @@ export async function loadRuleInputs(userId: string, day: string, days = 63) {
       videoHeadOk: t.videoHeadOk,
     };
   });
-  return { checks, throws, feelings, loads, returnProtocol };
+  const hrvWeeks = [...new Set(hrvRanges.flatMap((r) => [weekOf(r.start), weekOf(r.end)]))];
+  return { checks, throws, feelings, loads, returnProtocol, hrvWeeks };
 }
 
 /** Avisos de hoy según «Mis reglas». */

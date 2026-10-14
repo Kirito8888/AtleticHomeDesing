@@ -56,7 +56,7 @@ export function mesoPdf(): Uint8Array {
     ...cells(646, [null, null, null, null, "min", null]),
     { x: 70, y: 600, size: 10, text: "M5 · S1 · SÁBADO 31/10 (+ domingo) · Piscina (mañana) · ~28 min en el agua" },
     { x: 63, y: 580, text: "Nado suave 20 min." },
-    { x: 63, y: 540, size: 13, text: "SEMANA 2 · 02/11 – 08/11 · Carga" },
+    { x: 63, y: 540, size: 13, text: "SEMANA 2 · 02/11 – 08/11 · Carga · VFC" },
     { x: 70, y: 500, size: 10, text: "M5 · S2 · LUNES 02/11 · Festivo: solo pista · ~60 min (coche)" },
     ...tableHeader(480),
     ...cells(466, ["Aceleraciones de 25 m", "4 × 25 m", "≥95 % de esfuerzo".replace("≥", ">="), "-", "2,5 min", "Salida en tres apoyos"]),

@@ -66,6 +66,8 @@ export type ParsedWeek = {
   start: string | null;
   end: string | null;
   text: string;
+  /** Semana marcada «VFC» en el PDF: la alerta de caída de VFC solo se calcula en estas (v2.0). Ausente en planes antiguos. */
+  hrv?: boolean;
 };
 
 export type VariantOption = { code: string; label: string };

@@ -76,6 +76,9 @@ export default async function RecoveryPage() {
             Salud de la mujer
           </Link>
         ) : null}
+        <Link href="/recovery/trends" className="underline underline-offset-4">
+          Tendencias
+        </Link>
         <Link href="/recovery/wellbeing" className="underline underline-offset-4">
           Bienestar
         </Link>

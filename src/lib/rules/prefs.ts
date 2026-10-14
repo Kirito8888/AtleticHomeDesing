@@ -118,6 +118,17 @@ export const prefsSchema = z.object({
     .default(null),
   // --- v1.10 ---
   /** Objetivos diarios de micronutrientes; los que falten usan la referencia general (EFSA). */
+  // --- v2.0 · tendencias de meses (umbrales de los avisos de la página Tendencias) ---
+  /** Meses que se muestran en las tendencias. */
+  trendMonths: z.number().int().min(3).max(12).default(6),
+  /** Sueño: aviso si la media del mes reciente baja tantas horas respecto a la de los meses anteriores. */
+  trendSleepDropH: z.number().min(0.1).max(3).default(0.5),
+  /** VFC: aviso si la media del mes reciente cae este % respecto a los meses anteriores. */
+  trendHrvDropPct: z.number().min(1).max(40).default(5),
+  /** Carga: aviso si la carga semanal media (sRPE) sube este % respecto a los meses anteriores. */
+  trendLoadRisePct: z.number().min(5).max(200).default(25),
+  /** Molestias: aviso si los días con molestia por cada 30 días suben tantos respecto a los meses anteriores. */
+  trendPainDaysRise: z.number().int().min(1).max(30).default(3),
   microTargets: z.partialRecord(z.enum(["ironMg", "calciumMg", "vitDUg", "b12Ug", "magnesiumMg", "sodiumMg", "potassiumMg"]), z.number().min(0).max(100_000)).default({}),
 });
 
