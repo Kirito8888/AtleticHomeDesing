@@ -12,7 +12,7 @@ import { listSlots } from "@/lib/study/schedule-service";
 
 export const moveSchema = z.object({ date: isoDate, copy: z.boolean().default(false) });
 
-const THROWS = ["JAVELIN", "SHOT_PUT", "DISCUS", "HAMMER", "WEIGHT_THROW", "OTHER"];
+export const THROWS = ["JAVELIN", "SHOT_PUT", "DISCUS", "HAMMER", "WEIGHT_THROW", "OTHER"];
 
 /**
  * Mueve (o duplica) una sesión PLANIFICADA a otro día. Si viene del plan, el

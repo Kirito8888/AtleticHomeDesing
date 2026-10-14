@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { computePmc, rampRate } from "./pmc";
+import { computePmc, projectPmc, rampRate } from "./pmc";
 
 describe("computePmc", () => {
   it("rellena días sin entreno con TSS 0", () => {
@@ -58,5 +58,50 @@ describe("computePmc", () => {
     const s = computePmc([{ date: "2026-01-01", tss: 100 }], { start: "2026-01-01", end: "2026-01-08" });
     expect(rampRate(s)).toBeCloseTo(s[7].ctl - s[0].ctl, 2);
     expect(rampRate(s.slice(0, 3))).toBeNull();
+  });
+});
+
+describe("projectPmc (qué pasa si)", () => {
+  it("parte del CTL/ATL de hoy y suma el TSS previsto", () => {
+    const s = projectPmc({
+      seed: { ctl: 50, atl: 60, date: "2026-03-01" },
+      from: "2026-03-02",
+      to: "2026-03-03",
+      planned: [{ date: "2026-03-02", tss: 100 }],
+    });
+    // Día 1: CTL = 50 + (100 − 50)/42, ATL = 60 + (100 − 60)/7, TSB = 50 − 60
+    expect(s[0].ctl).toBeCloseTo(51.19, 2);
+    expect(s[0].atl).toBeCloseTo(65.71, 2);
+    expect(s[0].tsb).toBe(-10);
+    // Día 2 (TSS 0): CTL = 51.190… × 41/42, ATL = 65.714… × 6/7, TSB = CTL₁ − ATL₁
+    expect(s[1].ctl).toBeCloseTo((50 + 50 / 42) * (41 / 42), 2);
+    expect(s[1].atl).toBeCloseTo((60 + 40 / 7) * (6 / 7), 2);
+    expect(s[1].tsb).toBeCloseTo(50 + 50 / 42 - (60 + 40 / 7), 2);
+  });
+
+  it("decae la semilla hasta la víspera si es antigua y suma varias sesiones del mismo día", () => {
+    const s = projectPmc({
+      seed: { ctl: 42, atl: 70, date: "2026-03-01" },
+      from: "2026-03-03",
+      to: "2026-03-03",
+      planned: [
+        { date: "2026-03-03", tss: 30 },
+        { date: "2026-03-03", tss: 40 },
+        { date: "2026-03-01", tss: 999 }, // antes de `from`: se ignora
+      ],
+    });
+    const ctl0 = 42 * (41 / 42);
+    const atl0 = 70 * (6 / 7);
+    expect(s).toHaveLength(1);
+    expect(s[0].tss).toBe(70);
+    expect(s[0].tsb).toBeCloseTo(ctl0 - atl0, 1);
+    expect(s[0].ctl).toBeCloseTo(ctl0 + (70 - ctl0) / 42, 1);
+    expect(s[0].atl).toBeCloseTo(atl0 + (70 - atl0) / 7, 1);
+  });
+
+  it("sin semilla parte de cero", () => {
+    const s = projectPmc({ from: "2026-03-02", to: "2026-03-02", planned: [{ date: "2026-03-02", tss: 70 }] });
+    expect(s[0].ctl).toBeCloseTo(70 / 42, 2);
+    expect(s[0].atl).toBeCloseTo(10, 2);
   });
 });
