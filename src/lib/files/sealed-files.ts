@@ -12,7 +12,7 @@ import { openBytes, sealBytes } from "@/lib/security/secret-box";
  * v1.7 · Ficheros cifrados de cada usuario (fotos de lesión, justificantes). AES-256-GCM con la clave de
  * datos; en la BD solo la ruta relativa a UPLOAD_DIR/<usuario>. Borrar la cuenta borra la carpeta.
  */
-export const EXT: Record<string, string> = { "image/jpeg": ".jpg", "image/webp": ".webp", "image/png": ".png", "application/pdf": ".pdf" };
+export const EXT: Record<string, string> = { "image/jpeg": ".jpg", "image/webp": ".webp", "image/png": ".png", "application/pdf": ".pdf", "video/mp4": ".mp4", "video/webm": ".webm" };
 
 /** Firma real del fichero (no lo que dice el navegador). */
 export function sniffFile(buf: Buffer): string | null {

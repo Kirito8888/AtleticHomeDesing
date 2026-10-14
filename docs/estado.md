@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión fusionada:** v1.10 (PR #24, 14/10/2026). CI en verde.
 - **Siguiente:** v2.0, por bloques; **una sesión por bloque**. Cierre con PR al final de la versión.
-- **Bloque en curso:** ninguno. Hecho: **Salto**, **A–E** y cierre v2.0. **v2.1 bloque 1 hecho (PR abierto).** Siguiente: v2.1 bloque 2 (biblioteca de ejercicios con vídeo).
+- **Bloque en curso:** ninguno. Hecho: **Salto**, **A–E** y cierre v2.0. **v2.1 bloques 1 y 2 hechos.** Siguiente: v2.1 bloque 3.
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
 Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
@@ -92,7 +92,20 @@ Antes del bloque A: `scripts/dev/snapshot.sh` (foto de la BD v1.10 para la migra
   Tests: `disciplines.test.ts`, `disciplines.int.test.ts`; E2E `e2e:v21a` (también en `e2e.sh all`).
   Pendiente/fuera: no se crean `PersonalRecord` `TRACK_TIME` al guardar; reglas de `rules/engine.ts` y plan IA siguen centrados en lanzamientos;
   el selector de disciplinas del asistente de bienvenida no pide la prueba.
-- **2 · Biblioteca de ejercicios con vídeo propio** (`Exercise` sin descripción ni vídeo; `sealed-files` solo admite imágenes y PDF).
+- **2 · Biblioteca de ejercicios con vídeo propio — HECHO.** Misma migración `20270201080000_v2_1_features` (regenerada con `regen-mig.sh`; añade
+  a `Exercise`: `description`, `videoPath`, `videoMime`, `videoBytes`, `updatedAt`, todo nulo). Módulo de ficheros real: `src/lib/files/sealed-files.ts`
+  (+ `EXT` mp4/webm); validación pura en `files/video.ts` (`sniffVideo` por firma, `checkVideo`, `VIDEO_MAX_BYTES` 25 MiB). Servicio
+  `training/exercise-library.ts`; API `api/training/exercises[/id[/video]]` (GET/PATCH ficha; GET/PUT/DELETE vídeo, límite `videoUpload`);
+  UI `/training/exercises` y `/training/exercises/[id]` (`exercise-forms.tsx`, `exercise-video.tsx`); enlace en `/training`.
+  **Decisiones:** (1) solo se editan ejercicios propios; el catálogo global es solo lectura y **sin vídeo** (sería de una usuaria visible a todas).
+  (2) La entrenadora consulta (vídeo incluido) con `?athlete=` + ámbito SESSIONS vía `resolveAthleteId`; nunca edita. (3) Reproducción: `fetch` al
+  pulsar «Ver vídeo» → Blob local → `<video>`; se libera al cerrar; `Cache-Control: no-store`; sin URLs públicas ni Range (AES-GCM de fichero entero).
+  (4) Solo MP4 (marcas ISO) y WebM (DocType webm) por firma; **QuickTime/.mov y MKV se rechazan** (el iPhone puede grabar .mov: exportar a MP4).
+  (5) Subida solo por `multipart` con fichero: no hay campo de URL ni descarga de terceros. Rotación de clave incluye los vídeos (`rotate.ts`);
+  exportar cuenta lleva `description` pero no los vídeos; restaurar ignora `videoPath/Mime/Bytes`.
+  Tests: `files/video.test.ts`, `training/exercise-library.int.test.ts`; E2E `e2e:v21b` (también en `e2e.sh all`).
+  Pendiente/fuera: la descripción no va a la IA ni al plan; no hay borrado de ejercicios propios (si se añade, borrar también el clip);
+  sin recorte ni análisis del vídeo.
 - **3 · Comparativas con curvas publicadas y citadas; protocolos de fisio compartidos.**
 
 ## Decisiones tomadas

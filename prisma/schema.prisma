@@ -724,6 +724,12 @@ model Exercise {
   // Si el peso corporal cuenta en el tonelaje (dominadas, fondos...)
   bodyweightFactor Float            @default(0)
   createdAt        DateTime         @default(now())
+  // v2.1 · instrucciones técnicas y clip propio (cifrado en UPLOAD_DIR; solo ejercicios con userId)
+  description String?
+  videoPath   String?
+  videoMime   String?
+  videoBytes  Int?
+  updatedAt   DateTime? @updatedAt
 
   user            User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   sets            StrengthSet[]
