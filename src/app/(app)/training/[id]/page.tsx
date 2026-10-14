@@ -23,6 +23,7 @@ import type { VariantOption } from "@/lib/planning/plan-import/types";
 import { planDayForSession } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { isEditableType } from "@/lib/training/form-initial";
+import { formatSeconds, intervalMetric, intervalStats } from "@/lib/training/disciplines";
 import { consistency } from "@/lib/training/consistency";
 import { MoveSession, RescheduleCard } from "@/components/training/move-session";
 import { rescheduleSuggestions } from "@/lib/training/move-service";
@@ -75,6 +76,8 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
     sessionThread(user, s.id),
     prisma.coachAthlete.count({ where: { athleteId: user.id, status: "ACTIVE", scopes: { has: "SESSIONS" } } }).then((n) => n > 0),
   ]);
+  const trackStats = intervalStats(s.track?.intervals ?? []);
+
   return (
     <>
       <PageHeader
@@ -292,8 +295,12 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
         <Card className="gap-2 py-4">
           <CardContent className="grid gap-3 px-4">
             <div className="grid grid-cols-3 gap-3">
-              <Stat label="Distancia" value={s.track.distanceM ? formatNum(s.track.distanceM / 1000, 2) : "—"} unit="km" />
-              <Stat label="Ritmo" value={s.track.avgPaceSecPerKm ? formatPace(s.track.avgPaceSecPerKm) : s.track.avgPaceSecPer100m ? formatPace(s.track.avgPaceSecPer100m, "/100 m") : "—"} />
+              {trackStats.count && !s.track.distanceM ? (
+                <Stat label="Series" value={`${trackStats.count} · ${formatNum(trackStats.totalM)}`} unit="m" />
+              ) : (
+                <Stat label="Distancia" value={s.track.distanceM ? formatNum(s.track.distanceM / 1000, 2) : "—"} unit="km" />
+              )}
+              <Stat label={trackStats.count && !s.track.distanceM ? "Mejor" : "Ritmo"} value={trackStats.count && !s.track.distanceM ? (trackStats.bestTimeSec != null ? formatSeconds(trackStats.bestTimeSec) : "—") : s.track.avgPaceSecPerKm ? formatPace(s.track.avgPaceSecPerKm) : s.track.avgPaceSecPer100m ? formatPace(s.track.avgPaceSecPer100m, "/100 m") : "—"} />
               <Stat label="FC media" value={s.track.hrAvg ?? "—"} unit="ppm" />
             </div>
             {s.track.intervals.length ? (
@@ -303,6 +310,7 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
                     <th className="text-left font-normal">#</th>
                     <th className="text-right font-normal">Metros</th>
                     <th className="text-right font-normal">Tiempo</th>
+                    <th className="text-right font-normal">Vel./ritmo</th>
                     <th className="text-right font-normal">Recup.</th>
                   </tr>
                 </thead>
@@ -312,6 +320,7 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
                       <td>{iv.order}</td>
                       <td className="text-right">{iv.distanceM ?? "—"}</td>
                       <td className="text-right">{iv.timeSec != null ? (iv.timeSec < 60 ? `${formatNum(iv.timeSec, 2)} s` : formatDuration(iv.timeSec)) : "—"}</td>
+                      <td className="text-right">{intervalMetric(s.track!.modality, iv.distanceM, iv.timeSec) ?? "—"}</td>
                       <td className="text-right">{formatDuration(iv.recoverySec)}</td>
                     </tr>
                   ))}

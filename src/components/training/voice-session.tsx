@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { type AutoregContext, type ExerciseOption } from "@/components/training/strength-logger";
-import { SessionForm } from "@/components/training/session-form";
+import { type EventDefaults, SessionForm } from "@/components/training/session-form";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
@@ -27,7 +27,7 @@ type SpeechCtor = new () => {
  * Formulario de sesión con «Dictar»: el navegador transcribe (el audio no sale
  * del móvil), el texto se convierte en un borrador y se revisa antes de guardar.
  */
-export function VoiceSessionForm(props: { exercises: ExerciseOption[]; defaultDate: string; bodyWeightKg: number | null; initialType: FormKind; initial?: SessionFormInitial; formKey: string; autoreg?: AutoregContext }) {
+export function VoiceSessionForm(props: { exercises: ExerciseOption[]; defaultDate: string; bodyWeightKg: number | null; initialType: FormKind; initial?: SessionFormInitial; formKey: string; autoreg?: AutoregContext; eventDefaults?: EventDefaults }) {
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -101,7 +101,7 @@ export function VoiceSessionForm(props: { exercises: ExerciseOption[]; defaultDa
           <p className="text-xs text-muted-foreground">El audio lo transcribe tu navegador. Al servidor solo llega el texto; si tienes la IA activada, tu IA lo convierte, y si no, la app lo interpreta sola.</p>
         </div>
       </details>
-      <SessionForm key={key} exercises={props.exercises} defaultDate={props.defaultDate} bodyWeightKg={props.bodyWeightKg} initialType={props.initialType} initial={initial} autoreg={props.autoreg} />
+      <SessionForm key={key} exercises={props.exercises} defaultDate={props.defaultDate} bodyWeightKg={props.bodyWeightKg} initialType={props.initialType} initial={initial} autoreg={props.autoreg} eventDefaults={props.eventDefaults} />
     </>
   );
 }

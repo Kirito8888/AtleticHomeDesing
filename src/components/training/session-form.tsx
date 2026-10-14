@@ -10,7 +10,7 @@ import { RestTimer } from "@/components/training/rest-timer";
 import { type AutoregContext, blocksToSets, StrengthLogger, type ExerciseBlock, type ExerciseOption } from "@/components/training/strength-logger";
 import { type FeelingValue, FeelingsPicker } from "@/components/training/feelings-picker";
 import { FATIGUE_ZONES, type FatigueZone } from "@/lib/training/zone-fatigue";
-import { initialTechnical, TechnicalLogger, technicalPayload, type TechnicalState } from "@/components/training/technical-logger";
+import { IMPLEMENTS, initialTechnical, TechnicalLogger, technicalPayload, type TechnicalState } from "@/components/training/technical-logger";
 import { initialTrack, TrackLogger, trackPayload, type TrackState } from "@/components/training/track-logger";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,15 +19,34 @@ import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
 import { enqueue, isNetworkError } from "@/lib/offline/outbox";
 import { formatNum } from "@/lib/format";
+import { disciplineForTrack } from "@/lib/training/disciplines";
 import type { FormKind as Kind, SessionFormInitial } from "@/lib/training/form-initial";
 
 const RPE = Array.from({ length: 10 }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
+
+export interface EventDefaults {
+  modality: string | null;
+  technicalEvent: string | null;
+  profileDiscipline: string | null;
+}
 
 interface Created {
   id: string;
   tss: number | null;
   tssMethod: string | null;
   newPersonalRecords: Array<{ kind: string; value: number }>;
+}
+
+function technicalFor(d?: EventDefaults): TechnicalState {
+  const base = initialTechnical();
+  if (!d?.technicalEvent) return base;
+  const imps = IMPLEMENTS[d.technicalEvent];
+  return { ...base, event: d.technicalEvent, implementWeightG: imps ? imps[imps.length - 1] : null };
+}
+
+function trackFor(d?: EventDefaults): TrackState {
+  const base = initialTrack();
+  return d?.modality ? { ...base, modality: d.modality } : base;
 }
 
 export function SessionForm({
@@ -38,6 +57,7 @@ export function SessionForm({
   initial,
   sessionId,
   autoreg,
+  eventDefaults,
 }: {
   exercises: ExerciseOption[];
   defaultDate: string;
@@ -49,6 +69,8 @@ export function SessionForm({
   sessionId?: string;
   /** v1.6 · kg del día autorregulados (solo sugerencias; el plan no cambia). */
   autoreg?: AutoregContext;
+  /** v2.1 · valores iniciales según la prueba del perfil (sin ellos, los de siempre). */
+  eventDefaults?: EventDefaults;
 }) {
   const router = useRouter();
   const [clientId] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `c${Date.now()}${Math.random().toString(36).slice(2, 10)}`));
@@ -64,8 +86,8 @@ export function SessionForm({
   const [planned, setPlanned] = useState(initial?.planned ?? false);
   const [mixed, setMixed] = useState(initial?.mixed ?? false);
   const [blocks, setBlocks] = useState<ExerciseBlock[]>(initial?.blocks ?? []);
-  const [technical, setTechnical] = useState<TechnicalState>(initial?.technical ?? initialTechnical);
-  const [track, setTrack] = useState<TrackState>(initial?.track ?? initialTrack);
+  const [technical, setTechnical] = useState<TechnicalState>(initial?.technical ?? technicalFor(eventDefaults));
+  const [track, setTrack] = useState<TrackState>(initial?.track ?? trackFor(eventDefaults));
   const [saving, setSaving] = useState(false);
   const [restSignal, setRestSignal] = useState(0);
 
@@ -108,7 +130,7 @@ export function SessionForm({
       if (!technical.attempts.length && !planned) return "Añade al menos un intento";
       return { ...common, type, discipline: technical.event.includes("JUMP") || technical.event === "POLE_VAULT" ? "JUMPS" : "THROWS", technical: technicalPayload(technical) };
     }
-    return { ...common, type, track: trackPayload(track) };
+    return { ...common, type, discipline: disciplineForTrack(track.modality, eventDefaults?.profileDiscipline), track: trackPayload(track) };
   }
 
   async function saveTemplate() {

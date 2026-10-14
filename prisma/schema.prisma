@@ -418,6 +418,8 @@ model AthleteProfile {
   bodyWeightKg      Float?
   primaryDiscipline Discipline?
   disciplines       Discipline[]
+  // v2.1 · especialidad («100m», «400mH», «LJ», «HEPT»…): clave del catálogo de src/lib/training/disciplines.ts
+  primaryEvent      String?
   // Constantes del modelo de Banister (configurables por atleta)
   ctlTimeConstant   Int          @default(42)
   atlTimeConstant   Int          @default(7)

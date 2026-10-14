@@ -13,7 +13,8 @@ export async function technicalDiary(userId: string, q: string | null, tag: stri
     where: {
       userId,
       status: "COMPLETED",
-      technical: { isNot: null },
+      // v2.1 · también las sesiones de pista (carreras): sin técnica no hay clave ni foco, pero sí notas y etiquetas
+      AND: [{ OR: [{ technical: { isNot: null } }, { track: { isNot: null } }] }],
       ...(tag ? { tags: { has: tag } } : {}),
       ...(text
         ? {
@@ -28,7 +29,7 @@ export async function technicalDiary(userId: string, q: string | null, tag: stri
     },
     orderBy: { date: "desc" },
     take: 100,
-    select: { id: true, date: true, title: true, notes: true, tags: true, technical: { select: { event: true, implementWeightG: true, cue: true, focus: true, bestMarkM: true } } },
+    select: { id: true, date: true, title: true, notes: true, tags: true, technical: { select: { event: true, implementWeightG: true, cue: true, focus: true, bestMarkM: true } }, track: { select: { modality: true, distanceM: true, avgPaceSecPerKm: true, intervals: { select: { distanceM: true, timeSec: true } } } } },
   });
   const allTags = await prisma.$queryRaw<Array<{ tag: string; n: number }>>`select unnest(tags) as tag, count(*)::int as n from "TrainingSession" where "userId" = ${userId} group by 1 order by 2 desc limit 30`;
   return { rows: rows.map((r) => ({ ...r, date: toIsoDay(r.date) })), tags: allTags };
