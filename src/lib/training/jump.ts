@@ -7,8 +7,18 @@ import { z } from "zod";
  */
 
 export const G = 9.81;
-export const CAPTURE_FPS = [240, 120, 60, 30] as const;
+/** Fps de captura admitidos: NTSC (30, 60, 120, 240) y PAL (25, 50, 100). */
+export const CAPTURE_FPS = [25, 30, 50, 60, 100, 120, 240] as const;
 export type CaptureFps = (typeof CAPTURE_FPS)[number];
+export const isCaptureFps = (f: number): f is CaptureFps => (CAPTURE_FPS as readonly number[]).includes(f);
+
+/** Fps habituales de un fichero de vídeo, para redondear la medida del navegador. */
+export const COMMON_FILE_FPS = [24, 25, 30, 48, 50, 60, 100, 120, 240] as const;
+export const nearestFps = (raw: number) => COMMON_FILE_FPS.reduce<number>((a, b) => (Math.abs(b - raw) < Math.abs(a - raw) ? b : a), COMMON_FILE_FPS[0]);
+/** Instante (s) del centro del fotograma `frame` en un fichero de `fileFps`: evita caer en el borde con el anterior. */
+export const frameToTime = (frame: number, fileFps: number) => (frame + 0.5) / fileFps;
+/** Fotograma que se muestra en el instante `t` (s) de un fichero de `fileFps`. */
+export const timeToFrame = (t: number, fileFps: number) => Math.max(0, Math.floor(t * fileFps + 1e-6));
 
 export const JUMP_TYPES = {
   cmj: { name: "CMJ (contramovimiento)", best: "cmj", mean: "cmjMean" },
@@ -71,7 +81,7 @@ const frame = z.number().int().min(0).max(1_000_000);
 export const jumpSessionSchema = z
   .object({
     type: z.enum(Object.keys(JUMP_TYPES) as [JumpType, ...JumpType[]]),
-    fps: z.union(CAPTURE_FPS.map((f) => z.literal(f)) as unknown as [z.ZodLiteral<240>, z.ZodLiteral<120>, z.ZodLiteral<60>, z.ZodLiteral<30>]),
+    fps: z.number().refine(isCaptureFps, "Fps de captura no admitidos").transform((f) => f as CaptureFps),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     attempts: z.array(z.object({ takeoff: frame, landing: frame, contact: frame.nullish() })).min(1).max(10),
   })

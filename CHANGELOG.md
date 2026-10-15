@@ -12,6 +12,9 @@ Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el 
 - Añade descripción y un vídeo **MP4 o WebM** (hasta 25 MiB) a tus ejercicios. Se guarda cifrado y solo lo ves tú (y tu entrenadora, con el ámbito de sesiones). Los ejercicios del catálogo no llevan vídeo.
 - **QuickTime (.mov) y MKV se rechazan**: si el iPhone graba .mov, expórtalo a MP4.
 
+**Medidor de salto**
+- Fps de captura **PAL** (25, 50, 100) además de 30, 60, 120 y 240. Acepta el **.mov del iPhone**; si el navegador no puede decodificarlo (HEVC en un ordenador) lo explica en vez de bloquearse. Deslizador de fotograma y avance ±1 más fluido. El vídeo sigue sin salir del navegador.
+
 **Entrenadora y atleta**
 - **Curvas de referencia citadas** (`/training/tests/curvas` y `/comparar`): compara un test con una curva con estudio, autores, año y cita obligatorios. El catálogo empieza **vacío**: se dan de alta a mano. Sin fecha de nacimiento no se compara. Nada va a la IA.
 - **Protocolos de fisio compartidos** (`/recovery/fisio`): la entrenadora crea fases con ejercicios y criterios y los comparte con una atleta vinculada (ámbito de recuperación). La atleta lo ve en solo lectura y marca criterios y dolor del día. Quitar el acceso borra su seguimiento.
