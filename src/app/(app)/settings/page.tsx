@@ -51,6 +51,7 @@ import { feedStatus } from "@/lib/planning/feed-service";
 import { listReports } from "@/lib/report/service";
 import { prisma } from "@/lib/prisma";
 import { vapidKeys } from "@/lib/push/service";
+import { optional } from "@/lib/settings/optional";
 import { readPrefs } from "@/lib/rules/prefs";
 import { auditIntegrity, recentEvents } from "@/lib/security/audit";
 import { totpStatus } from "@/lib/security/totp";
@@ -103,9 +104,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const user = await pageUser();
   // v1.8 · la administración exige 2FA o una llave de acceso
   const adminOk = user.role === "ADMIN" && (await hasSecondFactor(user.id));
-  const status = adminOk ? await serverStatus() : null;
-  const demos = adminOk ? await listDemoAccounts() : [];
-  const usage = await usageSummary(user.id);
+  const status = adminOk ? await optional("estado del servidor", serverStatus, null) : null;
+  const demos = adminOk ? await optional("cuentas demo", listDemoAccounts, []) : [];
+  const usage = await optional("uso", () => usageSummary(user.id), { top: [], total: 0, unused: [], weeks: 0 });
   const { welcome, strava: stravaParam } = await searchParams;
   const todayIso = toIsoDay(today());
   const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed, reports, passkeys, integrity] = await Promise.all([
@@ -116,11 +117,11 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     prisma.coachAthlete.findMany({ where: { athleteId: user.id }, include: { coach: { select: { name: true, email: true } } } }),
     prisma.exercise.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     totpStatus(user.id),
-    recentEvents(user.id, 15),
+    optional("actividad", () => recentEvents(user.id, 15), []),
     prisma.pushSubscription.count({ where: { userId: user.id } }),
-    feedStatus(user.id),
-    listReports(user.id),
-    listPasskeys(user.id),
+    optional("calendario", () => feedStatus(user.id), { active: false, createdAt: null, lastUsedAt: null }),
+    optional("informes", () => listReports(user.id), []),
+    optional("llaves de acceso", () => listPasskeys(user.id), []),
     auditIntegrity(user.id),
   ]);
   const monday = startOfIsoWeek(today());
@@ -132,9 +133,9 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const vapid = vapidKeys();
   const p = me.athleteProfile;
   const prefs = readPrefs(p?.prefs);
-  const aiView = await credentialView(user.id);
-  const tgStatus = await telegramStatus(user.id);
-  const stravaSt = await stravaStatus(user.id);
+  const aiView = await optional("IA", () => credentialView(user.id), { own: null, serverFallback: null });
+  const tgStatus = await optional("Telegram", () => telegramStatus(user.id), { configured: false, linked: false, enabled: false, linkedAt: null, bot: null });
+  const stravaSt = await optional("Strava", () => stravaStatus(user.id), { configured: false, connected: false, connectedAt: null, lastSyncAt: null, lastError: null, sessions: 0 });
   const isDemo = Boolean(me.demoExpiresAt);
   const aiProviderName = aiView.own?.label ?? (aiView.serverFallback ? "Google Gemini" : "la IA que configures");
 
