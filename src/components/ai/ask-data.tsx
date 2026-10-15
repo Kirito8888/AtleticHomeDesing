@@ -37,7 +37,7 @@ export function AskData() {
     <div className="grid gap-3">
       <div className="flex flex-wrap gap-1.5" aria-label="Preguntas sugeridas">
         {SUGGESTIONS.map((s) => (
-          <button key={s} type="button" disabled={busy} onClick={() => void ask(s)} className="rounded-full border px-3 py-1 text-xs hover:bg-accent">
+          <button key={s} type="button" disabled={busy} onClick={() => void ask(s)} className="rounded-full border px-3 py-1 text-xs hover:bg-accent max-md:min-h-11">
             {s}
           </button>
         ))}

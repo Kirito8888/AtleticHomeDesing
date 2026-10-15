@@ -23,7 +23,7 @@ export function SnoozeButton({ id, until }: { id: string; until: string | null }
   return (
     <button
       type="button"
-      className="text-xs font-medium underline underline-offset-2"
+      className="inline-flex items-center text-xs font-medium underline underline-offset-2 max-md:min-h-11 max-md:px-2"
       onClick={async () => {
         const r = await fetch("/api/push/snooze", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) });
         if (r.ok) router.refresh();

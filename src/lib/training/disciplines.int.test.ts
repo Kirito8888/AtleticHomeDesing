@@ -50,6 +50,29 @@ describe.skipIf(!HAS_DB)("disciplinas: carreras sin alterar lanzamientos (BD rea
     expect(intervalStats(row.track!.intervals)).toMatchObject({ count: 2, totalM: 300, bestTimeSec: 17.9 });
   });
 
+  it("P2-3: guarda un PR TRACK_TIME por distancia y solo cuando se mejora (menor es mejor)", async () => {
+    const mk = (date: string, times: number[]) =>
+      service.createTrainingSession(userId, null, {
+        date,
+        type: "TRACK",
+        discipline: "SPRINT",
+        status: "COMPLETED",
+        durationSec: 3000,
+        sessionRpe: 7,
+        track: {
+          modality: "SPRINT",
+          hrZoneSeconds: [],
+          intervals: times.map((t, i) => ({ repetition: i + 1, distanceM: 100, timeSec: t, isStartBlocks: true, isFlying: false, splitsSec: [] })),
+        },
+      } as Parameters<typeof service.createTrainingSession>[2]);
+    const a = await mk("2026-10-07", [12.4, 12.1, 12.3]);
+    expect(a.newPersonalRecords.filter((r) => r.kind === "TRACK_TIME").map((r) => [r.trackDistanceM, r.value])).toEqual([[100, 12.1]]);
+    const b = await mk("2026-10-08", [12.5, 12.2]);
+    expect(b.newPersonalRecords.filter((r) => r.kind === "TRACK_TIME")).toHaveLength(0);
+    const c = await mk("2026-10-09", [11.98]);
+    expect(c.newPersonalRecords.filter((r) => r.kind === "TRACK_TIME").map((r) => r.value)).toEqual([11.98]);
+  });
+
   it("regresión: una sesión de lanzamientos conserva mejor marca, TSS técnico y su titular", async () => {
     const s = await service.createTrainingSession(userId, null, {
       date: "2026-10-06",

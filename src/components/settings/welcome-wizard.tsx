@@ -10,7 +10,9 @@ import { DISCIPLINES } from "@/components/settings/settings-forms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
+import { EVENTS } from "@/lib/training/disciplines";
 
 const STEPS = ["Para qué", "Tú", "Avisos"] as const;
 type Discipline = keyof typeof DISCIPLINES;
@@ -19,7 +21,7 @@ type Discipline = keyof typeof DISCIPLINES;
  * v1.8 · Primer uso: qué partes de Atlenza vas a usar (el resto se oculta y se puede recuperar en
  * Ajustes → Módulos), tu perfil básico y las horas de silencio. Todo opcional.
  */
-export function WelcomeWizard({ initial }: { initial: { name: string; sex: "MALE" | "FEMALE" | "OTHER" | null; birthDate: string; disciplines: Discipline[]; hidden: ModuleKey[] } }) {
+export function WelcomeWizard({ initial }: { initial: { name: string; sex: "MALE" | "FEMALE" | "OTHER" | null; birthDate: string; disciplines: Discipline[]; primaryEvent: string; hidden: ModuleKey[] } }) {
   const router = useRouter();
   const all = Object.keys(MODULE_LABEL) as ModuleKey[];
   const [step, setStep] = useState(0);
@@ -29,13 +31,14 @@ export function WelcomeWizard({ initial }: { initial: { name: string; sex: "MALE
   const [sex, setSex] = useState(initial.sex);
   const [birthDate, setBirthDate] = useState(initial.birthDate);
   const [disciplines, setDisciplines] = useState<Discipline[]>(initial.disciplines);
+  const [event, setEvent] = useState(initial.primaryEvent);
   const [quiet, setQuiet] = useState(true);
 
   async function finish() {
     setBusy(true);
     try {
       await api("/api/settings/prefs", { method: "PATCH", body: { hiddenModules: all.filter((m) => !modules.includes(m)), quietHours: quiet ? { from: "22:30", to: "07:30" } : null } });
-      await api("/api/profile", { method: "PATCH", body: { name: name.trim() || undefined, sex, birthDate: birthDate || null, disciplines } });
+      await api("/api/profile", { method: "PATCH", body: { name: name.trim() || undefined, sex, birthDate: birthDate || null, disciplines, primaryEvent: event || undefined } });
       await api("/api/account/onboarded", { method: "POST" });
       toast.success("¡Listo! Puedes cambiarlo todo en Ajustes");
       router.push("/");
@@ -83,6 +86,23 @@ export function WelcomeWizard({ initial }: { initial: { name: string; sex: "MALE
           </Field>
           <Field label="Disciplinas">
             <MultiChips label="Disciplinas" options={(Object.keys(DISCIPLINES) as Discipline[]).map((d) => ({ value: d, label: DISCIPLINES[d] }))} value={disciplines} onChange={setDisciplines} />
+          </Field>
+          <Field label="Mi prueba (opcional)" htmlFor="wz-event" hint="Abre el registro en tu pestaña (tiempos, marcas) y ajusta la disciplina principal. Sin elegirla, todo sigue como siempre.">
+            <Select id="wz-event" value={event} onChange={(e) => setEvent(e.target.value)}>
+              <option value="">—</option>
+              {(Object.keys(DISCIPLINES) as Discipline[]).map((d) => {
+                const evs = Object.entries(EVENTS).filter(([, e]) => e.discipline === d);
+                return evs.length ? (
+                  <optgroup key={d} label={DISCIPLINES[d]}>
+                    {evs.map(([k, e]) => (
+                      <option key={k} value={k}>
+                        {e.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null;
+              })}
+            </Select>
           </Field>
         </>
       ) : null}

@@ -1,3 +1,5 @@
+import { EVENTS } from "@/lib/training/disciplines";
+
 import {
   AGE_BANDS,
   AVOID,
@@ -40,7 +42,7 @@ export function buildPlanPrompt(r: PlanRequest, feedback?: string[]): string {
     return `- weekday ${wd} (${WEEKDAY_LABEL[wd - 1]}): ${LOCATIONS[loc]}. Material permitido: ${eq}`;
   });
   const lines = [
-    `Objetivo: ${GOALS[r.goal]}. Disciplina: ${DISCIPLINES[r.discipline]}. Nivel: ${LEVELS[r.level]}. Edad: ${AGE_BANDS[r.ageBand]}.`,
+    `Objetivo: ${GOALS[r.goal]}. Disciplina: ${DISCIPLINES[r.discipline]}${r.event && EVENTS[r.event] ? ` (prueba principal: ${EVENTS[r.event].label})` : ""}. Nivel: ${LEVELS[r.level]}. Edad: ${AGE_BANDS[r.ageBand]}.`,
     `Duración del plan: ${r.weeks} semanas. Minutos por sesión: ${r.minutes} como máximo.`,
     `Días de entrenamiento (${r.weekdays.length} por semana, usa exactamente estos weekday en cada fase):`,
     ...days,

@@ -25,7 +25,7 @@ export function AttemptSimulator({ start }: { start: string | null }) {
   const t0 = toMin(time);
   return (
     <div className="grid gap-3 text-sm">
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <Field label="Atletas" htmlFor="sim-n">
           <Input id="sim-n" inputMode="numeric" className="w-full min-w-0" value={athletes} onChange={(e) => setAthletes(e.target.value)} />
         </Field>

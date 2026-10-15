@@ -12,7 +12,7 @@ export const metadata = { title: "Bienvenida · Atlenza" };
 /** v1.8 · Primer uso guiado (3 pasos, todo opcional y modificable en Ajustes). */
 export default async function WelcomePage() {
   const user = await pageUser();
-  const [u, prefs] = await Promise.all([prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { name: true, athleteProfile: { select: { sex: true, birthDate: true, disciplines: true } } } }), getPrefs(user.id)]);
+  const [u, prefs] = await Promise.all([prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { name: true, athleteProfile: { select: { sex: true, birthDate: true, disciplines: true, primaryEvent: true } } } }), getPrefs(user.id)]);
   return (
     <>
       <PageHeader title="Bienvenida" description="Tres pasos para que Atlenza se adapte a ti. Todo se puede cambiar después." />
@@ -24,6 +24,7 @@ export default async function WelcomePage() {
               sex: u.athleteProfile?.sex ?? null,
               birthDate: u.athleteProfile?.birthDate ? toIsoDay(u.athleteProfile.birthDate) : "",
               disciplines: (u.athleteProfile?.disciplines ?? []) as never,
+              primaryEvent: u.athleteProfile?.primaryEvent ?? "",
               hidden: prefs.hiddenModules as ModuleKey[],
             }}
           />

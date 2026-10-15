@@ -30,7 +30,7 @@ export function Chips<T extends string | number>({
             aria-checked={active}
             onClick={() => onChange(active && allowDeselect ? null : o.value)}
             className={cn(
-              "h-9 min-w-10 rounded-full border px-3 text-sm font-medium tabular-nums transition-colors",
+              "h-9 max-md:h-11 min-w-10 rounded-full border px-3 text-sm font-medium tabular-nums transition-colors",
               active ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-accent",
             )}
           >
@@ -80,7 +80,7 @@ export function MultiChips<T extends string | number>({
             aria-checked={active}
             onClick={() => onChange(active ? value.filter((v) => v !== o.value) : [...value, o.value])}
             className={cn(
-              "h-9 min-w-10 rounded-full border px-3 text-sm font-medium transition-colors",
+              "h-9 max-md:h-11 min-w-10 rounded-full border px-3 text-sm font-medium transition-colors",
               active ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-accent",
             )}
           >

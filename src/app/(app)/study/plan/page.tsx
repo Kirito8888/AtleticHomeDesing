@@ -2,10 +2,11 @@ import Link from "next/link";
 
 import { PlanWizard } from "@/components/ai-plan/plan-wizard";
 import { PageHeader } from "@/components/page-header";
-import type { AGE_BANDS } from "@/lib/ai-plan/options";
+import { type AGE_BANDS, disciplineForFamily } from "@/lib/ai-plan/options";
 import { aiAvailable } from "@/lib/ai/provider";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
+import { EVENTS, familyOf } from "@/lib/training/disciplines";
 import { prisma } from "@/lib/prisma";
 import { activeInjuries } from "@/lib/recovery/injuries";
 import { womenMode } from "@/lib/health/women-service";
@@ -24,7 +25,7 @@ export default async function CreatePlanPage() {
   const now = today();
   const [me, profile, injuries, events, cycle, drafts, mode] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { aiConsentAt: true } }),
-    prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { sex: true, birthDate: true } }),
+    prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { sex: true, birthDate: true, primaryDiscipline: true, primaryEvent: true } }),
     activeInjuries(user.id),
     prisma.calendarEvent.findMany({ where: { userId: user.id, type: "COMPETITION", startAt: { gte: now } }, orderBy: { startAt: "asc" }, take: 30, select: { id: true, title: true, startAt: true } }),
     prisma.cycleProfile.count({ where: { userId: user.id } }),
@@ -81,6 +82,8 @@ export default async function CreatePlanPage() {
         presetAreas={[...new Set(injuries.map((i) => i.area))]}
         competitions={events.map((e) => ({ id: e.id, title: e.title, date: toIsoDay(e.startAt) }))}
         defaultAgeBand={ageBand(profile?.birthDate)}
+        defaultDiscipline={profile?.primaryEvent || profile?.primaryDiscipline ? disciplineForFamily(familyOf(profile.primaryDiscipline, profile.primaryEvent)) : "general"}
+        event={profile?.primaryEvent && EVENTS[profile.primaryEvent] ? profile.primaryEvent : null}
       />
     </>
   );

@@ -153,7 +153,7 @@ export function EmergencyMonthsSelect({ value }: { value: number }) {
       Objetivo
       <select
         aria-label="Meses del fondo de emergencia"
-        className="h-8 rounded-md border bg-transparent px-2 text-sm text-foreground"
+        className="h-8 max-md:h-11 rounded-md border bg-transparent px-2 text-sm text-foreground"
         value={value}
         disabled={busy}
         onChange={(e) => void save({ emergencyMonths: Number(e.target.value) }, "Objetivo del fondo guardado")}
