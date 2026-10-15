@@ -212,7 +212,12 @@ if (mov) {
   }
   await go("/training/tests/salto");
   await page.getByRole("heading", { name: "Cómo grabar y subir el vídeo para medir bien" }).waitFor();
+  await page.getByText(/Colocar la cámara y ajustes de grabación/).waitFor();
+  await page.getByText(/Error de ±1 fotograma|Cuantos más fps/).first().waitFor();
+  for (const t of ["2 · Subir el vídeo y ajustarlo", "3 · Cómo se calcula", "4 · Para medidas más precisas"]) await page.getByText(t, { exact: false }).first().click();
   await page.getByText(/Guardar en Archivos/).waitFor();
+  await page.getByText(/g · t² \/ 8/).waitFor();
+  await page.getByText(/No lo compares con la tabla/).waitFor();
   await checkA11y("/training/tests/salto (guía)");
   log("guía de grabación visible");
   await page.getByLabel(/^Vídeo del salto/).first().setInputFiles({ name: "roto.mov", mimeType: "video/quicktime", buffer: garbage });
