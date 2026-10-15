@@ -6,6 +6,7 @@ import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, isoDate, toIsoDay } from "@/lib/dates";
 import { formatNum, SESSION_TYPE_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { notFromStrava } from "@/lib/strava/policy";
 import { assertNotRestricted, isRestricted } from "@/lib/privacy/service";
 import { BODY_AREA_LABEL } from "@/lib/recovery/injury-rules";
 import { weekOf } from "@/lib/rules/engine";
@@ -60,12 +61,12 @@ async function reportData(userId: string, from: string, to: string, includeInjur
   const [user, sessions, attempts, controls, injuries, ruleInputs] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } }),
     prisma.trainingSession.findMany({
-      where: { userId, date: range },
+      where: { userId, date: range, ...notFromStrava },
       orderBy: [{ date: "asc" }, { createdAt: "asc" }],
       select: { date: true, title: true, status: true, type: true, technical: { select: { bestMarkM: true } } },
     }),
     prisma.technicalAttempt.findMany({
-      where: { isFoul: false, markM: { gt: 0 }, technicalSession: { session: { userId, status: "COMPLETED", date: range } } },
+      where: { isFoul: false, markM: { gt: 0 }, technicalSession: { session: { userId, status: "COMPLETED", date: range, ...notFromStrava } } },
       select: { markM: true, technicalSession: { select: { event: true, implementWeightG: true, isCompetition: true, session: { select: { date: true } } } } },
     }),
     // Solo los controles deportivos: ni peso, ni grasa, ni VFC, ni notas.

@@ -2,7 +2,7 @@ import type { metricsSummary } from "@/lib/admin/metrics";
 import type { checkHealth } from "@/lib/admin/watch";
 
 type Props = {
-  metrics: ReturnType<typeof metricsSummary>;
+  metrics: Awaited<ReturnType<typeof metricsSummary>>;
   problems: Awaited<ReturnType<typeof checkHealth>>;
   process: { uptimeSec: number; rssMb: number; heapMb: number };
   db: { latencyMs: number | null; sizeMb: number | null; queue: Record<string, number> | null };
@@ -43,7 +43,7 @@ export function MetricsCard({ metrics, problems, process: p, db, telegram }: Pro
           <dd className="tabular-nums">{db.queue ? Object.entries(db.queue).map(([k, v]) => `${k} ${v}`).join(" · ") || "vacía" : "—"}</dd>
         </div>
         <div>
-          <dt className="text-xs text-muted-foreground">Peticiones API (1 h)</dt>
+          <dt className="text-xs text-muted-foreground">Peticiones API (1 h, todas las réplicas)</dt>
           <dd className="tabular-nums">{metrics.count}</dd>
         </div>
         <div>
@@ -83,7 +83,7 @@ export function MetricsCard({ metrics, problems, process: p, db, telegram }: Pro
           </table>
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">Aún no hay peticiones a la API registradas desde el último arranque.</p>
+        <p className="text-xs text-muted-foreground">Aún no hay peticiones a la API registradas en la última hora.</p>
       )}
       <p className="text-xs text-muted-foreground">
         Si la web entera cae, la app no puede avisar: programa <code>scripts/watchdog.sh</code> en el cron del servidor (ver el manual).

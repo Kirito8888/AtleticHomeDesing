@@ -7,9 +7,8 @@ import { CommentThread } from "@/components/training/comment-thread";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError } from "@/lib/api";
 import { pageUser } from "@/lib/auth/page";
-import { resolveAthleteId } from "@/lib/auth/session";
+import { coachSessionDetail } from "@/lib/coach/overview";
 import { formatDate, formatDuration, formatNum, SESSION_TYPE_LABEL } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
 import { sessionThread } from "@/lib/training/comments-service";
 
 export const metadata = { title: "Sesión del atleta · Atlenza" };
@@ -20,21 +19,15 @@ export default async function CoachSessionPage({ params, searchParams }: PagePro
   const { id } = await params;
   const { athleteId } = await searchParams;
   if (typeof athleteId !== "string") notFound();
-  let athlete: string;
+  let detail: Awaited<ReturnType<typeof coachSessionDetail>>;
   try {
-    athlete = await resolveAthleteId(user, athleteId, "SESSIONS");
+    detail = await coachSessionDetail(user, id, athleteId);
   } catch (e) {
     if (e instanceof ApiError) notFound();
     throw e;
   }
-  const s = await prisma.trainingSession.findFirst({
-    where: { id, userId: athlete },
-    include: {
-      technical: { select: { event: true, implementWeightG: true, bestMarkM: true, attempts: { select: { markM: true, isFoul: true }, orderBy: { order: "asc" } } } },
-      strength: { include: { sets: { orderBy: { order: "asc" }, include: { exercise: { select: { name: true } } } } } },
-    },
-  });
-  if (!s) notFound();
+  if (!detail) notFound();
+  const { athlete, session: s } = detail;
   const comments = await sessionThread(user, s.id, athlete);
 
   return (

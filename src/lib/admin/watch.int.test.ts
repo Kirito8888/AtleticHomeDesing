@@ -26,7 +26,8 @@ describe.skipIf(!HAS_DB)("vigilancia interna (BD real)", () => {
   });
 
   it("avisa una vez de un problema nuevo, lo recuerda a las 6 h y dice cuándo se resuelve", async () => {
-    watch.resetWatch();
+    await watch.resetWatch();
+    await prisma.apiMetricMinute.deleteMany();
     metrics.resetMetrics();
     const now = new Date();
     const sent: string[] = [];
@@ -39,8 +40,31 @@ describe.skipIf(!HAS_DB)("vigilancia interna (BD real)", () => {
     expect((await watch.runWatchJob(new Date(now.getTime() + 6 * 3600_000 - 60_000), send)).some((t) => /resuelto \(errors\)/.test(t))).toBe(true);
   });
 
+  it("varias réplicas: los 500 se suman y el aviso no se repite aunque otra réplica lance la vigilancia", async () => {
+    await watch.resetWatch();
+    await prisma.apiMetricMinute.deleteMany();
+    const now = new Date();
+    const sent: string[] = [];
+    const send = async (t: string) => (sent.push(t), true);
+    // Cada réplica ve solo 6 errores (por debajo del umbral de 10); juntas, 12
+    for (const id of ["replica-a", "replica-b"]) {
+      metrics.asReplica(id);
+      for (let i = 0; i < 6; i++) metrics.recordRequest("GET", "/api/x", 500, 3, now.getTime());
+      await metrics.flushMetrics(now.getTime());
+    }
+    expect((await metrics.metricsSummary(now.getTime())).errors).toBe(12);
+    // «Réplica c» (memoria vacía) lanza la vigilancia: avisa; «réplica d» (otra memoria) no repite
+    metrics.asReplica("replica-c");
+    expect((await watch.runWatchJob(now, send)).some((t) => /12 errores 500/.test(t))).toBe(true);
+    metrics.asReplica("replica-d");
+    expect(await watch.runWatchJob(new Date(now.getTime() + 5 * 60_000), send)).toEqual([]);
+    expect(sent).toHaveLength(1);
+    await prisma.apiMetricMinute.deleteMany();
+    await watch.resetWatch();
+  });
+
   it("una copia de seguridad fallida es un problema", async () => {
-    watch.resetWatch();
+    await watch.resetWatch();
     const r = await prisma.backupRun.create({ data: { ok: false, detail: "disco lleno" } });
     created.push(r.id);
     const problems = await watch.checkHealth();

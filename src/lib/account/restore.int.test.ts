@@ -52,6 +52,8 @@ describe.skipIf(!HAS_DB)("restaurar una exportación (BD real)", () => {
     await prisma.exercise.create({ data: { userId: from, name: "Salto con vallas", description: "Vallas bajas", videoPath: "u/clip.mp4.enc", videoMime: "video/mp4", videoBytes: 1234 } });
     await prisma.referenceCurve.create({ data: { createdById: from, testKey: "cmj", unit: "cm", higherIsBetter: true, title: "Curva test", study: "Estudio", authors: "Autora", year: 2020, citation: "Autora (2020)", points: [{ x: 20, p50: 30 }] } });
     await prisma.physioProtocol.create({ data: { ownerId: from, title: "Protocolo test", phases: [] } });
+    const profile = { birthDate: new Date("2004-03-09"), sex: "FEMALE" as const, heightCm: 172, primaryDiscipline: "SPRINT" as const, primaryEvent: "100m", disciplines: ["SPRINT" as const, "JUMPS" as const], ctlTimeConstant: 50, atlTimeConstant: 10, prefs: { throwMinHours: 30 } };
+    await prisma.athleteProfile.upsert({ where: { userId: from }, create: { userId: from, ...profile }, update: profile });
   });
 
   afterAll(async () => {

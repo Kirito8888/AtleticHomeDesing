@@ -8,6 +8,7 @@ import { addDays, dateOnly, isoDate, today, toIsoDay } from "@/lib/dates";
 import { createManualDraftFromDays, planSourceDays, templateSourceDays, type DraftSourceDay } from "@/lib/planning/manual-plan";
 import { taperProposal } from "@/lib/planning/taper-service";
 import { prisma } from "@/lib/prisma";
+import { hasStravaIn, notFromStrava } from "@/lib/strava/policy";
 import { getPrefs } from "@/lib/rules/prefs-service";
 import { THROWS } from "@/lib/training/move-service";
 
@@ -108,12 +109,17 @@ export async function previewAssignment(coach: CurrentUser, input: z.infer<typeo
       row.simulationNote = "Sin permiso de carga: se puede copiar, pero no simular";
       continue;
     }
+    // La carga de partida (CTL/ATL) incluye Strava: no se enseña ni se proyecta a la entrenadora
+    if (await hasStravaIn(p.id, addDays(dateOnly(todayIso), -120), dateOnly(todayIso))) {
+      row.simulationNote = "La carga incluye actividad de Strava: se puede copiar, pero no simular";
+      continue;
+    }
     const to = toIsoDay(addDays(dateOnly(lastDraft < todayIso ? todayIso : lastDraft), 14));
     const [seed, profile, prefs, planned, comp] = await Promise.all([
       prisma.dailyLoad.findFirst({ where: { userId: p.id }, orderBy: { date: "desc" } }),
       prisma.athleteProfile.findUnique({ where: { userId: p.id }, select: { ctlTimeConstant: true, atlTimeConstant: true } }),
       getPrefs(p.id),
-      prisma.trainingSession.findMany({ where: { userId: p.id, status: "PLANNED", date: { gte: dateOnly(todayIso), lte: dateOnly(to) } }, select: { date: true, title: true, tss: true, durationSec: true, technical: { select: { event: true } } } }),
+      prisma.trainingSession.findMany({ where: { userId: p.id, status: "PLANNED", date: { gte: dateOnly(todayIso), lte: dateOnly(to) }, ...notFromStrava }, select: { date: true, title: true, tss: true, durationSec: true, technical: { select: { event: true } } } }),
       prisma.calendarEvent.findFirst({ where: { userId: p.id, type: "COMPETITION", startAt: { gte: dateOnly(todayIso) } }, orderBy: { startAt: "asc" }, select: { id: true } }),
     ]);
     const taper = comp ? await taperProposal(p.id, comp.id) : null;
