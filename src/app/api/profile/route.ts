@@ -2,10 +2,10 @@ import { z } from "zod";
 
 import { parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
-import { dateOnly, isoDate, today } from "@/lib/dates";
+import { dateOnly, today } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { EVENTS } from "@/lib/training/disciplines";
-import { disciplineEnum, eventKeyEnum } from "@/lib/training/schemas";
+import { profileSchema } from "@/lib/training/profile-schema";
 import { recomputeDailyLoads } from "@/lib/training/service";
 
 export const GET = route(async () => {
@@ -16,18 +16,7 @@ export const GET = route(async () => {
   });
 });
 
-const schema = z.object({
-  name: z.string().trim().min(1).max(100).optional(),
-  birthDate: isoDate.nullish(),
-  sex: z.enum(["MALE", "FEMALE", "OTHER"]).nullish(),
-  heightCm: z.number().min(100).max(250).nullish(),
-  bodyWeightKg: z.number().min(20).max(300).nullish(),
-  primaryDiscipline: disciplineEnum.nullish(),
-  primaryEvent: eventKeyEnum.nullish(),
-  disciplines: z.array(disciplineEnum).max(11).optional(),
-  ctlTimeConstant: z.number().int().min(14).max(90).optional(),
-  atlTimeConstant: z.number().int().min(3).max(21).optional(),
-});
+const schema = profileSchema.extend({ name: z.string().trim().min(1).max(100).optional() });
 
 export const PATCH = route(async (req) => {
   const user = await requireUser();

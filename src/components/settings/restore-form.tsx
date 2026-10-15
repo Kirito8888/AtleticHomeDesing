@@ -43,7 +43,7 @@ export function RestoreForm() {
           {result}
         </p>
       ) : null}
-      <p className="text-xs text-muted-foreground">Solo funciona si esta cuenta está vacía. No incluye finanzas, apuntes, chats ni planes importados.</p>
+      <p className="text-xs text-muted-foreground">Solo funciona si esta cuenta está vacía. Incluye tu perfil (prueba, disciplinas, constantes). No incluye finanzas, apuntes, chats, planes importados, vídeos de ejercicios ni lo compartido contigo (clubes, protocolos, curvas).</p>
     </div>
   );
 }
