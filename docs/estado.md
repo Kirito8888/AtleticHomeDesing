@@ -6,7 +6,7 @@
 - **Versión fusionada:** v2.0 (14/10/2026); v2.1.0 pendiente de fusionar. CI en verde.
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final.
 - **Arreglo /settings («This page couldn't load») — HECHO, causa NO reproducida.** El texto sin *digest* indica excepción **en cliente**. Con usuaria vacía, ADMIN con 2FA y cuentas con Telegram/Strava/IA/passkey/push en BD local (390 px) la página carga sin errores. Endurecido: `settings/error.tsx` (boundary con «Reintentar»; si es `ChunkLoadError` recarga), `lib/settings/optional.ts` (los bloques opcionales fallan a un valor de reserva; no se envuelven `totpStatus` ni `auditIntegrity` para no mentir sobre seguridad) y `shortWhen` en `server-status.tsx` (`Intl.format` lanzaba RangeError con fecha inválida). Si vuelve a fallar en producción: el boundary muestra el código del error; recargar con Ctrl+F5 por si son chunks viejos tras actualizar.
-- **Bloque en curso:** ninguno. v2.0 y **v2.1 cerradas** (v2.1.0 en PR abierto a main, la usuaria lo fusiona). Siguiente: v2.2, por definir con la usuaria a partir de `docs/propuesta-v2-2.md` (auditoría hecha el 15/10/2026, solo documento; **hallazgo P1: las vistas de la entrenadora no filtran Strava**).
+- **Bloque en curso:** ninguno. v2.0 y v2.1 cerradas y fusionadas. **v2.2 bloque 1 (P1) — HECHO**, PR a main pendiente de fusionar. Siguiente: bloque 3 «Pista de verdad» o 4 «Móvil 390 px» de `docs/propuesta-v2-2.md` (P2/P3).
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
 Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
@@ -32,7 +32,7 @@ marcada y de vuelos imposibles. Guía en `jump-guide.tsx` (4 secciones plegables
 - **C · Flashcards compartidas**: `FlashcardReview` por persona (el SM-2 ya no vive en `Flashcard`, columnas legado). SQL de datos en
   `prisma/data-migrations/<migración>.sql`, que `regen-mig.sh` añade al final; `snapshot.sh --before <migración>` deja la foto previa a esa migración.
 - **D · VFC del PDF y tendencias**: `ParsedWeek.hrv`; sin semanas marcadas no hay aviso semanal de VFC. Tendencias en `/recovery/trends`, umbrales en prefs, nada a la IA.
-- **E · Varias réplicas**: `withJobLock` (advisory locks) en scheduler y Telegram; límite de peticiones en Postgres con HMAC. Pendiente: `admin/watch.ts`, `admin/metrics.ts` y `weather.ts` siguen en memoria por réplica.
+- **E · Varias réplicas**: `withJobLock` (advisory locks) en scheduler y Telegram; límite de peticiones en Postgres con HMAC. `admin/watch.ts` y `admin/metrics.ts` pasaron a Postgres en v2.2; solo `weather.ts` sigue en memoria (aceptado, P2-8).
 - **Cierre v2.0 — HECHO.** `test-migration.sh` OK (foto con `snapshot.sh --before`); el SQL de datos de C copia 3 tarjetas → 3 reviews y es
   idempotente. Exportar cuenta ahora incluye `clubs.memberships` (con mis cuotas) y ya traía `study.flashcardReviews`; restaurar no recrea clubes
   ni mazos compartidos (vínculos). Versión 2.0.0, CHANGELOG, guía y manual «De v1.10 a v2.0». Typecheck, lint, 789 tests, Semgrep, licencias y
@@ -88,6 +88,18 @@ marcada y de vuelos imposibles. Guía en `jump-guide.tsx` (4 secciones plegables
   vuelve, el vídeo y lo compartido no; las exportaciones v2.0 restauran (test). **Regresión corregida:** restaurar perdía `discipline` de las sesiones
   (`session-snapshot.ts`; ahora se conserva siempre). `AthleteProfile` (incl. `primaryEvent`) no se restaura, como antes. Versión 2.1.0, CHANGELOG, guía,
   manual «De v2.0 a v2.1». Typecheck, lint, 843 tests, Semgrep, licencias y E2E `all` en verde.
+
+## v2.2 · bloques
+- **1 · P1 (privacidad, integridad, vigilancia) — HECHO.** Migración `20270301080000_v2_2_features` (`WatchAlert`, `ApiMetricMinute`; solo tablas).
+  **Strava:** helpers en `strava/policy.ts`; `coach/overview.ts` (lista y detalle de la entrenadora), hilo de comentarios (404), `/api/training/records`,
+  informe compartido y `multi-plan` filtran; `/api/training/pmc?athleteId` quita tss/ctl/atl/tsb/acwr y devuelve `loadHidden` si hay Strava en la ventana
+  (≈ periodo+120 días); `multi-plan` no simula esa atleta. Test transversal `strava/privacy.int.test.ts`: **toda ruta nueva que lea sesiones de otra persona debe entrar ahí**.
+  **Métricas/vigilancia:** cada réplica cuenta en memoria y sube sus minutos (`flushMetrics`: al cambiar de minuto y cada 5 min en `safetyTick`, fuera del cerrojo);
+  `metricsSummary` es **async** y suma todas las réplicas (si la BD falla, solo la local); `WatchAlert` guarda lo avisado. **Restaurar** recupera `AthleteProfile`.
+  **`test-migration.sh`** carga `scripts/dev/synthetic-data.sql` (esquema de la foto previa; ajustarlo si cambian columnas obligatorias) y compara más tablas.
+  E2E `e2e:v22a` (también en `all`; espera al cambio de minuto, ~1 min). **Trampas:** `pkill -f next-server` mata el propio shell (usa `serve.sh`);
+  `/admin` exige 2FA, por eso el E2E comprueba las métricas en BD y no la pantalla; `/api/health` no pasa por `route()` y no cuenta en las métricas.
+  Fuera: `loadClubPanel` y `previewAssignment` sin caso en el test de privacidad; P2/P3 intactos.
 
 ## Decisiones tomadas
 - LEAF-Q: se mantiene el cribado propio (`health/women.ts`); opcional cargar el texto oficial desde un fichero local
