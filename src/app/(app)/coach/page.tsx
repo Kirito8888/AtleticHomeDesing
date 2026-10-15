@@ -3,33 +3,18 @@ import Link from "next/link";
 import { BulkComment } from "@/components/coach/bulk-comment";
 import { PageHeader } from "@/components/page-header";
 import { compareAthletes } from "@/lib/coach/compare";
-import { toIsoDay } from "@/lib/dates";
+import { coachOverview } from "@/lib/coach/overview";
+import { addDays, toIsoDay } from "@/lib/dates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
-import { addDays, today } from "@/lib/dates";
 import { formatDate, formatNum, SESSION_TYPE_LABEL } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Mis atletas · Atlenza" };
 
 /** Vista de entrenador/a: sesiones recientes y próximas de cada atleta que le ha dado permiso de sesiones. */
 export default async function CoachPage() {
   const user = await pageUser();
-  const links = await prisma.coachAthlete.findMany({
-    // v1.7: sin atletas que hayan limitado el tratamiento de sus datos (art. 18 RGPD)
-    where: { coachId: user.id, status: "ACTIVE", scopes: { has: "SESSIONS" }, athlete: { processingRestrictedAt: null } },
-    include: { athlete: { select: { id: true, name: true, email: true } } },
-  });
-  const now = today();
-  const ids = links.map((l) => l.athleteId);
-  const [sessions, counts] = await Promise.all([
-    prisma.trainingSession.findMany({
-      where: { userId: { in: ids }, date: { gte: addDays(now, -30), lte: addDays(now, 7) } },
-      orderBy: { date: "desc" },
-      select: { id: true, userId: true, date: true, title: true, type: true, status: true, sessionRpe: true, tss: true, durationSec: true, technical: { select: { bestMarkM: true } } },
-    }),
-    prisma.sessionComment.groupBy({ by: ["sessionId"], where: { athleteId: { in: ids } }, _count: { _all: true } }),
-  ]);
+  const { links, sessions, counts, now } = await coachOverview(user);
   const nComments = new Map(counts.map((c) => [c.sessionId, c._count._all]));
   const todayIso = toIsoDay(now);
   // Comparativa (cada dato solo con su permiso: carga y marcas con LOAD, cumplimiento con SESSIONS)

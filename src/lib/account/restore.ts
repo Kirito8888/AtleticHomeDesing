@@ -7,6 +7,9 @@ import { cycleLogSchema, cycleSettingsSchema } from "@/lib/health/cycle";
 import { logCycleDay, saveCycleSettings } from "@/lib/health/cycle-service";
 import { addHealthLog, saveWomenSettings } from "@/lib/health/women-service";
 import { prisma } from "@/lib/prisma";
+import { prefsSchema } from "@/lib/rules/prefs";
+import { EVENTS } from "@/lib/training/disciplines";
+import { profileSchema } from "@/lib/training/profile-schema";
 import { addWellbeing, parseWellbeing } from "@/lib/recovery/wellbeing-service";
 import { dataKeyConfigured } from "@/lib/security/data-key";
 import { sessionInputFromSnapshot } from "@/lib/account/session-snapshot";
@@ -14,7 +17,7 @@ import { createTrainingSession, recomputeDailyLoads } from "@/lib/training/servi
 
 /**
  * Restaurar una exportación (lifeos-export/2) en una cuenta VACÍA (v1.6).
- * Entra: entrenos (sesiones con sus series, intentos e intervalos), umbrales, RM, tests, material,
+ * Entra: perfil de atleta (v2.2: prueba, disciplinas, constantes de carga y «Mis reglas»), entrenos (sesiones con sus series, intentos e intervalos), umbrales, RM, tests, material,
  * mínimas, semanas tipo y prehabilitación; recuperación, molestias, antropometría, suplementos y citas;
  * ciclo y salud de la mujer (se vuelven a cifrar con la clave de este servidor); calendario y tareas;
  * comidas, agua, objetivos, recetas y lista de la compra; horario, estudio, plan de estudio, notas y
@@ -63,6 +66,25 @@ export async function restoreExport(userId: string, data: unknown) {
       exMap.set(String(e.id), created.id);
       add("ejercicios propios");
     }
+  }
+
+  // Perfil de atleta (v2.2): prueba, disciplinas, constantes de carga y «Mis reglas». Antes que las sesiones: sus constantes mandan en el PMC
+  const rawProfile = get(data, "user", "athleteProfile");
+  if (rawProfile && typeof rawProfile === "object") {
+    const p = rawProfile as Row;
+    const parsed = profileSchema.safeParse({ ...p, birthDate: day(p.birthDate) });
+    const prefs = p.prefs == null ? ({ success: true, data: undefined } as const) : prefsSchema.safeParse(p.prefs);
+    if (parsed.success && prefs.success) {
+      const { birthDate, ...rest } = parsed.data;
+      const profile = {
+        ...rest,
+        birthDate: birthDate ? dateOnly(birthDate) : null,
+        ...(rest.primaryEvent ? { primaryDiscipline: EVENTS[rest.primaryEvent].discipline } : {}),
+        ...(prefs.data ? { prefs: prefs.data as Prisma.InputJsonValue } : {}),
+      };
+      await prisma.athleteProfile.upsert({ where: { userId }, create: { userId, ...profile }, update: profile });
+      add("perfil");
+    } else skipped.push("perfil de atleta");
   }
 
   // Umbrales (antes de las sesiones: el TSS de cada fecha los usa)

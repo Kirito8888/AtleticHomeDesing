@@ -19,6 +19,7 @@ import { daysAgo, retentionDays } from "@/lib/privacy/retention";
 import { periodStarts } from "@/lib/health/cycle";
 import { getCycle } from "@/lib/health/cycle-service";
 import { runSafetyJob } from "@/lib/health/safety-service";
+import { flushMetrics, pruneMetrics } from "@/lib/admin/metrics";
 import { runWatchJob } from "@/lib/admin/watch";
 import { withJobLock } from "@/lib/job-lock";
 import { pollTelegram } from "@/lib/telegram/link";
@@ -103,6 +104,7 @@ export async function pruneAuditJob(now = new Date()): Promise<number> {
   await prisma.serverError.deleteMany({ where: { lastAt: { lt: daysAgo(now, d.SERVER_ERRORS) } } });
   await prisma.pageUsage.deleteMany({ where: { week: { lt: daysAgo(now, d.PAGE_USAGE) } } });
   await pruneRateLimits(now);
+  await pruneMetrics(now.getTime());
   await purgeTrash(now);
   return count;
 }
@@ -352,6 +354,8 @@ async function safetyTick() {
   } catch (err) {
     console.error("[scheduler] pospuestas:", err);
   }
+  // v2.2 · cada réplica sube sus métricas (fuera del cerrojo: son suyas) antes de que la vigilancia las lea
+  await flushMetrics().catch(() => {});
   // v1.9 · vigilancia interna (avisos por Telegram a la administración)
   try {
     await job("watch", () => runWatchJob());

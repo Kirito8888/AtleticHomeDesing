@@ -6,13 +6,14 @@ import { ApiError } from "@/lib/api";
 import { type CurrentUser, resolveAthleteId } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { sendToUser } from "@/lib/push/service";
+import { visibleTo } from "@/lib/strava/policy";
 
 export const commentSchema = z.object({ body: z.string().trim().min(1).max(2000) });
 
 /** Comprueba acceso (atleta o coach con permiso de sesiones) y que la sesión es de ese atleta. */
 async function access(viewer: CurrentUser, sessionId: string, athleteId: string | null | undefined) {
   const athlete = await resolveAthleteId(viewer, athleteId, "SESSIONS");
-  const s = await prisma.trainingSession.findFirst({ where: { id: sessionId, userId: athlete }, select: { id: true, title: true } });
+  const s = await prisma.trainingSession.findFirst({ where: { id: sessionId, userId: athlete, ...visibleTo(viewer.id, athlete) }, select: { id: true, title: true } });
   if (!s) throw new ApiError(404, "Sesión no encontrada");
   return { athlete, session: s };
 }
