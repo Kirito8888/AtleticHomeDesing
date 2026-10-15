@@ -190,6 +190,24 @@ Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Pri
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
 - **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
 
+## Novedades de la v2.1 (dónde está cada cosa)
+
+**Tu prueba** (**Ajustes → Mi prueba**)
+- Elige tu especialidad y **Nuevo entreno** abre en Pista (carreras, vallas, combinadas) o Técnica (saltos). En series de velocidad ves m/s; en fondo, ritmo. Los lanzamientos funcionan como siempre.
+
+**Ejercicios con vídeo** (**Entreno → Ejercicios**)
+- En tus ejercicios propios puedes añadir descripción y un vídeo **MP4 o WebM** de hasta 25 MiB. Pulsa «Ver vídeo» para reproducirlo; no se publica en ninguna URL. Si tu iPhone graba .mov, expórtalo a MP4. Tu entrenadora lo ve solo si le diste el ámbito de sesiones, y nunca lo edita.
+
+**Curvas de referencia** (**Entreno → Tests → Curvas / Comparar**)
+- Compara un test con una curva citada (estudio, autores, año, DOI). Necesitas tu fecha de nacimiento en el perfil. Entrenadoras y administradoras dan de alta las curvas; si no hay ninguna, el comparador aparece vacío.
+
+**Protocolos de fisio** (**Recuperación → Fisio**)
+- Si tu entrenadora te comparte un protocolo lo ves por fases, en solo lectura. Marca los criterios cumplidos y tu dolor del día. Ella necesita vínculo activo y el ámbito de recuperación; si lo retiras, se borra tu seguimiento (tu copia compartida se queda).
+- Entrenadoras: crean y comparten desde la misma pantalla con el editor de texto (`# fase | dolor máx N`, `- ejercicio: dosis`, `? criterio`).
+
+**Tus datos**
+- **Descargar todos mis datos** incluye descripciones de ejercicios, curvas y protocolos. Al restaurar en una cuenta vacía no se recuperan los vídeos ni lo compartido.
+
 ## Novedades de la v2.0 (dónde está cada cosa)
 
 **Clubes** (**Clubs** en el menú)

@@ -299,6 +299,29 @@ dc up -d --build web
 docker image prune -f
 ```
 
+#### De v2.0 a v2.1 (disciplinas, ejercicios con vídeo, curvas de referencia y protocolos de fisio)
+
+**Lo que cambia para quien usa la app:**
+- **Mi prueba** y más disciplinas de pista, **vídeo propio en los ejercicios**, **curvas de referencia citadas** y **protocolos de fisio compartidos**. Detalle en [`CHANGELOG.md`](CHANGELOG.md).
+
+**Antes de actualizar:**
+- **Vídeos:** se guardan cifrados en `UPLOAD_DIR` (máx. 25 MiB cada uno; no cuentan para `UPLOAD_QUOTA_MB`). Ese volumen ya debe estar en tu copia de seguridad; la rotación de clave los recifra.
+
+**Base de datos:**
+- Una migración: `v2_1_features`. Solo **añade**: columna `AthleteProfile.primaryEvent`, columnas nulas en `Exercise` (`description`, `videoPath`, `videoMime`, `videoBytes`, `updatedAt`) y tablas `ReferenceCurve`, `PhysioProtocol` y `PhysioProtocolShare`. No modifica ni borra datos y se ha probado sobre una copia de la v2.0.
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh
+```
+
+**Variables nuevas:** ninguna. Opcional: `OFF_USER_AGENT` a `Atlenza/2.1 (tu-email)`.
+
+**Comprobar tras actualizar:**
+1. `/training/exercises` carga y permite subir un MP4 pequeño a un ejercicio propio.
+2. `/training/tests/curvas` carga (vacía hasta que se den de alta curvas).
+3. *Descargar todos mis datos* contiene `training21`.
+
 #### De v1.10 a v2.0 (clubes, varias atletas, flashcards compartidas, tendencias y varias réplicas)
 
 **Lo que cambia para quien usa la app:**

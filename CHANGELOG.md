@@ -2,6 +2,28 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v2.1 — más disciplinas, ejercicios con vídeo propio, curvas de referencia y protocolos de fisio (15/10/2026)
+
+**Disciplinas**
+- **Mi prueba** (Ajustes): elige tu especialidad (100 m … decatlón). `/training/new` abre en **Pista** (velocidad, vallas, fondo, combinadas) o **Técnica** (saltos). Series con m/s en velocidad y ritmo en fondo; el resumen muestra tu mejor tiempo.
+- Lanzamientos, tonelaje y TSS no cambian.
+
+**Biblioteca de ejercicios con vídeo propio** (`/training/exercises`)
+- Añade descripción y un vídeo **MP4 o WebM** (hasta 25 MiB) a tus ejercicios. Se guarda cifrado y solo lo ves tú (y tu entrenadora, con el ámbito de sesiones). Los ejercicios del catálogo no llevan vídeo.
+- **QuickTime (.mov) y MKV se rechazan**: si el iPhone graba .mov, expórtalo a MP4.
+
+**Entrenadora y atleta**
+- **Curvas de referencia citadas** (`/training/tests/curvas` y `/comparar`): compara un test con una curva con estudio, autores, año y cita obligatorios. El catálogo empieza **vacío**: se dan de alta a mano. Sin fecha de nacimiento no se compara. Nada va a la IA.
+- **Protocolos de fisio compartidos** (`/recovery/fisio`): la entrenadora crea fases con ejercicios y criterios y los comparte con una atleta vinculada (ámbito de recuperación). La atleta lo ve en solo lectura y marca criterios y dolor del día. Quitar el acceso borra su seguimiento.
+
+**Datos**
+- Una migración aditiva (`v2_1_features`): `AthleteProfile.primaryEvent`, cinco columnas nuevas en `Exercise` y tablas `ReferenceCurve`, `PhysioProtocol` y `PhysioProtocolShare`. Probada sobre una copia de la v2.0.
+- **Exportar tu cuenta** incluye descripción de ejercicios, tus curvas y protocolos y lo recibido. **Restaurar** (cuenta vacía) recupera la descripción, no los vídeos ni los vínculos compartidos, y las exportaciones de la v2.0 se siguen restaurando.
+- **Corrección:** al restaurar, las sesiones de pista conservan ahora su disciplina.
+
+**Pruebas**
+- Nuevas suites E2E: v21a, v21b y v21c.
+
 ## v2.0 — clubes, planificar varias atletas, flashcards compartidas, VFC y tendencias, varias réplicas (14/10/2026)
 
 **Clubes y cuotas internas**

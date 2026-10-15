@@ -46,6 +46,12 @@ describe.skipIf(!HAS_DB)("restaurar una exportación (BD real)", () => {
     const org = await prisma.organization.create({ data: { name: "Club test" } });
     const member = await prisma.orgMember.create({ data: { orgId: org.id, userId: from, status: "ACTIVE" } });
     await prisma.orgFee.create({ data: { orgId: org.id, memberId: member.id, concept: "Cuota", amountCents: 2000, dueDate: new Date("2026-10-31") } });
+    // v2.1: pista con disciplina, ejercicio propio con vídeo, especialidad, curva propia y protocolo (se exportan; vídeo y vínculos no se restauran)
+    await createTrainingSession(from, null, { date: "2026-10-02", type: "TRACK", status: "COMPLETED", sessionRpe: 7, durationSec: 3000, discipline: "SPRINT", track: { modality: "SPRINT", intervals: [{ order: 1, distanceM: 100, timeSec: 11.5 }] } } as never);
+    await prisma.athleteProfile.upsert({ where: { userId: from }, create: { userId: from, primaryEvent: "100m" }, update: { primaryEvent: "100m" } });
+    await prisma.exercise.create({ data: { userId: from, name: "Salto con vallas", description: "Vallas bajas", videoPath: "u/clip.mp4.enc", videoMime: "video/mp4", videoBytes: 1234 } });
+    await prisma.referenceCurve.create({ data: { createdById: from, testKey: "cmj", unit: "cm", higherIsBetter: true, title: "Curva test", study: "Estudio", authors: "Autora", year: 2020, citation: "Autora (2020)", points: [{ x: 20, p50: 30 }] } });
+    await prisma.physioProtocol.create({ data: { ownerId: from, title: "Protocolo test", phases: [] } });
   });
 
   afterAll(async () => {
@@ -58,8 +64,8 @@ describe.skipIf(!HAS_DB)("restaurar una exportación (BD real)", () => {
     const { restoreExport } = await import("./restore");
     const data = JSON.parse(JSON.stringify(await exportAccount(from)));
     const r = await restoreExport(to, data);
-    expect(r.counts).toMatchObject({ sesiones: 1, "días de recuperación": 1, hábitos: 1 });
-    const s = await prisma.trainingSession.findFirstOrThrow({ where: { userId: to }, include: { technical: true } });
+    expect(r.counts).toMatchObject({ sesiones: 2, "días de recuperación": 1, hábitos: 1 });
+    const s = await prisma.trainingSession.findFirstOrThrow({ where: { userId: to, type: "TECHNICAL" }, include: { technical: true } });
     expect(s.technical?.bestMarkM).toBe(50.5);
     expect(await prisma.habitLog.count({ where: { userId: to } })).toBe(1);
     expect(r.counts).toMatchObject({ "plan de estudio": 1, recetas: 1, notas: 1, prehabilitación: 1 });
@@ -82,8 +88,33 @@ describe.skipIf(!HAS_DB)("restaurar una exportación (BD real)", () => {
     expect(supp).toMatchObject({ days: [1, 3, 5], logs: [expect.objectContaining({ supplementId: supp.id })] });
     expect(data.security.passkeys).toEqual([]);
     expect(data.recovery.wellbeing).toEqual([expect.objectContaining({ kind: "MOOD", mood: 4 })]);
+    // v2.1: la descripción vuelve, el vídeo no; la disciplina de la pista se conserva; lo compartido no se recrea
+    const ex = await prisma.exercise.findFirstOrThrow({ where: { userId: to, name: "Salto con vallas" } });
+    expect(ex).toMatchObject({ description: "Vallas bajas", videoPath: null, videoMime: null, videoBytes: null });
+    expect(await prisma.trainingSession.findFirstOrThrow({ where: { userId: to, type: "TRACK" } })).toMatchObject({ discipline: "SPRINT" });
+    expect(data.training21.referenceCurves).toHaveLength(1);
+    expect(data.training21.physioProtocols).toHaveLength(1);
+    expect(await prisma.physioProtocol.count({ where: { ownerId: to } })).toBe(0);
     await expect(restoreExport(to, data)).rejects.toThrow(/cuenta vacía/);
     await expect(restoreExport(to, { format: "otro" })).rejects.toThrow(/lifeos-export/);
+  });
+
+  it("una exportación v2.0 (sin campos de la v2.1) se restaura sin error", async () => {
+    const { exportAccount } = await import("./service");
+    const { restoreExport } = await import("./restore");
+    const t = Date.now();
+    const [a, b] = await Promise.all([prisma.user.create({ data: { email: `rs3-${t}@test.dev` } }), prisma.user.create({ data: { email: `rs4-${t}@test.dev` } })]);
+    try {
+      const { createTrainingSession } = await import("@/lib/training/service");
+      await createTrainingSession(a.id, null, { date: "2026-10-01", type: "TECHNICAL", status: "COMPLETED", sessionRpe: 6, durationSec: 3600, technical: { event: "JAVELIN", implementWeightG: 800, isCompetition: false, attempts: [{ markM: 40, isFoul: false, isMeasured: true }] } } as never);
+      const data = JSON.parse(JSON.stringify(await exportAccount(a.id)));
+      delete data.training21;
+      for (const e of data.training?.customExercises ?? []) { delete e.description; delete e.videoPath; delete e.videoMime; delete e.videoBytes; }
+      const r = await restoreExport(b.id, data);
+      expect(r.counts).toMatchObject({ sesiones: 1 });
+    } finally {
+      await prisma.user.deleteMany({ where: { id: { in: [a.id, b.id] } } });
+    }
   });
 
   it("el registro sin conexión no duplica la sesión si se reenvía", async () => {
