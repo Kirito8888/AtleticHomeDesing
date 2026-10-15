@@ -14,6 +14,7 @@ Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el 
 
 **Medidor de salto**
 - Fps de captura **PAL** (25, 50, 100) además de 30, 60, 120 y 240. Acepta el **.mov del iPhone**; si el navegador no puede decodificarlo (HEVC en un ordenador) lo explica en vez de bloquearse. Deslizador de fotograma y avance ±1 más fluido. El vídeo sigue sin salir del navegador.
+- **Cálculo corregido con vídeos convertidos y cámara lenta parcial**: la altura se calcula con los fps **del fichero** que recibe el navegador, y solo con los de grabación dentro del tramo de cámara lenta (nuevo selector «¿Se ve a cámara lenta?»). Avisa si el móvil convirtió el vídeo al elegirlo (p. ej. 100 → 25 fps) o si el tramo marcado no está ralentizado. Nueva guía para grabar y subir el vídeo con la mayor precisión.
 
 **Entrenadora y atleta**
 - **Curvas de referencia citadas** (`/training/tests/curvas` y `/comparar`): compara un test con una curva con estudio, autores, año y cita obligatorios. El catálogo empieza **vacío**: se dan de alta a mano. Sin fecha de nacimiento no se compara. Nada va a la IA.
