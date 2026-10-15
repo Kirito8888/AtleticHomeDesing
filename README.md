@@ -13,7 +13,7 @@ Pensada para el móvil y autoalojada en tu propio servidor.
 > [`LICENSE`](LICENSE); componentes de terceros en [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 > No es «open source»: es código visible con todos los derechos reservados.
 
-**Versión actual: v2.0**: clubes y cuotas internas, planificar varias atletas con «qué pasa si», flashcards compartidas, semanas de VFC y tendencias, medidor de salto y varias réplicas. Ver [`CHANGELOG.md`](CHANGELOG.md).
+**Versión actual: v2.1**: más disciplinas (Mi prueba), ejercicios con vídeo propio, curvas de referencia citadas y protocolos de fisio compartidos. Ver [`CHANGELOG.md`](CHANGELOG.md).
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · PostgreSQL 17 + pgvector · Prisma 7 · pg-boss · Docker Compose · IA de cada usuario (Gemini, compatible con OpenAI o Anthropic; opcional).
 
