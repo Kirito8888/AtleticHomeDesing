@@ -24,7 +24,7 @@ export const SESSION_SNAPSHOT_INCLUDE = {
 /**
  * Sesión exportada (o guardada en la papelera) → entrada validada de `createTrainingSession`, para
  * volver a crearla con TSS y marcas recalculados. `exerciseId` decide a qué ejercicio va cada serie
- * (null = la serie se descarta). Con `full`, conserva también ciclo, inicio y disciplina.
+ * (null = la serie se descarta). Con `full`, conserva también ciclo, inicio y TSS manual.
  */
 export function sessionInputFromSnapshot(s: Row, exerciseId: (set: Row) => string | null, full = false) {
   const track = s.track as Row | null;
@@ -45,7 +45,8 @@ export function sessionInputFromSnapshot(s: Row, exerciseId: (set: Row) => strin
     feelings: s.feelings ?? null,
     zoneFatigue: s.zoneFatigue ?? null,
     tags: Array.isArray(s.tags) ? s.tags : [],
-    ...(full ? { cycleId: s.cycleId ?? null, startedAt: s.startedAt ? new Date(s.startedAt as string).toISOString() : null, discipline: s.discipline ?? null, manualTss: s.tssMethod === "MANUAL" ? s.tss : null } : {}),
+    discipline: s.discipline ?? null,
+    ...(full ? { cycleId: s.cycleId ?? null, startedAt: s.startedAt ? new Date(s.startedAt as string).toISOString() : null, manualTss: s.tssMethod === "MANUAL" ? s.tss : null } : {}),
     ...(track ? { track: { ...pick(track, Prisma.TrackSessionScalarFieldEnum, ["sessionId"]), intervals: arr(track.intervals).map((i) => pick(i, Prisma.TrackIntervalScalarFieldEnum, ["trackSessionId"])) } } : {}),
     ...(tech ? { technical: { ...pick(tech, Prisma.TechnicalSessionScalarFieldEnum, ["sessionId", "bestMarkM", "conditions"]), attempts: arr(tech.attempts).map((a) => pick(a, Prisma.TechnicalAttemptScalarFieldEnum, ["technicalSessionId", "order"])) } } : {}),
     ...(str ? { strength: { bodyWeightKg: str.bodyWeightKg ?? null, sets } } : {}),
