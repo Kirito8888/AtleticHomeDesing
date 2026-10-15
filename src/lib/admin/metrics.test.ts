@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { metricsSummary, recordRequest, resetMetrics, routeKey } from "./metrics";
+import { localSummary, recordRequest, resetMetrics, routeKey } from "./metrics";
 
 describe("métricas internas de la API", () => {
   beforeEach(() => resetMetrics());
@@ -14,11 +14,11 @@ describe("métricas internas de la API", () => {
     const now = Date.UTC(2026, 9, 10, 12, 0);
     for (let i = 1; i <= 100; i++) recordRequest("GET", "/api/a", i === 100 ? 500 : 200, i, now);
     recordRequest("POST", "/api/b", 503, 5, now);
-    const m = metricsSummary(now);
+    const m = localSummary(now);
     expect(m.count).toBe(101);
     expect(m.errors).toBe(2);
     expect(m.routes[0]).toMatchObject({ route: "GET /api/a", count: 100, errors: 1, p50: 51, p95: 96 });
     // Lo de hace más de una hora ya no cuenta
-    expect(metricsSummary(now + 61 * 60_000).count).toBe(0);
+    expect(localSummary(now + 61 * 60_000).count).toBe(0);
   });
 });

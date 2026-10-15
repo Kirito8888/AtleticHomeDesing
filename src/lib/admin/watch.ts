@@ -38,7 +38,7 @@ export async function checkHealth(now = new Date()): Promise<Problem[]> {
   const failedJobs = await prisma.$queryRaw<Array<{ n: bigint }>>`select count(*) as n from pgboss.job where state = 'failed' and completed_on > now() - interval '1 hour'`.catch(() => []);
   const fj = Number(failedJobs[0]?.n ?? 0);
   if (fj >= FAILED_JOBS) problems.push({ key: "queue", text: `${fj} trabajos fallidos en la cola en la última hora (apuntes).` });
-  const errors = metricsSummary(now.getTime()).errors;
+  const errors = (await metricsSummary(now.getTime())).errors;
   if (errors >= ERROR_SPIKE) problems.push({ key: "errors", text: `${errors} errores 500 en la última hora. Mira «Estado del servidor».` });
   const disk = await statfs(env().UPLOAD_DIR).catch(() => null);
   if (disk && disk.blocks > 0 && disk.bavail / disk.blocks < DISK_MIN_FREE) {
@@ -47,35 +47,34 @@ export async function checkHealth(now = new Date()): Promise<Problem[]> {
   return problems;
 }
 
-const g = globalThis as unknown as { __lifeosWatch?: Map<string, number> };
 const REMIND_MS = 6 * 3600_000;
 
 /**
- * Compara con lo avisado antes (en memoria): avisa de lo nuevo, recuerda lo que sigue cada 6 h y
- * dice lo que se ha resuelto. Devuelve los mensajes enviados (o que se habrían enviado sin Telegram).
+ * Compara con lo avisado antes (v2.2: en la tabla `WatchAlert`, común a todas las réplicas; el scheduler lo lanza bajo
+ * `withJobLock`): avisa de lo nuevo, recuerda lo que sigue cada 6 h y dice lo que se ha resuelto. Devuelve los mensajes
+ * enviados (o que se habrían enviado sin Telegram).
  */
 export async function runWatchJob(now = new Date(), send: (text: string) => Promise<boolean> = sendAdminTelegram): Promise<string[]> {
-  const active: Map<string, number> = (g.__lifeosWatch ??= new Map());
+  const active = new Map((await prisma.watchAlert.findMany()).map((a) => [a.key, a.notifiedAt.getTime()]));
   const problems = await checkHealth(now);
   const out: string[] = [];
   for (const p of problems) {
     const last = active.get(p.key);
     if (last == null || now.getTime() - last >= REMIND_MS) {
       out.push(`⚠️ Atlenza: ${p.text}`);
-      active.set(p.key, now.getTime());
+      await prisma.watchAlert.upsert({ where: { key: p.key }, create: { key: p.key, notifiedAt: now }, update: { notifiedAt: now } });
     }
   }
-  for (const key of [...active.keys()]) {
-    if (!problems.some((p) => p.key === key)) {
-      active.delete(key);
-      out.push(`✅ Atlenza: resuelto (${key}).`);
-    }
+  const gone = [...active.keys()].filter((key) => !problems.some((p) => p.key === key));
+  if (gone.length) {
+    await prisma.watchAlert.deleteMany({ where: { key: { in: gone } } });
+    for (const key of gone) out.push(`✅ Atlenza: resuelto (${key}).`);
   }
   for (const text of out) await send(text);
   return out;
 }
 
 /** Solo para tests. */
-export function resetWatch() {
-  g.__lifeosWatch?.clear();
+export async function resetWatch() {
+  await prisma.watchAlert.deleteMany();
 }

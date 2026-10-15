@@ -2695,3 +2695,22 @@ model PhysioProtocolShare {
   @@unique([protocolId, athleteId])
   @@index([athleteId])
 }
+
+/// v2.2 · Vigilancia interna compartida entre réplicas: qué problema se avisó y cuándo (antes, en memoria por réplica).
+model WatchAlert {
+  key        String   @id
+  notifiedAt DateTime
+}
+
+/// v2.2 · Métricas de la API por réplica y minuto (ventana de 1 h). Cada réplica escribe solo sus filas; el panel suma todas.
+model ApiMetricMinute {
+  replica String
+  minute  DateTime
+  route   String
+  count   Int      @default(0)
+  errors  Int      @default(0)
+  ms      Int[]
+
+  @@id([replica, minute, route])
+  @@index([minute])
+}
