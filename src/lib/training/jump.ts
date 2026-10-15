@@ -7,8 +7,13 @@ import { z } from "zod";
  */
 
 export const G = 9.81;
-/** Fps de captura admitidos: NTSC (30, 60, 120, 240) y PAL (25, 50, 100). */
-export const CAPTURE_FPS = [25, 30, 50, 60, 100, 120, 240] as const;
+/**
+ * Fps admitidos para el cálculo (NTSC 30/60/120/240, PAL 25/50/100 y cine 24/48). Lo que se guarda son los fps
+ * **efectivos** del tramo marcado: los del fichero si va a velocidad real, o los de grabación si va a cámara lenta.
+ */
+export const CAPTURE_FPS = [24, 25, 30, 48, 50, 60, 100, 120, 240] as const;
+/** Cámara lenta del iPhone. */
+export const SLOW_FPS = [120, 240] as const;
 export type CaptureFps = (typeof CAPTURE_FPS)[number];
 export const isCaptureFps = (f: number): f is CaptureFps => (CAPTURE_FPS as readonly number[]).includes(f);
 
@@ -62,11 +67,52 @@ export function summarizeAttempts(type: JumpType, attempts: JumpAttempt[]) {
   return { best: attempts[bestIdx], bestValue: values[bestIdx], mean: values.reduce((s, v) => s + v, 0) / values.length };
 }
 
+/** Error (cm) que supone ±1 fotograma a `fps` para un vuelo de `flightS` segundos (0,5 s si no se conoce). */
+export function frameErrorCm(fps: number, flightS?: number) {
+  const t = flightS && flightS > 0 ? flightS : 0.5;
+  return Math.abs(jumpHeight(t + 1 / fps) - jumpHeight(t)) * 100;
+}
+
+export type VideoSetup = {
+  /** Fps del fichero que recibe el navegador (medidos o, si no se pudieron medir, indicados por la atleta). */
+  fileFps: number;
+  /** Si los fps del fichero se midieron en el navegador. */
+  detected: boolean;
+  /** Fps a los que se grabó. */
+  recordedFps: number;
+  /** El tramo marcado se ve a cámara lenta (vídeo de cámara lenta exportado). */
+  slowMotion: boolean;
+};
+
+/**
+ * Fps con los que se calcula: cuánto tiempo real dura cada fotograma **del fichero** en el tramo marcado.
+ * A velocidad real, los del fichero (si iOS lo convirtió a 25, cada fotograma dura 40 ms aunque se grabara a 100).
+ * En el tramo de cámara lenta, cada fotograma del fichero es un fotograma captado: los de grabación.
+ */
+export const effectiveFps = (v: VideoSetup) => (v.slowMotion ? v.recordedFps : v.fileFps);
+
+const fmt = (n: number) => n.toFixed(1).replace(".", ",");
+
+/** Avisos sobre la configuración del vídeo y el vuelo marcado (en fotogramas del fichero). */
+export function videoWarnings(v: VideoSetup, flightFrames?: number | null): string[] {
+  const out: string[] = [];
+  const fileFlight = flightFrames && flightFrames > 0 ? flightFrames / v.fileFps : null;
+  if (v.slowMotion) {
+    if (v.recordedFps <= v.fileFps) out.push(`El fichero ya tiene ${v.fileFps} fps: no es una cámara lenta exportada. Marca «No» en cámara lenta.`);
+    else if (fileFlight != null && fileFlight < 1)
+      out.push(`Con cámara lenta, un salto dura varios segundos en el vídeo y aquí dura ${fmt(fileFlight)} s: parece que despegue y aterrizaje no están en el tramo lento. Marca «No» o amplía el tramo lento al editar el vídeo.`);
+  } else {
+    if (v.detected && v.recordedFps > v.fileFps)
+      out.push(`Grabaste a ${v.recordedFps} fps pero el vídeo que ha llegado tiene ${v.fileFps}: el móvil lo ha convertido al elegirlo. Se calcula con ${v.fileFps} fps (±${fmt(frameErrorCm(v.fileFps, fileFlight ?? undefined))} cm). Para conservar los ${v.recordedFps} fps, súbelo desde Archivos (mira la guía).`);
+    if (fileFlight != null && fileFlight > 1.2) out.push(`El vuelo dura ${fmt(fileFlight)} s en el vídeo, demasiado para un salto: si se ve a cámara lenta, marca «Sí» e indica los fps de grabación.`);
+  }
+  return out;
+}
+
 /** Con menos de 120 fps, error esperado de ±1 fotograma en la altura (cm) para el vuelo medido. */
 export function fpsWarning(fps: number, flightS?: number): string | null {
   if (fps >= 120) return null;
-  const t = flightS && flightS > 0 ? flightS : 0.5;
-  const err = (Math.abs(jumpHeight(t + 1 / fps) - jumpHeight(t)) * 100).toFixed(1).replace(".", ",");
+  const err = fmt(frameErrorCm(fps, flightS));
   return `A ${fps} fps cada fotograma son ${Math.round(1000 / fps)} ms: error esperado de ±1 fotograma (≈ ±${err} cm). Graba a 120 o 240 fps.`;
 }
 
