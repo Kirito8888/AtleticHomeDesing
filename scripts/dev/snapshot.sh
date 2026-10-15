@@ -1,6 +1,7 @@
 #!/bin/sh
 # Foto de la BD de desarrollo ANTES de tocar el esquema de una versión (base para regen-mig y test-migration).
-# Para que tenga datos: npx prisma migrate deploy && npx prisma db seed && scripts/dev/e2e.sh e2e:v110
+# test-migration.sh añade datos sintéticos (scripts/dev/synthetic-data.sql) a la copia, así que no hace falta sembrar la foto.
+# Para que tenga datos reales de desarrollo: npx prisma migrate deploy && npx prisma db seed && scripts/dev/e2e.sh e2e:v110
 # Con --before <MIGRACIÓN>: la foto se deja como estaba ANTES de esa migración (aditiva): se borran las tablas y tipos
 # que crea y su fila de _prisma_migrations. Sirve en bloques posteriores al A de una versión, cuyo fichero se regenera entero.
 set -e
