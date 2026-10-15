@@ -242,7 +242,7 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
               return (
                 <>
                   {c.valid ? (
-                    <dl className="grid grid-cols-4 gap-2 rounded-md bg-muted/50 p-2 text-xs" aria-label="Consistencia">
+                    <dl className="grid grid-cols-2 gap-2 rounded-md sm:grid-cols-4 bg-muted/50 p-2 text-xs" aria-label="Consistencia">
                       <div>
                         <dt className="text-muted-foreground">Media</dt>
                         <dd className="font-semibold tabular-nums">{formatNum(c.mean!, 2)} m</dd>

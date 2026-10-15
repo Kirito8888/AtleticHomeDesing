@@ -210,7 +210,7 @@ export function RecipeBuilder() {
               <Input aria-label={`Ingrediente ${i + 1}`} className="w-full min-w-0" value={r.name} onChange={(e) => set(i, "name", e.target.value)} placeholder="Ingrediente" />
               <Input aria-label={`Gramos ${i + 1}`} inputMode="decimal" className="w-full min-w-0" value={r.grams} onChange={(e) => set(i, "grams", e.target.value)} placeholder="g" />
             </div>
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
               {(["kcal100", "protein100", "carbs100", "fat100"] as const).map((k) => (
                 <Input key={k} aria-label={`${{ kcal100: "kcal", protein100: "Proteína", carbs100: "Hidratos", fat100: "Grasa" }[k]} por 100 g ${i + 1}`} inputMode="decimal" className="w-full min-w-0 px-1 text-xs" value={r[k]} onChange={(e) => set(i, k, e.target.value)} placeholder={{ kcal100: "kcal", protein100: "P", carbs100: "H", fat100: "G" }[k]} />
               ))}

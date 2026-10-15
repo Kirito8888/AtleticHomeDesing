@@ -6,7 +6,7 @@
 - **Versión fusionada:** v2.0 (14/10/2026); v2.1.0 pendiente de fusionar. CI en verde.
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final.
 - **Arreglo /settings («This page couldn't load») — HECHO, causa NO reproducida.** El texto sin *digest* indica excepción **en cliente**. Con usuaria vacía, ADMIN con 2FA y cuentas con Telegram/Strava/IA/passkey/push en BD local (390 px) la página carga sin errores. Endurecido: `settings/error.tsx` (boundary con «Reintentar»; si es `ChunkLoadError` recarga), `lib/settings/optional.ts` (los bloques opcionales fallan a un valor de reserva; no se envuelven `totpStatus` ni `auditIntegrity` para no mentir sobre seguridad) y `shortWhen` en `server-status.tsx` (`Intl.format` lanzaba RangeError con fecha inválida). Si vuelve a fallar en producción: el boundary muestra el código del error; recargar con Ctrl+F5 por si son chunks viejos tras actualizar.
-- **Bloque en curso:** ninguno. v2.0 y v2.1 cerradas y fusionadas. **v2.2 bloque 1 (P1) — HECHO**, PR a main pendiente de fusionar. Siguiente: bloque 3 «Pista de verdad» o 4 «Móvil 390 px» de `docs/propuesta-v2-2.md` (P2/P3).
+- **Bloque en curso:** ninguno. v2.0 y v2.1 cerradas y fusionadas. **v2.2 bloques 1 (P1) y 2 (P2) — HECHOS**, PR del bloque 2 pendiente de fusionar. Siguiente: P3 de `docs/propuesta-v2-2.md` (P3-1 medir bundle, P3-6 tira semanal…) y cierre de v2.2 (versión, CHANGELOG, guía, manual, `e2e.sh all`, `test-migration.sh`).
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
 Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
@@ -50,8 +50,7 @@ marcada y de vuelos imposibles. Guía en `jump-guide.tsx` (4 secciones plegables
   sesiones de pista) y calendario usan `sessionHeadline`; la semana muestra «Distancia/Intentos esta semana» salvo en lanzamientos (tope de
   lanzamientos intacto) y el enlace a jabalina solo para esa familia. Lanzamientos/tonelaje/TSS sin tocar (test de regresión).
   Tests: `disciplines.test.ts`, `disciplines.int.test.ts`; E2E `e2e:v21a` (también en `e2e.sh all`).
-  Pendiente/fuera: no se crean `PersonalRecord` `TRACK_TIME` al guardar; reglas de `rules/engine.ts` y plan IA siguen centrados en lanzamientos;
-  el selector de disciplinas del asistente de bienvenida no pide la prueba.
+  Pendiente/fuera (resuelto en v2.2 b2): `TRACK_TIME`, reglas por familia, plan IA y bienvenida con la prueba.
 - **2 · Biblioteca de ejercicios con vídeo propio — HECHO.** Misma migración `20270201080000_v2_1_features` (regenerada con `regen-mig.sh`; añade
   a `Exercise`: `description`, `videoPath`, `videoMime`, `videoBytes`, `updatedAt`, todo nulo). Módulo de ficheros real: `src/lib/files/sealed-files.ts`
   (+ `EXT` mp4/webm); validación pura en `files/video.ts` (`sniffVideo` por firma, `checkVideo`, `VIDEO_MAX_BYTES` 25 MiB). Servicio
@@ -100,6 +99,13 @@ marcada y de vuelos imposibles. Guía en `jump-guide.tsx` (4 secciones plegables
   E2E `e2e:v22a` (también en `all`; espera al cambio de minuto, ~1 min). **Trampas:** `pkill -f next-server` mata el propio shell (usa `serve.sh`);
   `/admin` exige 2FA, por eso el E2E comprueba las métricas en BD y no la pantalla; `/api/health` no pasa por `route()` y no cuenta en las métricas.
   Fuera: `loadClubPanel` y `previewAssignment` sin caso en el test de privacidad; P2/P3 intactos.
+- **2 · P2 (pista, reglas, móvil) — HECHO.** Sin migración (umbrales nuevos en `prefs`). `training/disciplines.ts#bestTimesByDistance` → PR `TRACK_TIME` en
+  `service.ts` (solo series manuales SPRINT/HURDLES/RUN). Temporadas con tiempos (`SeasonSession.marks`, `higherIsBetter`). Reglas `fast-cap`, `km-ramp`, `jump-cap`
+  (`rules/engine.ts`, `family` + `trackLoads` desde `loadRuleInputs`, **siempre sin Strava**: llega a la entrenadora y a la IA). Plan IA: `disciplineForFamily`, `event` opcional.
+  Bienvenida con «Mi prueba». Móvil: tablas con `overflow-x-auto`, rejillas 2→4 columnas, 44 px bajo `md` en los componentes base. Suite `e2e:v22b` (55 rutas, claro/oscuro;
+  los controles < 44 px restantes salen como aviso: 3 en `/settings`). **Trampas:** (1) los E2E de v21a usaban fecha UTC y la app Madrid: fallaba pasadas las 22:00 UTC (corregido);
+  (2) `e2e` (smoke) y `e2e:security` necesitan VAPID en `.env.local` (añadido en local); (3) `/coach/multi` lanza error de servidor a una atleta (solo entrenadoras): fuera del barrido.
+  Fuera: P2-4 completo (solo 3 reglas), medición de P2-7 (P3-1), tira semanal (P3-6).
 
 ## Decisiones tomadas
 - LEAF-Q: se mantiene el cribado propio (`health/women.ts`); opcional cargar el texto oficial desde un fichero local

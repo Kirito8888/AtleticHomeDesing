@@ -166,7 +166,7 @@ export function ProfileForm({ initial }: { initial: ProfileValues }) {
                 type="button"
                 aria-pressed={on}
                 onClick={() => setDisciplines((d) => (on ? d.filter((x) => x !== k) : [...d, k]))}
-                className={cn("h-8 rounded-full border px-3 text-sm", on ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent")}
+                className={cn("h-8 max-md:h-11 rounded-full border px-3 text-sm", on ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent")}
               >
                 {l}
               </button>

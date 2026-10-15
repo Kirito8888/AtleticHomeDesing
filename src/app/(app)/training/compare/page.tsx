@@ -37,6 +37,7 @@ export default async function ComparePage({ searchParams }: PageProps<"/training
         <Button type="submit">Comparar</Button>
       </form>
       {a && b ? (
+        <div className="overflow-x-auto">
         <table className="w-full text-sm" aria-label="Comparación">
           <thead className="text-xs text-muted-foreground">
             <tr>
@@ -58,6 +59,7 @@ export default async function ComparePage({ searchParams }: PageProps<"/training
             ))}
           </tbody>
         </table>
+        </div>
       ) : (
         <p className="text-sm text-muted-foreground">Elige dos sesiones.</p>
       )}

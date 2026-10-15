@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type DayCheck, evaluateRules, throwCap, type ThrowSession, weekOf, weeklyThrows } from "./engine";
+import { type DayCheck, evaluateRules, throwCap, type ThrowSession, type TrackLoad, weekOf, weeklyThrows } from "./engine";
 import { readPrefs } from "./prefs";
 
 // Datos inventados.
@@ -104,5 +104,30 @@ describe("motor de reglas", () => {
   it("vídeo contado: dos semanas por debajo del mínimo", () => {
     const a = evaluateRules({ today: TODAY, prefs, checks: [], throws: [t("2026-11-04", 8, [8, 3, 6]), t("2026-11-11", 8, [8, 2, 7])] });
     expect(ids(a)).toEqual(["video-e"]);
+  });
+});
+
+describe("reglas por familia de prueba (v2.2)", () => {
+  const L = (date: string, v: Partial<TrackLoad>): TrackLoad => ({ date, fastM: 0, runKm: 0, jumps: 0, ...v });
+  const MONDAYS = ["2026-10-12", "2026-10-19", "2026-10-26", "2026-11-02"];
+  const hist = (key: keyof TrackLoad, vals: number[]) => vals.map((v, i) => L(MONDAYS[i], { [key]: v }));
+  const run = (family: "sprint" | "jumps" | "endurance" | "throws", trackLoads: TrackLoad[]) => ids(evaluateRules({ today: TODAY, prefs, checks: [], throws: [], family, trackLoads }));
+
+  it("velocidad: avisa si los metros de series pasan del tope y no si caben", () => {
+    const base = hist("fastM", [600, 600, 600, 600]); // 12/10, 19/10, 26/10, 2/11
+    expect(run("sprint", [...base, L("2026-11-10", { fastM: 900 })])).toEqual(["fast-cap"]);
+    expect(run("sprint", [...base, L("2026-11-10", { fastM: 700 })])).toEqual([]);
+  });
+  it("saltos: tope semanal de saltos con umbral propio", () => {
+    const base = hist("jumps", [20, 20, 20, 20]);
+    expect(run("jumps", [...base, L("2026-11-10", { jumps: 30 })])).toEqual(["jump-cap"]);
+  });
+  it("fondo: subida de km frente a la semana pasada, con mínimo de km", () => {
+    expect(run("endurance", [L("2026-11-03", { runKm: 30 }), L("2026-11-10", { runKm: 36 })])).toEqual(["km-ramp"]);
+    expect(run("endurance", [L("2026-11-03", { runKm: 30 }), L("2026-11-10", { runKm: 32 })])).toEqual([]);
+    expect(run("endurance", [L("2026-11-03", { runKm: 3 }), L("2026-11-10", { runKm: 9 })])).toEqual([]);
+  });
+  it("regresión: lanzamientos no recibe reglas de pista aunque haya carga", () => {
+    expect(run("throws", [L("2026-11-10", { fastM: 5000, jumps: 99, runKm: 80 })])).toEqual([]);
   });
 });

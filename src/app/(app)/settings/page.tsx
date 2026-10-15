@@ -104,18 +104,16 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const user = await pageUser();
   // v1.8 · la administración exige 2FA o una llave de acceso
   const adminOk = user.role === "ADMIN" && (await hasSecondFactor(user.id));
-  const status = adminOk ? await optional("estado del servidor", serverStatus, null) : null;
-  const demos = adminOk ? await optional("cuentas demo", listDemoAccounts, []) : [];
-  const usage = await optional("uso", () => usageSummary(user.id), { top: [], total: 0, unused: [], weeks: 0 });
   const { welcome, strava: stravaParam } = await searchParams;
   const todayIso = toIsoDay(today());
-  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed, reports, passkeys, integrity] = await Promise.all([
+  // Todo en paralelo: las consultas son independientes (antes seis `await` seguidos sumaban latencia)
+  const [me, thresholds, goal, asCoach, asAthlete, customExercises, twoFactor, events, pushDevices, feed, reports, passkeys, integrity, status, demos, usage, aiView, tgStatus, stravaSt] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, include: { athleteProfile: true } }),
     prisma.thresholdHistory.findMany({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" }, take: 5 }),
     prisma.nutritionGoal.findFirst({ where: { userId: user.id }, orderBy: { effectiveFrom: "desc" } }),
     prisma.coachAthlete.findMany({ where: { coachId: user.id }, include: { athlete: { select: { name: true, email: true } } } }),
     prisma.coachAthlete.findMany({ where: { athleteId: user.id }, include: { coach: { select: { name: true, email: true } } } }),
-    prisma.exercise.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    prisma.exercise.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, take: 200, select: { id: true, name: true } }),
     totpStatus(user.id),
     optional("actividad", () => recentEvents(user.id, 15), []),
     prisma.pushSubscription.count({ where: { userId: user.id } }),
@@ -123,6 +121,12 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
     optional("informes", () => listReports(user.id), []),
     optional("llaves de acceso", () => listPasskeys(user.id), []),
     auditIntegrity(user.id),
+    adminOk ? optional("estado del servidor", serverStatus, null) : Promise.resolve(null),
+    adminOk ? optional("cuentas demo", listDemoAccounts, []) : Promise.resolve([]),
+    optional("uso", () => usageSummary(user.id), { top: [], total: 0, unused: [], weeks: 0 }),
+    optional("IA", () => credentialView(user.id), { own: null, serverFallback: null }),
+    optional("Telegram", () => telegramStatus(user.id), { configured: false, linked: false, enabled: false, linkedAt: null, bot: null }),
+    optional("Strava", () => stravaStatus(user.id), { configured: false, connected: false, connectedAt: null, lastSyncAt: null, lastError: null, sessions: 0 }),
   ]);
   const monday = startOfIsoWeek(today());
   const reportPeriods = [
@@ -133,9 +137,6 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
   const vapid = vapidKeys();
   const p = me.athleteProfile;
   const prefs = readPrefs(p?.prefs);
-  const aiView = await optional("IA", () => credentialView(user.id), { own: null, serverFallback: null });
-  const tgStatus = await optional("Telegram", () => telegramStatus(user.id), { configured: false, linked: false, enabled: false, linkedAt: null, bot: null });
-  const stravaSt = await optional("Strava", () => stravaStatus(user.id), { configured: false, connected: false, connectedAt: null, lastSyncAt: null, lastError: null, sessions: 0 });
   const isDemo = Boolean(me.demoExpiresAt);
   const aiProviderName = aiView.own?.label ?? (aiView.serverFallback ? "Google Gemini" : "la IA que configures");
 
@@ -170,6 +171,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
         <Section title="Umbrales fisiológicos" description="Se guardan con fecha: cada sesión usa los vigentes en su día.">
           <ThresholdForm today={todayIso} />
           {thresholds.length ? (
+            <div className="overflow-x-auto">
             <table className="mt-4 w-full text-xs tabular-nums">
               <thead className="text-muted-foreground">
                 <tr>
@@ -192,6 +194,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
                 ))}
               </tbody>
             </table>
+            </div>
           ) : null}
           <RecomputeTssButton />
         </Section>
@@ -209,6 +212,10 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
               bodyFatBlockPts: prefs.bodyFatBlockPts,
               throwCapRatio: prefs.throwCapRatio,
               throwMinHours: prefs.throwMinHours,
+              sprintVolumeRatio: prefs.sprintVolumeRatio,
+              kmRampPct: prefs.kmRampPct,
+              kmRampMinKm: prefs.kmRampMinKm,
+              jumpCapRatio: prefs.jumpCapRatio,
               hrvDropPct: prefs.hrvDropPct,
               videoMinPct: prefs.videoMinPct,
               monotonyMax: prefs.monotonyMax,

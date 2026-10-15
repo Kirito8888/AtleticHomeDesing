@@ -153,6 +153,7 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4">
+              <div className="overflow-x-auto">
               <table className="w-full text-sm tabular-nums" aria-label="Cumplimiento por semana">
                 <thead className="text-xs text-muted-foreground">
                   <tr>
@@ -177,8 +178,10 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
                   ))}
                 </tbody>
               </table>
+              </div>
               <p className="mt-2 text-xs text-muted-foreground">Perdidos: días que ya pasaron y siguen planificados. El % cuenta solo los días que ya tocaban.</p>
               {tonnage.length ? (
+                <div className="overflow-x-auto">
                 <table className="mt-3 w-full text-sm tabular-nums" aria-label="Tonelaje plan frente a hecho">
                   <thead className="text-xs text-muted-foreground">
                     <tr>
@@ -199,6 +202,7 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
                     ))}
                   </tbody>
                 </table>
+                </div>
               ) : null}
             </CardContent>
           </Card>

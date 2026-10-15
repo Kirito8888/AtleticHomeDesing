@@ -6,6 +6,7 @@ import { Prisma, type TechnicalEvent, type TssMethod } from "@/generated/prisma/
 import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { bestTimesByDistance } from "@/lib/training/disciplines";
 import { computePmc } from "@/lib/training/pmc";
 import { computeReadiness } from "@/lib/training/readiness";
 import type { CreateSessionInput, RecoveryInput, strengthSetSchema, trackDetailSchema } from "@/lib/training/schemas";
@@ -20,6 +21,9 @@ type PreparedSet = z.infer<typeof strengthSetSchema> & { bodyweightFactor: numbe
 interface PrCandidates {
   technical: { event: TechnicalEvent; implementWeightG?: number | null; isCompetition: boolean; bestMarkM: number } | null;
   strengthSets: PreparedSet[];
+  /** Mejores tiempos por distancia de una sesión de pista (carrera/velocidad/vallas). */
+  trackTimes: Array<{ distanceM: number; timeSec: number }>;
+  isCompetition: boolean;
 }
 
 /** Umbrales vigentes en una fecha (registro con mayor effectiveFrom ≤ fecha). */
@@ -212,6 +216,9 @@ export async function createTrainingSession(
       ? await detectPersonalRecords(tx, userId, created.id, date, {
           technical: technical && bestMarkM != null ? { ...technical, bestMarkM } : null,
           strengthSets,
+          // Solo series escritas a mano (las importadas no traen series); natación y ciclismo no son «pruebas».
+          trackTimes: track && ["SPRINT", "HURDLES", "RUN"].includes(track.modality) ? bestTimesByDistance(track.intervals) : [],
+          isCompetition: false,
         })
       : [];
     return { ...created, newPersonalRecords: prs };
@@ -325,6 +332,20 @@ async function detectPersonalRecords(
             isCompetition: t.isCompetition,
             achievedOn: date,
           },
+        }),
+      );
+    }
+  }
+
+  for (const bt of data.trackTimes) {
+    const prev = await tx.personalRecord.findFirst({
+      where: { userId, kind: "TRACK_TIME", trackDistanceM: bt.distanceM },
+      orderBy: { value: "asc" },
+    });
+    if (!prev || bt.timeSec < prev.value) {
+      created.push(
+        await tx.personalRecord.create({
+          data: { userId, sessionId, kind: "TRACK_TIME", trackDistanceM: bt.distanceM, value: bt.timeSec, isCompetition: data.isCompetition, achievedOn: date },
         }),
       );
     }

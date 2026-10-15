@@ -38,7 +38,7 @@ export function Stepper({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-10 shrink-0 rounded-r-none"
+        className="size-10 max-md:size-11 shrink-0 rounded-r-none"
         aria-label={`Restar ${stepText} a ${label}`}
         onClick={() => onChange(clamp((value ?? 0) - step))}
       >
@@ -48,7 +48,7 @@ export function Stepper({
         <input
           aria-label={label}
           inputMode={decimals ? "decimal" : "numeric"}
-          className={cn("h-10 w-full min-w-0 bg-transparent text-center text-base font-semibold tabular-nums outline-none", suffix && "pr-7 pl-1")}
+          className={cn("h-10 max-md:h-11 w-full min-w-0 bg-transparent text-center text-base font-semibold tabular-nums outline-none", suffix && "pr-7 pl-1")}
           value={value == null ? "" : String(value).replace(".", ",")}
           onChange={(e) => {
             const raw = e.target.value.replace(",", ".");
@@ -66,7 +66,7 @@ export function Stepper({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-10 shrink-0 rounded-l-none"
+        className="size-10 max-md:size-11 shrink-0 rounded-l-none"
         aria-label={`Sumar ${stepText} a ${label}`}
         onClick={() => onChange(clamp((value ?? 0) + step))}
       >
