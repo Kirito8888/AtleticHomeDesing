@@ -44,6 +44,25 @@ try {
   console.log("⚠ ffmpeg no disponible: se salta el paso del vídeo");
 }
 
+// iPhone/PAL: .mov (QuickTime) de 2 s a 50 fps; si el Chromium de pruebas no decodifica H.264, se prueba VP9. Más un .mov ilegible.
+let mov: Buffer | null = null;
+let movVp9: Buffer | null = null;
+try {
+  const dir = mkdtempSync(join(tmpdir(), "salto-mov-"));
+  const file = join(dir, "salto.mov");
+  execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=50:duration=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-g", "1", file], { stdio: "pipe" });
+  mov = readFileSync(file);
+  try {
+    const f2 = join(dir, "salto-vp9.mov");
+    execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=50:duration=2", "-c:v", "libvpx-vp9", "-g", "1", "-f", "mp4", f2], { stdio: "pipe" });
+    movVp9 = readFileSync(f2);
+  } catch {}
+  log(".mov sintético de 50 fps generado");
+} catch {
+  console.log("⚠ no se pudo generar el .mov: se salta el paso PAL/iPhone");
+}
+const garbage = Buffer.from("esto no es un vídeo ".repeat(200));
+
 const email = `salto${Date.now()}@test.dev`;
 const pw = execFileSync("npm", ["run", "-s", "user", "--", "create", email, "--name", "Atleta", "--accept-terms"], { encoding: "utf8" }).match(/Contraseña: (\S+)/)?.[1];
 if (!pw) throw new Error("no se pudo crear la cuenta");
@@ -94,6 +113,57 @@ if (video) {
   if (reqs.some((u) => /\.webm|video/.test(u))) errors.push("se subió el vídeo");
   await checkA11y("/training/tests (con saltos)");
   log("3 intentos guardados y visibles en /training/tests");
+}
+
+if (mov) {
+  await go("/training/tests/salto");
+  await page.getByRole("radio", { name: "CMJ" }).click();
+  const t0 = Date.now();
+  const load = async (buf: Buffer) => {
+    await page.getByLabel(/^Vídeo del salto/).first().setInputFiles({ name: "IMG_0001.mov", mimeType: "video/quicktime", buffer: buf });
+    return Promise.race([
+      page.getByText(/El fichero tiene \d+ fps|No se pudieron detectar/).waitFor({ timeout: 30_000 }).then(() => "ok"),
+      page.getByRole("alert").filter({ hasText: /no puede leer/ }).waitFor({ timeout: 30_000 }).then(() => "codec"),
+    ]);
+  };
+  let outcome = await load(mov);
+  if (outcome === "codec" && movVp9) {
+    console.log("⚠ el Chromium de pruebas no decodifica H.264: se prueba el .mov con VP9 (el mensaje de códec ya se ha comprobado)");
+    log("H.264 no soportado → mensaje descriptivo, sin bloqueo");
+    outcome = await load(movVp9);
+  }
+  if (outcome === "codec") {
+    log("mensaje descriptivo de códec no soportado");
+  } else {
+    await page.getByRole("button", { name: "+1", exact: true }).waitFor();
+    await page.getByText(/El fichero tiene 50 fps/).waitFor({ timeout: 10_000 });
+    log(`.mov de iPhone listo para navegar en ${Date.now() - t0} ms (incluye detección de fps)`);
+    await page.getByRole("radio", { name: "50 fps" }).click();
+    const slider = page.getByRole("slider", { name: "Fotograma" });
+    await slider.fill("10");
+    await page.getByRole("button", { name: "Marcar despegue" }).click();
+    // +1 / −1 rápidos: el contador responde al instante y el vídeo no se cuelga
+    const t1 = Date.now();
+    for (let i = 0; i < 25; i++) await page.getByRole("button", { name: "+1", exact: true }).click();
+    await page.getByRole("button", { name: "−1", exact: true }).click();
+    await page.getByRole("button", { name: "+1", exact: true }).click();
+    await page.getByText(/Fotograma 35 de/).waitFor({ timeout: 2000 });
+    log(`27 pasos de fotograma en ${Date.now() - t1} ms`);
+    await page.getByRole("button", { name: "Marcar aterrizaje" }).click();
+    // Vuelo de 25 fotogramas a 50 fps = 0,500 s → 30,7 cm
+    await page.getByTestId("jump-result").getByText(/30,7 cm/).waitFor();
+    await checkA11y("/training/tests/salto (.mov 50 fps)");
+    await page.getByRole("button", { name: "Añadir intento" }).click();
+    await page.getByRole("button", { name: /^Guardar 1 intento/ }).click();
+    await page.waitForURL(/\/training\/tests$/);
+    log(".mov a 50 fps (PAL) guardado");
+  }
+
+  await go("/training/tests/salto");
+  await page.getByLabel(/^Vídeo del salto/).first().setInputFiles({ name: "roto.mov", mimeType: "video/quicktime", buffer: garbage });
+  await page.getByRole("alert").filter({ hasText: /no puede leer/ }).waitFor({ timeout: 15_000 });
+  await checkA11y("/training/tests/salto (códec no soportado)");
+  log("vídeo ilegible: mensaje descriptivo, sin bloqueo");
 }
 
 await browser.close();
