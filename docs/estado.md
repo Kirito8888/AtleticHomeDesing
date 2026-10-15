@@ -5,6 +5,7 @@
 ## Dónde estamos
 - **Versión fusionada:** v2.0 (14/10/2026); v2.1.0 pendiente de fusionar. CI en verde.
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final.
+- **Arreglo /settings («This page couldn't load») — HECHO, causa NO reproducida.** El texto sin *digest* indica excepción **en cliente**. Con usuaria vacía, ADMIN con 2FA y cuentas con Telegram/Strava/IA/passkey/push en BD local (390 px) la página carga sin errores. Endurecido: `settings/error.tsx` (boundary con «Reintentar»; si es `ChunkLoadError` recarga), `lib/settings/optional.ts` (los bloques opcionales fallan a un valor de reserva; no se envuelven `totpStatus` ni `auditIntegrity` para no mentir sobre seguridad) y `shortWhen` en `server-status.tsx` (`Intl.format` lanzaba RangeError con fecha inválida). Si vuelve a fallar en producción: el boundary muestra el código del error; recargar con Ctrl+F5 por si son chunks viejos tras actualizar.
 - **Bloque en curso:** ninguno. v2.0 y **v2.1 cerradas** (v2.1.0 en PR abierto a main, la usuaria lo fusiona). Siguiente: v2.2, por definir con la usuaria.
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
