@@ -30,6 +30,9 @@ export default async function TestsPage() {
             <Link href="/training/tests/salto" className="mt-3 flex min-h-11 items-center text-sm font-medium underline underline-offset-4">
               Medir salto con vídeo
             </Link>
+            <Link href="/training/tests/comparar" className="flex min-h-11 items-center text-sm font-medium underline underline-offset-4">
+              Comparar con curvas publicadas
+            </Link>
           </CardContent>
         </Card>
         <div className="grid gap-4" aria-label="Resultados por test">
