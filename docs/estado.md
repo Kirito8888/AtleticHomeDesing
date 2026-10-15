@@ -14,6 +14,12 @@ tests), API `api/training/tests/jump` (recalcula en servidor y guarda **mejor** 
 `cmj`/`sj`/`abalakov`/`djRsi` y `…Mean`), UI `components/training/jump-meter.tsx` en `/training/tests/salto`, E2E `e2e:salto`.
 Sin cambios de esquema. El vídeo nunca sale del navegador. Los fps detectados son los **del fichero** (pueden ser 30 si el móvil
 reexportó la cámara lenta): la atleta confirma los fps de captura. Fuera: perfil F-V (Samozino) y detección automática.
+**Mejora v2.1 (salto):** fps de captura NTSC+PAL (25/30/50/60/100/120/240; el schema los valida con `isCaptureFps`), `accept` con `video/quicktime`
+y `webkit-playsinline` para .mov de iPhone, error de `<video>` con mensaje de códec (HEVC en escritorio) en vez de quedarse en «Analizando…», deslizador
+de fotograma y seek coalescido (un solo `currentTime` en vuelo; el último objetivo se aplica en `seeked`). **No había extracción a canvas**: la espera
+venía de la detección de fps (ahora 10 intervalos, tope 2,5 s, controles activos al terminar) y de seeks encolados. El paso ±1 va por los fps **del
+fichero** (no los de captura: un 240 reexportado a 30 repetiría fotogramas); el cálculo, por los de captura. E2E con .mov a 50 fps (VP9 en MP4: el
+Chromium de pruebas no decodifica H.264) y .mov ilegible. **Sin probar:** HEVC real en Safari iOS (la usuaria, en su iPhone).
 
 ## v2.0 · bloques (resumen; detalle en CHANGELOG y código)
 - **A · Clubes y cuotas** (`src/lib/clubs/`, `/clubs`): pertenecer no da acceso; la atleta acepta y elige `scopes`/`canPlan`. `resolveAthleteId` une
