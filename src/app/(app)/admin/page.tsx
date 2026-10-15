@@ -88,7 +88,7 @@ export default async function AdminPage() {
           </CardHeader>
           <CardContent className="px-4">
             <MetricsCard
-              metrics={metricsSummary()}
+              metrics={await metricsSummary()}
               problems={problems}
               process={{ uptimeSec: Math.round(process.uptime()), rssMb: Math.round(mem.rss / 1e6), heapMb: Math.round(mem.heapUsed / 1e6) }}
               db={{ latencyMs: status.db.latencyMs, sizeMb: status.db.sizeBytes != null ? Math.round(status.db.sizeBytes / 1e6) : null, queue: status.queue }}
