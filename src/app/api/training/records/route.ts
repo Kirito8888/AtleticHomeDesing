@@ -1,13 +1,14 @@
 import { route } from "@/lib/api";
 import { requireUser, resolveAthleteId } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { prNotFromStrava } from "@/lib/strava/policy";
 
 /** Marcas personales, de la más reciente a la más antigua. */
 export const GET = route(async (req) => {
   const user = await requireUser();
   const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "LOAD");
   return prisma.personalRecord.findMany({
-    where: { userId },
+    where: { userId, ...(userId !== user.id ? prNotFromStrava : {}) },
     orderBy: { achievedOn: "desc" },
     include: { exercise: { select: { name: true } } },
   });
