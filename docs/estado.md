@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión fusionada:** v1.10 (PR #24, 14/10/2026). CI en verde.
 - **Siguiente:** v2.0, por bloques; **una sesión por bloque**. Cierre con PR al final de la versión.
-- **Bloque en curso:** ninguno. Hecho: **Salto**, **A–E** y cierre v2.0. **v2.1 bloques 1 y 2 hechos.** Siguiente: v2.1 bloque 3.
+- **Bloque en curso:** ninguno. Hecho: **Salto**, **A–E** y cierre v2.0. **v2.1 bloques 1, 2 y 3 hechos.** Siguiente: cierre de la v2.1 (E2E all, migración, Semgrep, licencias, CHANGELOG, guía, manual, PR).
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
 Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
@@ -108,7 +108,20 @@ Antes del bloque A: `scripts/dev/snapshot.sh` (foto de la BD v1.10 para la migra
   (CI: «AthleteProfile.primaryEvent does not exist»). Comprobar que el `migration.sql` conserva las de los bloques previos y probar con una foto sin ellas.
   Pendiente/fuera: la descripción no va a la IA ni al plan; no hay borrado de ejercicios propios (si se añade, borrar también el clip);
   sin recorte ni análisis del vídeo.
-- **3 · Comparativas con curvas publicadas y citadas; protocolos de fisio compartidos.**
+- **3 · Curvas de referencia citadas + protocolos de fisio compartidos — HECHO.** Misma migración `20270201080000_v2_1_features` (+ `ReferenceCurve`,
+  `PhysioProtocol`, `PhysioProtocolShare`; regenerada con `regen-mig.sh`). `snapshot.sh --before` ahora también borra las **columnas** añadidas
+  (arregla la trampa del bloque 2). **Curvas:** el catálogo nace **vacío** (decisión: no se siembran números «de memoria» bajo un DOI real);
+  se dan de alta a mano copiando la tabla (`/training/tests/curvas`), con estudio/autores/año/cita obligatorios y DOI/https validados.
+  ADMIN → global; COACH → privada; atleta → 403. Puro en `training/reference-curves.ts` (`interpolate` lineal **sin extrapolar**, `ageAt`, `overlay`,
+  `summarizeOverlay`; delta con signo según `higherIsBetter`; banda low/high). Servicio `reference-curves-service.ts`; `/training/tests/comparar`
+  (`?athlete=` con ámbito LOAD) con gráfica recharts y ficha de cita; todo local, **nada va a la IA**. Sin fecha de nacimiento no se compara.
+  **Fisio:** `recovery/physio-protocol.ts` (fases con ejercicios y criterios; editor de texto `# fase | dolor máx N` / `- ejercicio: dosis` / `? criterio`),
+  `physio-service.ts`. Solo cuenta COACH crea/comparte (la ADMIN global **no** se salta nada; no hay rol «fisio»); compartir exige vínculo activo
+  (1:1 o club) + ámbito RECOVERY y `processingRestrictedAt` bloquea (lectura del seguimiento incluida, que sale «bloqueado» y sin datos).
+  La atleta ve el contenido en solo lectura y marca criterios y dolor del día (`/recovery/fisio`); editar → 403, ajena → 404. Quitar el acceso borra
+  su seguimiento. Si el vínculo se revoca, la atleta conserva su copia compartida. Exportar cuenta: curvas propias, protocolos propios (sin el
+  seguimiento de otras) y lo recibido; restaurar no lo recrea. Límite `physioShare`. Tests: `reference-curves.test.ts`, `physio-protocol.test.ts`,
+  `physio.int.test.ts`; E2E `e2e:v21c` (también en `e2e.sh all`). Fuera/pendiente: sin avisos a la atleta al compartir (sin email); sin diagnóstico ni IA.
 
 ## Decisiones tomadas
 - LEAF-Q: se mantiene el cribado propio (`health/women.ts`); opcional cargar el texto oficial desde un fichero local

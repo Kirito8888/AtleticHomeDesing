@@ -58,6 +58,8 @@ export const LIMITS = {
   sharedReport: { limit: 60, windowMs: 60 * 60_000 },
   /** v2.0 · Compartir mazos de flashcards por email. */
   deckShare: { limit: 30, windowMs: 60 * 60_000 },
+  /** v2.1 · Compartir protocolos de fisio y alta de curvas (escrituras de la entrenadora). */
+  physioShare: { limit: 60, windowMs: 60 * 60_000 },
   /** Comentarios en sesiones (cada uno puede disparar un push). */
   comment: { limit: 60, windowMs: 60 * 60_000 },
 } as const;
