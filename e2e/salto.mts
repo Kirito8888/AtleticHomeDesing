@@ -61,6 +61,19 @@ try {
 } catch {
   console.log("⚠ no se pudo generar el .mov: se salta el paso PAL/iPhone");
 }
+// Para los avisos: un fichero a 25 fps (iOS convirtió una grabación de 100) y uno a 30 fps que simula la cámara lenta exportada.
+const clip = (name: string, rate: number, seconds: number, container: string, codec: string[]) => {
+  try {
+    const dir = mkdtempSync(join(tmpdir(), "salto-x-"));
+    const file = join(dir, name);
+    execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", `testsrc=size=320x240:rate=${rate}:duration=${seconds}`, ...codec, "-g", "1", "-f", container, file], { stdio: "pipe" });
+    return readFileSync(file);
+  } catch {
+    return null;
+  }
+};
+const clip25 = clip("c25.mov", 25, 4, "mp4", ["-c:v", "libvpx-vp9"]);
+const clip30 = clip("c30.webm", 30, 8, "webm", ["-c:v", "libvpx"]);
 const garbage = Buffer.from("esto no es un vídeo ".repeat(200));
 
 const email = `salto${Date.now()}@test.dev`;
@@ -159,7 +172,49 @@ if (mov) {
     log(".mov a 50 fps (PAL) guardado");
   }
 
+  const group = (name: string) => page.getByRole("radiogroup", { name, exact: true });
+  const reload = async (name: string, mime: string, buffer: Buffer) => {
+    await go("/training/tests/salto");
+    await page.getByLabel(/^Vídeo del salto/).first().setInputFiles({ name, mimeType: mime, buffer });
+    await page.getByText(/El fichero tiene \d+ fps/).waitFor({ timeout: 30_000 });
+  };
+  if (clip25) {
+    // 4K a 100 fps que iOS convirtió a 25 fps: se calcula con 25 y se avisa; antes salían ~3 cm en vez de ~57
+    await reload("convertido.mov", "video/quicktime", clip25);
+    await page.getByText(/El fichero tiene 25 fps/).waitFor();
+    await group("Fps de grabación").getByRole("radio", { name: "100 fps" }).click();
+    await page.getByRole("alert").filter({ hasText: /Grabaste a 100 fps pero el vídeo que ha llegado tiene 25/ }).waitFor();
+    await page.getByRole("slider", { name: "Fotograma" }).fill("48");
+    await page.getByRole("button", { name: "Marcar despegue" }).click();
+    await page.getByRole("slider", { name: "Fotograma" }).fill("65");
+    await page.getByRole("button", { name: "Marcar aterrizaje" }).click();
+    await page.getByTestId("jump-result").getByText(/56,7 cm/).waitFor();
+    await page.getByText(/Se calcula con 25 fps \(fps del fichero\)/).waitFor();
+    log("100 fps grabados → fichero de 25: aviso de conversión y 56,7 cm con 25 fps");
+  }
+  if (clip30) {
+    // Cámara lenta exportada: 1 fotograma del fichero = 1 fotograma captado a 240
+    await reload("lenta.webm", "video/webm", clip30);
+    await group("Cámara lenta").getByRole("radio", { name: "Sí" }).click();
+    await group("Fps de la cámara lenta").getByRole("radio", { name: "240 fps" }).click();
+    await page.getByRole("slider", { name: "Fotograma" }).fill("10");
+    await page.getByRole("button", { name: "Marcar despegue" }).click();
+    await page.getByRole("slider", { name: "Fotograma" }).fill("130");
+    await page.getByRole("button", { name: "Marcar aterrizaje" }).click();
+    await page.getByTestId("jump-result").getByText(/30,7 cm/).waitFor();
+    if (await page.getByRole("alert").filter({ hasText: /tramo lento|cámara lenta exportada/ }).count()) errors.push("aviso de cámara lenta innecesario");
+    log("cámara lenta ×8 (30 → 240 fps): 120 fotogramas → 30,7 cm sin avisos");
+    // …y si el tramo marcado va a velocidad real, avisa
+    await page.getByRole("slider", { name: "Fotograma" }).fill("25");
+    await page.getByRole("button", { name: "Marcar aterrizaje" }).click();
+    await page.getByRole("alert").filter({ hasText: /no están en el tramo lento/ }).waitFor();
+    log("cámara lenta marcada con el vuelo fuera del tramo lento: aviso");
+  }
   await go("/training/tests/salto");
+  await page.getByRole("heading", { name: "Cómo grabar y subir el vídeo para medir bien" }).waitFor();
+  await page.getByText(/Guardar en Archivos/).waitFor();
+  await checkA11y("/training/tests/salto (guía)");
+  log("guía de grabación visible");
   await page.getByLabel(/^Vídeo del salto/).first().setInputFiles({ name: "roto.mov", mimeType: "video/quicktime", buffer: garbage });
   await page.getByRole("alert").filter({ hasText: /no puede leer/ }).waitFor({ timeout: 15_000 });
   await checkA11y("/training/tests/salto (códec no soportado)");

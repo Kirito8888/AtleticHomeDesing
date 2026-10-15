@@ -20,6 +20,10 @@ de fotograma y seek coalescido (un solo `currentTime` en vuelo; el último objet
 venía de la detección de fps (ahora 10 intervalos, tope 2,5 s, controles activos al terminar) y de seeks encolados. El paso ±1 va por los fps **del
 fichero** (no los de captura: un 240 reexportado a 30 repetiría fotogramas); el cálculo, por los de captura. E2E con .mov a 50 fps (VP9 en MP4: el
 Chromium de pruebas no decodifica H.264) y .mov ilegible. **Sin probar:** HEVC real en Safari iOS (la usuaria, en su iPhone).
+**Corrección (salto, 15/10):** el medidor daba 7,7 cm en un salto de ~55 cm (4K a 100 fps). Causa: mezclaba «fps de captura» con los del fichero. Ahora
+`effectiveFps`: velocidad real → fps **del fichero** (medidos; si no se pueden medir, los indica la atleta, ya no hay 30 de reserva); tramo de cámara
+lenta (el iPhone solo ralentiza un tramo) → fps de grabación. `videoWarnings` avisa de conversión de iOS (grabó 100, llegó 25), de cámara lenta mal
+marcada y de vuelos imposibles. Guía de grabación y subida (Fotos → Archivos) en `jump-guide.tsx`. La API sigue recibiendo `fps` efectivos.
 
 ## v2.0 · bloques (resumen; detalle en CHANGELOG y código)
 - **A · Clubes y cuotas** (`src/lib/clubs/`, `/clubs`): pertenecer no da acceso; la atleta acepta y elige `scopes`/`canPlan`. `resolveAthleteId` une

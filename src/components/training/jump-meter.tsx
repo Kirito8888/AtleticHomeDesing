@@ -9,17 +9,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import { formatNum } from "@/lib/format";
-import { CAPTURE_FPS, computeAttempt, type CaptureFps, fpsWarning, frameToTime, isCaptureFps, JUMP_TYPES, type JumpFrames, type JumpType, nearestFps, summarizeAttempts } from "@/lib/training/jump";
+import { CAPTURE_FPS, computeAttempt, effectiveFps, fpsWarning, frameToTime, isCaptureFps, JUMP_TYPES, type JumpFrames, type JumpType, nearestFps, SLOW_FPS, summarizeAttempts, videoWarnings } from "@/lib/training/jump";
 
 const TYPE_OPTIONS = (Object.keys(JUMP_TYPES) as JumpType[]).map((k) => ({ value: k, label: k === "dj" ? "DJ" : k === "cmj" ? "CMJ" : k === "sj" ? "SJ" : "Abalakov" }));
-const FPS_OPTIONS = CAPTURE_FPS.map((f) => ({ value: f, label: `${f} fps` }));
+const FPS_OPTIONS = CAPTURE_FPS.map((f) => ({ value: f as number, label: `${f} fps` }));
+const SLOW_OPTIONS = SLOW_FPS.map((f) => ({ value: f as number, label: `${f} fps` }));
+const YES_NO = [{ value: "no", label: "No" }, { value: "si", label: "Sí" }];
 
 const CODEC_MSG =
   "Tu navegador no puede leer este vídeo (suele pasar con el HEVC del iPhone en un ordenador). Ábrelo desde el móvil o, en el iPhone, en Ajustes › Cámara › Formatos elige «Más compatible» (H.264) y vuelve a grabar.";
 const errorMessage = (code?: number) => (code === 2 ? "Error de lectura del vídeo. Prueba con otro fichero." : CODEC_MSG);
 
-/** Mide los fps del fichero reproduciéndolo en silencio unos fotogramas (requestVideoFrameCallback). Tope de 2,5 s. */
-function detectFileFps(v: HTMLVideoElement): Promise<number | null> {
+/** Mide los fps del fichero reproduciéndolo en silencio unos fotogramas (requestVideoFrameCallback). */
+function detectFileFps(v: HTMLVideoElement, rate = 0.25, timeoutMs = 2500): Promise<number | null> {
   return new Promise((resolve) => {
     if (!("requestVideoFrameCallback" in v)) return resolve(null);
     const times: number[] = [];
@@ -37,14 +39,14 @@ function detectFileFps(v: HTMLVideoElement): Promise<number | null> {
       const d = times.slice(1).map((t, i) => t - times[i]).filter((x) => x > 0);
       return d.length >= 3 ? nearestFps(1 / Math.min(...d)) : null;
     };
-    const timer = setTimeout(() => stop(measure()), 2500);
+    const timer = setTimeout(() => stop(measure()), timeoutMs);
     const tick = (_: number, meta: VideoFrameCallbackMetadata) => {
       times.push(meta.mediaTime);
       if (times.length >= 11) stop(measure());
       else v.requestVideoFrameCallback(tick);
     };
     v.muted = true;
-    v.playbackRate = 0.25; // lento para que el navegador presente todos los fotogramas
+    v.playbackRate = rate; // lento para que el navegador presente todos los fotogramas
     v.requestVideoFrameCallback(tick);
     v.play().catch(() => stop(null));
   });
@@ -59,10 +61,12 @@ export function JumpMeter({ today }: { today: string }) {
   const video = useRef<HTMLVideoElement>(null);
   const [src, setSrc] = useState<string | null>(null);
   const [detected, setDetected] = useState<number | null>(null);
-  const [fps, setFps] = useState<CaptureFps>(240);
+  const [recordedFps, setRecordedFps] = useState(240);
+  const [manualFileFps, setManualFileFps] = useState<number | null>(null);
+  const [slow, setSlow] = useState(false);
+  const [duration, setDuration] = useState(0);
   const [type, setType] = useState<JumpType>("cmj");
   const [frame, setFrame] = useState(0);
-  const [maxFrame, setMaxFrame] = useState(0);
   const [marks, setMarks] = useState<Marks>(NO_MARKS);
   const [attempts, setAttempts] = useState<JumpFrames[]>([]);
   const [date, setDate] = useState(today);
@@ -70,7 +74,11 @@ export function JumpMeter({ today }: { today: string }) {
   const [ready, setReady] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
-  const fileFpsRef = useRef(30);
+  // Fps del fichero: medidos; si no se pueden medir, los indicados por la atleta (nunca un valor inventado).
+  const fileFps = detected ?? manualFileFps ?? recordedFps;
+  const maxFrame = Math.max(0, Math.floor(duration * fileFps) - 1);
+  const fileFpsRef = useRef(fileFps);
+  useEffect(() => { fileFpsRef.current = fileFps; }, [fileFps]);
   const target = useRef(0); // fotograma pedido más recientemente
   const seeking = useRef(false);
   const metaTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -116,6 +124,8 @@ export function JumpMeter({ today }: { today: string }) {
     target.current = 0;
     seeking.current = false;
     setDetected(null);
+    setManualFileFps(null);
+    setSlow(false);
     setReady(false);
     setError(null);
     if (metaTimer.current) clearTimeout(metaTimer.current);
@@ -125,17 +135,26 @@ export function JumpMeter({ today }: { today: string }) {
   async function onLoaded() {
     if (metaTimer.current) clearTimeout(metaTimer.current);
     const v = video.current!;
-    const d = await detectFileFps(v);
-    const ff = d && d >= 10 && d <= 480 ? d : 30;
-    fileFpsRef.current = ff;
-    setMaxFrame(Math.max(0, Math.floor(v.duration * ff) - 1));
-    setDetected(d);
-    // Propuesta: si los fps del fichero son de captura habituales, se proponen.
-    if (d && isCaptureFps(d)) setFps(d);
+    let d = await detectFileFps(v);
+    if (d == null) d = await detectFileFps(v, 0.1, 4000); // 4K/HEVC: reintento más lento
+    setDuration(v.duration);
+    const ok = d && isCaptureFps(d) ? d : null;
+    setDetected(ok);
+    fileFpsRef.current = ok ?? recordedFps;
+    // Propuesta: si los fps del fichero son de captura habituales, se proponen también como fps de grabación.
+    if (d && isCaptureFps(d)) setRecordedFps(d);
     seeking.current = false;
     target.current = 0;
-    v.currentTime = frameToTime(0, ff);
+    v.currentTime = frameToTime(0, fileFpsRef.current);
     setReady(true);
+  }
+
+  function changeFileFps(f: number) {
+    setManualFileFps(f);
+    fileFpsRef.current = f;
+    setMarks(NO_MARKS);
+    setAttempts([]);
+    seek(0);
   }
 
   const m = marks;
@@ -143,10 +162,12 @@ export function JumpMeter({ today }: { today: string }) {
     m.takeoff != null && m.landing != null && m.landing > m.takeoff && (type !== "dj" || (m.contact != null && m.contact < m.takeoff))
       ? { takeoff: m.takeoff, landing: m.landing, contact: type === "dj" ? m.contact : null }
       : null;
+  const setup = { fileFps, detected: detected != null, recordedFps, slowMotion: slow };
+  const fps = effectiveFps(setup);
   const current = frames ? computeAttempt(type, fps, frames) : null;
   const all = attempts.map((a) => computeAttempt(type, fps, a));
   const sum = summarizeAttempts(type, all);
-  const warn = fpsWarning(fps, current?.flightS);
+  const warnings = [...(ready ? videoWarnings(setup, frames ? frames.landing - frames.takeoff : null) : []), fpsWarning(fps, current?.flightS)].filter((w): w is string => !!w);
   const unit = type === "dj" ? "m/s" : "cm";
 
   function addAttempt() {
@@ -222,13 +243,25 @@ export function JumpMeter({ today }: { today: string }) {
             {step("+1", 1)}
             {step("+10", 10)}
           </div>
-          <Field label="Fps a los que grabaste" htmlFor="j-fps">
-            <Chips label="Fps de captura" options={FPS_OPTIONS} value={fps} onChange={(v) => v && setFps(v)} />
-          </Field>
-          <p className="text-xs text-muted-foreground">
-            {!ready ? "Analizando el vídeo…" : detected ? `El fichero tiene ${detected} fps.` : "No se pudieron detectar los fps del fichero."} Si lo exportaste y el móvil lo convirtió a 30 fps, indica aquí los fps de la grabación original.
+          <p className="text-sm" aria-live="polite">
+            {!ready ? "Analizando el vídeo…" : detected ? `El fichero tiene ${detected} fps.` : "No se pudieron detectar los fps del fichero: indícalos abajo."}
           </p>
-          {warn ? <p role="alert" className="rounded-md border border-destructive/40 p-2 text-sm">{warn}</p> : null}
+          {ready && !detected ? (
+            <Field label="Fps del fichero" hint="Mira las propiedades del vídeo en el móvil (Información). Con ellos se numeran los fotogramas.">
+              <Chips label="Fps del fichero" options={FPS_OPTIONS} value={manualFileFps ?? recordedFps} onChange={(v) => v && changeFileFps(v)} />
+            </Field>
+          ) : null}
+          <Field label="Fps a los que grabaste" hint="Con vídeo a velocidad real el cálculo usa los fps del fichero, no estos.">
+            <Chips label="Fps de grabación" options={FPS_OPTIONS} value={recordedFps} onChange={(v) => v && setRecordedFps(v)} />
+          </Field>
+          <Field label="¿El salto se ve a cámara lenta en el vídeo?" hint="La cámara lenta del iPhone solo ralentiza un tramo: despegue y aterrizaje deben quedar dentro de él.">
+            <Chips label="Cámara lenta" options={YES_NO} value={slow ? "si" : "no"} onChange={(v) => { if (v) { setSlow(v === "si"); if (v === "si" && recordedFps < 120) setRecordedFps(240); } }} />
+          </Field>
+          {slow ? <Chips label="Fps de la cámara lenta" options={SLOW_OPTIONS} value={recordedFps} onChange={(v) => v && setRecordedFps(v)} /> : null}
+          <p className="text-xs text-muted-foreground">Se calcula con {fps} fps ({slow ? "cámara lenta" : "fps del fichero"}).</p>
+          {warnings.map((w) => (
+            <p key={w} role="alert" className="rounded-md border border-destructive/40 p-2 text-sm">{w}</p>
+          ))}
           <div className="grid grid-cols-2 gap-2">
             {type === "dj" ? (
               <Button type="button" variant={m.contact != null ? "secondary" : "outline"} className="col-span-2 min-h-11" onClick={() => setMarks({ ...m, contact: frame })}>
