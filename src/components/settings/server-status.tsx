@@ -3,8 +3,17 @@ import { cn } from "@/lib/utils";
 
 const gb = (b: number) => `${(b / 1024 ** 3).toFixed(1)} GB`;
 const mb = (b: number) => (b >= 1024 ** 3 ? gb(b) : `${Math.round(b / 1024 ** 2)} MB`);
-const when = (iso: string) => new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(new Date(iso));
-const hoursAgo = (iso: string) => (Date.now() - Date.parse(iso)) / 3_600_000;
+const fmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
+/** Una fecha ilegible no puede tumbar la pantalla de Ajustes: `format` lanza RangeError con fechas inválidas. */
+export const shortWhen = (iso: string) => {
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? "—" : fmt.format(t);
+};
+const when = shortWhen;
+const hoursAgo = (iso: string) => {
+  const h = (Date.now() - Date.parse(iso)) / 3_600_000;
+  return Number.isNaN(h) ? 0 : h;
+};
 
 function Row({ label, value, bad = false }: { label: string; value: React.ReactNode; bad?: boolean }) {
   return (
