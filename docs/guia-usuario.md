@@ -190,6 +190,19 @@ Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Pri
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
 - **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
 
+## Novedades de la v2.3 (dónde está cada cosa)
+
+**Navegación**
+- En el móvil, la barra inferior tiene Inicio, tres destinos y **Más**; todo lo demás está en «Más», agrupado. Cualquier pantalla queda a dos toques como máximo.
+- Entrenadoras: **Mis atletas** sale en el menú. Administración, Privacidad y Notificaciones también.
+
+**Ajustes por grupos** (**Más → Ajustes**)
+- Arriba hay un índice (Perfil y entreno, Entrenadora, Avisos y app, Conexiones e IA, Cuenta y seguridad, Tus datos y, si eres administradora, Administración). Toca uno para saltar a su grupo.
+
+**Entreno, Tests y Clubes**
+- **Entreno:** «Medir y analizar» a la vista y «Planificar y biblioteca» plegado. **Tests:** pestañas Resultados · Medir salto · Comparar · Curvas.
+- **Clubes:** tus invitaciones, tus clubes y **Mis entrenadoras** (enlaza a Ajustes → Entrenador / atletas). En un club, el índice de secciones lleva a alertas, cumplimiento, miembros y cuotas.
+
 ## Novedades de la v2.1 (dónde está cada cosa)
 
 **Tu prueba** (**Ajustes → Mi prueba**)
@@ -480,6 +493,8 @@ Además:
 **Si eres entrenador/a:** en Mis atletas tienes la comparativa (carga 7 días, cumplimiento 14 días, mejor marca 30 días; cada dato solo si te dieron ese permiso) y «Comentar varias sesiones a la vez».
 
 ## Ajustes
+
+Desde la v2.3 la página va ordenada en grupos con un índice arriba; las opciones son las mismas.
 
 - **Seguridad:**
   - cambiar la contraseña o el email (cierra las demás sesiones);
