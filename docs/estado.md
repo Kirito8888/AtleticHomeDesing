@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión:** **v2.3.0 lista para producción**, fusionada en `main` (16/10/2026). v2.0, v2.1 y v2.2 fusionadas. Estabilidad: ver «Cierre v2.3».
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final. La usuaria fusiona; Claude nunca.
-- **Bloque en curso:** v2.4 B2 (P3-1…P3-3) **hecho, en PR**. B1 (TTFB) fusionado. Siguiente: punto 3 de «Pendiente» solo si la usuaria lo pide. Auditoría UI: `docs/auditoria-ui.md`.
+- **Bloque en curso:** v2.4 B3 (auditar cambio de rol del staff) **hecho, en PR**. B1 (TTFB) y B2 (P3-1…P3-3) fusionados. Siguiente: punto 3 de «Pendiente» solo si la usuaria lo pide. Auditoría UI: `docs/auditoria-ui.md`.
 - **Medidor de salto con HEVC/.mov (P3-4):** la usuaria lo probó en iPhone (16/10/2026) y no le dio problemas. Es su comprobación a mano, sin cifras guardadas: si aparece un fallo con otro vídeo, reabrir.
 
 
@@ -26,7 +26,7 @@
 2. ~~**P3-1…P3-3 de la auditoría**~~ **Hecho, sin cambios de producto** (`e2e/v24b.mts`, `npm run e2e:v24b`): con sesión sintética completa y datos largos a 390 px, claro y oscuro, no hay recorte ni scroll horizontal en las tablas ni rejillas citadas; la E2E las vigila. Detalle en `docs/auditoria-ui.md`.
 3. **Más reglas por familia** (anotado, sin fecha): combinadas y vídeo de saltos. Solo si la usuaria las pide; umbrales en prefs y sin Strava.
 4. **Perfil F-V (Samozino) y detección automática de despegue en el salto** (anotado, sin fecha): depende de que el medidor actual aguante más vídeos reales.
-5. **Auditar cambios de rol del staff del club** (anotado, sin fecha): hoy se auditan aceptar, salir, rechazar y ámbitos, no el cambio de rol.
+5. ~~**Auditar cambios de rol del staff del club**~~ **Hecho, sin enum ni migración**: `updateMember` registra `COACH_SCOPES_CHANGED` en la Actividad de la persona afectada (`rol: X → Y · cambiado por …`; IP solo si es ella). Además cierra un hueco: una cuenta ATHLETE ya no se promueve a staff por PATCH (como al invitar). Test en `clubs.int.test.ts`, paso en `e2e/v23c.mts`.
 
 ## Cierre v2.2 (16/10/2026) — todo en verde
 - `typecheck` y `lint` OK · `npm run test`: **151 ficheros, 877 tests** OK · `e2e.sh all`: **21 suites** OK (incluye v22a, v22b y security).

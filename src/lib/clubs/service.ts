@@ -9,6 +9,7 @@ import { type AuditContext, recordEvent } from "@/lib/security/audit";
 import { parseAmount } from "./fees";
 
 const isoToDate = (d: string) => new Date(`${d}T00:00:00Z`);
+const ROLE: Record<OrgRole, string> = { ADMIN: "administración", COACH: "entrenadora", ATHLETE: "atleta" };
 
 /** Membresía ACTIVE del usuario en el club con uno de los roles; si no, 404 (no se revela si el club existe). */
 export async function requireOrgRole(userId: string, orgId: string, roles: OrgRole[]) {
@@ -51,6 +52,10 @@ export async function updateMember(
   if ((data.status || data.scopes || data.canPlan !== undefined) && !own) throw new ApiError(403, "Solo la propia persona acepta o concede permisos");
   if (data.role) {
     await requireOrgRole(user.id, orgId, ["ADMIN"]);
+    // Como al invitar: una cuenta de atleta no puede ser staff del club.
+    if (data.role !== "ATHLETE" && (await prisma.user.findUnique({ where: { id: m.userId }, select: { role: true } }))?.role === "ATHLETE") {
+      throw new ApiError(404, "No se pudo cambiar el rol");
+    }
     if (own && m.role === "ADMIN" && data.role !== "ADMIN") {
       const admins = await prisma.orgMember.count({ where: { orgId, role: "ADMIN", status: "ACTIVE" } });
       if (admins < 2) throw new ApiError(409, "Debe quedar al menos una administradora");
@@ -70,6 +75,11 @@ export async function updateMember(
   if (own && (data.status || data.scopes || data.canPlan !== undefined)) {
     const parts = [data.status ? "invitación aceptada" : null, data.scopes ? `ámbitos: ${updated.scopes.join(", ") || "ninguno"}` : null, data.canPlan !== undefined ? `planificar: ${updated.canPlan ? "sí" : "no"}` : null];
     await recordEvent(user.id, "COACH_SCOPES_CHANGED", ctx, `${await clubLabel(orgId)} · ${parts.filter(Boolean).join(" · ")}`);
+  }
+  // v2.4 · El cambio de rol (lo hace la ADMIN del club) va a la Actividad de la persona afectada, como la expulsión.
+  if (data.role && data.role !== m.role) {
+    const by = own ? "cambiado por ti" : "cambiado por la administración del club";
+    await recordEvent(m.userId, "COACH_SCOPES_CHANGED", own ? ctx : {}, `${await clubLabel(orgId)} · rol: ${ROLE[m.role]} → ${ROLE[data.role]} · ${by}`);
   }
   return updated;
 }
