@@ -130,7 +130,7 @@ export function ManualDayEditor({
                 ✕
               </Button>
             </div>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <Input aria-label={`Series ${i + 1}`} value={r.sets} onChange={(e) => setRow(i, { sets: e.target.value })} placeholder="3 × 5" />
               <Input aria-label={`Carga ${i + 1}`} value={r.load} onChange={(e) => setRow(i, { load: e.target.value })} placeholder="80 % o 60 kg" />
               <Input aria-label={`RIR ${i + 1}`} value={r.rir} onChange={(e) => setRow(i, { rir: e.target.value })} placeholder="RIR 2" />

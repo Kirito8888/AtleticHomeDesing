@@ -122,6 +122,7 @@ export default async function RoutineDetailPage({ params, searchParams }: PagePr
                 ))}
               </nav>
               {demo ? (
+                <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b text-xs text-muted-foreground">
@@ -163,6 +164,7 @@ export default async function RoutineDetailPage({ params, searchParams }: PagePr
                     })}
                   </tbody>
                 </table>
+                </div>
               ) : (
                 <p className="text-muted-foreground">Elige una cuenta demo para ver su perfil y su proyección al lado de esta.</p>
               )}

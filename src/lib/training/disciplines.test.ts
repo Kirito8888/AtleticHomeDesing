@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { defaultsFor, disciplineForTrack, EVENTS, familyOf, formatSeconds, intervalMetric, intervalStats, paceSecPerKm, sessionHeadline, speedMs } from "./disciplines";
+import { bestTimesByDistance, defaultsFor, disciplineForTrack, EVENTS, familyOf, formatSeconds, intervalMetric, intervalStats, paceSecPerKm, sessionHeadline, speedMs } from "./disciplines";
 
 describe("catálogo y familias", () => {
   it("cada especialidad tiene familia y disciplina coherentes", () => {
@@ -77,5 +77,14 @@ describe("titulares", () => {
       track: { modality: "SPRINT", distanceM: null, avgPaceSecPerKm: null, intervals: [{ distanceM: 150, timeSec: 18.2 }, { distanceM: 150, timeSec: 17.9 }] },
     });
     expect(h).toBe("2×150 m · mejor 17,90 s");
+  });
+});
+
+describe("bestTimesByDistance", () => {
+  it("el menor tiempo por distancia, ordenado, ignorando series sin dato", () => {
+    expect(bestTimesByDistance([{ distanceM: 150, timeSec: 18.2 }, { distanceM: 100, timeSec: 12.4 }, { distanceM: 150, timeSec: 17.9 }, { distanceM: 100, timeSec: null }, { distanceM: null, timeSec: 9 }, { distanceM: 60, timeSec: 0 }])).toEqual([
+      { distanceM: 100, timeSec: 12.4 },
+      { distanceM: 150, timeSec: 17.9 },
+    ]);
   });
 });

@@ -183,6 +183,7 @@ export function SupplementCalendar({ supplements, week }: { supplements: Array<{
     <div className="grid gap-3 text-sm">
       <p className="text-xs text-muted-foreground">Solo recuerda qué días te toca y si lo tomaste. La cantidad la decide tu médico o dietista: la app no da dosis.</p>
       {week.rows.length ? (
+        <div className="overflow-x-auto">
         <table className="w-full text-xs" aria-label="Tomas de la semana">
           <thead>
             <tr>
@@ -218,6 +219,7 @@ export function SupplementCalendar({ supplements, week }: { supplements: Array<{
             ))}
           </tbody>
         </table>
+        </div>
       ) : (
         <p className="text-muted-foreground">Elige los días de cada suplemento para ver el calendario.</p>
       )}

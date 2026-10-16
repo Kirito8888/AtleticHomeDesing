@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { adjustBlocks, chooseAlternative, swapForEquipment } from "./adjust";
 import { expandAiPlan, progress } from "./expand";
 import { fakeAiPlan } from "./fake";
-import { allowedEquipment, planRequestSchema, type PlanRequest } from "./options";
+import { allowedEquipment, disciplineForFamily, planRequestSchema, type PlanRequest } from "./options";
 import { buildPlanPrompt } from "./prompt";
 import { aiPlanSchema } from "./schema";
 import { validateAiPlan } from "./validate";
@@ -139,5 +139,16 @@ describe("ajustes sin IA", () => {
     const after = chooseAlternative(b, ti, 0, 0)[ti];
     expect(after.kind === "table" && after.rows[0].exercise).toBe(before!.alternatives![0].name);
     expect(after.kind === "table" && after.rows[0].alternatives![0].name).toBe(before!.exercise);
+  });
+});
+
+describe("P2-5 · la prueba de la atleta", () => {
+  it("el prompt menciona la prueba solo si viene, y rechaza claves desconocidas", () => {
+    expect(buildPlanPrompt(base({ discipline: "velocidad", event: "100m" }))).toContain("prueba principal: 100 m");
+    expect(buildPlanPrompt(base())).not.toContain("prueba principal");
+    expect(() => base({ event: "marte" as never })).toThrow();
+  });
+  it("cada familia se traduce a una disciplina del asistente", () => {
+    expect(["throws", "jumps", "sprint", "endurance", "combined", "other"].map((f) => disciplineForFamily(f as never))).toEqual(["lanzamientos", "saltos", "velocidad", "fondo", "general", "general"]);
   });
 });

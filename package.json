@@ -40,6 +40,7 @@
     "e2e:v21b": "tsx e2e/v21b.mts",
     "e2e:v21c": "tsx e2e/v21c.mts",
     "e2e:v22a": "tsx e2e/v22a.mts",
+    "e2e:v22b": "tsx e2e/v22b.mts",
     "notices": "node scripts/third-party-notices.mjs"
   },
   "dependencies": {

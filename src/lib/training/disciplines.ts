@@ -146,6 +146,18 @@ export function intervalStats(intervals: IntervalLike[]): IntervalStats {
   };
 }
 
+/** Mejor (menor) tiempo por distancia entre las series con distancia y tiempo. Base de los PR `TRACK_TIME`. */
+export function bestTimesByDistance(intervals: IntervalLike[]): Array<{ distanceM: number; timeSec: number }> {
+  const best = new Map<number, number>();
+  for (const i of intervals) {
+    const d = i.distanceM ?? 0;
+    const t = i.timeSec ?? 0;
+    if (d <= 0 || t <= 0) continue;
+    if (!best.has(d) || t < best.get(d)!) best.set(d, t);
+  }
+  return [...best.entries()].map(([distanceM, timeSec]) => ({ distanceM, timeSec })).sort((a, b) => a.distanceM - b.distanceM);
+}
+
 /** 11,5 → «11,50 s»; 62,34 → «1:02,34». Las centésimas importan en velocidad. */
 export function formatSeconds(sec: number): string {
   const c = Math.round(sec * 100);

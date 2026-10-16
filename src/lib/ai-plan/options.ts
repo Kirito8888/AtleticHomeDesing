@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { EVENT_KEYS, type Family } from "@/lib/training/disciplines";
+
 /**
  * Opciones del cuestionario «Crear mi planificación». Todo se responde con
  * desplegables y chips (sin escribir): estas listas son la única fuente de
@@ -24,6 +26,11 @@ export const DISCIPLINES = options({
   velocidad: "Velocidad / vallas",
   fondo: "Medio fondo / fondo",
 });
+
+/** Disciplina del asistente que corresponde a la familia de la prueba de la atleta (solo la familia: ningún dato de salud ni de Strava). */
+export function disciplineForFamily(family: Family): keyof typeof DISCIPLINES {
+  return family === "throws" ? "lanzamientos" : family === "jumps" ? "saltos" : family === "sprint" ? "velocidad" : family === "endurance" ? "fondo" : "general";
+}
 
 export const LEVELS = options({
   principiante: "Principiante (menos de 1 año entrenando)",
@@ -137,6 +144,8 @@ export const planRequestSchema = z
   .object({
     goal: z.enum(keys(GOALS)),
     discipline: z.enum(keys(DISCIPLINES)),
+    /** Prueba principal (clave de `EVENTS`); opcional para que los clientes antiguos sigan valiendo. */
+    event: z.enum(EVENT_KEYS).nullish(),
     level: z.enum(keys(LEVELS)),
     ageBand: z.enum(keys(AGE_BANDS)),
     weekdays: z.array(z.number().int().min(1).max(7)).min(1).max(7),

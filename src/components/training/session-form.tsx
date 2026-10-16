@@ -248,7 +248,7 @@ export function SessionForm({
                 {FATIGUE_ZONES[z]}
                 <select
                   aria-label={`Fatiga en ${FATIGUE_ZONES[z].toLowerCase()}`}
-                  className="h-8 rounded-md border bg-background px-1 tabular-nums"
+                  className="h-8 max-md:h-11 rounded-md border bg-background px-1 tabular-nums"
                   value={zones[z] ?? ""}
                   onChange={(e) => {
                     const { [z]: _drop, ...rest } = zones;

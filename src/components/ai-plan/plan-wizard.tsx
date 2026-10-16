@@ -52,12 +52,17 @@ export function PlanWizard({
   presetAreas,
   competitions,
   defaultAgeBand,
+  defaultDiscipline = "general",
+  event = null,
 }: {
   isFemale: boolean;
   hasCycle: boolean;
   presetAreas: string[];
   competitions: Competition[];
   defaultAgeBand: keyof typeof AGE_BANDS | null;
+  /** Disciplina preseleccionada desde la prueba del perfil (solo la familia). */
+  defaultDiscipline?: keyof typeof DISCIPLINES;
+  event?: string | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -65,7 +70,7 @@ export function PlanWizard({
   const [blocked, setBlocked] = useState<string | null>(null);
 
   const [goal, setGoal] = useState<keyof typeof GOALS | null>(null);
-  const [discipline, setDiscipline] = useState<keyof typeof DISCIPLINES | null>("general");
+  const [discipline, setDiscipline] = useState<keyof typeof DISCIPLINES | null>(defaultDiscipline);
   const [level, setLevel] = useState<keyof typeof LEVELS | null>(null);
   const [ageBand, setAgeBand] = useState<keyof typeof AGE_BANDS | null>(defaultAgeBand);
   const [weekdays, setWeekdays] = useState<number[]>([1, 3, 5]);
@@ -330,6 +335,8 @@ export function PlanWizard({
         body: {
           goal,
           discipline,
+          // La prueba solo acompaña si se mantiene la disciplina que le corresponde
+          event: discipline === defaultDiscipline ? event : null,
           level,
           ageBand,
           weekdays: sortedDays,

@@ -82,6 +82,7 @@ export function AttemptSheet({ date, title }: { date: string; title: string }) {
           </Field>
         ) : null}
       </div>
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <caption className="sr-only">Intentos</caption>
         <thead className="text-xs text-muted-foreground">
@@ -115,6 +116,7 @@ export function AttemptSheet({ date, title }: { date: string; title: string }) {
           ))}
         </tbody>
       </table>
+      </div>
       <p className="text-sm">
         Mejor: <span className="font-semibold tabular-nums">{best != null ? `${formatNum(best, 2)} m` : "—"}</span>
         <span className="text-muted-foreground"> · {used.length} intentos</span>

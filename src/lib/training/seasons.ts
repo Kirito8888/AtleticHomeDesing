@@ -1,5 +1,6 @@
 // Comparar temporadas (año natural) (v1.6). Puro.
-export type SeasonSession = { date: string; sessionRpe: number | null; durationSec: number | null; throws: number; best: { key: string; markM: number } | null };
+export type SeasonMark = { key: string; markM: number; /** false en tiempos (menor es mejor); por defecto true. */ higherIsBetter?: boolean };
+export type SeasonSession = { date: string; sessionRpe: number | null; durationSec: number | null; throws: number; best: SeasonMark | null; /** Marcas extra de la sesión (una por distancia en pista). */ marks?: SeasonMark[] };
 export type SeasonInjury = { startedOn: string; resolvedOn: string | null };
 export type Season = { season: string; sessions: number; weeklyLoad: number; throws: number; injuryDays: number; bests: Record<string, number> };
 
@@ -15,7 +16,12 @@ export function compareSeasons(sessions: SeasonSession[], injuries: SeasonInjury
     const weeks = Math.max(1, Math.round((end - start) / DAY / 7));
     const load = list.reduce((a, s) => a + (s.sessionRpe ?? 0) * Math.round((s.durationSec ?? 0) / 60), 0);
     const bests: Record<string, number> = {};
-    for (const s of list) if (s.best && s.best.markM > (bests[s.best.key] ?? 0)) bests[s.best.key] = s.best.markM;
+    for (const s of list) {
+      for (const m of [...(s.best ? [s.best] : []), ...(s.marks ?? [])]) {
+        const cur = bests[m.key];
+        if (cur === undefined || (m.higherIsBetter === false ? m.markM < cur : m.markM > cur)) bests[m.key] = m.markM;
+      }
+    }
     let injuryDays = 0;
     for (const i of injuries) {
       const a = Math.max(ms(i.startedOn), start);

@@ -19,3 +19,19 @@ describe("comparar temporadas", () => {
     expect(r[0]).toMatchObject({ injuryDays: 3, bests: { "JAVELIN|800": 51.2 } });
   });
 });
+
+describe("tiempos de pista (menor es mejor)", () => {
+  it("la mejor marca de un tiempo es la menor y convive con las de lanzamientos", () => {
+    const base = { sessionRpe: null, durationSec: null, throws: 0 };
+    const [s] = compareSeasons(
+      [
+        { ...base, date: "2026-03-01", best: null, marks: [{ key: "track|100", markM: 12.4, higherIsBetter: false }] },
+        { ...base, date: "2026-04-01", best: { key: "JAVELIN|", markM: 40 }, marks: [{ key: "track|100", markM: 12.1, higherIsBetter: false }] },
+        { ...base, date: "2026-05-01", best: { key: "JAVELIN|", markM: 38 }, marks: [{ key: "track|100", markM: 12.3, higherIsBetter: false }] },
+      ],
+      [],
+      "2026-10-15",
+    );
+    expect(s.bests).toEqual({ "track|100": 12.1, "JAVELIN|": 40 });
+  });
+});
