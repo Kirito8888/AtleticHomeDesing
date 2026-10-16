@@ -2,6 +2,27 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v2.3 — navegación y móvil a 390 px (16/10/2026)
+
+**Navegación**
+- **Barra inferior** de 5 huecos (Inicio, tres destinos que se rellenan si ocultas módulos y «Más») y menú agrupado: Entrenamiento y salud · Clubes y coach · Herramientas · Configuración. Se quitó la hamburguesa. El escritorio usa los mismos grupos en el lateral.
+- «Mis atletas» (entrenadoras), Administración (solo ADMIN), Privacidad y Notificaciones ya salen en el menú.
+
+**Pantallas reorganizadas**
+- **Entrenamiento, Tests y Métricas:** accesos agrupados («Medir y analizar», «Planificar y biblioteca»), pestañas en Tests e índice de secciones en Rendimiento, con lo de tu prueba primero.
+- **Clubes, entrenadoras y fisio:** accesos arriba, «Mis entrenadoras», cumplimiento en lista en móvil, formularios plegados y estado vacío en protocolos.
+- **Ajustes:** siete grupos con índice (Perfil y entreno · Entrenadora · Avisos y app · Conexiones e IA · Cuenta y seguridad · Tus datos · Administración). Mismas opciones y mismos enlaces directos.
+
+**Móvil**
+- Auditoría de objetivos táctiles de 44 px en 55 pantallas a 390 px, en claro y oscuro: casillas, desplegables y enlaces corregidos. Sin desbordes laterales.
+- Un `error.tsx` común para toda la app: si falla una carga tras actualizar, ofrece recargar.
+
+**Datos**
+- **Sin migración** y sin variables nuevas. Ningún cambio de privacidad: lo importado de Strava y la salud cifrada siguen fuera de la IA y de la entrenadora.
+
+**Pruebas**
+- Nuevas suites E2E: v23a, v23b, v23c y v23d (fallan si hay un control < 44 px o scroll horizontal).
+
 ## v2.2 — privacidad de Strava, vigilancia en base de datos, pista y móvil (16/10/2026)
 
 **Privacidad e integridad**
