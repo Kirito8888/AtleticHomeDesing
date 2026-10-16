@@ -23,7 +23,7 @@ export default async function ProtocolPage({ params }: { params: Promise<{ id: s
     <>
       <PageHeader title={p.title} description="Compartes en lectura: la atleta solo marca criterios y su dolor." />
       <p className="mb-3 text-sm">
-        <Link href="/recovery/fisio" className="underline underline-offset-4">← Protocolos</Link>
+        <Link href="/recovery/fisio" className="inline-flex min-h-11 items-center underline underline-offset-4">← Protocolos</Link>
       </p>
       <div className="grid gap-4">
         <Card className="gap-3 py-4">
