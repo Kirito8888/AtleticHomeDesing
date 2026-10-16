@@ -487,7 +487,9 @@ Además:
 - **Verificación en dos pasos:**
   - app de autenticación + 10 códigos de recuperación de un solo uso;
   - si pierdes el móvil y los códigos, el administrador puede desactivarla desde el servidor.
-- **Mis reglas:** redondeo de kg, umbral de la serie de test y de los avisos (squeeze, talón, molestias, peso, % de grasa, tope de lanzamientos, horas entre sesiones de lanzamiento, VFC y vídeo). Vienen con valores genéricos: ponlos según tu plan.
+- **Mis reglas:** (v2.2: también volumen a alta velocidad, subida semanal de km y tope de saltos, según tu prueba; nunca cuentan lo importado de Strava) redondeo de kg, umbral de la serie de test y de los avisos (squeeze, talón, molestias, peso, % de grasa, tope de lanzamientos, horas entre sesiones de lanzamiento, VFC y vídeo). Vienen con valores genéricos: ponlos según tu plan.
+- **Mi prueba:** también se pide al empezar; fija la disciplina principal, el PR de tiempo (series a mano) y el punto de partida del plan con IA.
+- **Ejercicios propios:** en `/training/exercises` puedes borrar un ejercicio (y su vídeo) si no tiene series registradas.
 - **Notificaciones:** resumen diario, informe semanal del coach, **aviso de inicio de sesión nuevo** y **recordatorios**: «mañana toca…» (a la hora que elijas), control del lunes y pesarse L-X-V. No llegan si ya lo has apuntado.
 - **Calendario en el móvil:** ver Planificación.
 - **Informe para la entrenadora:** elige el periodo (esta semana, la pasada o las últimas 4) y, si quieres, incluye tus molestias. Crea un enlace de solo lectura que **caduca a los 7 días** y se puede revocar: planificado frente a hecho, lanzamientos, mejores marcas y controles. Nunca incluye el ciclo, el peso, la VFC, las notas ni la nutrición.

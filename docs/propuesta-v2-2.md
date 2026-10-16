@@ -1,5 +1,6 @@
 # Propuesta v2.2 · auditoría técnica y funcional
 
+> **Cerrada en v2.2.0 (16/10/2026):** P1, P2 y P3 resueltos. Única excepción manual: P3-4 (HEVC/.mov real en iPhone) queda a cargo de la usuaria y NO está probado.
 > Bloque de auditoría (15/10/2026). Solo lectura del código: no se ha cambiado nada de la app ni de la BD.
 > Confianza: **[Seguro]** = leído en el código; **[Probable]** = inferencia sólida; **[Suponiendo]** = sin medir.
 > Coste: **S** pequeño (≤ medio día) · **M** mediano (≈ 1 bloque) · **G** grande (varios bloques).
