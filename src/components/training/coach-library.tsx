@@ -24,7 +24,7 @@ export function CoachLibrary({ templates }: { templates: Array<{ id: string; nam
               type="button"
               size="sm"
               variant="ghost"
-              className="h-6 px-2 text-xs"
+              className="h-6 px-2 text-xs max-md:h-11"
               disabled={busy === t.id}
               aria-label={`Copiar ${t.name}`}
               onClick={async () => {
@@ -56,7 +56,7 @@ export function ShareTemplates({ templates }: { templates: Array<{ id: string; n
   if (!templates.length) return null;
   return (
     <details className="mb-4 rounded-md border p-3 text-sm">
-      <summary className="cursor-pointer font-medium">Compartir plantillas con tus atletas</summary>
+      <summary className="min-h-11 cursor-pointer py-3 font-medium">Compartir plantillas con tus atletas</summary>
       <ul className="mt-2 grid gap-1">
         {templates.map((t) => (
           <li key={t.id}>

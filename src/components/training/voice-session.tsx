@@ -87,7 +87,7 @@ export function VoiceSessionForm(props: { exercises: ExerciseOption[]; defaultDa
   return (
     <>
       <details className="mb-4 rounded-md border p-3 text-sm">
-        <summary className="cursor-pointer font-medium">🎙 Dictar la sesión de fuerza</summary>
+        <summary className="min-h-11 cursor-pointer py-3 font-medium">🎙 Dictar la sesión de fuerza</summary>
         <div className="mt-2 grid gap-2">
           <Textarea aria-label="Texto dictado" value={text} maxLength={2000} onChange={(e) => setText(e.target.value)} placeholder="Sentadilla 3 por 5 a 90 kilos RIR 2, press banca 4 por 6 con 60, 50 minutos, RPE 7" />
           <div className="flex flex-wrap gap-2">

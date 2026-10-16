@@ -119,7 +119,7 @@ export function EquipmentActions({ id, name, retired }: { id: string; name: stri
     <div className="flex flex-wrap items-center gap-2">
       {!retired ? (
         <>
-          <Input aria-label={`Usos extra de ${name}`} inputMode="numeric" placeholder="+usos" className="h-8 w-20" value={uses} onChange={(e) => setUses(e.target.value)} />
+          <Input aria-label={`Usos extra de ${name}`} inputMode="numeric" placeholder="+usos" className="h-8 w-20 max-md:h-11" value={uses} onChange={(e) => setUses(e.target.value)} />
           <Button type="button" size="sm" variant="outline" onClick={() => Number(uses) && call({ addUses: Math.round(Number(uses)) })}>
             Anotar
           </Button>

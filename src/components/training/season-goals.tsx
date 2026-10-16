@@ -35,7 +35,7 @@ export function SeasonGoals({ goals: initial }: { goals: Goal[] }) {
           {goals.map((g) => (
             <li key={g.label} className="flex items-center gap-1 rounded-full border px-3 py-1 text-xs">
               {g.label}: <span className="tabular-nums">{formatNum(g.markM, 2)} m</span>
-              <button type="button" aria-label={`Quitar ${g.label}`} className="ml-1 text-muted-foreground" onClick={() => save(goals.filter((x) => x !== g))}>
+              <button type="button" aria-label={`Quitar ${g.label}`} className="-my-2 -mr-2 ml-1 flex size-11 items-center justify-center text-muted-foreground" onClick={() => save(goals.filter((x) => x !== g))}>
                 ✕
               </button>
             </li>

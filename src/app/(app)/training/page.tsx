@@ -1,15 +1,17 @@
 import Link from "next/link";
-import { CalendarClock, Dumbbell, LineChart, Plus, Timer, Trophy, Package } from "lucide-react";
+import { CalendarClock, Plus, Trophy } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
+import { TrainingShortcuts } from "@/components/training/training-shortcuts";
 import { WeekStrip } from "@/components/training/week-strip";
 import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { throwWeeks } from "@/lib/rules/rules-service";
 import { familyOf, sessionHeadline } from "@/lib/training/disciplines";
+import { trainingHubSections } from "@/lib/training/hub-links";
 import { weekGrid } from "@/lib/training/week";
 import { formatDate, formatDuration, formatNum, SESSION_TYPE_LABEL, TECHNICAL_EVENT_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
@@ -69,61 +71,13 @@ export default async function TrainingPage() {
       <PageHeader
         title="Entrenamiento"
         action={
-          <div className="flex gap-2">
-            <Button asChild variant="outline" size="sm">
-              <Link href="/training/equipment" aria-label="Material">
-                <Package /> <span className="hidden sm:inline">Material</span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/training/tests" aria-label="Tests físicos">
-                <Timer /> <span className="hidden sm:inline">Tests</span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/training/rm" aria-label="Mis RM">
-                <Dumbbell /> <span className="hidden sm:inline">Mis RM</span>
-              </Link>
-            </Button>
-            <Button asChild variant="outline" size="sm">
-              <Link href="/training/performance" aria-label="Rendimiento">
-                <LineChart /> <span className="hidden sm:inline">Rendimiento</span>
-              </Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/training/new">
-                <Plus /> Sesión
-              </Link>
-            </Button>
-          </div>
+          <Button asChild size="sm">
+            <Link href="/training/new">
+              <Plus /> Sesión
+            </Link>
+          </Button>
         }
       />
-
-      <nav aria-label="Más de entrenamiento" className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        <Link href="/training/routine" className="underline underline-offset-4">
-          Crear mi rutina
-        </Link>
-        <Link href="/training/diary" className="underline underline-offset-4">
-          Diario técnico
-        </Link>
-        <Link href="/training/compare" className="underline underline-offset-4">
-          Comparar sesiones
-        </Link>
-        {family === "throws" ? (
-          <Link href="/training/javelin" className="underline underline-offset-4">
-            Análisis de jabalina
-          </Link>
-        ) : null}
-        <Link href="/training/exercises" className="underline underline-offset-4">
-          Biblioteca de ejercicios
-        </Link>
-        <Link href="/training/prehab" className="underline underline-offset-4">
-          Prehabilitación
-        </Link>
-        <Link href="/training/seasons" className="underline underline-offset-4">
-          Temporadas
-        </Link>
-      </nav>
 
       <WeekStrip days={week} today={toIsoDay(now)} throws={throwsInfo.weeks.at(-1)?.throws ?? 0} cap={throwsInfo.cap} metric={weekMetric} />
 
@@ -155,6 +109,8 @@ export default async function TrainingPage() {
         </Card>
       ) : null}
 
+      <TrainingShortcuts sections={trainingHubSections(family)} />
+
       {records.length ? (
         <Card className="mb-4 gap-3 py-4">
           <CardHeader className="px-4">
@@ -180,6 +136,7 @@ export default async function TrainingPage() {
         </Card>
       ) : null}
 
+      <h2 className="mb-2 text-base font-semibold">Historial</h2>
       {sessions.length ? (
         <ul className="grid gap-2">
           {sessions.map((s) => {

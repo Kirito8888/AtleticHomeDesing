@@ -35,7 +35,7 @@ export default async function ExercisesPage({ searchParams }: { searchParams: Pr
       <form role="search" className="mb-4 flex gap-2">
         {readOnly ? <input type="hidden" name="athlete" value={ownerId} /> : null}
         <Input name="q" defaultValue={q} placeholder="Buscar ejercicio" aria-label="Buscar ejercicio" />
-        <button type="submit" className="rounded-md border px-3 text-sm">
+        <button type="submit" className="min-h-11 rounded-md border px-3 text-sm">
           Buscar
         </button>
       </form>

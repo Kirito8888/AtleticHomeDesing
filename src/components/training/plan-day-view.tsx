@@ -43,7 +43,7 @@ function Exercise({ row }: { row: PlanRow }) {
       </dl>
       {row.how ? (
         <details className="mt-2 text-sm">
-          <summary className="cursor-pointer text-xs text-muted-foreground">Cómo lo hago</summary>
+          <summary className="min-h-11 cursor-pointer py-3 text-xs text-muted-foreground">Cómo lo hago</summary>
           <p className="mt-1 text-muted-foreground">{row.how}</p>
         </details>
       ) : null}
@@ -72,7 +72,7 @@ export function PlanDayView({ blocks, heading }: { blocks: PlanBlock[]; heading?
             </ul>
           ) : b.kind === "why" ? (
             <details key={i} className="rounded-md bg-muted/50 p-3 text-sm">
-              <summary className="cursor-pointer font-medium">Por qué</summary>
+              <summary className="min-h-11 cursor-pointer py-3 font-medium">Por qué</summary>
               <p className="mt-1 text-muted-foreground">{b.text}</p>
             </details>
           ) : (

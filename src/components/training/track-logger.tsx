@@ -142,7 +142,7 @@ export function TrackLogger({ value, onChange }: { value: TrackState; onChange: 
             <Input aria-label={`Distancia serie ${i + 1}`} inputMode="numeric" value={iv.distanceM} onChange={(e) => setIv(i, { distanceM: e.target.value })} placeholder="300" />
             <Input aria-label={`Tiempo serie ${i + 1}`} inputMode="decimal" value={iv.time} onChange={(e) => setIv(i, { time: e.target.value })} placeholder="42,3" />
             <Input aria-label={`Recuperación serie ${i + 1}`} inputMode="numeric" value={iv.recovery} onChange={(e) => setIv(i, { recovery: e.target.value })} placeholder="3:00" />
-            <Button type="button" variant="ghost" size="icon" className="size-8" aria-label={`Borrar serie ${i + 1}`} onClick={() => set({ intervals: value.intervals.filter((_, j) => j !== i) })}>
+            <Button type="button" variant="ghost" size="icon" className="size-8 max-md:size-11" aria-label={`Borrar serie ${i + 1}`} onClick={() => set({ intervals: value.intervals.filter((_, j) => j !== i) })}>
               <Trash2 className="size-4" />
             </Button>
             {metric ? <span className="col-start-2 col-span-3 text-xs text-muted-foreground tabular-nums">{metric}</span> : null}
