@@ -87,6 +87,21 @@ describe.skipIf(!HAS_DB)("biblioteca de ejercicios v2.1 (BD real)", () => {
     expect((await lib.getExercise(a, exId)).hasVideo).toBe(false);
   });
 
+  it("borra un ejercicio propio con su clip; global 403, ajeno 404, con series 409", async () => {
+    const mine = await prisma.exercise.create({ data: { name: `Borrar ${Date.now()}`, userId: a } });
+    await lib.setExerciseVideo(a, mine.id, mp4());
+    const before = (await readdir(path.join(dir, a, "exercises"))).length;
+    await expect(lib.deleteExercise(a, globalId)).rejects.toMatchObject({ status: 403 });
+    await expect(lib.deleteExercise(b, mine.id)).rejects.toMatchObject({ status: 404 });
+    await lib.deleteExercise(a, mine.id);
+    expect(await prisma.exercise.findUnique({ where: { id: mine.id } })).toBeNull();
+    expect((await readdir(path.join(dir, a, "exercises"))).length).toBe(before - 1);
+    const used = await prisma.exercise.create({ data: { name: `Usado ${Date.now()}`, userId: a } });
+    const ts = await prisma.trainingSession.create({ data: { userId: a, date: new Date(), type: "STRENGTH", status: "COMPLETED", strength: { create: {} } }, include: { strength: true } });
+    await prisma.strengthSet.create({ data: { strengthSessionId: ts.strength!.id, exerciseId: used.id, order: 1, setIndex: 1, reps: 5 } });
+    await expect(lib.deleteExercise(a, used.id)).rejects.toMatchObject({ status: 409 });
+  });
+
   it("la entrenadora lee vía resolveAthleteId solo con vínculo activo y ámbito SESSIONS", async () => {
     const { resolveAthleteId } = await import("@/lib/auth/session");
     const user = { id: coach, role: "COACH" } as never;

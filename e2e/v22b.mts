@@ -90,6 +90,13 @@ if ((await vel.getAttribute("aria-checked")) !== "true") errors.push("P2-5: el a
 await noHScroll(page, "asistente de plan 390 px");
 log("P2-5 · el asistente de plan parte de Velocidad / vallas");
 
+// P3-6 · la tira semanal de /training: cada día es un objetivo táctil de al menos 44 × 44 px
+await go(page, "/training");
+const strip = await page.locator('section[aria-label="Esta semana"] a').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }));
+if (strip.length !== 7 || strip.some(([w, h]) => w < 44 || h < 44)) errors.push(`P3-6: tira semanal con objetivos < 44 px: ${JSON.stringify(strip)}`);
+await noHScroll(page, "tira semanal 390 px");
+log("P3-6 · la tira semanal mide ≥ 44 px por día");
+
 // ---------- B. Bienvenida pide la prueba ----------
 const ctx2 = await newCtx("198.51.100.221");
 const p2 = await ctx2.newPage();

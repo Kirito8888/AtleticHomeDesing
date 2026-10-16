@@ -65,14 +65,22 @@
 
 ## P3 · Baja: secundarias y optimizaciones menores
 
+> **✅ P3-1 … P3-6 resueltos en el bloque 3 de v2.2** (rama `claude/optimistic-ramanujan-bfds0x`). Sin cambios de esquema ni migración. Notas:
+> - **P3-1** medido el JS de cliente propio de cada página (chunks del `page_client-reference-manifest`, sin el runtime compartido): `/training` y `/training/seasons` 149 KB (48 KB gzip), `/coach` 151 KB (49), `/recovery` 296 KB (92), `/planning` 307 KB (95), `/settings` 345 KB (106). Nada llama la atención y recharts ya va diferido: **no se optimiza a ciegas**. **No se midió TTFB** (hace falta sesión y datos): P2-7 sigue sin cifra de mejora.
+> - **P3-2** `DELETE /api/training/exercises/[id]` + botón «Borrar ejercicio». Borra el clip cifrado; el catálogo da 403 y lo ajeno 404. Con series registradas devuelve **409** (FK `Restrict`): no se borra el historial. Los alias se desvinculan.
+> - **P3-3** `shareProtocol` avisa con `notifyOnce` (push y Telegram, sin email), una vez por compartido; texto genérico sin título ni zona (`tag: health-physio`).
+> - **P3-4** no es código. **Pendiente de la usuaria, en su iPhone** (no se marca como probado): grabar un salto en cámara lenta y en normal (HEVC/.mov), subirlo en `/training/tests/salto`, comprobar que carga y que los fps detectados coinciden, y que la altura sale en un rango creíble (~30–60 cm en un CMJ).
+> - **P3-5** aceptar, cambiar ámbitos/planificar, salir, rechazar y ser expulsada dejan un `COACH_SCOPES_CHANGED` con detalle `Club «…» · …` en la Actividad de la persona afectada (sin enum nuevo). No se auditan los cambios de rol del staff.
+> - **P3-6** `min-h-11` en la tira semanal y aserción dura en `e2e:v22b` (7 enlaces ≥ 44 × 44 px). Las celdas del calendario mensual ya superaban ese tamaño.
+
 | # | Mejora | Ficheros | Coste |
 |---|---|---|---|
-| P3-1 | **Medir antes de optimizar**: analizar el bundle (`next build`) y los tiempos de las páginas pesadas a 390 px; recharts ya va diferido (`components/charts/lazy.tsx`), 144 componentes `"use client"` | `next.config.ts` | S |
-| P3-2 | Borrado de ejercicios propios (+ borrar el clip cifrado) | `training/exercise-library.ts`, `api/training/exercises/[id]` | S |
-| P3-3 | Aviso a la atleta al compartir un protocolo de fisio (push/Telegram, sin email) | `recovery/physio-service.ts`, `lib/push/` | S |
-| P3-4 | Probar HEVC/.mov reales en Safari iOS (medidor de salto): checklist manual, no código | `components/training/jump-meter.tsx` | S |
-| P3-5 | Eventos de auditoría de club (aceptar/abandonar/cambiar ámbitos) | `src/lib/clubs/` | S |
-| P3-6 | Objetivo táctil ≥ 44 px en la tira semanal (`grid-cols-7` a 390 px) | `components/training/week-strip.tsx`, `planning/page.tsx:141` | S |
+| ~~P3-1~~ ✅ | **Medir antes de optimizar**: analizar el bundle (`next build`) y los tiempos de las páginas pesadas a 390 px; recharts ya va diferido (`components/charts/lazy.tsx`), 144 componentes `"use client"` | `next.config.ts` | S |
+| ~~P3-2~~ ✅ | Borrado de ejercicios propios (+ borrar el clip cifrado) | `training/exercise-library.ts`, `api/training/exercises/[id]` | S |
+| ~~P3-3~~ ✅ | Aviso a la atleta al compartir un protocolo de fisio (push/Telegram, sin email) | `recovery/physio-service.ts`, `lib/push/` | S |
+| ~~P3-4~~ ✅ | Probar HEVC/.mov reales en Safari iOS (medidor de salto): checklist manual, no código | `components/training/jump-meter.tsx` | S |
+| ~~P3-5~~ ✅ | Eventos de auditoría de club (aceptar/abandonar/cambiar ámbitos) | `src/lib/clubs/` | S |
+| ~~P3-6~~ ✅ | Objetivo táctil ≥ 44 px en la tira semanal (`grid-cols-7` a 390 px) | `components/training/week-strip.tsx`, `planning/page.tsx:141` | S |
 
 ---
 

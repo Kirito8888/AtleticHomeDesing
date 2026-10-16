@@ -45,6 +45,10 @@ describe.skipIf(!HAS_DB)("clubes y cuotas v2.0 (BD real)", () => {
     // Aceptar: solo la propia persona
     await expect(svc.updateMember(u.adm, orgId, a1.id, { status: "ACTIVE" })).rejects.toThrow(/propia persona/);
     await svc.updateMember(u.at1, orgId, a1.id, { status: "ACTIVE", scopes: ["SESSIONS", "PLANNING"], canPlan: false });
+    // v2.2 · la aceptación y los ámbitos quedan en la Actividad de la atleta
+    const ev = await prisma.securityEvent.findMany({ where: { userId: u.at1.id, type: "COACH_SCOPES_CHANGED" } });
+    expect(ev).toHaveLength(1);
+    expect(ev[0].detail).toMatch(/^Club «.*» · invitación aceptada · ámbitos: .*SESSIONS.* · planificar: no$/);
     const at2 = await prisma.orgMember.findFirstOrThrow({ where: { orgId, userId: u.at2.id } });
     await svc.updateMember(u.at2, orgId, at2.id, { status: "ACTIVE" });
     const second = (await svc.createOrg(u.adm, "Otro club")).id;
@@ -84,6 +88,13 @@ describe.skipIf(!HAS_DB)("clubes y cuotas v2.0 (BD real)", () => {
     expect(paid.status).toBe("PAID");
     expect((await prisma.orgFee.findUniqueOrThrow({ where: { id: fee.id } })).paidAt?.toISOString().slice(0, 10)).toBe("2026-10-14");
     await expect(svc.recordFee(u.adm, orgId, { memberId: m1.id, concept: "x", amount: "0", dueDate: "2026-10-31" })).rejects.toThrow(/Importe/);
+  });
+
+  it("salir del club deja huella en la Actividad de la propia persona", async () => {
+    const m = await prisma.orgMember.findFirstOrThrow({ where: { orgId, userId: u.at2.id } });
+    await svc.removeMember(u.at2, orgId, m.id);
+    const ev = await prisma.securityEvent.findMany({ where: { userId: u.at2.id, type: "COACH_SCOPES_CHANGED" }, orderBy: { createdAt: "desc" } });
+    expect(ev[0].detail).toMatch(/has salido del club$/);
   });
 
   it("no se puede dejar el club sin administradora", async () => {

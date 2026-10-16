@@ -101,6 +101,10 @@ describe.skipIf(!HAS_DB)("fisio compartida y curvas v2.1 (BD real)", () => {
     await prisma.user.update({ where: { id: u.at1.id }, data: { processingRestrictedAt: null } });
     shareId = (await physio.shareProtocol(u.coa, protoId, u.at1.id)).id;
     expect((await physio.shareProtocol(u.coa, protoId, u.at1.id)).id).toBe(shareId); // idempotente
+    // v2.2 · un solo aviso a la atleta por compartido, sin título ni zona del protocolo
+    const notes = await prisma.notificationLog.findMany({ where: { userId: u.at1.id, key: `physio-share:${shareId}` } });
+    expect(notes).toHaveLength(1);
+    expect(`${notes[0].title} ${notes[0].body}`).not.toContain((await physio.getOwn(u.coa, protoId)).title);
   });
 
   it("la atleta ve fases y marca criterios; no edita; la ajena no lo ve", async () => {
