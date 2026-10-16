@@ -91,6 +91,28 @@ export function ExerciseEditor({ id, name: n0, description: d0 }: { id: string; 
       <Button type="submit" size="sm" className="justify-self-start" disabled={busy || !name.trim()}>
         Guardar
       </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="justify-self-start text-destructive"
+        disabled={busy}
+        onClick={async () => {
+          if (!confirm("¿Borrar este ejercicio y su vídeo? No se puede deshacer.")) return;
+          setBusy(true);
+          try {
+            await api(`/api/training/exercises/${id}`, { method: "DELETE" });
+            toast.success("Ejercicio borrado");
+            router.push("/training/exercises");
+            router.refresh();
+          } catch (err) {
+            toast.error((err as Error).message);
+            setBusy(false);
+          }
+        }}
+      >
+        Borrar ejercicio
+      </Button>
     </form>
   );
 }

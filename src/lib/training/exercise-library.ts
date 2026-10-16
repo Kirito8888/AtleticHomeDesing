@@ -85,3 +85,18 @@ export async function deleteExerciseVideo(userId: string, id: string) {
   await prisma.exercise.update({ where: { id }, data: { videoPath: null, videoMime: null, videoBytes: null } });
   await removeSealed(userId, [e.videoPath]);
 }
+
+/**
+ * v2.2 · Borra un ejercicio propio y su clip cifrado. Si ya hay series registradas con él (FK `Restrict`) se
+ * rechaza con 409: borrarlo dejaría el historial sin nombre. Los alias y las marcas se desvinculan.
+ */
+export async function deleteExercise(userId: string, id: string) {
+  const e = await findOwn(userId, id);
+  const used = await prisma.strengthSet.count({ where: { exerciseId: id } });
+  if (used > 0) throw new ApiError(409, `Está en ${used} series registradas: no se puede borrar`);
+  await prisma.$transaction([
+    prisma.exerciseAlias.updateMany({ where: { userId, exerciseId: id }, data: { exerciseId: null } }),
+    prisma.exercise.delete({ where: { id } }),
+  ]);
+  if (e.videoPath) await removeSealed(userId, [e.videoPath]);
+}

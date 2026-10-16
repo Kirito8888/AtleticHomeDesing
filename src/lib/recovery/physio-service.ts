@@ -4,6 +4,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { ApiError } from "@/lib/api";
 import { type CurrentUser, resolveAthleteId } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { notifyOnce } from "@/lib/push/service";
 
 import { completion, currentPhase, normalizeProgress, type PhysioPhases, physioPhasesSchema } from "./physio-protocol";
 
@@ -105,6 +106,9 @@ export async function shareProtocol(user: CurrentUser, id: string, athleteId: st
     update: {},
     select: { id: true },
   });
+  // v2.2 · Aviso a la atleta (push/Telegram, sin email). Texto genérico: ni título ni zona del protocolo.
+  // Una vez por compartido (clave con su id); si el aviso falla, el compartido sigue valiendo.
+  await notifyOnce(athleteId, `physio-share:${row.id}`, { title: "Atlenza", body: "Tu entrenadora ha compartido contigo un protocolo de recuperación.", url: "/recovery/fisio", tag: "health-physio" }).catch(() => false);
   return row;
 }
 
