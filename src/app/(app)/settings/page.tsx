@@ -247,7 +247,7 @@ export default async function SettingsPage({ searchParams }: PageProps<"/setting
             <HydrationForm initial={{ waterMlPerKg: prefs.waterMlPerKg, waterSessionExtraMl: prefs.waterSessionExtraMl, waterHotExtraMl: prefs.waterHotExtraMl, hotTempC: prefs.hotTempC }} />
           </div>
         </Section>
-        <Section title="Entrenador / atletas" description="El entrenador solo ve datos deportivos; nunca finanzas, nutrición ni estudio.">
+        <Section id="entrenadora" title="Entrenador / atletas" description="El entrenador solo ve datos deportivos; nunca finanzas, nutrición ni estudio.">
           <CoachLinks
             isCoach={user.role === "COACH" || user.role === "ADMIN"}
             asCoach={asCoach.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, scopes: l.scopes, other: l.athlete }))}
