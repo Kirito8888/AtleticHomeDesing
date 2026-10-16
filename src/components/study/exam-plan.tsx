@@ -130,6 +130,7 @@ export function GradesPanel({ grades, average, passedCredits, pendingCredits }: 
         Media ponderada: <span className="font-semibold tabular-nums">{average != null ? average.toFixed(2) : "—"}</span> · {passedCredits} créditos aprobados · {pendingCredits} sin nota
       </p>
       {grades.length ? (
+        <div className="overflow-x-auto">
         <table className="w-full text-left" aria-label="Notas">
           <thead className="text-xs text-muted-foreground">
             <tr>
@@ -156,6 +157,7 @@ export function GradesPanel({ grades, average, passedCredits, pendingCredits }: 
             ))}
           </tbody>
         </table>
+        </div>
       ) : null}
       <form
         className="grid grid-cols-2 gap-2"

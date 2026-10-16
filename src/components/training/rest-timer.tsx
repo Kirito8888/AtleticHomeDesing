@@ -173,7 +173,7 @@ export function RestTimer({ autoStart }: { autoStart: number }) {
                 begin(p);
               }}
               aria-label={`Descanso de ${formatRest(p * 1000)}`}
-              className={cn("h-8 shrink-0 rounded-full border px-2.5 text-xs tabular-nums", p === selected && "border-primary")}
+              className={cn("h-8 max-md:h-11 shrink-0 rounded-full border px-2.5 text-xs tabular-nums", p === selected && "border-primary")}
             >
               {formatRest(p * 1000)}
             </button>

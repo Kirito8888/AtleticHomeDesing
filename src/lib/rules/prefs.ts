@@ -24,6 +24,11 @@ export const prefsSchema = z.object({
   /** Lanzamientos: tope semanal = ratio × media de las 4 semanas previas; horas mínimas entre sesiones. */
   throwCapRatio: z.number().min(1).max(3).default(1.3),
   throwMinHours: z.number().int().min(0).max(168).default(48),
+  /** v2.2 · pista: velocistas, tope semanal de metros en series = ratio × media de 4 semanas; fondistas, subida máxima de km frente a la semana anterior (y km mínimos para que cuente); saltadoras, tope semanal de saltos (ratio). */
+  sprintVolumeRatio: z.number().min(1).max(3).default(1.3),
+  kmRampPct: z.number().min(1).max(100).default(10),
+  kmRampMinKm: z.number().min(0).max(100).default(5),
+  jumpCapRatio: z.number().min(1).max(3).default(1.3),
   /** VFC: caída (%) de la media de la semana marcada frente a la referencia. */
   hrvDropPct: z.number().min(0).max(30).default(3),
   /** Vídeo contado: % mínimo de lanzamientos correctos antes de avisar (dos semanas seguidas). */

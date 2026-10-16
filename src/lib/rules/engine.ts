@@ -1,4 +1,5 @@
 import { sleepDebt } from "@/lib/recovery/wellness";
+import type { Family } from "@/lib/training/disciplines";
 import { fosterWeek } from "@/lib/training/load-metrics";
 
 import type { Prefs } from "./prefs";
@@ -19,6 +20,8 @@ export type DayCheck = {
   sleepHours?: number | null;
 };
 export type ThrowSession = { date: string; throws: number; videoTotal: number | null; videoElbowOk: number | null; videoHeadOk: number | null };
+/** v2.2 · carga de pista/saltos de una sesión: metros en series (velocidad/vallas), km de carrera y saltos. */
+export type TrackLoad = { date: string; fastM: number; runKm: number; jumps: number };
 /** Molestia anotada al cerrar una sesión. */
 export type FeelingCheck = { date: string; area: string; label: string; pain: number };
 export type Alert = { id: string; level: "warn" | "info"; title: string; message: string };
@@ -73,6 +76,11 @@ export function throwCap(weeks: Array<{ throws: number }>, ratio: number): numbe
   return m > 0 ? Math.round(m * ratio) : null;
 }
 
+/** Suma semanal (lunes → total) de un campo de las cargas de pista, con el mismo formato que `weeklyThrows`. */
+export function weeklyTrack(loads: TrackLoad[], pick: (l: TrackLoad) => number, today: string, n = 5): Array<{ week: string; throws: number }> {
+  return weeklyThrows(loads.map((l) => ({ date: l.date, throws: pick(l), videoTotal: null, videoElbowOk: null, videoHeadOk: null })), today, n);
+}
+
 export function evaluateRules(input: {
   today: string;
   prefs: Prefs;
@@ -85,6 +93,9 @@ export function evaluateRules(input: {
   returnProtocol?: { phase: string } | null;
   /** Lunes ISO de las semanas marcadas «VFC» en el plan importado. Sin marca no hay aviso de VFC. */
   hrvWeeks?: string[];
+  /** v2.2 · familia de la prueba y su carga: sin ellas (o con familia `throws`/`other`) no hay reglas de pista. */
+  family?: Family;
+  trackLoads?: TrackLoad[];
 }): Alert[] {
   const { today, prefs, checks } = input;
   const alerts: Alert[] = [];
@@ -200,6 +211,29 @@ export function evaluateRules(input: {
   const throwDays = [...new Set(input.throws.filter((s) => s.throws > 0 && days(today, s.date) >= 0).map((s) => s.date))].sort().reverse();
   if (throwDays.length >= 2 && days(throwDays[0], throwDays[1]) * 24 < prefs.throwMinHours) {
     alerts.push({ id: "throw-48h", level: "warn", title: `Dos sesiones de lanzamiento con menos de ${prefs.throwMinHours} h`, message: `${throwDays[1]} y ${throwDays[0]}. Deja al menos ${prefs.throwMinHours} h entre sesiones de lanzamiento.` });
+  }
+
+  // Pista y saltos (v2.2): la misma idea que el tope de lanzamientos, según la familia de la prueba
+  if (input.trackLoads && (input.family === "sprint" || input.family === "jumps")) {
+    const sprint = input.family === "sprint";
+    const wk = weeklyTrack(input.trackLoads, (l) => (sprint ? l.fastM : l.jumps), today, 5);
+    const ratio = sprint ? prefs.sprintVolumeRatio : prefs.jumpCapRatio;
+    const cap = throwCap(wk, ratio);
+    const cur = wk.at(-1)!.throws;
+    if (cap != null && cur > cap) {
+      alerts.push(
+        sprint
+          ? { id: "fast-cap", level: "warn", title: `Series: ${Math.round(cur)} m esta semana (tope ${cap} m)`, message: `Superas ${ratio} × la media de las 4 semanas anteriores en metros de series. Corta aquí el volumen rápido de la semana.` }
+          : { id: "jump-cap", level: "warn", title: `Saltos: ${cur} esta semana (tope ${cap})`, message: `Superas ${ratio} × la media de las 4 semanas anteriores. Baja los saltos de la semana y prioriza la calidad.` },
+      );
+    }
+  }
+  if (input.trackLoads && input.family === "endurance") {
+    const wk = weeklyTrack(input.trackLoads, (l) => l.runKm, today, 2);
+    const [prev, cur] = [wk[0].throws, wk[1].throws];
+    if (prev >= prefs.kmRampMinKm && prev > 0 && cur > prev && ((cur - prev) / prev) * 100 > prefs.kmRampPct) {
+      alerts.push({ id: "km-ramp", level: "warn", title: `Kilómetros +${Math.round(((cur - prev) / prev) * 100)} % frente a la semana pasada`, message: `${r1(prev)} → ${r1(cur)} km; tu límite es +${prefs.kmRampPct} %. Recorta o reparte lo que falta de la semana.` });
+    }
   }
 
   // Vuelta tras lesión por fases

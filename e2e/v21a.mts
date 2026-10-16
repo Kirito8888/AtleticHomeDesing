@@ -86,7 +86,7 @@ await noHScroll(page, "lista de entrenamiento 390 px");
 await page.screenshot({ path: `${out}/v21a-03-lista.png`, fullPage: true });
 await go(page, "/training/diary");
 await page.getByText("2×100 m · mejor 11,50 s").first().waitFor();
-const day = new Date().toISOString().slice(0, 10);
+const day = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Madrid" }).format(new Date()); // la app usa la fecha de Madrid
 await go(page, `/planning?month=${day.slice(0, 7)}&day=${day}#dia`);
 await page.getByLabel("Sesiones del día").getByText("2×100 m · mejor 11,50 s").waitFor();
 await noHScroll(page, "calendario 390 px");

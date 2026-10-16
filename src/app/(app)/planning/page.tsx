@@ -41,7 +41,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
   const prev = toIsoDay(new Date(Date.UTC(y, m - 2, 1))).slice(0, 7);
   const next = toIsoDay(new Date(Date.UTC(y, m, 1))).slice(0, 7);
 
-  const [cycles, events, sessions, allCycles, tasks, planMesos, variantDays, slots, hrvWeeks] = await Promise.all([
+  const [cycles, events, sessions, allCycles, tasks, planMesos, variantDays, slots, hrvWeeks, predictions] = await Promise.all([
     prisma.trainingCycle.findMany({
       where: { userId: user.id, startDate: { lte: gridEnd }, endDate: { gte: gridStart } },
       orderBy: [{ level: "asc" }, { startDate: "asc" }],
@@ -67,6 +67,8 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
     }),
     listSlots(user.id),
     hrvWeekRanges(user.id),
+    // Días previstos de regla o síntomas (solo para ella; cálculo local, nunca sale de aquí).
+    cyclePredictions(user.id, toIsoDay(gridStart), toIsoDay(gridEnd)),
   ]);
   const variantItems: VariantDay[] = variantDays.map((d) => ({
     id: d.id,
@@ -77,8 +79,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
     title: d.title,
   }));
 
-  // Días previstos de regla o síntomas (solo para ella; cálculo local, nunca sale de aquí).
-  const predicted = new Map((await cyclePredictions(user.id, toIsoDay(gridStart), toIsoDay(gridEnd))).map((p) => [p.date, p]));
+  const predicted = new Map(predictions.map((p) => [p.date, p]));
   const dueByDay = tasksDuePerDay(tasks);
   const selectedDay = typeof rawDay === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rawDay) ? rawDay : null;
   const agenda = selectedDay

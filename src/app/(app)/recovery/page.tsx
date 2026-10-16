@@ -234,6 +234,7 @@ export default async function RecoveryPage() {
                 <CardTitle className="text-sm">Últimos 14 días</CardTitle>
               </CardHeader>
               <CardContent className="px-4">
+                <div className="overflow-x-auto">
                 <table className="w-full text-xs tabular-nums">
                   <thead className="text-muted-foreground">
                     <tr>
@@ -254,6 +255,7 @@ export default async function RecoveryPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </CardContent>
             </Card>
           ) : null}
