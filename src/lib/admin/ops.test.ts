@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { visibleNav } from "@/components/layout/nav-items";
+import { buildNav } from "@/components/layout/nav-items";
 
 import { routePattern, scrubMessage } from "./server-errors";
 
@@ -13,9 +13,9 @@ describe("operación v1.8", () => {
   });
 
   it("ocultar módulos: la barra inferior se rellena con los que quedan", () => {
-    const n = visibleNav(["nutrition", "study"]);
-    expect(n.all.map((i) => i.href)).toEqual(["/", "/training", "/recovery", "/planning", "/finance", "/goals", "/clubs", "/settings"]);
-    expect(n.mobile.map((i) => i.href)).toEqual(["/", "/training", "/planning", "/recovery", "/finance"]);
-    expect(visibleNav([]).mobile).toHaveLength(5);
+    const n = buildNav({ hidden: ["nutrition", "study"] });
+    expect(n.groups.flatMap((g) => g.items).map((i) => i.href)).not.toContain("/nutrition");
+    expect(n.bar.map((i) => i.href)).toEqual(["/", "/training", "/planning", "/recovery"]);
+    expect(buildNav({ hidden: ["planning", "recovery"] }).bar.map((i) => i.href)).toEqual(["/", "/training", "/nutrition", "/goals"]);
   });
 });
