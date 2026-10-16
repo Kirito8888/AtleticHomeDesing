@@ -299,6 +299,26 @@ dc up -d --build web
 docker image prune -f
 ```
 
+#### De v2.2 a v2.3 (navegación y móvil a 390 px)
+
+**Lo que cambia para quien usa la app:**
+- Barra inferior con «Más», menú y Ajustes agrupados, pantallas de Entreno, Tests, Clubes y fisio reorganizadas y objetivos táctiles de 44 px. Detalle en [`CHANGELOG.md`](CHANGELOG.md).
+
+**Base de datos:**
+- **Ninguna migración.** El esquema no cambia, así que volver a la versión anterior es inmediato.
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh
+```
+
+**Variables nuevas:** ninguna.
+
+**Comprobar tras actualizar:**
+1. *Estado del servidor* (Ajustes, administración) muestra la versión 2.3.0 y ninguna migración pendiente.
+2. En el móvil aparece la barra inferior con «Más», y **Ajustes** muestra el índice de grupos.
+3. Recarga con Ctrl+F5 si alguna pantalla pide «recargar la página» tras la actualización.
+
 #### De v2.1 a v2.2 (privacidad de Strava, vigilancia en base de datos, pista y móvil)
 
 **Lo que cambia para quien usa la app:**
