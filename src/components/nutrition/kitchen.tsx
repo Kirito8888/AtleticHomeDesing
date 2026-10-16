@@ -65,7 +65,7 @@ export function ShoppingList({ items: initial, favorites }: { items: Array<{ id:
         ))}
       </ul>
       <details className="rounded-md border p-2">
-        <summary className="cursor-pointer text-sm font-medium">Escanear en el súper</summary>
+        <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Escanear en el súper</summary>
         <div className="mt-2 grid gap-2">
           <p className="text-xs text-muted-foreground">Si el producto está en la lista se tacha; si no, se añade. Datos de Open Food Facts.</p>
           <BarcodeScanner

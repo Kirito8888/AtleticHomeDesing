@@ -38,7 +38,7 @@ export function ModulesSettings({ hidden }: { hidden: string[] }) {
         const on = !hidden.includes(k);
         return (
           <li key={k}>
-            <label className="flex items-center gap-2">
+            <label className="flex min-h-11 items-center gap-2">
               <input type="checkbox" className="size-4" checked={on} disabled={busy} onChange={() => save({ hiddenModules: on ? [...hidden, k] : hidden.filter((x) => x !== k) }, on ? `${MODULE_LABEL[k]} oculto` : `${MODULE_LABEL[k]} visible`)} />
               {MODULE_LABEL[k]}
             </label>
@@ -66,7 +66,7 @@ export function AccessibilitySettings({ fontScale, highContrast }: { fontScale: 
           onChange={(v) => v && save({ fontScale: v })}
         />
       </Field>
-      <label className="flex items-center gap-2">
+      <label className="flex min-h-11 items-center gap-2">
         <input type="checkbox" className="size-4" checked={highContrast} disabled={busy} onChange={() => save({ highContrast: !highContrast })} />
         Contraste alto (texto secundario y bordes más marcados)
       </label>
@@ -79,7 +79,7 @@ export function UsageSettings({ enabled, summary }: { enabled: boolean; summary:
   const { busy, save } = usePrefs();
   return (
     <div className="grid gap-3 text-sm">
-      <label className="flex items-center gap-2">
+      <label className="flex min-h-11 items-center gap-2">
         <input type="checkbox" className="size-4" checked={enabled} disabled={busy} onChange={() => save({ usageStats: !enabled })} />
         Contar qué páginas abro (solo en este servidor)
       </label>
@@ -128,7 +128,7 @@ export function QuietHoursSettings({ quietHours, weeklyReviewPush = true }: { qu
           </Button>
         ) : null}
       </div>
-      <label className="flex items-center gap-2">
+      <label className="flex min-h-11 items-center gap-2">
         <input
           type="checkbox"
           className="size-4"
@@ -149,7 +149,7 @@ export function QuietHoursSettings({ quietHours, weeklyReviewPush = true }: { qu
 export function EmergencyMonthsSelect({ value }: { value: number }) {
   const { busy, save } = usePrefs();
   return (
-    <label className="flex items-center gap-2 text-xs text-muted-foreground">
+    <label className="flex min-h-11 items-center gap-2 text-xs text-muted-foreground">
       Objetivo
       <select
         aria-label="Meses del fondo de emergencia"
