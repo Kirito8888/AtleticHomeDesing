@@ -40,7 +40,7 @@ export default async function SchedulePage() {
           <CardContent className="px-4">
             <ClassForm today={todayIso} />
             <details className="mt-4 border-t pt-3">
-              <summary className="cursor-pointer text-sm font-medium">Importar el horario de la universidad (.ics)</summary>
+              <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Importar el horario de la universidad (.ics)</summary>
               <div className="mt-3">
                 <ScheduleImport />
               </div>

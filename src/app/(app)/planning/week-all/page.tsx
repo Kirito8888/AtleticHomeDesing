@@ -25,10 +25,10 @@ export default async function WeekAllPage({ searchParams }: PageProps<"/planning
         description={`Del ${formatDate(start, { day: "numeric", month: "short" })} al ${formatDate(addDays(start, 6), { day: "numeric", month: "short" })}: todo junto, solo para mirar.`}
         action={
           <nav aria-label="Semanas" className="flex gap-3 text-sm">
-            <Link href={`?w=${toIsoDay(addDays(start, -7))}`} className="underline underline-offset-4">
+            <Link href={`?w=${toIsoDay(addDays(start, -7))}`} className="inline-flex min-h-11 items-center underline underline-offset-4">
               ← Anterior
             </Link>
-            <Link href={`?w=${toIsoDay(addDays(start, 7))}`} className="underline underline-offset-4">
+            <Link href={`?w=${toIsoDay(addDays(start, 7))}`} className="inline-flex min-h-11 items-center underline underline-offset-4">
               Siguiente →
             </Link>
           </nav>

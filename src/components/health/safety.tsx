@@ -88,7 +88,7 @@ export function TripCard({ trip, hasContacts }: { trip: { startedAt: string; due
       <Field label="Dónde (opcional)" htmlFor="s-note">
         <Input id="s-note" value={note} maxLength={200} placeholder="Pista de atletismo" onChange={(e) => setNote(e.target.value)} />
       </Field>
-      <label className="flex items-center gap-2">
+      <label className="flex min-h-11 items-center gap-2">
         <input type="checkbox" className="size-4" checked={shareLoc} onChange={(e) => setShareLoc(e.target.checked)} />
         Compartir mi ubicación al salir (solo se envía si salta el aviso)
       </label>

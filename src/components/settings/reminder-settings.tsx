@@ -36,11 +36,11 @@ export function ReminderSettings({ initial }: { initial: Values }) {
           ))}
         </Select>
       </Field>
-      <label className="flex items-center justify-between gap-3">
+      <label className="flex min-h-11 items-center justify-between gap-3">
         <span>Control rápido del lunes (8:00)</span>
         <Switch checked={v.remindMondayCheck} onCheckedChange={(c) => save({ remindMondayCheck: c })} aria-label="Recordar el control del lunes" />
       </label>
-      <label className="flex items-center justify-between gap-3">
+      <label className="flex min-h-11 items-center justify-between gap-3">
         <span>Pesarse lunes, miércoles y viernes (7:00)</span>
         <Switch checked={v.remindWeigh} onCheckedChange={(c) => save({ remindWeigh: c })} aria-label="Recordar pesarse" />
       </label>

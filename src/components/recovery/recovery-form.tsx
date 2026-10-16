@@ -75,7 +75,7 @@ export function RecoveryForm({ initial }: { initial: RecoveryValues }) {
         </Field>
       </div>
       <details className="rounded-lg border p-3" open={[v.squeezePain, v.heelPain, v.jumpCm, v.elbowSymptoms, v.bodyFatPct].some((x) => x != null)}>
-        <summary className="cursor-pointer font-medium">Control rápido</summary>
+        <summary className="min-h-11 cursor-pointer py-3 font-medium">Control rápido</summary>
         <p className="mt-1 text-xs text-muted-foreground">El del lunes (o el día que te toque). Alimenta los avisos de «Mis reglas».</p>
         <div className="mt-3 grid gap-4">
           <Field label="Test squeeze (dolor)" hint="0 = nada · 10 = máximo">

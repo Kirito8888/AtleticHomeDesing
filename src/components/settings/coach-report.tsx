@@ -60,7 +60,7 @@ export function CoachReport({ periods, active }: { periods: Period[]; active: Ac
   return (
     <div className="grid gap-3 text-sm">
       <Chips label="Periodo del informe" options={periods.map((p) => ({ value: p.key, label: p.label }))} value={period} onChange={(v) => v && setPeriod(v)} />
-      <label className="flex items-center gap-2">
+      <label className="flex min-h-11 items-center gap-2">
         <input type="checkbox" className="size-4" checked={injuries} onChange={(e) => setInjuries(e.target.checked)} />
         Incluir mis molestias y lesiones
       </label>

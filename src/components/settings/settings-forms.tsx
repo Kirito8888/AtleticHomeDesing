@@ -175,7 +175,7 @@ export function ProfileForm({ initial }: { initial: ProfileValues }) {
         </div>
       </Field>
       <details>
-        <summary className="cursor-pointer text-sm font-medium">Avanzado: constantes del modelo de Banister</summary>
+        <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Avanzado: constantes del modelo de Banister</summary>
         <div className="mt-2 grid grid-cols-2 gap-3">
           <Field label="CTL (días)" htmlFor="p-ctl" hint="Por defecto 42">
             <Input id="p-ctl" name="ctl" inputMode="numeric" defaultValue={initial.ctlTimeConstant} />
@@ -387,7 +387,7 @@ export function CoachLinks({ isCoach, asCoach, asAthlete }: { isCoach: boolean; 
                       Aceptar
                     </Button>
                   ) : null}
-                  <label className="flex items-center gap-2 text-xs">
+                  <label className="flex min-h-11 items-center gap-2 text-xs">
                     <Switch checked={l.canPlan} onCheckedChange={(c) => save(`/api/coach/links/${l.id}`, { canPlan: c }, "PATCH", "Permiso actualizado")} />
                     Puede planificar mis sesiones
                   </label>
