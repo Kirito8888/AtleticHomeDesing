@@ -2,6 +2,32 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v2.2 — privacidad de Strava, vigilancia en base de datos, pista y móvil (16/10/2026)
+
+**Privacidad e integridad**
+- **Lo importado de Strava ya no llega a la entrenadora** en ninguna vista: lista y detalle de `/coach`, hilo de comentarios, marcas, informe compartido por enlace y planificar varias atletas. La carga (`pmc`) se oculta si hay Strava en la ventana. Un test transversal vigila que no vuelva a pasar.
+- **Vigilancia y métricas del servidor en base de datos**: con varias réplicas ya no se repiten ni se pierden avisos y las métricas suman todas las réplicas.
+- **Restaurar una cuenta** recupera también el perfil de atleta (prueba, disciplinas y constantes de carga).
+
+**Pista**
+- **PR de tiempo** por distancia en series escritas a mano (velocidad, vallas, fondo), temporadas con tiempos y «Mi prueba» también en la bienvenida.
+- **Tres reglas nuevas** con umbrales en «Mis reglas»: volumen a alta velocidad, subida semanal de km y tope de saltos. Solo con datos propios (sin Strava).
+- **Plan con IA** parte de tu prueba (solo la clave de la especialidad, nunca salud ni Strava).
+
+**Móvil**
+- Tablas con desplazamiento propio, rejillas de 2 columnas en pantallas estrechas y objetivos táctiles de 44 px; la tira semanal también. Barrido de 55 pantallas a 390 px en claro y oscuro sin desbordes.
+
+**Otros**
+- **Borrar ejercicios propios** (y su vídeo cifrado); con series registradas se rechaza para no perder el historial.
+- **Aviso a la atleta** (push o Telegram, sin email) al compartirle un protocolo de fisio, con texto genérico.
+- **Auditoría de club**: aceptar, salir, rechazar, cambiar ámbitos o ser expulsada quedan en tu Actividad.
+
+**Datos**
+- Una migración aditiva (`v2_2_features`): tablas `WatchAlert` y `ApiMetricMinute`. Probada sobre una copia con datos sintéticos: los recuentos y la huella de las sesiones no cambian.
+
+**Pruebas**
+- Nuevas suites E2E: v22a y v22b. Pendiente a mano de la usuaria: probar el medidor de salto con vídeo HEVC/.mov real en un iPhone.
+
 ## v2.1 — más disciplinas, ejercicios con vídeo propio, curvas de referencia y protocolos de fisio (15/10/2026)
 
 **Disciplinas**
