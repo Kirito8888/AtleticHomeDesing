@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión:** **v2.2.0 lista para producción**, pendiente de fusionar el PR de release (16/10/2026). v2.0 y v2.1 fusionadas. Estabilidad: ver «Cierre v2.2».
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final. La usuaria fusiona; Claude nunca.
-- **Bloque en curso:** ninguno. Hecho v2.3 **B1 · navegación global** (ver abajo). Antes: auditoría UI a 390 px (`docs/auditoria-ui.md`, solo informe). Siguiente: B2 a elegir con la usuaria (rediseño interno de submódulos, controles < 44 px de la auditoría).
+- **Bloque en curso:** ninguno. Hechos v2.3 **B1 · navegación global** y **B2 · Entrenamiento, Tests y Métricas** (ver abajo). Auditoría UI: `docs/auditoria-ui.md`. Siguiente: B3 a elegir (Clubes, entrenadoras, Ajustes: P2-1, P1-1 `error.tsx`).
 - **Pendiente manual (no es código):** probar el medidor de salto con HEVC/.mov real en un iPhone (P3-4): grabar en cámara lenta y en normal,
   subirlo en `/training/tests/salto`, comprobar fps detectados y altura creíble (~30–60 cm en un CMJ). **No está probado.**
 
@@ -35,6 +35,13 @@
 - `/coach` («Mis atletas», solo COACH/ADMIN), `/admin` (solo ADMIN), Privacidad y Notificaciones ya salen en el menú. La visibilidad real sigue protegida en cada página.
 - Tests: `layout/nav-items.test.ts`, `admin/ops.test.ts`; E2E `e2e:v23a` (390 px claro/oscuro, atleta/entrenadora, ≤ 2 toques, sin scroll horizontal, sidebar a 1280) + `e2e:v22b` en verde. Añadida a `e2e.sh all`.
 - Verificado: typecheck, lint, vitest de lo tocado. No se corrió `e2e.sh all` (cierre de versión).
+
+## v2.3 · B2 Entrenamiento, Tests y Métricas (16/10/2026)
+- `lib/training/hub-links.ts` (lógica pura): `trainingHubSections(family)` (jabalina solo si lanza), `TESTS_TABS`/`testsTabActive`, `performanceSectionOrder(family)`. Test: `hub-links.test.ts`.
+- `/training`: cabecera solo con «+ Sesión»; Semana → Próximos 7 días → **Accesos** (`training-shortcuts.tsx`, «Medir y analizar» a la vista, «Planificar y biblioteca» plegado) → Marcas → Historial.
+- Tests: pestañas `tests-nav.tsx` (Resultados · Medir salto · Comparar · Curvas) en las 4 rutas; en móvil los resultados van antes que el formulario. `/training/performance`: rango, chips e índice de secciones (`#carga #fuerza #lanzamientos #temporada`) ≥ 44 px; lo de su prueba primero.
+- Controles < 44 px corregidos (auditoría P2-2…P2-12 en el módulo, `summary` de los desplegables). Sin migración ni cambios de API/privacidad (solo se lee disciplina/prueba del perfil propio).
+- E2E `e2e:v23b` (claro/oscuro, sesión y tests sembrados, **error** si un control < 44 px o hay scroll horizontal) en `e2e.sh all`; ajustados `salto` y `v21c` por los nombres de enlace. En verde: v23b, salto, v21c, v22a, v22b, v23a. Tras `npm run build` hay que reiniciar el servidor (`serve.sh true`) o todas las E2E fallan en el login.
 
 ## Objetivos tentativos v2.3 (nada comprometido; elegir con la usuaria)
 1. Meter `loadClubPanel` y `previewAssignment` en `strava/privacy.int.test.ts` (únicas lecturas ajenas sin caso).

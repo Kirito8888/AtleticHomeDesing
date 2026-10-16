@@ -1,6 +1,5 @@
-import Link from "next/link";
-
 import { PageHeader } from "@/components/page-header";
+import { TestsNav } from "@/components/training/tests-nav";
 import { CurveForm } from "@/components/training/curve-form";
 import { DeleteCurve } from "@/components/training/delete-curve";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,9 +15,7 @@ export default async function CurvesPage() {
   return (
     <>
       <PageHeader title="Curvas de referencia" description="Solo curvas con estudio, autores, año y cita." />
-      <p className="mb-3 text-sm">
-        <Link href="/training/tests/comparar" className="underline underline-offset-4">Comparar mis tests</Link>
-      </p>
+      <TestsNav />
       <div className="grid gap-4">
         {curves.length ? (
           curves.map((c) => (

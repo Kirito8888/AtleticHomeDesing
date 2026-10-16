@@ -179,7 +179,7 @@ export function PmcCharts({ data }: { data: PmcPoint[] }) {
       )}
 
       <details className="rounded-lg border">
-        <summary className="cursor-pointer px-3 py-2 text-sm font-medium">Ver como tabla</summary>
+        <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-medium">Ver como tabla</summary>
         <div className="max-h-80 overflow-auto">
           <table className="w-full text-xs tabular-nums">
             <thead className="sticky top-0 bg-background text-muted-foreground">

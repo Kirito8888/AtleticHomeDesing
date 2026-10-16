@@ -13,19 +13,39 @@ import { formatDate, formatNum } from "@/lib/format";
 import { implementBestsFor } from "@/lib/training/implement-bests-query";
 import { e1rmChange, e1rmSeries, exercisesWithData } from "@/lib/training/strength-progress";
 import { strengthRows } from "@/lib/training/strength-progress-query";
+import { prisma } from "@/lib/prisma";
+import { familyOf } from "@/lib/training/disciplines";
+import { performanceSectionOrder, PERFORMANCE_SECTION_LABEL, type PerformanceSection } from "@/lib/training/hub-links";
 import { getPrefs } from "@/lib/rules/prefs-service";
 import { getPerformanceSeries } from "@/lib/training/service";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Rendimiento · Atlenza" };
 
+const SECTION_ID: Record<PerformanceSection, string> = {
+  load: "carga",
+  strength: "fuerza",
+  throws: "lanzamientos",
+  season: "temporada",
+};
 const RANGES = [30, 90, 365] as const;
 
 export default async function PerformancePage({ searchParams }: PageProps<"/training/performance">) {
   const user = await pageUser();
   const { days: raw, ex, imp } = await searchParams;
   const days = RANGES.find((r) => String(r) === raw) ?? 90;
-  const [perf, rows, bests, prefs] = await Promise.all([getPerformanceSeries(user.id, days), strengthRows(user.id, addDays(today(), -days)), implementBestsFor(user.id), getPrefs(user.id)]);
+  const [perf, rows, bests, prefs, profile] = await Promise.all([
+    getPerformanceSeries(user.id, days),
+    strengthRows(user.id, addDays(today(), -days)),
+    implementBestsFor(user.id),
+    getPrefs(user.id),
+    prisma.athleteProfile.findUnique({
+      where: { userId: user.id },
+      select: { primaryDiscipline: true, primaryEvent: true },
+    }),
+  ]);
+  const fullOrder = performanceSectionOrder(familyOf(profile?.primaryDiscipline, profile?.primaryEvent));
+  const order = fullOrder.filter((k): k is Exclude<PerformanceSection, "load"> => k !== "load");
   const implement = bests.find((b) => b.key === imp) ?? bests[0];
   const cur = perf.current;
   const exercises = exercisesWithData(rows);
@@ -33,50 +53,9 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
   const e1rm = selected ? e1rmSeries(rows, selected.id) : [];
   const change = e1rmChange(e1rm);
 
-  return (
-    <>
-      <PageHeader
-        title="Rendimiento"
-        description="Performance Management Chart y recuperación"
-        action={
-          <Link href={`/print/season?year=${today().getUTCFullYear()}`} className="text-sm font-medium underline underline-offset-4">
-            Informe de temporada
-          </Link>
-        }
-      />
-
-      <nav aria-label="Rango" className="mb-4 inline-flex rounded-lg bg-muted p-1">
-        {RANGES.map((r) => (
-          <Link
-            key={r}
-            href={`?days=${r}`}
-            aria-current={r === days ? "page" : undefined}
-            className={cn("rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground", r === days && "bg-background text-foreground shadow-sm")}
-          >
-            {r === 365 ? "1 año" : `${r} días`}
-          </Link>
-        ))}
-      </nav>
-
-      {cur ? (
-        <Card className="mb-6 py-4">
-          <CardContent className="grid grid-cols-2 gap-4 px-4 sm:grid-cols-5">
-            <Stat label="Fitness (CTL)" value={formatNum(cur.ctl)} swatch="--series-1" />
-            <Stat label="Fatiga (ATL)" value={formatNum(cur.atl)} swatch="--series-2" />
-            <Stat label="Forma (TSB)" value={formatNum(cur.tsb)} swatch="--series-3" hint={<StatusLabel status={tsbStatus(cur.tsb)} className="text-xs">{cur.tsb < -25 ? "Fatiga alta" : cur.tsb < -10 ? "Cargando" : "Fresco"}</StatusLabel>} />
-            <Stat label="ACWR" value={cur.acwr != null ? formatNum(cur.acwr, 2) : "—"} hint={cur.acwr == null ? "Necesita 28 días" : "Zona 0,8–1,3"} />
-            <Stat label="Rampa CTL (7 d)" value={cur.rampRate != null ? formatNum(cur.rampRate) : "—"} hint="> 5–8 = agresiva" />
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {perf.series.length ? (
-        <PmcCharts data={perf.series as unknown as PmcPoint[]} />
-      ) : (
-        <p className="text-sm text-muted-foreground">Sin datos todavía.</p>
-      )}
-
-      <section aria-labelledby="bests-title" className="mt-8 grid gap-3">
+  const sections: Record<Exclude<PerformanceSection, "load">, React.ReactNode> = {
+    throws: (
+      <section id="lanzamientos" className="scroll-mt-4 mt-8 grid gap-3" aria-labelledby="bests-title">
         <h2 id="bests-title" className="text-base font-semibold">
           Lanzamientos: los 3 mejores por implemento
         </h2>
@@ -89,7 +68,7 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
                   href={`?days=${days}&imp=${encodeURIComponent(b.key)}`}
                   aria-current={b.key === implement.key ? "page" : undefined}
                   className={cn(
-                    "shrink-0 rounded-full border px-3 py-1 text-xs",
+                    "flex min-h-11 shrink-0 items-center rounded-full border px-3 text-xs",
                     b.key === implement.key ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground",
                   )}
                 >
@@ -104,7 +83,13 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
                     {["🥇", "🥈", "🥉"][i]} <span className="font-semibold tabular-nums">{formatNum(t.markM, 2)} m</span>
                     {t.isCompetition ? <span className="ml-1 text-xs text-muted-foreground">(competición)</span> : null}
                   </span>
-                  <span className="text-xs text-muted-foreground">{formatDate(t.date, { day: "numeric", month: "short", year: "2-digit" })}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatDate(t.date, {
+                      day: "numeric",
+                      month: "short",
+                      year: "2-digit",
+                    })}
+                  </span>
                 </li>
               ))}
             </ol>
@@ -122,10 +107,12 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
           <p className="text-sm text-muted-foreground">Sin marcas de lanzamiento todavía.</p>
         )}
       </section>
-
-      <section aria-labelledby="season-title" className="mt-8 grid gap-3">
+    ),
+    season: (
+      <section id="temporada" className="scroll-mt-4 mt-8 grid gap-3" aria-labelledby="season-title">
         <h2 id="season-title" className="text-base font-semibold">
-          Temporada: marcas en competición{implement ? ` · ${implement.label}` : ""}
+          Temporada: marcas en competición
+          {implement ? ` · ${implement.label}` : ""}
         </h2>
         {implement && implement.competitions.length ? (
           <MarksChart data={implement.competitions} name={`competiciones, ${implement.label}`} goals={prefs.seasonGoals} />
@@ -134,8 +121,9 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
         )}
         <SeasonGoals goals={prefs.seasonGoals} />
       </section>
-
-      <section aria-labelledby="e1rm-title" className="mt-8 grid gap-3">
+    ),
+    strength: (
+      <section id="fuerza" className="scroll-mt-4 mt-8 grid gap-3" aria-labelledby="e1rm-title">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 id="e1rm-title" className="text-base font-semibold">
             Fuerza: 1RM estimado
@@ -157,7 +145,7 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
                   href={`?days=${days}&ex=${e.id}`}
                   aria-current={e.id === selected?.id ? "page" : undefined}
                   className={cn(
-                    "shrink-0 rounded-full border px-3 py-1 text-xs",
+                    "flex min-h-11 shrink-0 items-center rounded-full border px-3 text-xs",
                     e.id === selected?.id ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground",
                   )}
                 >
@@ -165,16 +153,73 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
                 </Link>
               ))}
             </nav>
-            {e1rm.length > 1 ? (
-              <E1rmChart data={e1rm} name={selected!.name} />
-            ) : (
-              <p className="text-sm text-muted-foreground">Registra este ejercicio en al menos dos días para ver su evolución.</p>
-            )}
+            {e1rm.length > 1 ? <E1rmChart data={e1rm} name={selected!.name} /> : <p className="text-sm text-muted-foreground">Registra este ejercicio en al menos dos días para ver su evolución.</p>}
           </>
         ) : (
           <p className="text-sm text-muted-foreground">Sin series de fuerza en este periodo.</p>
         )}
       </section>
+    ),
+  };
+
+  return (
+    <>
+      <PageHeader
+        title="Rendimiento"
+        description="Performance Management Chart y recuperación"
+        action={
+          <Link href={`/print/season?year=${today().getUTCFullYear()}`} className="flex min-h-11 items-center text-sm font-medium underline underline-offset-4">
+            Informe de temporada
+          </Link>
+        }
+      />
+
+      <nav aria-label="Rango" className="mb-3 inline-flex rounded-lg bg-muted p-1">
+        {RANGES.map((r) => (
+          <Link
+            key={r}
+            href={`?days=${r}`}
+            aria-current={r === days ? "page" : undefined}
+            className={cn("flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-muted-foreground", r === days && "bg-background text-foreground shadow-sm")}
+          >
+            {r === 365 ? "1 año" : `${r} días`}
+          </Link>
+        ))}
+      </nav>
+
+      <nav aria-label="Ir a una sección" className="mb-4 flex gap-1.5 overflow-x-auto">
+        {fullOrder.map((k) => (
+          <a key={k} href={`#${SECTION_ID[k]}`} className="flex min-h-11 shrink-0 items-center rounded-full border px-3 text-xs text-muted-foreground">
+            {PERFORMANCE_SECTION_LABEL[k]}
+          </a>
+        ))}
+      </nav>
+
+      <div id="carga" className="scroll-mt-4" />
+      {cur ? (
+        <Card className="mb-6 py-4">
+          <CardContent className="grid grid-cols-2 gap-4 px-4 sm:grid-cols-3 lg:grid-cols-5">
+            <Stat label="Fitness (CTL)" value={formatNum(cur.ctl)} swatch="--series-1" />
+            <Stat label="Fatiga (ATL)" value={formatNum(cur.atl)} swatch="--series-2" />
+            <Stat
+              label="Forma (TSB)"
+              value={formatNum(cur.tsb)}
+              swatch="--series-3"
+              hint={
+                <StatusLabel status={tsbStatus(cur.tsb)} className="text-xs">
+                  {cur.tsb < -25 ? "Fatiga alta" : cur.tsb < -10 ? "Cargando" : "Fresco"}
+                </StatusLabel>
+              }
+            />
+            <Stat label="ACWR" value={cur.acwr != null ? formatNum(cur.acwr, 2) : "—"} hint={cur.acwr == null ? "Necesita 28 días" : "Zona 0,8–1,3"} />
+            <Stat className="col-span-2 sm:col-span-1" label="Rampa CTL (7 d)" value={cur.rampRate != null ? formatNum(cur.rampRate) : "—"} hint="> 5–8 = agresiva" />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {perf.series.length ? <PmcCharts data={perf.series as unknown as PmcPoint[]} /> : <p className="text-sm text-muted-foreground">Sin datos todavía.</p>}
+
+      {order.map((k) => sections[k])}
     </>
   );
 }

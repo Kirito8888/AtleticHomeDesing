@@ -29,7 +29,7 @@ export function MoveSession({ id, date }: { id: string; date: string }) {
   }
   return (
     <details className="mb-4 rounded-md border p-3 text-sm">
-      <summary className="cursor-pointer font-medium">Mover o duplicar</summary>
+      <summary className="min-h-11 cursor-pointer py-3 font-medium">Mover o duplicar</summary>
       <div className="mt-2 flex flex-wrap items-end gap-2">
         <label className="grid gap-1 text-xs">
           Nuevo día

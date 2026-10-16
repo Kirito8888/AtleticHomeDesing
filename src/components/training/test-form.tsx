@@ -59,7 +59,7 @@ export function TestForm({ today }: { today: string }) {
           <Field label="Unidad" htmlFor="t-cunit">
             <Input id="t-cunit" value={custom.unit} maxLength={10} onChange={(e) => setCustom({ ...custom, unit: e.target.value })} />
           </Field>
-          <label className="col-span-2 flex items-center gap-2 text-sm">
+          <label className="col-span-2 flex min-h-11 items-center gap-2 text-sm">
             <input type="checkbox" className="size-4" checked={!custom.higher} onChange={(e) => setCustom({ ...custom, higher: !e.target.checked })} />
             Menos es mejor (tiempos)
           </label>
