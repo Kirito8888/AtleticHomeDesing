@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión:** **v2.2.0 lista para producción**, pendiente de fusionar el PR de release (16/10/2026). v2.0 y v2.1 fusionadas. Estabilidad: ver «Cierre v2.2».
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final. La usuaria fusiona; Claude nunca.
-- **Bloque en curso:** ninguno. Siguiente: elegir alcance de v2.3 (ver «Objetivos tentativos v2.3»).
+- **Bloque en curso:** ninguno. Hecho: auditoría UI a 390 px (`docs/auditoria-ui.md`, solo informe, **sin cambios de código**; pendiente que la usuaria apruebe v2.3-A o pida medir con datos). Siguiente: elegir alcance de v2.3.
 - **Pendiente manual (no es código):** probar el medidor de salto con HEVC/.mov real en un iPhone (P3-4): grabar en cámara lenta y en normal,
   subirlo en `/training/tests/salto`, comprobar fps detectados y altura creíble (~30–60 cm en un CMJ). **No está probado.**
 
@@ -33,7 +33,8 @@
 1. Meter `loadClubPanel` y `previewAssignment` en `strava/privacy.int.test.ts` (únicas lecturas ajenas sin caso).
 2. Más reglas por familia (P2-4 quedó en 3): combinadas, vídeo de saltos.
 3. Medir TTFB a 390 px antes de optimizar consultas (P2-7/P3-1 sin cifra).
-4. Los 3 controles < 44 px de `/settings` (avisos de `e2e:v22b`) y auditar cambios de rol del staff del club.
+4. Los 3 controles < 44 px de `/settings` (son los `<input>` de «Mi pista» en `carbs-form.tsx:124-131`, ver auditoría P2-1) y auditar cambios de rol del staff del club.
+   Auditoría UI: ~13 controles táctiles < 44 px **por análisis estático** (loggers) y falta `error.tsx` fuera de Ajustes (P1-1); medir con sesión rellena antes de arreglar.
 5. Resultado del P3-4 en iPhone; si el HEVC no carga, decidir entre guía o conversión local.
 6. Perfil F-V (Samozino) y detección automática de despegue en el salto (fuera desde el bloque Salto).
 
