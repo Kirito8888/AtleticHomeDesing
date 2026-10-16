@@ -51,6 +51,7 @@ await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/login")), pag
 
 // Biblioteca → nuevo ejercicio con instrucciones
 await go(page, "/training");
+await page.locator("summary", { hasText: "Planificar y biblioteca" }).click();
 await page.getByRole("link", { name: "Biblioteca de ejercicios" }).click();
 await page.waitForURL(/\/training\/exercises$/);
 await noHScroll("biblioteca 390 px");
