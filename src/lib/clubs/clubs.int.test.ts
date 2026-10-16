@@ -90,6 +90,31 @@ describe.skipIf(!HAS_DB)("clubes y cuotas v2.0 (BD real)", () => {
     await expect(svc.recordFee(u.adm, orgId, { memberId: m1.id, concept: "x", amount: "0", dueDate: "2026-10-31" })).rejects.toThrow(/Importe/);
   });
 
+  it("cambiar el rol deja huella en la Actividad de la persona afectada; una cuenta de atleta no pasa a staff", async () => {
+    const coa = await prisma.orgMember.findFirstOrThrow({ where: { orgId, userId: u.coa.id } });
+    const events = (userId: string) => prisma.securityEvent.findMany({ where: { userId, type: "COACH_SCOPES_CHANGED" }, orderBy: { createdAt: "desc" } });
+    const before = (await events(u.coa.id)).length;
+    await svc.updateMember(u.adm, orgId, coa.id, { role: "ADMIN" }, { ip: "203.0.113.9", userAgent: "test" });
+    const ev = await events(u.coa.id);
+    expect(ev).toHaveLength(before + 1);
+    expect(ev[0].detail).toMatch(/^Club «Club test» · rol: entrenadora → administración · cambiado por la administración del club$/);
+    expect(ev[0].ip).toBeNull(); // la IP es de quien cambia, no de la afectada
+    // Mismo rol: no hay evento
+    await svc.updateMember(u.adm, orgId, coa.id, { role: "ADMIN" });
+    expect(await events(u.coa.id)).toHaveLength(before + 1);
+    // Una cuenta de atleta no se promueve a staff (igual que al invitar)
+    const a1 = await prisma.orgMember.findFirstOrThrow({ where: { orgId, userId: u.at1.id } });
+    const at1Before = (await events(u.at1.id)).length;
+    await expect(svc.updateMember(u.adm, orgId, a1.id, { role: "COACH" })).rejects.toThrow(/No se pudo/);
+    expect((await prisma.orgMember.findUniqueOrThrow({ where: { id: a1.id } })).role).toBe("ATHLETE");
+    expect(await events(u.at1.id)).toHaveLength(at1Before);
+    // Ella misma vuelve a entrenadora (hay otra ADMIN): queda con su IP
+    await svc.updateMember(u.coa, orgId, coa.id, { role: "COACH" }, { ip: "203.0.113.9", userAgent: "test" });
+    const back = await events(u.coa.id);
+    expect(back[0].detail).toMatch(/rol: administración → entrenadora · cambiado por ti$/);
+    expect(back[0].ip).toBe("203.0.113.9");
+  });
+
   it("salir del club deja huella en la Actividad de la propia persona", async () => {
     const m = await prisma.orgMember.findFirstOrThrow({ where: { orgId, userId: u.at2.id } });
     await svc.removeMember(u.at2, orgId, m.id);
