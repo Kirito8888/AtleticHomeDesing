@@ -195,7 +195,7 @@ export function RestTimer({ autoStart }: { autoStart: number }) {
             type="button"
             size="icon"
             variant="outline"
-            className="size-8"
+            className="size-8 max-md:size-11"
             aria-label={running ? "Pausar descanso" : "Reanudar descanso"}
             onClick={() => {
               const t = Date.now();
@@ -216,7 +216,7 @@ export function RestTimer({ autoStart }: { autoStart: number }) {
             type="button"
             size="icon"
             variant="ghost"
-            className="size-8"
+            className="size-8 max-md:size-11"
             aria-label="Terminar descanso"
             onClick={() => {
               beep.cancel();

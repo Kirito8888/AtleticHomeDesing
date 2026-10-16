@@ -1,6 +1,5 @@
-import Link from "next/link";
-
 import { PageHeader } from "@/components/page-header";
+import { TestsNav } from "@/components/training/tests-nav";
 import { TestForm } from "@/components/training/test-form";
 import { ValueChart } from "@/components/charts/lazy";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,22 +19,17 @@ export default async function TestsPage() {
   return (
     <>
       <PageHeader title="Tests físicos" description="Tu batería de tests: 30 m, saltos, balón medicinal… o los tuyos." />
+      <TestsNav />
       <div className="grid gap-4 lg:grid-cols-[20rem_1fr]">
-        <Card className="h-fit gap-3 py-4">
+        <Card className="order-2 h-fit gap-3 py-4 lg:order-1">
           <CardHeader className="px-4">
             <CardTitle className="text-base">Nuevo resultado</CardTitle>
           </CardHeader>
           <CardContent className="px-4">
             <TestForm today={toIsoDay(today())} />
-            <Link href="/training/tests/salto" className="mt-3 flex min-h-11 items-center text-sm font-medium underline underline-offset-4">
-              Medir salto con vídeo
-            </Link>
-            <Link href="/training/tests/comparar" className="flex min-h-11 items-center text-sm font-medium underline underline-offset-4">
-              Comparar con curvas publicadas
-            </Link>
           </CardContent>
         </Card>
-        <div className="grid gap-4" aria-label="Resultados por test">
+        <div className="order-1 grid content-start gap-4 sm:grid-cols-2 lg:order-2 lg:grid-cols-1" aria-label="Resultados por test">
           {tests.length ? (
             tests.map((t) => (
               <Card key={t.testKey} className="gap-2 py-4">
@@ -59,7 +53,7 @@ export default async function TestsPage() {
               </Card>
             ))
           ) : (
-            <p className="text-sm text-muted-foreground">Aún no hay resultados.</p>
+            <p className="text-sm text-muted-foreground sm:col-span-2 lg:col-span-1">Aún no hay resultados.</p>
           )}
         </div>
       </div>

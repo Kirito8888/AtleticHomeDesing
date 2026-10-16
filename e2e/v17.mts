@@ -137,6 +137,7 @@ log("privacidad: páginas legales, consentimientos con historial y limitación d
 
 // 4. Creador de rutinas con cuestionario y proyección
 await go(B + "/training");
+await page.locator("summary", { hasText: "Planificar y biblioteca" }).click();
 await page.getByRole("link", { name: "Crear mi rutina" }).click();
 await page.waitForURL(/\/training\/routine$/);
 await radio("Soy", "Mujer").click();
