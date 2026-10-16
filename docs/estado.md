@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión:** **v2.2.0 lista para producción**, pendiente de fusionar el PR de release (16/10/2026). v2.0 y v2.1 fusionadas. Estabilidad: ver «Cierre v2.2».
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final. La usuaria fusiona; Claude nunca.
-- **Bloque en curso:** ninguno. Hecho: auditoría UI a 390 px (`docs/auditoria-ui.md`, solo informe, **sin cambios de código**; pendiente que la usuaria apruebe v2.3-A o pida medir con datos). Siguiente: elegir alcance de v2.3.
+- **Bloque en curso:** ninguno. Hecho v2.3 **B1 · navegación global** (ver abajo). Antes: auditoría UI a 390 px (`docs/auditoria-ui.md`, solo informe). Siguiente: B2 a elegir con la usuaria (rediseño interno de submódulos, controles < 44 px de la auditoría).
 - **Pendiente manual (no es código):** probar el medidor de salto con HEVC/.mov real en un iPhone (P3-4): grabar en cámara lenta y en normal,
   subirlo en `/training/tests/salto`, comprobar fps detectados y altura creíble (~30–60 cm en un CMJ). **No está probado.**
 
@@ -28,6 +28,13 @@
   `/coach/multi` lanza error de servidor a una atleta (solo entrenadoras): fuera del barrido E2E.
 - **P3.** Medido el JS de cliente (nada alarmante; sin TTFB). Borrar ejercicios propios (409 con series). Aviso al compartir protocolo de fisio (`notifyOnce`, texto genérico).
   Auditoría de club con `COACH_SCOPES_CHANGED` (sin enum nuevo). Tira semanal táctil.
+
+## v2.3 · B1 navegación global (16/10/2026)
+- `layout/nav-items.ts`: `NAV_GROUPS` (Entrenamiento y salud · Clubes y coach · Herramientas · Configuración), `buildNav({hidden, role})`, `activeHref` (prefijo más largo), `moreActive`. Sin migración ni lectura de datos: solo enlaces.
+- Móvil: barra inferior de 5 huecos ≥ 44 px (Inicio + 3 destinos que rellenan si se ocultan módulos + «Más» con el sheet agrupado); se quitó la hamburguesa. Desktop: sidebar con los mismos grupos.
+- `/coach` («Mis atletas», solo COACH/ADMIN), `/admin` (solo ADMIN), Privacidad y Notificaciones ya salen en el menú. La visibilidad real sigue protegida en cada página.
+- Tests: `layout/nav-items.test.ts`, `admin/ops.test.ts`; E2E `e2e:v23a` (390 px claro/oscuro, atleta/entrenadora, ≤ 2 toques, sin scroll horizontal, sidebar a 1280) + `e2e:v22b` en verde. Añadida a `e2e.sh all`.
+- Verificado: typecheck, lint, vitest de lo tocado. No se corrió `e2e.sh all` (cierre de versión).
 
 ## Objetivos tentativos v2.3 (nada comprometido; elegir con la usuaria)
 1. Meter `loadClubPanel` y `previewAssignment` en `strava/privacy.int.test.ts` (únicas lecturas ajenas sin caso).

@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <div className="min-h-dvh md:pl-56">
       <DisplayPrefs fontScale={prefs.fontScale} highContrast={prefs.highContrast} />
       <UsageBeacon enabled={prefs.usageStats} />
-      <AppNav userName={user.name ?? user.email} hidden={prefs.hiddenModules} bell={<NotificationBell unread={unread} />} />
+      <AppNav userName={user.name ?? user.email} hidden={prefs.hiddenModules} role={user.role} bell={<NotificationBell unread={unread} />} />
       <main className="mx-auto w-full max-w-5xl px-4 pt-4 pb-24 sm:px-6 md:pb-10">
         <OutboxSync />
         {/* v1.7 · el dominio reservado .invalid identifica las cuentas demo sin otra consulta */}
