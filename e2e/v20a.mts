@@ -59,11 +59,13 @@ const pw = { adm: newUser(mail("adm"), "Directora", "COACH"), coa: newUser(mail(
 const adm = await newPage();
 await login(adm, mail("adm"), pw.adm);
 await go(adm, "/clubs");
+await adm.locator("details", { hasText: "Crear un club" }).locator("summary").click();
 await adm.getByLabel("Nombre del club").fill("Club E2E");
 await adm.getByRole("button", { name: "Crear club" }).click();
 await adm.getByRole("link", { name: /Club E2E/ }).click();
 await adm.waitForURL(/\/clubs\/[^/]+$/);
 const clubUrl = new URL(adm.url()).pathname;
+await adm.locator("details", { hasText: "Invitar a una persona" }).locator("summary").click();
 for (const [k, role] of [["coa", "COACH"], ["at1", "ATHLETE"], ["at2", "ATHLETE"]] as const) {
   await adm.getByLabel("Email de la persona").fill(mail(k));
   await adm.getByLabel("Rol").selectOption(role);
@@ -101,7 +103,7 @@ if (r >= 300) errors.push(`no se pudo crear la sesión planificada: HTTP ${r}`);
 // 4. Panel de la entrenadora: miembros, cumplimiento, alertas, calendario; sin cuotas
 await go(coa, clubUrl);
 await coa.getByRole("heading", { name: /Miembros/ }).waitFor();
-await coa.getByRole("table", { name: "Cumplimiento del club" }).waitFor();
+await coa.getByRole("list", { name: "Cumplimiento del club (móvil)" }).waitFor();
 await coa.getByRole("heading", { name: "Alertas de grupo" }).waitFor();
 await coa.getByText("Series 6x60").waitFor();
 if ((await coa.getByRole("heading", { name: "Cuotas" }).count()) !== 0) errors.push("la entrenadora ve el bloque de cuotas");
@@ -115,6 +117,7 @@ log("panel de la entrenadora: miembros, cumplimiento, alertas y calendario colec
 
 // 5. La directora apunta una cuota y la marca pagada
 await go(adm, clubUrl);
+await adm.locator("details", { hasText: "Apuntar una cuota" }).locator("summary").click();
 await adm.getByLabel("Atleta de la cuota").selectOption({ label: "Atleta Uno" });
 await adm.getByLabel("Concepto").fill("Cuota octubre");
 await adm.getByLabel("Importe (€)").fill("30,50");

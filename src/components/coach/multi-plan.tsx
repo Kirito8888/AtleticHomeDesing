@@ -92,7 +92,7 @@ export function MultiPlan({ athletes, templates, plans, defaultStart }: { athlet
         <legend className="px-1 text-xs text-muted-foreground">Atletas</legend>
         {athletes.length ? (
           athletes.map((a) => (
-            <label key={a.id} className={`flex min-h-9 items-start gap-2 ${a.eligible ? "" : "opacity-60"}`}>
+            <label key={a.id} className={`flex min-h-11 items-start gap-2 ${a.eligible ? "" : "opacity-60"}`}>
               <input
                 type="checkbox"
                 className="mt-0.5 size-4"
@@ -120,18 +120,18 @@ export function MultiPlan({ athletes, templates, plans, defaultStart }: { athlet
       <div className="grid gap-3 rounded-md border p-3 sm:grid-cols-3">
         <label className="grid gap-1">
           Qué copiar
-          <select className="h-10 rounded-md border bg-background px-2" value={origin} onChange={(e) => { setOrigin(e.target.value); reset(); }}>
+          <select className="min-h-11 rounded-md border bg-background px-2" value={origin} onChange={(e) => { setOrigin(e.target.value); reset(); }}>
             {templates.length ? <optgroup label="Semanas tipo">{templates.map((t) => <option key={t.id} value={`t:${t.id}`}>{t.name}</option>)}</optgroup> : null}
             {plans.length ? <optgroup label="Planes propios">{plans.map((p) => <option key={p.code} value={`p:${p.code}`}>{p.code} · {p.name}</option>)}</optgroup> : null}
           </select>
         </label>
         <label className="grid gap-1">
           Desde el día
-          <input type="date" className="h-10 rounded-md border bg-background px-2" value={start} onChange={(e) => { setStart(e.target.value); reset(); }} />
+          <input type="date" className="min-h-11 rounded-md border bg-background px-2" value={start} onChange={(e) => { setStart(e.target.value); reset(); }} />
         </label>
         <label className="grid gap-1">
           RPE previsto (1-10)
-          <input type="number" min={1} max={10} step={0.5} className="h-10 rounded-md border bg-background px-2" value={rpe} onChange={(e) => { setRpe(Number(e.target.value) || 6); reset(); }} />
+          <input type="number" min={1} max={10} step={0.5} className="min-h-11 rounded-md border bg-background px-2" value={rpe} onChange={(e) => { setRpe(Number(e.target.value) || 6); reset(); }} />
         </label>
       </div>
       {!origin ? <p className="text-muted-foreground">Guarda antes una semana tipo o crea un plan propio en Planificación.</p> : null}

@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión:** **v2.2.0 lista para producción**, pendiente de fusionar el PR de release (16/10/2026). v2.0 y v2.1 fusionadas. Estabilidad: ver «Cierre v2.2».
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final. La usuaria fusiona; Claude nunca.
-- **Bloque en curso:** ninguno. Hechos v2.3 **B1 · navegación global** y **B2 · Entrenamiento, Tests y Métricas** (ver abajo). Auditoría UI: `docs/auditoria-ui.md`. Siguiente: B3 a elegir (Clubes, entrenadoras, Ajustes: P2-1, P1-1 `error.tsx`).
+- **Bloque en curso:** ninguno. Hechos v2.3 **B1 · navegación global**, **B2 · Entrenamiento, Tests y Métricas** y **B3 · Clubes, entrenadoras y fisio** (ver abajo). Auditoría UI: `docs/auditoria-ui.md`. Siguiente: bloque final (limpieza de Ajustes: P2-1, P1-1 `error.tsx`; auditoría final de controles).
 - **Pendiente manual (no es código):** probar el medidor de salto con HEVC/.mov real en un iPhone (P3-4): grabar en cámara lenta y en normal,
   subirlo en `/training/tests/salto`, comprobar fps detectados y altura creíble (~30–60 cm en un CMJ). **No está probado.**
 
@@ -43,8 +43,15 @@
 - Controles < 44 px corregidos (auditoría P2-2…P2-12 en el módulo, `summary` de los desplegables). Sin migración ni cambios de API/privacidad (solo se lee disciplina/prueba del perfil propio).
 - E2E `e2e:v23b` (claro/oscuro, sesión y tests sembrados, **error** si un control < 44 px o hay scroll horizontal) en `e2e.sh all`; ajustados `salto` y `v21c` por los nombres de enlace. En verde: v23b, salto, v21c, v22a, v22b, v23a. Tras `npm run build` hay que reiniciar el servidor (`serve.sh true`) o todas las E2E fallan en el login.
 
+## v2.3 · B3 Clubes, entrenadoras y protocolos (16/10/2026)
+- `lib/clubs/club-layout.ts` (puro): `clubSections` (staff: alertas → cumplimiento → calendario → miembros → cuotas; atleta: solo cuotas) y `coachHubLinks` (la atleta nunca ve «Mis atletas»; «Planificar varios» solo si algún vínculo tiene `canPlan`). Test: `club-layout.test.ts`.
+- `/clubs`: invitaciones → mis clubes → **Accesos** → **Mis entrenadoras** (solo vínculos propios, enlaza a `/settings#entrenadora`; `CoachLinks` sigue en Ajustes) → «Crear un club» plegado. `/clubs/[id]`: índice de secciones ≥ 44 px, cumplimiento en lista en móvil (tabla desde `md`), invitar y apuntar cuota plegados.
+- `/coach`: accesos arriba, tarjetas por atleta con resumen (carga/cumplimiento/marca) en móvil, tabla solo desde `md`, «Comentar en bloque» al final (`#comentar`). `/recovery/fisio`: la entrenadora ve Mis protocolos → «+ Nuevo protocolo» plegado → Compartidos; estado vacío.
+- Privacidad: sin lecturas nuevas de datos ajenos. `strava/privacy.int.test.ts` cubre ya `loadClubPanel` y `previewAssignment` (objetivo 1 de v2.3 cerrado).
+- E2E `e2e:v23c` (claro/oscuro, error si scroll horizontal o control < 44 px) en `e2e.sh all`; ajustadas v16, v20a y v21c por tabla/formularios plegados. En verde: v23c, v15, v16, v20a, v20b, v21c, v22a, v22b, v23a, v23b. La sesión de Strava no se siembra en E2E (cubierta en el test de integración).
+
 ## Objetivos tentativos v2.3 (nada comprometido; elegir con la usuaria)
-1. Meter `loadClubPanel` y `previewAssignment` en `strava/privacy.int.test.ts` (únicas lecturas ajenas sin caso).
+1. (hecho en B3) `loadClubPanel` y `previewAssignment` ya están en `strava/privacy.int.test.ts`.
 2. Más reglas por familia (P2-4 quedó en 3): combinadas, vídeo de saltos.
 3. Medir TTFB a 390 px antes de optimizar consultas (P2-7/P3-1 sin cifra).
 4. Los 3 controles < 44 px de `/settings` (son los `<input>` de «Mi pista» en `carbs-form.tsx:124-131`, ver auditoría P2-1) y auditar cambios de rol del staff del club.

@@ -36,12 +36,12 @@ export function BulkComment({ items }: { items: Item[] }) {
   }
   return (
     <details className="rounded-md border p-3 text-sm">
-      <summary className="cursor-pointer font-medium">Comentar varias sesiones a la vez</summary>
+      <summary className="flex min-h-11 cursor-pointer items-center font-medium">Comentar varias sesiones a la vez</summary>
       <div className="mt-2 grid gap-2">
         <ul className="grid max-h-56 gap-1 overflow-y-auto" aria-label="Sesiones para comentar">
           {items.map((it) => (
             <li key={it.id}>
-              <label className="flex items-center gap-2">
+              <label className="flex min-h-11 items-center gap-2">
                 <input
                   type="checkbox"
                   className="size-4"
