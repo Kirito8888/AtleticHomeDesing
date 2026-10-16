@@ -110,7 +110,7 @@ export function RmManager({ rms, exercises, unlinked }: { rms: Rm[]; exercises: 
               <Field label="RM (kg)" htmlFor="rm-kg">
                 <Input id="rm-kg" inputMode="decimal" value={kg} onChange={(e) => setKg(e.target.value)} required className="w-28" />
               </Field>
-              <label className="mb-2 flex items-center gap-2">
+              <label className="mb-2 flex min-h-11 items-center gap-2">
                 <input type="checkbox" className="size-4" checked={perHand} onChange={(e) => setPerHand(e.target.checked)} /> Por mano
               </label>
               <Button type="submit" size="sm" className="mb-0.5" disabled={busy || !name || !(num(kg) > 0)}>

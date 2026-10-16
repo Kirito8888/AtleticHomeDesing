@@ -63,3 +63,6 @@ Leyenda: (M) medido en navegador · (E) estático, pendiente de confirmar con da
 3. **Descartar:** P3-5, P3-6 (refactorización sin beneficio claro).
 
 **Decisión que necesito:** ¿apruebas v2.3-A tal cual, o primero amplío la medición con datos sintéticos (B) para convertir los «E» en «M»?
+
+## Cierre en v2.3 B4
+Resueltos: P1-1, P2-1, P2-13 y P3-4 (medidos con `e2e:v23d`, 55 rutas a 390 px, claro y oscuro). Quedan P3-1…P3-3 (sin reproducir con datos).

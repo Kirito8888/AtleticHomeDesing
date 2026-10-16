@@ -69,7 +69,7 @@ export function CalendarFeedSettings({ active: initialActive, lastUsedAt, study:
       <p className="text-muted-foreground">
         Tus sesiones planificadas y tus competiciones en Google Calendar o en el calendario del iPhone. Solo títulos y fechas: ni notas, ni marcas, ni datos de salud. Quien tenga el enlace ve esos títulos: no lo compartas.
       </p>
-      <label className="flex items-center gap-2">
+      <label className="flex min-h-11 items-center gap-2">
         <input type="checkbox" className="size-4" checked={study} onChange={(e) => toggleStudy(e.target.checked)} />
         Incluir mis clases y exámenes (solo la asignatura, sin aula)
       </label>

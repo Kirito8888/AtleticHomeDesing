@@ -55,16 +55,16 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
         }
       />
       <nav aria-label="Organización del estudio" className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-        <Link href="/study/schedule" className="underline underline-offset-4">
+        <Link href="/study/schedule" className="inline-flex min-h-11 items-center underline underline-offset-4">
           Horario y exámenes
         </Link>
-        <Link href="/study/focus" className="underline underline-offset-4">
+        <Link href="/study/focus" className="inline-flex min-h-11 items-center underline underline-offset-4">
           Pomodoro y horas de estudio
         </Link>
-        <Link href="/study/exams" className="underline underline-offset-4">
+        <Link href="/study/exams" className="inline-flex min-h-11 items-center underline underline-offset-4">
           Exámenes y notas
         </Link>
-        <Link href="/study/assignments" className="underline underline-offset-4">
+        <Link href="/study/assignments" className="inline-flex min-h-11 items-center underline underline-offset-4">
           Trabajos y entregas
         </Link>
       </nav>
