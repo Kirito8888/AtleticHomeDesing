@@ -276,12 +276,12 @@ export function SessionForm({
         <Input id="tags" value={tags} maxLength={200} onChange={(e) => setTags(e.target.value)} placeholder="bloqueo, brazo largo" />
       </Field>
 
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex min-h-11 items-center gap-2 text-sm">
         <input type="checkbox" className="size-4" checked={mixed} onChange={(e) => setMixed(e.target.checked)} />
         Sesión mixta: guardar a la vez fuerza, técnica y pista (rellena cada pestaña)
       </label>
 
-      <label className="flex items-center gap-2 text-sm">
+      <label className="flex min-h-11 items-center gap-2 text-sm">
         <input type="checkbox" className="size-4" checked={planned} onChange={(e) => setPlanned(e.target.checked)} />
         Guardar como planificada (no suma carga)
       </label>

@@ -29,7 +29,7 @@ export default async function GoalsPage() {
         title="Objetivos"
         description="El progreso se calcula solo con lo que ya registras: mejores marcas, último test, racha del hábito o gasto del mes."
         action={
-          <Link href="/review" className="text-sm font-medium underline underline-offset-4">
+          <Link href="/review" className="inline-flex min-h-11 items-center text-sm font-medium underline underline-offset-4">
             Revisión semanal
           </Link>
         }

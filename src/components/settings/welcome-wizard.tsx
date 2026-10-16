@@ -108,7 +108,7 @@ export function WelcomeWizard({ initial }: { initial: { name: string; sex: "MALE
       ) : null}
       {step === 2 ? (
         <>
-          <label className="flex items-center gap-2">
+          <label className="flex min-h-11 items-center gap-2">
             <input type="checkbox" className="size-4" checked={quiet} onChange={() => setQuiet(!quiet)} />
             Sin notificaciones de 22:30 a 7:30 (las de seguridad llegan siempre)
           </label>

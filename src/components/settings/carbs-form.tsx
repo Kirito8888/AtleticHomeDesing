@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Field } from "@/components/form/chips";
 import { Stepper } from "@/components/form/stepper";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 
 type Values = { carbsThrowDayG: number | null; carbsHeavyDayG: number | null; carbsRestDayG: number | null };
@@ -121,14 +122,14 @@ export function TrackForm({ initial }: { initial: Track }) {
   return (
     <div className="grid gap-3">
       <Field label="Nombre" htmlFor="track-name">
-        <input id="track-name" className="h-10 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="p. ej. Pista municipal" />
+        <Input id="track-name" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="p. ej. Pista municipal" />
       </Field>
       <div className="grid grid-cols-2 gap-3">
         <Field label="Latitud" htmlFor="track-lat">
-          <input id="track-lat" inputMode="decimal" className="h-10 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm" value={lat} onChange={(e) => setLat(e.target.value)} />
+          <Input id="track-lat" inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} />
         </Field>
         <Field label="Longitud" htmlFor="track-lon">
-          <input id="track-lon" inputMode="decimal" className="h-10 w-full min-w-0 rounded-md border bg-transparent px-3 text-sm" value={lon} onChange={(e) => setLon(e.target.value)} />
+          <Input id="track-lon" inputMode="decimal" value={lon} onChange={(e) => setLon(e.target.value)} />
         </Field>
       </div>
       <div className="flex flex-wrap gap-2">

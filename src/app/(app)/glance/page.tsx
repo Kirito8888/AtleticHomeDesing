@@ -13,7 +13,7 @@ export const metadata = { title: "De un vistazo · Atlenza" };
 function Row({ label, href, children }: { label: string; href: string; children: React.ReactNode }) {
   return (
     <li className="flex items-baseline justify-between gap-3 border-b py-2 last:border-b-0">
-      <Link href={href} className="shrink-0 text-muted-foreground underline-offset-4 hover:underline">
+      <Link href={href} className="inline-flex min-h-11 shrink-0 items-center text-muted-foreground underline-offset-4 hover:underline">
         {label}
       </Link>
       <span className="min-w-0 text-right">{children}</span>

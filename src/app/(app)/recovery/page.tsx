@@ -76,19 +76,19 @@ export default async function RecoveryPage() {
             Salud de la mujer
           </Link>
         ) : null}
-        <Link href="/recovery/fisio" className="underline underline-offset-4">
+        <Link href="/recovery/fisio" className="inline-flex min-h-11 items-center underline underline-offset-4">
           Fisio y readaptación
         </Link>
-        <Link href="/recovery/trends" className="underline underline-offset-4">
+        <Link href="/recovery/trends" className="inline-flex min-h-11 items-center underline underline-offset-4">
           Tendencias
         </Link>
-        <Link href="/recovery/wellbeing" className="underline underline-offset-4">
+        <Link href="/recovery/wellbeing" className="inline-flex min-h-11 items-center underline underline-offset-4">
           Bienestar
         </Link>
-        <Link href="/recovery/body" className="underline underline-offset-4">
+        <Link href="/recovery/body" className="inline-flex min-h-11 items-center underline underline-offset-4">
           Antropometría
         </Link>
-        <Link href="/recovery/health" className="underline underline-offset-4">
+        <Link href="/recovery/health" className="inline-flex min-h-11 items-center underline underline-offset-4">
           Citas y suplementos
         </Link>
       </nav>

@@ -29,7 +29,7 @@ function Widget({ title, icon: Icon, href, id, children, hide }: { title: string
           <Icon className="size-4 text-muted-foreground" /> {title}
         </CardTitle>
         {href ? (
-          <Link href={href} className="flex items-center text-xs text-muted-foreground hover:text-foreground" aria-label={`Ver ${title}`}>
+          <Link href={href} className="flex min-h-11 items-center text-xs text-muted-foreground hover:text-foreground" aria-label={`Ver ${title}`}>
             Ver <ChevronRight className="size-3.5" />
           </Link>
         ) : null}

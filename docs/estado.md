@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión:** **v2.2.0 lista para producción**, pendiente de fusionar el PR de release (16/10/2026). v2.0 y v2.1 fusionadas. Estabilidad: ver «Cierre v2.2».
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final. La usuaria fusiona; Claude nunca.
-- **Bloque en curso:** ninguno. Hechos v2.3 **B1 · navegación global**, **B2 · Entrenamiento, Tests y Métricas** y **B3 · Clubes, entrenadoras y fisio** (ver abajo). Auditoría UI: `docs/auditoria-ui.md`. Siguiente: bloque final (limpieza de Ajustes: P2-1, P1-1 `error.tsx`; auditoría final de controles).
+- **Bloque en curso:** ninguno. Hechos v2.3 **B1–B4** (navegación, Entrenamiento/Tests/Métricas, Clubes/coach/fisio, Ajustes + auditoría táctil final). Auditoría UI: `docs/auditoria-ui.md`. Siguiente: **cierre de versión v2.3.0** (versión, CHANGELOG, guía, manual «De v2.2 a v2.3», `test-migration.sh` no aplica: sin migración, Semgrep, licencias, PR de release).
 - **Pendiente manual (no es código):** probar el medidor de salto con HEVC/.mov real en un iPhone (P3-4): grabar en cámara lenta y en normal,
   subirlo en `/training/tests/salto`, comprobar fps detectados y altura creíble (~30–60 cm en un CMJ). **No está probado.**
 
@@ -49,6 +49,14 @@
 - `/coach`: accesos arriba, tarjetas por atleta con resumen (carga/cumplimiento/marca) en móvil, tabla solo desde `md`, «Comentar en bloque» al final (`#comentar`). `/recovery/fisio`: la entrenadora ve Mis protocolos → «+ Nuevo protocolo» plegado → Compartidos; estado vacío.
 - Privacidad: sin lecturas nuevas de datos ajenos. `strava/privacy.int.test.ts` cubre ya `loadClubPanel` y `previewAssignment` (objetivo 1 de v2.3 cerrado).
 - E2E `e2e:v23c` (claro/oscuro, error si scroll horizontal o control < 44 px) en `e2e.sh all`; ajustadas v16, v20a y v21c por tabla/formularios plegados. En verde: v23c, v15, v16, v20a, v20b, v21c, v22a, v22b, v23a, v23b. La sesión de Strava no se siembra en E2E (cubierta en el test de integración).
+
+## v2.3 · B4 Ajustes y auditoría táctil final (16/10/2026)
+- `lib/settings/sections.ts` (puro): `SETTINGS_GROUPS`/`settingsGroups(role)` — Perfil y entreno · Entrenadora · Avisos y app · Conexiones e IA · Cuenta y seguridad · Tus datos · Administración (solo ADMIN). `/settings` se reordena por grupos con `<h2>` e índice de chips ≥ 44 px (`nav` «Secciones de Ajustes»); mismas secciones y consultas; anclas viejas (`#entrenadora`, `#mis-reglas`, `#pista`…) intactas y ids nuevos en todas. Test: `sections.test.ts`.
+- P2-1 («Mi pista» → `<Input>`), P1-1 (`components/route-error.tsx` + `(app)/error.tsx`; `settings/error.tsx` lo reutiliza). P3-4/P2-13: etiquetas de casillas, `summary` y enlaces de acceso con `min-h-11` en Inicio, `/glance`, `/goals`, `/recovery`, `/study`, `/planning`, `/training/new`, `/training/rm`, `/safety`, Ajustes.
+- E2E `e2e:v23d` (claro/oscuro, atleta y ADMIN): Ajustes por grupos + barrido de 55 rutas estáticas; **error** si scroll horizontal o control < 44 px (casillas = su `label`; se exime el enlace dentro de un texto, WCAG 2.5.8). En `e2e.sh all`.
+- Trampa: tras `npm run build` hay que reiniciar con `serve.sh true`; si no, el login falla o se mide la versión vieja (el barrido salió «verde» con el servidor viejo).
+- Verificado: typecheck, lint, `npm run test` (155 ficheros, 898 tests), las 25 suites E2E en verde, Semgrep 0 hallazgos (883 ficheros), licencias OK. Si `e2e.sh all` falla todo en el login: reconstruye y reinicia (`serve.sh true`) y lanza la lista sin `all`.
+- Sin migración ni cambios de privacidad (solo JSX/clases). Pendiente de v2.3.0: P3-1…P3-3 (tablas/rejillas con datos) quedan como riesgo estático sin reproducir.
 
 ## Objetivos tentativos v2.3 (nada comprometido; elegir con la usuaria)
 1. (hecho en B3) `loadClubPanel` y `previewAssignment` ya están en `strava/privacy.int.test.ts`.
