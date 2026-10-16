@@ -180,7 +180,7 @@ export function TechnicalLogger({ value, onChange }: { value: TechnicalState; on
 
       {!isJump ? (
         <details className="rounded-lg border p-3" open={Boolean(value.videoTotal)}>
-          <summary className="cursor-pointer text-sm font-medium">Vídeo contado</summary>
+          <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Vídeo contado</summary>
           <p className="mt-1 text-xs text-muted-foreground">De los lanzamientos que revisaste en vídeo, cuántos salieron bien.</p>
           <div className="mt-2 grid grid-cols-3 gap-2">
             {(
@@ -225,7 +225,7 @@ export function TechnicalLogger({ value, onChange }: { value: TechnicalState; on
                 type="button"
                 aria-pressed={a.isFoul}
                 onClick={() => setAttempt(i, { isFoul: !a.isFoul })}
-                className={cn("h-10 shrink-0 rounded-md border px-3 text-sm font-medium", a.isFoul && "border-destructive text-destructive")}
+                className={cn("h-10 shrink-0 rounded-md border px-3 max-md:h-11 text-sm font-medium", a.isFoul && "border-destructive text-destructive")}
               >
                 Nulo
               </button>
@@ -242,7 +242,7 @@ export function TechnicalLogger({ value, onChange }: { value: TechnicalState; on
                     role="radio"
                     aria-checked={a.rating === n}
                     aria-label={`${n} de 5`}
-                    className="p-1"
+                    className="p-1 max-md:p-3"
                     onClick={() => setAttempt(i, { rating: a.rating === n ? null : n })}
                   >
                     <Star className={cn("size-5", a.rating != null && n <= a.rating ? "fill-foreground text-foreground" : "text-muted-foreground")} />
@@ -254,13 +254,13 @@ export function TechnicalLogger({ value, onChange }: { value: TechnicalState; on
                   aria-label={`Viento intento ${i + 1} (m/s)`}
                   inputMode="decimal"
                   placeholder="Viento m/s"
-                  className="h-8 w-28 text-sm"
+                  className="h-8 w-28 text-sm max-md:h-11"
                   onChange={(e) => setAttempt(i, { windMs: parseNum(e.target.value) })}
                 />
               ) : null}
             </div>
             <details className="group">
-              <summary className="flex cursor-pointer list-none items-center gap-1 text-xs text-muted-foreground">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-1 text-xs text-muted-foreground">
                 <ChevronDown className="size-3.5 transition-transform group-open:rotate-180" /> Notas técnicas
               </summary>
               <div className="mt-2 grid gap-2">

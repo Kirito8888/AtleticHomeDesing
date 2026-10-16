@@ -86,7 +86,7 @@ await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/login")), pag
 log("cuenta e inicio de sesión");
 
 await go("/training/tests");
-await page.getByRole("link", { name: "Medir salto con vídeo" }).click();
+await page.getByRole("link", { name: "Medir salto", exact: true }).click();
 await page.waitForURL(/\/training\/tests\/salto/);
 await checkA11y("/training/tests/salto (sin vídeo)");
 

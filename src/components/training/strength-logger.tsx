@@ -197,7 +197,7 @@ export function StrengthLogger({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="size-7"
+                      className="size-7 max-md:size-11"
                       aria-label={`Borrar serie ${i + 1}`}
                       onClick={() => update(block.key, (b) => ({ ...b, sets: b.sets.filter((_, j) => j !== i) }))}
                     >
@@ -215,7 +215,7 @@ export function StrengthLogger({
                     <input
                       aria-label={`Velocidad serie ${i + 1}`}
                       inputMode="decimal"
-                      className="h-8 w-20 rounded-md border bg-transparent px-2 text-sm tabular-nums"
+                      className="h-8 w-20 rounded-md border max-md:h-11 bg-transparent px-2 text-sm tabular-nums"
                       placeholder="m/s"
                       defaultValue={s.velocityMs != null ? String(s.velocityMs).replace(".", ",") : ""}
                       onChange={(e) => {

@@ -1,6 +1,5 @@
-import Link from "next/link";
-
 import { PageHeader } from "@/components/page-header";
+import { TestsNav } from "@/components/training/tests-nav";
 import { CurveCompare } from "@/components/training/curve-compare";
 import { pageUser } from "@/lib/auth/page";
 import { resolveAthleteId } from "@/lib/auth/session";
@@ -16,11 +15,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
   return (
     <>
       <PageHeader title="Comparar con curvas" description="Tus tests frente a curvas publicadas, con su cita." />
-      <p className="mb-3 text-sm">
-        <Link href="/training/tests" className="underline underline-offset-4">← Tests físicos</Link>
-        {" · "}
-        <Link href="/training/tests/curvas" className="underline underline-offset-4">Catálogo de curvas</Link>
-      </p>
+      <TestsNav />
       {curves.length ? (
         <CurveCompare curves={curves.map((c) => ({ id: c.id, title: c.title, testKey: c.testKey }))} athlete={athlete && athlete !== user.id ? athlete : undefined} />
       ) : (

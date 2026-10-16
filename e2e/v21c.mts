@@ -90,7 +90,7 @@ await call(at, "PATCH", "/api/profile", { birthDate: birth, sex: "FEMALE" });
 await call(at, "POST", "/api/training/tests", { test: "cmj", value: 40, date: iso(new Date(d.getTime() - 200 * 86_400_000)) });
 await call(at, "POST", "/api/training/tests", { test: "cmj", value: 47, date: iso(d) });
 await go(at, "/training/tests");
-await at.getByRole("link", { name: "Comparar con curvas publicadas" }).click();
+await at.getByRole("link", { name: "Comparar", exact: true }).click();
 await at.waitForURL(/\/training\/tests\/comparar/);
 await at.getByTestId("curve-summary").waitFor();
 await at.getByTestId("curve-citation").getByText("Autora A, Autor B (2020)", { exact: true }).waitFor();

@@ -59,7 +59,7 @@ export function ImportActivity() {
   const s = preview?.summary;
   return (
     <details className="mb-4 rounded-lg border p-3 text-sm" open={Boolean(preview)}>
-      <summary className="flex cursor-pointer items-center gap-2 font-medium">
+      <summary className="flex min-h-11 cursor-pointer items-center gap-2 font-medium">
         <FileUp className="size-4" /> Importar del reloj (FIT, GPX, TCX)
       </summary>
       <div className="mt-3 grid gap-3">

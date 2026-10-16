@@ -58,7 +58,7 @@ export function DeleteMinimum({ id, name }: { id: string; name: string }) {
     <button
       type="button"
       aria-label={`Borrar ${name}`}
-      className="text-xs text-muted-foreground underline-offset-2 hover:underline"
+      className="min-h-11 px-2 text-xs text-muted-foreground underline-offset-2 hover:underline"
       onClick={async () => {
         try {
           await api(`/api/training/minimums/${id}`, { method: "DELETE" });

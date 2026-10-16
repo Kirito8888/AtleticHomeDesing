@@ -287,7 +287,7 @@ export function SessionForm({
       </label>
 
       <details className="rounded-md border p-3 text-sm">
-        <summary className="cursor-pointer font-medium">Guardar como plantilla</summary>
+        <summary className="min-h-11 cursor-pointer py-3 font-medium">Guardar como plantilla</summary>
         <div className="mt-3 flex gap-2">
           <Input
             aria-label="Nombre de la plantilla"
