@@ -112,6 +112,7 @@ for (const [p, scopes] of [[at, ["RECOVERY", "LOAD"]], [ot, ["LOAD"]]] as const)
   if (r.status >= 300) errors.push(`vínculo: HTTP ${r.status}`);
 }
 await go(coa, "/recovery/fisio");
+await coa.locator("details", { hasText: "Nuevo protocolo" }).locator("summary").click();
 await coa.fill("#pp-title", "Tobillo E2E");
 await coa.fill("#pp-phases", "# 1 · Calmar | dolor máx 2 | Bajar la inflamación\n- Isométricos de tobillo: 5×30 s\n? Sin dolor en reposo\n? Movilidad completa\n\n# 2 · Fuerza | dolor máx 3\n- Elevaciones de talón: 3×12\n? Fuerza simétrica");
 await coa.getByRole("button", { name: "Crear protocolo" }).click();

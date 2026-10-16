@@ -73,12 +73,12 @@ export function AcceptInvite({ orgId, memberId, orgName, role }: { orgId: string
         <fieldset className="grid gap-1">
           <legend className="mb-1 text-xs text-muted-foreground">El staff del club podrá ver:</legend>
           {SCOPES.map(([k, label]) => (
-            <label key={k} className="flex min-h-9 items-center gap-2">
+            <label key={k} className="flex min-h-11 items-center gap-2">
               <input type="checkbox" className="size-4" checked={scopes.includes(k)} onChange={(e) => setScopes(e.target.checked ? [...scopes, k] : scopes.filter((s) => s !== k))} />
               {label}
             </label>
           ))}
-          <label className="flex min-h-9 items-center gap-2">
+          <label className="flex min-h-11 items-center gap-2">
             <input type="checkbox" className="size-4" checked={canPlan} onChange={(e) => setCanPlan(e.target.checked)} />
             Puede planificarme sesiones
           </label>
@@ -107,7 +107,7 @@ export function InviteMember({ orgId }: { orgId: string }) {
       <label className="sr-only" htmlFor="invite-email">Email de la persona</label>
       <Input id="invite-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@ejemplo.com" required />
       <label className="sr-only" htmlFor="invite-role">Rol</label>
-      <select id="invite-role" value={role} onChange={(e) => setRole(e.target.value)} className="h-9 rounded-md border border-input bg-transparent px-2 text-base md:text-sm">
+      <select id="invite-role" value={role} onChange={(e) => setRole(e.target.value)} className="min-h-11 rounded-md border border-input bg-transparent px-2 text-base md:min-h-9 md:text-sm">
         <option value="ATHLETE">Atleta</option>
         <option value="COACH">Entrenadora</option>
         <option value="ADMIN">Administradora</option>
@@ -120,7 +120,7 @@ export function InviteMember({ orgId }: { orgId: string }) {
 export function RemoveMember({ orgId, memberId, label }: { orgId: string; memberId: string; label: string }) {
   const { busy, run } = useAction();
   return (
-    <Button variant="ghost" size="sm" disabled={busy} aria-label={label} onClick={() => confirm("¿Seguro?") && run(() => api(`/api/clubs/${orgId}/members/${memberId}`, { method: "DELETE" }))}>
+    <Button variant="ghost" size="sm" className="max-md:min-h-11" disabled={busy} aria-label={label} onClick={() => confirm("¿Seguro?") && run(() => api(`/api/clubs/${orgId}/members/${memberId}`, { method: "DELETE" }))}>
       Quitar
     </Button>
   );
@@ -146,7 +146,7 @@ export function FeeForm({ orgId, athletes, defaultDue }: { orgId: string; athlet
     >
       <label className="grid gap-1 text-xs text-muted-foreground">
         Atleta
-        <select aria-label="Atleta de la cuota" value={memberId} onChange={(e) => setMemberId(e.target.value)} className="h-9 rounded-md border border-input bg-transparent px-2 text-base text-foreground md:text-sm">
+        <select aria-label="Atleta de la cuota" value={memberId} onChange={(e) => setMemberId(e.target.value)} className="min-h-11 rounded-md border border-input bg-transparent px-2 text-base text-foreground md:min-h-9 md:text-sm">
           {athletes.map((a) => (
             <option key={a.memberId} value={a.memberId}>{a.name}</option>
           ))}
@@ -172,7 +172,7 @@ export function FeeForm({ orgId, athletes, defaultDue }: { orgId: string; athlet
 export function FeeToggle({ orgId, feeId, paid, label }: { orgId: string; feeId: string; paid: boolean; label: string }) {
   const { busy, run } = useAction();
   return (
-    <Button variant="outline" size="sm" disabled={busy} aria-label={label} onClick={() => run(() => api(`/api/clubs/${orgId}/fees/${feeId}`, { method: "PATCH", body: { status: paid ? "PENDING" : "PAID" } }))}>
+    <Button variant="outline" size="sm" className="max-md:min-h-11" disabled={busy} aria-label={label} onClick={() => run(() => api(`/api/clubs/${orgId}/fees/${feeId}`, { method: "PATCH", body: { status: paid ? "PENDING" : "PAID" } }))}>
       {paid ? "Marcar pendiente" : "Marcar pagada"}
     </Button>
   );

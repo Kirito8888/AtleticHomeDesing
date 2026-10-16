@@ -90,4 +90,40 @@ describe.skipIf(!HAS_DB)("Strava no llega a terceros (BD real)", () => {
     const w = JSON.stringify(await buildWeeklySnapshot(athlete, new Date(Date.UTC(2026, 9, 5))));
     expect(w).not.toContain(TITLE);
   });
+
+  it("v2.3 B3 · el panel del club (cumplimiento y calendario) no lleva la sesión de Strava", async () => {
+    const { loadClubPanel } = await import("@/lib/clubs/club-panel");
+    const org = await prisma.organization.create({
+      data: {
+        name: `Club privacidad ${t}`,
+        members: {
+          create: [
+            { userId: coach, role: "ADMIN", status: "ACTIVE" },
+            { userId: athlete, role: "ATHLETE", status: "ACTIVE", scopes: ["SESSIONS", "LOAD", "PLANNING"] },
+          ],
+        },
+      },
+    });
+    try {
+      const panel = await loadClubPanel({ id: coach, role: "COACH" }, org.id);
+      const json = JSON.stringify({ calendar: panel.calendar, compare: panel.compare, alerts: panel.alerts });
+      expect(json).not.toContain(TITLE);
+      expect(json).not.toContain("notas");
+    } finally {
+      await prisma.organization.delete({ where: { id: org.id } });
+    }
+  });
+
+  it("v2.3 B3 · la vista previa de «planificar varios» no simula con carga de Strava", async () => {
+    const { previewAssignment } = await import("@/lib/coach/multi-plan");
+    await prisma.coachAthlete.updateMany({ where: { coachId: coach, athleteId: athlete }, data: { scopes: ["SESSIONS", "LOAD", "REPORTS", "PLANNING"] } });
+    const tpl = await prisma.weekTemplate.create({ data: { userId: coach, name: `tpl-${t}`, days: [{ weekday: 6, title: "Rodaje largo", durationMin: 60, type: "RUN" }] } });
+    const monday = new Date(Date.now() + 14 * 864e5);
+    monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+    const r = await previewAssignment({ id: coach, role: "COACH" }, { source: { kind: "template", id: tpl.id }, start: monday.toISOString().slice(0, 10), athleteIds: [athlete], rpe: 6 });
+    const a = r.athletes.find((x) => x.id === athlete);
+    expect(a?.simulation).toBeNull();
+    expect(a?.simulationNote).toMatch(/Strava/);
+    expect(JSON.stringify(r)).not.toContain(TITLE);
+  });
 });

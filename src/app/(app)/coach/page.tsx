@@ -34,7 +34,7 @@ export default async function CoachPage() {
     <>
       <PageHeader title="Mis atletas" description="Últimas 2 semanas y la próxima. Toca una sesión para comentarla." />
       {links.length > 1 || table.some((r) => r.load7 != null) ? (
-        <div className="mb-4 overflow-x-auto rounded-md border">
+        <div className="mb-4 hidden overflow-x-auto rounded-md border md:block">
           <table className="w-full text-sm tabular-nums" aria-label="Comparativa de atletas">
             <thead className="text-xs text-muted-foreground">
               <tr>
@@ -58,33 +58,42 @@ export default async function CoachPage() {
           <p className="px-3 pb-2 text-xs text-muted-foreground">«—»: sin datos o sin permiso de carga. Nunca se muestran salud, ciclo ni finanzas.</p>
         </div>
       ) : null}
-      {links.some((l) => l.canPlan) ? (
-        <p className="mb-3 text-sm">
-          <Link href="/coach/multi" className="underline underline-offset-2">
-            Planificar varios atletas a la vez →
+      <nav aria-label="Accesos de entrenadora" className="mb-4 flex flex-wrap gap-2">
+        {links.some((l) => l.canPlan) ? (
+          <Link href="/coach/multi" className="flex min-h-11 items-center rounded-md border px-3 text-sm hover:bg-accent">
+            Planificar varios
           </Link>
-        </p>
-      ) : null}
-      {links.length ? (
-        <div className="mb-4">
-          <BulkComment items={recentDone.map((s) => ({ id: s.id, athleteId: s.userId, label: `${nameOf.get(s.userId)} · ${formatDate(s.date, { weekday: "short", day: "numeric" })} · ${s.title ?? SESSION_TYPE_LABEL[s.type]}` }))} />
-        </div>
-      ) : null}
+        ) : null}
+        {links.length ? (
+          <a href="#comentar" className="flex min-h-11 items-center rounded-md border px-3 text-sm hover:bg-accent">
+            Comentar en bloque
+          </a>
+        ) : null}
+        <Link href="/recovery/fisio" className="flex min-h-11 items-center rounded-md border px-3 text-sm hover:bg-accent">
+          Protocolos de fisio
+        </Link>
+      </nav>
       {links.length ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {links.map((l) => {
             const list = sessions.filter((s) => s.userId === l.athleteId);
+            const row = table.find((r) => r.id === l.athleteId);
             return (
               <Card key={l.id} className="gap-2 py-4">
                 <CardHeader className="px-4">
                   <CardTitle className="text-sm">{l.athlete.name ?? l.athlete.email}</CardTitle>
                 </CardHeader>
                 <CardContent className="px-4 text-sm">
+                  {row ? (
+                    <p className="mb-2 text-xs text-muted-foreground tabular-nums md:hidden">
+                      Carga 7 d {row.load7 ?? "—"} · Cumpl. {row.compliancePct != null ? `${row.compliancePct} %` : "—"} · Marca {row.best30 != null ? `${formatNum(row.best30, 2)} m` : "—"}
+                    </p>
+                  ) : null}
                   {list.length ? (
                     <ul className="grid gap-1">
                       {list.map((s) => (
                         <li key={s.id}>
-                          <Link href={`/coach/session/${s.id}?athleteId=${l.athleteId}`} className="flex justify-between gap-2 rounded-md border px-2 py-1.5 hover:bg-accent">
+                          <Link href={`/coach/session/${s.id}?athleteId=${l.athleteId}`} className="flex min-h-11 items-center justify-between gap-2 rounded-md border px-2 py-1.5 hover:bg-accent">
                             <span className="min-w-0 truncate">
                               {s.status === "PLANNED" ? "○ " : "✓ "}
                               {formatDate(s.date, { weekday: "short", day: "numeric" })} · {s.title ?? SESSION_TYPE_LABEL[s.type]}
@@ -115,6 +124,11 @@ export default async function CoachPage() {
           .
         </p>
       )}
+      {links.length ? (
+        <div id="comentar" className="mt-4 scroll-mt-20">
+          <BulkComment items={recentDone.map((s) => ({ id: s.id, athleteId: s.userId, label: `${nameOf.get(s.userId)} · ${formatDate(s.date, { weekday: "short", day: "numeric" })} · ${s.title ?? SESSION_TYPE_LABEL[s.type]}` }))} />
+        </div>
+      ) : null}
     </>
   );
 }

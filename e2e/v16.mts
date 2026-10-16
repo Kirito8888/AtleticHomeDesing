@@ -297,7 +297,7 @@ await coach.request.post(B + "/api/coach/links", { data: { athleteEmail: myEmail
 const coachLink = ((await (await page.request.get(B + "/api/coach/links")).json()) as { asAthlete: Array<{ id: string }> }).asAthlete[0];
 await api("patch", `/api/coach/links/${coachLink.id}`, { status: "ACTIVE" });
 await coach.goto(B + "/coach");
-await coach.getByRole("table", { name: "Comparativa de atletas" }).getByText("Atleta Prueba").waitFor();
+await coach.getByText("Atleta Prueba").and(coach.locator(":visible")).first().waitFor(); // en móvil la comparativa va dentro de la tarjeta de cada atleta
 await coach.getByText("Comentar varias sesiones a la vez").click();
 await coach.getByLabel("Sesiones para comentar").getByRole("checkbox").first().check();
 await coach.getByLabel("Comentario para todas").fill("Buena semana");
