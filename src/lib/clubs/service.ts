@@ -4,6 +4,7 @@ import type { CoachScope, OrgRole } from "@/generated/prisma/enums";
 import { ApiError } from "@/lib/api";
 import type { CurrentUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
+import { type AuditContext, recordEvent } from "@/lib/security/audit";
 
 import { parseAmount } from "./fees";
 
@@ -42,6 +43,7 @@ export async function updateMember(
   orgId: string,
   memberId: string,
   data: { status?: "ACTIVE"; scopes?: CoachScope[]; canPlan?: boolean; role?: OrgRole },
+  ctx: AuditContext = {},
 ) {
   const m = await prisma.orgMember.findFirst({ where: { id: memberId, orgId } });
   if (!m) throw new ApiError(404, "No encontrado");
@@ -54,7 +56,7 @@ export async function updateMember(
       if (admins < 2) throw new ApiError(409, "Debe quedar al menos una administradora");
     }
   } else if (!own) throw new ApiError(403, "Sin permiso");
-  return prisma.orgMember.update({
+  const updated = await prisma.orgMember.update({
     where: { id: m.id },
     data: {
       role: data.role,
@@ -64,10 +66,21 @@ export async function updateMember(
       acceptedAt: data.status === "ACTIVE" && !m.acceptedAt ? new Date() : undefined,
     },
   });
+  // v2.2 · Auditoría de club: solo lo que concede la propia persona (aceptar, ámbitos, planificar). Va a su Actividad.
+  if (own && (data.status || data.scopes || data.canPlan !== undefined)) {
+    const parts = [data.status ? "invitación aceptada" : null, data.scopes ? `ámbitos: ${updated.scopes.join(", ") || "ninguno"}` : null, data.canPlan !== undefined ? `planificar: ${updated.canPlan ? "sí" : "no"}` : null];
+    await recordEvent(user.id, "COACH_SCOPES_CHANGED", ctx, `${await clubLabel(orgId)} · ${parts.filter(Boolean).join(" · ")}`);
+  }
+  return updated;
+}
+
+async function clubLabel(orgId: string) {
+  const o = await prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } });
+  return `Club «${o?.name ?? "?"}»`;
 }
 
 /** Salir/rechazar (la propia persona) o expulsar (ADMIN del club). */
-export async function removeMember(user: CurrentUser, orgId: string, memberId: string) {
+export async function removeMember(user: CurrentUser, orgId: string, memberId: string, ctx: AuditContext = {}) {
   const m = await prisma.orgMember.findFirst({ where: { id: memberId, orgId } });
   if (!m) throw new ApiError(404, "No encontrado");
   if (m.userId !== user.id) await requireOrgRole(user.id, orgId, ["ADMIN"]);
@@ -75,6 +88,9 @@ export async function removeMember(user: CurrentUser, orgId: string, memberId: s
     throw new ApiError(409, "Debe quedar al menos una administradora");
   }
   await prisma.orgMember.delete({ where: { id: m.id } });
+  // v2.2 · Auditoría: salir/rechazar o ser expulsada deja huella en la Actividad de la persona afectada.
+  const what = m.userId === user.id ? (m.status === "ACTIVE" ? "has salido del club" : "invitación rechazada") : "expulsada por la administración del club";
+  await recordEvent(m.userId, "COACH_SCOPES_CHANGED", m.userId === user.id ? ctx : {}, `${await clubLabel(orgId)} · ${what}`);
 }
 
 /** Cuotas: las ve el ADMIN del club (todas) o la atleta (las suyas). El COACH no: no son datos deportivos. */

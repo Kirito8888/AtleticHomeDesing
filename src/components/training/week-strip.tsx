@@ -23,7 +23,7 @@ export function WeekStrip({ days, today, throws, cap, metric }: { days: WeekDay[
               <Link
                 href={`/planning?month=${d.date.slice(0, 7)}&day=${d.date}#dia`}
                 aria-label={`${d.label} ${d.date.slice(8)}: ${st.text}`}
-                className={cn("grid place-items-center rounded-md border py-1.5 text-xs", st.cls, d.date === today && "ring-2 ring-ring ring-offset-1")}
+                className={cn("grid min-h-11 place-items-center rounded-md border py-1.5 text-xs", st.cls, d.date === today && "ring-2 ring-ring ring-offset-1")}
               >
                 <span className="font-medium">{d.label}</span>
                 <span className="h-4 tabular-nums">{st.icon}</span>

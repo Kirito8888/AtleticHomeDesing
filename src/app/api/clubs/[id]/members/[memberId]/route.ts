@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
+import { auditContext } from "@/lib/security/audit";
 import { removeMember, updateMember } from "@/lib/clubs/service";
 
 const schema = z.object({
@@ -15,13 +16,13 @@ const schema = z.object({
 export const PATCH = route(async (req, ctx: RouteContext<"/api/clubs/[id]/members/[memberId]">) => {
   const user = await requireUser();
   const { id, memberId } = await ctx.params;
-  const m = await updateMember(user, id, memberId, await parseBody(req, schema));
+  const m = await updateMember(user, id, memberId, await parseBody(req, schema), auditContext(req.headers));
   return { id: m.id, status: m.status, role: m.role };
 });
 
-export const DELETE = route(async (_req, ctx: RouteContext<"/api/clubs/[id]/members/[memberId]">) => {
+export const DELETE = route(async (req, ctx: RouteContext<"/api/clubs/[id]/members/[memberId]">) => {
   const user = await requireUser();
   const { id, memberId } = await ctx.params;
-  await removeMember(user, id, memberId);
+  await removeMember(user, id, memberId, auditContext(req.headers));
   return new NextResponse(null, { status: 204 });
 });

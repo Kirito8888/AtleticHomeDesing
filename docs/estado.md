@@ -6,7 +6,7 @@
 - **Versión fusionada:** v2.0 (14/10/2026); v2.1.0 pendiente de fusionar. CI en verde.
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final.
 - **Arreglo /settings («This page couldn't load») — HECHO, causa NO reproducida.** El texto sin *digest* indica excepción **en cliente**. Con usuaria vacía, ADMIN con 2FA y cuentas con Telegram/Strava/IA/passkey/push en BD local (390 px) la página carga sin errores. Endurecido: `settings/error.tsx` (boundary con «Reintentar»; si es `ChunkLoadError` recarga), `lib/settings/optional.ts` (los bloques opcionales fallan a un valor de reserva; no se envuelven `totpStatus` ni `auditIntegrity` para no mentir sobre seguridad) y `shortWhen` en `server-status.tsx` (`Intl.format` lanzaba RangeError con fecha inválida). Si vuelve a fallar en producción: el boundary muestra el código del error; recargar con Ctrl+F5 por si son chunks viejos tras actualizar.
-- **Bloque en curso:** ninguno. v2.0 y v2.1 cerradas y fusionadas. **v2.2 bloques 1 (P1) y 2 (P2) — HECHOS**, PR del bloque 2 pendiente de fusionar. Siguiente: P3 de `docs/propuesta-v2-2.md` (P3-1 medir bundle, P3-6 tira semanal…) y cierre de v2.2 (versión, CHANGELOG, guía, manual, `e2e.sh all`, `test-migration.sh`).
+- **Bloque en curso:** ninguno. v2.0 y v2.1 cerradas y fusionadas. **v2.2 bloques 1 (P1), 2 (P2) y 3 (P3) — HECHOS**, PR del bloque 3 pendiente de fusionar (P3-4, probar HEVC en iPhone, queda a mano de la usuaria). Siguiente: cierre de v2.2 (versión, CHANGELOG, guía, manual, `e2e.sh all`, `test-migration.sh`).
 
 ## Bloque Salto (hecho, fuera de la lista A–E)
 Medidor de salto por tiempo de vuelo en vídeo (Balsalobre-Fernández 2015): `src/lib/training/jump.ts` (fórmulas puras,
@@ -27,7 +27,7 @@ marcada y de vuelos imposibles. Guía en `jump-guide.tsx` (4 secciones plegables
 
 ## v2.0 · bloques (resumen; detalle en CHANGELOG y código)
 - **A · Clubes y cuotas** (`src/lib/clubs/`, `/clubs`): pertenecer no da acceso; la atleta acepta y elige `scopes`/`canPlan`. `resolveAthleteId` une
-  vínculo 1:1 y clubes; `processingRestrictedAt` bloquea siempre (el ADMIN global se lo salta aquí por comportamiento previo). Sin eventos de auditoría de club.
+  vínculo 1:1 y clubes; `processingRestrictedAt` bloquea siempre (el ADMIN global se lo salta aquí por comportamiento previo). Auditoría de club desde v2.2 (`COACH_SCOPES_CHANGED` con detalle `Club «…»`).
 - **B · Varias atletas + «qué pasa si»** (`/coach/multi`, `coach/what-if.ts`): un borrador por atleta, la atleta activa; sin escrituras en la simulación; el ADMIN global no se salta nada.
 - **C · Flashcards compartidas**: `FlashcardReview` por persona (el SM-2 ya no vive en `Flashcard`, columnas legado). SQL de datos en
   `prisma/data-migrations/<migración>.sql`, que `regen-mig.sh` añade al final; `snapshot.sh --before <migración>` deja la foto previa a esa migración.
@@ -65,7 +65,7 @@ marcada y de vuelos imposibles. Guía en `jump-guide.tsx` (4 secciones plegables
   Tests: `files/video.test.ts`, `training/exercise-library.int.test.ts`; E2E `e2e:v21b` (también en `e2e.sh all`).
   **Trampa:** `snapshot.sh --before` solo borra tablas/tipos, no columnas añadidas: si el bloque anterior añadió columnas, `regen-mig.sh` las pierde
   (CI: «AthleteProfile.primaryEvent does not exist»). Comprobar que el `migration.sql` conserva las de los bloques previos y probar con una foto sin ellas.
-  Pendiente/fuera: la descripción no va a la IA ni al plan; no hay borrado de ejercicios propios (si se añade, borrar también el clip);
+  Pendiente/fuera: la descripción no va a la IA ni al plan; borrado de ejercicios propios desde v2.2 (409 si tienen series);
   sin recorte ni análisis del vídeo.
 - **3 · Curvas de referencia citadas + protocolos de fisio compartidos — HECHO.** Misma migración `20270201080000_v2_1_features` (+ `ReferenceCurve`,
   `PhysioProtocol`, `PhysioProtocolShare`; regenerada con `regen-mig.sh`). `snapshot.sh --before` ahora también borra las **columnas** añadidas
