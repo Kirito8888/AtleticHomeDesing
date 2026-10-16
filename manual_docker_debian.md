@@ -299,6 +299,26 @@ dc up -d --build web
 docker image prune -f
 ```
 
+#### De v2.1 a v2.2 (privacidad de Strava, vigilancia en base de datos, pista y móvil)
+
+**Lo que cambia para quien usa la app:**
+- Strava deja de verse en las vistas de la entrenadora, reglas y plan de pista, PR de tiempo, borrar ejercicios y avisos de fisio. Detalle en [`CHANGELOG.md`](CHANGELOG.md).
+
+**Base de datos:**
+- Una migración: `v2_2_features`. Solo **añade** las tablas `WatchAlert` y `ApiMetricMinute`. No toca datos existentes.
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh
+```
+
+**Variables nuevas:** ninguna. Opcional: `OFF_USER_AGENT` a `Atlenza/2.2 (tu-email)`.
+
+**Comprobar tras actualizar:**
+1. *Estado del servidor* (Ajustes, administración) muestra la migración `v2_2_features` aplicada.
+2. `/coach` no muestra sesiones importadas de Strava de una atleta vinculada.
+3. `/training/exercises` permite borrar un ejercicio propio sin series.
+
 #### De v2.0 a v2.1 (disciplinas, ejercicios con vídeo, curvas de referencia y protocolos de fisio)
 
 **Lo que cambia para quien usa la app:**
