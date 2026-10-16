@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión:** **v2.3.0 lista para producción**, fusionada en `main` (16/10/2026). v2.0, v2.1 y v2.2 fusionadas. Estabilidad: ver «Cierre v2.3».
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final. La usuaria fusiona; Claude nunca.
-- **Bloque en curso:** v2.4 B1 (medir TTFB) **hecho, en PR**. Siguiente: B2 = P3-1…P3-3 de la auditoría (ver «Pendiente»). Auditoría UI: `docs/auditoria-ui.md`.
+- **Bloque en curso:** v2.4 B2 (P3-1…P3-3) **hecho, en PR**. B1 (TTFB) fusionado. Siguiente: punto 3 de «Pendiente» solo si la usuaria lo pide. Auditoría UI: `docs/auditoria-ui.md`.
 - **Medidor de salto con HEVC/.mov (P3-4):** la usuaria lo probó en iPhone (16/10/2026) y no le dio problemas. Es su comprobación a mano, sin cifras guardadas: si aparece un fallo con otro vídeo, reabrir.
 
 
@@ -23,7 +23,7 @@
 ## Pendiente para v2.4 (decidido el 16/10/2026; orden de trabajo)
 1. ~~**Medir TTFB a 390 px**~~ **Hecho** (`e2e/v24a.mts`, `npm run e2e:v24a`; tabla y recomendación en `docs/ttfb-v2-4.md`). Ninguna ruta pasa de ~95 ms de mediana en el contenedor (mediana global 20 ms; ruido ±15 ms; claro/oscuro = réplica, el tema es de cliente).
    **Único hallazgo:** cada render hace 20–50 `findUnique` de `User` idénticos (`src/auth.ts:188`, `auth()` sin memoizar por petición; `/` 40, `/planning` 47). Propuesta: `React.cache` sobre la sesión. **No implementado** y solo urgente si el servidor real da > ~300 ms en `/` o `/planning` (allí la BD tiene latencia de red; aquí no).
-2. **P3-1…P3-3 de la auditoría** (anotado): tablas sin `overflow-x-auto` (`training/[id]/page.tsx:158,307`, `pmc-charts.tsx:184`) y rejillas `grid-cols-3` (`[id]/page.tsx:100,297`, `technical-logger.tsx:185`, `minimums.tsx:37`, `import-activity.tsx:79`). Medir con una sesión sintética completa (fuerza, técnica, pista) antes de tocar.
+2. ~~**P3-1…P3-3 de la auditoría**~~ **Hecho, sin cambios de producto** (`e2e/v24b.mts`, `npm run e2e:v24b`): con sesión sintética completa y datos largos a 390 px, claro y oscuro, no hay recorte ni scroll horizontal en las tablas ni rejillas citadas; la E2E las vigila. Detalle en `docs/auditoria-ui.md`.
 3. **Más reglas por familia** (anotado, sin fecha): combinadas y vídeo de saltos. Solo si la usuaria las pide; umbrales en prefs y sin Strava.
 4. **Perfil F-V (Samozino) y detección automática de despegue en el salto** (anotado, sin fecha): depende de que el medidor actual aguante más vídeos reales.
 5. **Auditar cambios de rol del staff del club** (anotado, sin fecha): hoy se auditan aceptar, salir, rechazar y ámbitos, no el cambio de rol.

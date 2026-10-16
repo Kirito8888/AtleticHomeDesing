@@ -43,9 +43,9 @@
 ### P3 — consistencia, duplicidad, rendimiento
 | ID | Dónde | Evidencia | Propuesta |
 |---|---|---|---|
-| P3-1 (E) | `training/[id]/page.tsx:158,307` | De 3 tablas, solo la de `:200` va dentro de `overflow-x-auto`; las de `:158` y `:307` no (si `:158` está en un `Card` con `overflow-x-auto` ya lo cubre, **no verificado**). | Envolver en `overflow-x-auto` o confirmar contenedor. |
-| P3-2 (E) | `training/pmc-charts.tsx:184` | Tabla de datos sin `overflow-x-auto`. | Envolver. |
-| P3-3 (E) | Rejillas `grid-cols-3` sin prefijo: `[id]/page.tsx:100,297`, `technical-logger.tsx:185`, `minimums.tsx:37`, `import-activity.tsx:79` | A 390 px dan ~110 px por columna; riesgo de recorte con cifras largas o texto en español. `week-strip` (7 col.) ya está verificada a ≥ 44 px. | Revisar visualmente con datos; `grid-cols-2 sm:grid-cols-3` si se aprieta. |
+| P3-1 (M) | `training/[id]/page.tsx:158,307` | De 3 tablas, solo la de `:200` va dentro de `overflow-x-auto`; las de `:158` y `:307` no (si `:158` está en un `Card` con `overflow-x-auto` ya lo cubre, **no verificado**). | Envolver en `overflow-x-auto` o confirmar contenedor. |
+| P3-2 (M) | `training/pmc-charts.tsx:184` | Tabla de datos sin `overflow-x-auto`. | Envolver. |
+| P3-3 (M) | Rejillas `grid-cols-3` sin prefijo: `[id]/page.tsx:100,297`, `technical-logger.tsx:185`, `minimums.tsx:37`, `import-activity.tsx:79` | A 390 px dan ~110 px por columna; riesgo de recorte con cifras largas o texto en español. `week-strip` (7 col.) ya está verificada a ≥ 44 px. | Revisar visualmente con datos; `grid-cols-2 sm:grid-cols-3` si se aprieta. |
 | P3-4 (E) | 14 casillas `<input type="checkbox" className="size-4">` (`app-preferences.tsx:42,70,83`, `coach-report.tsx:64`, `calendar-feed.tsx:73`, `session-form.tsx:280,285`, `test-form.tsx:63`, `rm-manager.tsx:114`, `welcome-wizard.tsx:112`…) | Caja de 16 px; el área real depende de que el `<label>` envuelva con altura ≥ 44. No medido (el barrido v22b excluye checkbox). | Medir la altura del `label` y, si < 44, `min-h-11` en el contenedor; valorar un `Checkbox` común. |
 | P3-5 | `delete-curve.tsx` / `delete-session-button.tsx` | 30/32 líneas casi iguales (confirm → DELETE → refresh). Difieren en mensaje, papelera y redirección. | Ahorro bajo (~25 líneas): **no recomiendo** refactorizar; solo si aparece un 3.º borrado. |
 | P3-6 | `value-chart.tsx` (30), `marks-chart.tsx` (54), `e1rm-chart.tsx` (43) | Estructura parecida de recharts. No se leyó en detalle. | Descartado hasta confirmar; riesgo > beneficio. |
@@ -66,3 +66,6 @@ Leyenda: (M) medido en navegador · (E) estático, pendiente de confirmar con da
 
 ## Cierre en v2.3 B4
 Resueltos: P1-1, P2-1, P2-13 y P3-4 (medidos con `e2e:v23d`, 55 rutas a 390 px, claro y oscuro). Quedan P3-1…P3-3 (sin reproducir con datos).
+
+## Cierre en v2.4 B2 (16/10/2026)
+P3-1…P3-3 medidos con `e2e:v24b` (sesión sintética de fuerza, técnica y pista con cifras y textos largos; 390 px, claro y oscuro; `/training/[id]` ×3, `/training/performance` con «Ver como tabla», `/training/javelin`, `/training/new` con importación GPX, pestaña Técnica y «Vídeo contado»). **No se reproduce ningún recorte ni scroll horizontal**: ninguna tabla desborda su tarjeta y ninguna rejilla `grid-cols-3` corta texto o cifras. P3-2 era además un falso positivo (la tabla ya va en `max-h-80 overflow-auto`). **Sin cambios de código de producto**; la E2E queda como vigilante (con autocomprobación de que el medidor detecta una tabla desbordada).
