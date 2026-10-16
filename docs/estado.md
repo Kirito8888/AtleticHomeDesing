@@ -3,11 +3,10 @@
 > Fichero corto que cada sesión nueva lee primero. Al terminar un bloque, actualízalo (≤ 80 líneas).
 
 ## Dónde estamos
-- **Versión:** **v2.3.0 lista para producción**, pendiente de fusionar el PR de release (16/10/2026). v2.0, v2.1 y v2.2 fusionadas. Estabilidad: ver «Cierre v2.3».
+- **Versión:** **v2.3.0 lista para producción**, fusionada en `main` (16/10/2026). v2.0, v2.1 y v2.2 fusionadas. Estabilidad: ver «Cierre v2.3».
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final. La usuaria fusiona; Claude nunca.
 - **Bloque en curso:** ninguno. v2.3 completa (B1–B4). Auditoría UI: `docs/auditoria-ui.md`. Siguiente: elegir objetivos de v2.4 (ver «Pendiente»).
-- **Pendiente manual (no es código):** probar el medidor de salto con HEVC/.mov real en un iPhone (P3-4): grabar en cámara lenta y en normal,
-  subirlo en `/training/tests/salto`, comprobar fps detectados y altura creíble (~30–60 cm en un CMJ). **No está probado.**
+- **Medidor de salto con HEVC/.mov (P3-4):** la usuaria lo probó en iPhone (16/10/2026) y no le dio problemas. Es su comprobación a mano, sin cifras guardadas: si aparece un fallo con otro vídeo, reabrir.
 
 
 ## Cierre v2.3 (16/10/2026) — todo en verde
@@ -21,11 +20,12 @@
 - **B3 Clubes/coach/fisio:** `clubs/club-layout.ts`; `strava/privacy.int.test.ts` cubre `loadClubPanel` y `previewAssignment`. E2E v23c.
 - **B4 Ajustes + táctil:** `settings/sections.ts` (7 grupos, índice, anclas viejas intactas), `components/route-error.tsx` + `(app)/error.tsx`, 44 px en 55 rutas. E2E v23d (falla con control < 44 px o scroll horizontal; exime enlaces dentro de un texto).
 
-## Pendiente para v2.4 (nada comprometido; elegir con la usuaria)
-1. Más reglas por familia (combinadas, vídeo de saltos). Perfil F-V (Samozino) y detección automática de despegue en el salto.
-2. Medir TTFB a 390 px antes de optimizar consultas; P3-1…P3-3 de la auditoría (tablas/rejillas con datos reales) sin reproducir.
-3. Auditar cambios de rol del staff del club.
-4. Resultado del P3-4 de la v2.2 en iPhone (medidor de salto con HEVC/.mov real); si no carga, guía o conversión local.
+## Pendiente para v2.4 (decidido el 16/10/2026; orden de trabajo)
+1. **Medir TTFB a 390 px** (lo hace Claude, sin cambiar código de producto): script de medida en el repo, cifra por ruta con datos sintéticos completos; solo después decidir qué consulta optimizar. La cifra del contenedor no es la del servidor real: contrastarla allí si sale algo raro.
+2. **P3-1…P3-3 de la auditoría** (anotado): tablas sin `overflow-x-auto` (`training/[id]/page.tsx:158,307`, `pmc-charts.tsx:184`) y rejillas `grid-cols-3` (`[id]/page.tsx:100,297`, `technical-logger.tsx:185`, `minimums.tsx:37`, `import-activity.tsx:79`). Medir con una sesión sintética completa (fuerza, técnica, pista) antes de tocar.
+3. **Más reglas por familia** (anotado, sin fecha): combinadas y vídeo de saltos. Solo si la usuaria las pide; umbrales en prefs y sin Strava.
+4. **Perfil F-V (Samozino) y detección automática de despegue en el salto** (anotado, sin fecha): depende de que el medidor actual aguante más vídeos reales.
+5. **Auditar cambios de rol del staff del club** (anotado, sin fecha): hoy se auditan aceptar, salir, rechazar y ámbitos, no el cambio de rol.
 
 ## Cierre v2.2 (16/10/2026) — todo en verde
 - `typecheck` y `lint` OK · `npm run test`: **151 ficheros, 877 tests** OK · `e2e.sh all`: **21 suites** OK (incluye v22a, v22b y security).
