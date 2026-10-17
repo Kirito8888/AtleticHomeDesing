@@ -108,6 +108,7 @@ export async function restoreExport(userId: string, data: unknown) {
   const simple: Array<[string, unknown, Record<string, string>, (d: Row) => Promise<unknown>, string[]?]> = [
     ["RM", get(data, "training", "oneRepMaxes"), Prisma.OneRepMaxScalarFieldEnum, (d) => prisma.oneRepMax.create({ data: d as never })],
     ["tests físicos", get(data, "training", "physicalTests"), Prisma.TestResultScalarFieldEnum, (d) => prisma.testResult.create({ data: d as never })],
+    ["perfil F-V", get(data, "training", "fvSeries"), Prisma.FvSeriesScalarFieldEnum, (d) => prisma.fvSeries.create({ data: d as never })],
     ["material", get(data, "training", "equipment"), Prisma.EquipmentScalarFieldEnum, (d) => prisma.equipment.create({ data: { ...d, transactionId: null } as never })],
     ["días de recuperación", get(data, "recovery", "metrics"), Prisma.RecoveryMetricsScalarFieldEnum, (d) => prisma.recoveryMetrics.create({ data: d as never })],
     ["molestias", get(data, "recovery", "injuries"), Prisma.InjuryScalarFieldEnum, (d) => prisma.injury.create({ data: d as never })],

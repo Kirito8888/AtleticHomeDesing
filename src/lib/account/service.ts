@@ -156,8 +156,9 @@ export async function exportAccount(userId: string) {
     prisma.physioProtocolShare.findMany({ where: { athleteId: userId }, include: { protocol: { select: { title: true, phases: true } } } }),
   ]);
   // v1.5: tests físicos, vuelta por fases, agua, horario, estudio, hábitos, material y comentarios
-  const [testResults, returnProtocols, hydration, classSlots, studySessions, habits, equipment, sessionComments] = await Promise.all([
+  const [testResults, fvSeries, returnProtocols, hydration, classSlots, studySessions, habits, equipment, sessionComments] = await Promise.all([
     prisma.testResult.findMany({ where, orderBy: { date: "asc" } }),
+    prisma.fvSeries.findMany({ where, orderBy: { date: "asc" } }),
     prisma.returnProtocol.findMany({ where }),
     prisma.hydrationLog.findMany({ where, orderBy: { date: "asc" } }),
     prisma.classSlot.findMany({ where }),
@@ -240,6 +241,7 @@ export async function exportAccount(userId: string) {
       oneRepMaxes,
       exerciseAliases,
       physicalTests: testResults,
+      fvSeries,
       equipment,
       comments: sessionComments,
       minimums,

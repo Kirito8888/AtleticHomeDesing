@@ -56,7 +56,7 @@ type Marks = { contact: number | null; takeoff: number | null; landing: number |
 const NO_MARKS: Marks = { contact: null, takeoff: null, landing: null };
 
 /** Medidor de salto por tiempo de vuelo: el vídeo no sale del navegador; solo se guardan los resultados. */
-export function JumpMeter({ today }: { today: string }) {
+export function JumpMeter({ today, onUseHeight }: { today: string; onUseHeight?: (heightCm: number) => void }) {
   const router = useRouter();
   const video = useRef<HTMLVideoElement>(null);
   const [src, setSrc] = useState<string | null>(null);
@@ -65,7 +65,7 @@ export function JumpMeter({ today }: { today: string }) {
   const [manualFileFps, setManualFileFps] = useState<number | null>(null);
   const [slow, setSlow] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [type, setType] = useState<JumpType>("cmj");
+  const [type, setType] = useState<JumpType>(onUseHeight ? "sj" : "cmj");
   const [frame, setFrame] = useState(0);
   const [marks, setMarks] = useState<Marks>(NO_MARKS);
   const [attempts, setAttempts] = useState<JumpFrames[]>([]);
@@ -197,7 +197,7 @@ export function JumpMeter({ today }: { today: string }) {
 
   return (
     <div className="grid gap-4">
-      <Chips label="Tipo de salto" options={TYPE_OPTIONS} value={type} onChange={(v) => { if (v) { setType(v); setMarks(NO_MARKS); setAttempts([]); } }} />
+      {onUseHeight ? null : <Chips label="Tipo de salto" options={TYPE_OPTIONS} value={type} onChange={(v) => { if (v) { setType(v); setMarks(NO_MARKS); setAttempts([]); } }} />}
       <Field label="Vídeo del salto (se queda en tu móvil; no se sube)" htmlFor="j-file">
         <Input id="j-file" type="file" accept="video/*,video/mp4,video/quicktime" onChange={(e) => pick(e.target.files?.[0])} />
       </Field>
@@ -311,12 +311,20 @@ export function JumpMeter({ today }: { today: string }) {
               Mejor: <strong className="tabular-nums">{formatNum(sum.bestValue, type === "dj" ? 2 : 1)} {unit}</strong> · media: <strong className="tabular-nums">{formatNum(sum.mean, type === "dj" ? 2 : 1)} {unit}</strong>
             </p>
           ) : null}
-          <Field label="Fecha" htmlFor="j-date">
-            <Input id="j-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </Field>
-          <Button type="button" onClick={save} disabled={busy} className="min-h-11">
-            Guardar {all.length} intento{all.length === 1 ? "" : "s"}
-          </Button>
+          {onUseHeight ? (
+            <Button type="button" onClick={() => sum && onUseHeight(Math.round(sum.bestValue * 10) / 10)} disabled={!sum} className="min-h-11">
+              Usar {sum ? formatNum(sum.bestValue, 1) : ""} cm (mejor intento)
+            </Button>
+          ) : (
+            <>
+              <Field label="Fecha" htmlFor="j-date">
+                <Input id="j-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              </Field>
+              <Button type="button" onClick={save} disabled={busy} className="min-h-11">
+                Guardar {all.length} intento{all.length === 1 ? "" : "s"}
+              </Button>
+            </>
+          )}
         </div>
       ) : null}
     </div>
