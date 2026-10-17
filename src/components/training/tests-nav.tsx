@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { TESTS_TABS, testsTabActive } from "@/lib/training/hub-links";
 import { cn } from "@/lib/utils";
 
-/** Pestañas-enlace de Tests físicos (Resultados · Medir salto · Comparar · Curvas). */
+/** Pestañas-enlace de Tests físicos (Resultados · Medir salto · Comparar · Curvas · Perfil F-V). */
 export function TestsNav() {
   const active = testsTabActive(usePathname());
   return (
