@@ -73,8 +73,21 @@ for (const [k, canPlan] of [["a1", true], ["a2", true], ["a3", false]] as const)
 }
 log("coach con tres atletas: dos con canPlan, una sin");
 
+// El plan descarta los días anteriores a «start»: se parte del lunes para que no dependa del día en que corre la prueba
+function mondayOfThisWeek() {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+function nextMonday() {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() + 7 - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
 // La entrenadora crea un plan propio, guarda su semana 1 como semana tipo
-const plan = await call(coa, "POST", "/api/planning/manual", { name: "Base E2E", start: new Date().toISOString().slice(0, 10), weeks: 1, weekdays: [0, 2, 4], type: "STRENGTH" });
+const plan = await call(coa, "POST", "/api/planning/manual", { name: "Base E2E", start: mondayOfThisWeek(), weeks: 1, weekdays: [0, 2, 4], type: "STRENGTH" });
 const code = (plan.json as { code: string }).code;
 const days = ((await call(coa, "GET", `/api/planning/manual?code=${code}`)).json as { days: Array<{ id: string }> }).days;
 for (const d of days) await call(coa, "PUT", `/api/planning/manual/day/${d.id}`, { title: "Fuerza E2E", durationMin: 60, type: "STRENGTH", notes: "", rows: [] });
@@ -89,6 +102,7 @@ await coa.getByText("No te ha dado permiso de planificación").waitFor();
 await coa.getByLabel("Atleta Uno").check();
 await coa.getByLabel("Atleta Dos").check();
 await coa.getByLabel("Qué copiar").selectOption({ label: "Semana E2E" });
+await coa.locator('input[type="date"]').fill(nextMonday());
 await noHScroll(coa, "selección 390 px");
 log("selección: la atleta sin canPlan no se puede marcar");
 

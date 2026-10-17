@@ -190,6 +190,20 @@ Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Pri
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
 - **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
 
+## Novedades de la v2.4 (dónde está cada cosa)
+
+**Perfil fuerza-velocidad** (**Entreno → Tests → Perfil F-V**)
+- Mide saltos SJ con 2 a 4 cargas distintas; la app calcula tu fuerza y velocidad máximas, tu potencia y si tu perfil está desequilibrado. Es solo para ti: no se envía a la IA ni a tu entrenadora.
+
+**Sugerir fotogramas** (**Tests → Medir salto**, *experimental*)
+- Actívalo con el interruptor «Sugerir fotogramas». Graba de lado, con los pies en el tercio inferior del encuadre. La app propone el despegue y el aterrizaje; pulsa «Aceptar» para rellenar las marcas y **revísalas siempre a mano**: aún no está calibrado con vídeos reales.
+
+**Combinadas**
+- Si tu prueba es una combinada, las reglas de límite de ritmo rápido y de saltos también te avisan.
+
+**Actividad**
+- Si eres de un club, tu Actividad muestra cuándo cambió tu rol de staff y quién lo hizo.
+
 ## Novedades de la v2.3 (dónde está cada cosa)
 
 **Navegación**

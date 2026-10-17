@@ -2,6 +2,29 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v2.4 — perfil fuerza-velocidad, sugerir fotogramas y auditoría (17/10/2026)
+
+**Tests y salto**
+- **Perfil F-V** (Tests → Perfil F-V): con 2–4 cargas de salto SJ calcula F0, V0, potencia máxima, pendiente, perfil óptimo y desequilibrio. Exige un ajuste mínimo (r² ≥ 0,95). El óptimo sigue el modelo de Samozino y no se ha contrastado con la tabla del artículo. Es una entrada manual: no va a la IA ni a la entrenadora.
+- **Sugerir fotogramas** (en «Medir salto», **experimental y apagado por defecto**): propone el despegue y el aterrizaje analizando el vídeo en tu navegador (el vídeo no sale de él). «Aceptar» solo rellena las marcas; nada se guarda sin «Añadir intento». **Sus umbrales son estimaciones sin calibrar y no se ha comprobado con vídeos reales**: revisa siempre las marcas a mano.
+
+**Entrenamiento**
+- Las **combinadas** (decatlón, heptatlón) reciben las reglas `fast-cap` y `jump-cap`, con tus umbrales de preferencias y sin datos de Strava.
+
+**Clubes y seguridad**
+- El **cambio de rol del staff** de un club queda en la Actividad de la persona afectada (rol anterior → nuevo y quién lo cambió).
+- Una cuenta de atleta ya no se promueve a staff por PATCH (como al invitar).
+
+**Rendimiento y móvil**
+- Medido el TTFB a 390 px: ninguna ruta pasa de ~95 ms de mediana en el contenedor. Sin cambios de producto (detalle en `docs/ttfb-v2-4.md`).
+- Revisadas tablas y rejillas con datos largos en claro y oscuro: sin recortes ni scroll horizontal.
+
+**Datos**
+- **Una migración aditiva** (`v2_4_features`): solo añade la tabla `FvSeries`. Sin variables nuevas. Exportar y restaurar incluyen las series F-V.
+
+**Pruebas**
+- Nuevas suites E2E: v24a (TTFB), v24b (tablas a 390 px) y v24c (perfil F-V); `salto` ampliada para sugerir fotogramas.
+
 ## v2.3 — navegación y móvil a 390 px (16/10/2026)
 
 **Navegación**
