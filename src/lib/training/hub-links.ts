@@ -40,6 +40,7 @@ export const TESTS_TABS = [
   { href: "/training/tests/salto", label: "Medir salto" },
   { href: "/training/tests/comparar", label: "Comparar" },
   { href: "/training/tests/curvas", label: "Curvas" },
+  { href: "/training/tests/perfil-fv", label: "Perfil F-V" },
 ] as const;
 
 /** Pestaña activa: «Resultados» solo en su ruta exacta; el resto por prefijo. */

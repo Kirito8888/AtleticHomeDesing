@@ -5,7 +5,7 @@
 ## Dónde estamos
 - **Versión:** **v2.3.0 lista para producción**, fusionada en `main` (16/10/2026). v2.0, v2.1 y v2.2 fusionadas. Estabilidad: ver «Cierre v2.3».
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final. La usuaria fusiona; Claude nunca.
-- **Bloque en curso:** v2.4 B4 (reglas para combinadas) **hecho, en PR**. B3 (auditar cambio de rol del staff) fusionado. B1 (TTFB) y B2 (P3-1…P3-3) fusionados. Siguiente: punto 3 de «Pendiente» solo si la usuaria lo pide. Auditoría UI: `docs/auditoria-ui.md`.
+- **Bloque en curso:** v2.4 B5 (perfil F-V, Samozino) **hecho, en PR**. B4 (reglas para combinadas) fusionado. B3 (auditar cambio de rol del staff) fusionado. B1 (TTFB) y B2 (P3-1…P3-3) fusionados. Siguiente: punto 3 de «Pendiente» solo si la usuaria lo pide. Auditoría UI: `docs/auditoria-ui.md`.
 - **Medidor de salto con HEVC/.mov (P3-4):** la usuaria lo probó en iPhone (16/10/2026) y no le dio problemas. Es su comprobación a mano, sin cifras guardadas: si aparece un fallo con otro vídeo, reabrir.
 
 
@@ -25,7 +25,12 @@
    **Único hallazgo:** cada render hace 20–50 `findUnique` de `User` idénticos (`src/auth.ts:188`, `auth()` sin memoizar por petición; `/` 40, `/planning` 47). Propuesta: `React.cache` sobre la sesión. **No implementado** y solo urgente si el servidor real da > ~300 ms en `/` o `/planning` (allí la BD tiene latencia de red; aquí no).
 2. ~~**P3-1…P3-3 de la auditoría**~~ **Hecho, sin cambios de producto** (`e2e/v24b.mts`, `npm run e2e:v24b`): con sesión sintética completa y datos largos a 390 px, claro y oscuro, no hay recorte ni scroll horizontal en las tablas ni rejillas citadas; la E2E las vigila. Detalle en `docs/auditoria-ui.md`.
 3. **Más reglas por familia**: ~~combinadas~~ **Hecho (B4)**: `engine.ts` da `fast-cap` y `jump-cap` a la familia `combined` con los umbrales de prefs existentes (sin rampa de km, sin Strava; etiquetas de `rules-form.tsx` actualizadas; tests en `engine.test.ts` y `rules.int.test.ts` con `decatlon`). Pendiente: vídeo de saltos, solo si la usuaria lo pide.
-4. **Perfil F-V (Samozino) y detección automática de despegue en el salto** (anotado, sin fecha): depende de que el medidor actual aguante más vídeos reales.
+4. ~~**Perfil F-V (Samozino)**~~ **Hecho (B5)**; la detección automática del despegue sigue sin fecha.
+   - `training/fv-profile.ts` (puro; reutiliza `G`, `jumpHeight`, `takeoffVelocity`): regresión F-v de SJ con 2–4 cargas → F0, V0, Pmax, pendiente, óptima y desequilibrio (FVimb). Bandas (10/40 %) y r² mínimo 0,95 son **constantes citadas** (Jiménez-Reyes 2017; Samozino 2014), no prefs.
+   - **Única migración de v2.4:** `20270401080000_v2_4_features` (tabla `FvSeries`, solo entradas; el perfil se recalcula al leer). `test-migration.sh` OK. Exportar/restaurar incluye `fvSeries`.
+   - UI: pestaña «Perfil F-V» (`/training/tests/perfil-fv`); el `JumpMeter` admite `onUseHeight` (SJ fijo, sin guardar en `TestResult`: así no va a la IA ni ensucia las marcas de SJ). API `api/training/tests/fv`.
+   - **Privacidad:** no va a la IA (`data-ai.ts` no lo lee; test de integración). **La entrenadora no lo ve, a propósito:** ninguna vista suya lee tests hoy y darle esta pantalla exige elegir ámbito (`LOAD` encajaría); no viene de Strava (entrada manual). Si se abre, hacerlo con ámbito y añadirlo a `strava/privacy.int.test.ts`.
+   - E2E **`e2e:v24c`** (v24a y v24b ya eran TTFB y P3). Óptimo calculado por búsqueda numérica del modelo de Samozino 2012; **no contrastado con la tabla del artículo** (sin acceso al texto): lo verifican los tests por propiedades (el óptimo es máximo, perfil óptimo → FVimb ≈ 0).
 5. ~~**Auditar cambios de rol del staff del club**~~ **Hecho, sin enum ni migración**: `updateMember` registra `COACH_SCOPES_CHANGED` en la Actividad de la persona afectada (`rol: X → Y · cambiado por …`; IP solo si es ella). Además cierra un hueco: una cuenta ATHLETE ya no se promueve a staff por PATCH (como al invitar). Test en `clubs.int.test.ts`, paso en `e2e/v23c.mts`.
 
 ## Cierre v2.2 (16/10/2026) — todo en verde
