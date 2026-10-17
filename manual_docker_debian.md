@@ -299,6 +299,27 @@ dc up -d --build web
 docker image prune -f
 ```
 
+#### De v2.3 a v2.4 (perfil F-V, sugerir fotogramas y auditoría)
+
+**Lo que cambia para quien usa la app:**
+- Pestaña «Perfil F-V» en Tests, «Sugerir fotogramas» (experimental, apagado) en el medidor de salto, reglas para combinadas y auditoría del cambio de rol del staff. Detalle en [`CHANGELOG.md`](CHANGELOG.md).
+
+**Base de datos:**
+- Una migración: `v2_4_features`. Solo **añade** la tabla `FvSeries`. No toca datos existentes.
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh
+```
+
+**Variables nuevas:** ninguna.
+
+**Comprobar tras actualizar:**
+1. *Estado del servidor* (Ajustes, administración) muestra la versión 2.4.0 y ninguna migración pendiente.
+2. **Tests** muestra la pestaña «Perfil F-V» y carga sin error.
+3. Tras cambiar el rol de un miembro del staff de un club, su Actividad registra el cambio.
+4. Recarga con Ctrl+F5 si alguna pantalla pide «recargar la página».
+
 #### De v2.2 a v2.3 (navegación y móvil a 390 px)
 
 **Lo que cambia para quien usa la app:**
