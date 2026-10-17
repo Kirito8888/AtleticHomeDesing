@@ -74,6 +74,22 @@ const clip = (name: string, rate: number, seconds: number, container: string, co
 };
 const clip25 = clip("c25.mov", 25, 4, "mp4", ["-c:v", "libvpx-vp9"]);
 const clip30 = clip("c30.webm", 30, 8, "webm", ["-c:v", "libvpx"]);
+// Para «Sugerir fotogramas»: 3 s a 240 fps; un rectángulo («pies») en el tercio inferior desaparece de la zona entre los fotogramas 200 y 319 (vuelo de 120 = 0,5 s). El quieto no salta.
+const feet = (jump: boolean) => {
+  try {
+    const dir = mkdtempSync(join(tmpdir(), "salto-feet-"));
+    const file = join(dir, "feet.webm");
+    const vf = jump
+      ? "drawbox=x=140:y=190:w=40:h=30:color=white:t=fill:enable='lt(n,200)+gte(n,320)',drawbox=x=140:y=40:w=40:h=30:color=white:t=fill:enable='between(n,200,319)',noise=alls=3:allf=t"
+      : "drawbox=x=140:y=190:w=40:h=30:color=white:t=fill,noise=alls=3:allf=t";
+    execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "color=c=gray:s=320x240:r=240:d=3", "-vf", vf, "-c:v", "libvpx", "-b:v", "1M", "-g", "1", file], { stdio: "pipe" });
+    return readFileSync(file);
+  } catch {
+    return null;
+  }
+};
+const feetJump = feet(true);
+const feetStill = feet(false);
 const garbage = Buffer.from("esto no es un vídeo ".repeat(200));
 
 const email = `salto${Date.now()}@test.dev`;
@@ -126,6 +142,67 @@ if (video) {
   if (reqs.some((u) => /\.webm|video/.test(u))) errors.push("se subió el vídeo");
   await checkA11y("/training/tests (con saltos)");
   log("3 intentos guardados y visibles en /training/tests");
+}
+
+if (feetJump && feetStill) {
+  await go("/training/tests/salto");
+  await page.getByRole("radio", { name: "CMJ" }).click();
+  const posts: string[] = [];
+  page.on("request", (r) => r.method() === "POST" && posts.push(r.url()));
+  await page.getByLabel(/^Vídeo del salto/).first().setInputFiles({ name: "pies.webm", mimeType: "video/webm", buffer: feetJump });
+  await page.getByText(/El fichero tiene 240 fps/).waitFor({ timeout: 30_000 });
+  // Apagado por defecto: sin tarjeta ni análisis
+  const sw = page.getByRole("switch", { name: "Sugerir fotogramas" });
+  if ((await sw.getAttribute("aria-checked")) !== "false") errors.push("«Sugerir fotogramas» no está apagado por defecto");
+  if (await page.getByTestId("jump-proposal").count()) errors.push("propuesta visible con el interruptor apagado");
+  await sw.click();
+  const card = page.getByTestId("jump-proposal");
+  await card.waitFor({ timeout: 120_000 });
+  const text = (await card.innerText()).replace(/\s+/g, " ");
+  const nums = text.match(/despegue (\d+), aterrizaje (\d+)/);
+  if (!nums) errors.push(`propuesta ilegible: ${text}`);
+  else {
+    const [tk, ld] = [Number(nums[1]), Number(nums[2])];
+    if (Math.abs(tk - 200) > 2 || Math.abs(ld - 320) > 2) errors.push(`propuesta fuera de ±2 fotogramas: ${tk}/${ld}`);
+    log(`propuesta ${tk}/${ld} (real 200/320)`);
+  }
+  // Borrador: sin marcas ni resultado hasta aceptar
+  await page.getByTestId("jump-result").getByText(/Marca despegue y aterrizaje/).waitFor();
+  await checkA11y("/training/tests/salto (propuesta)");
+  await card.getByRole("button", { name: "Aceptar" }).click();
+  await page.getByTestId("jump-result").getByText(/\d\d,\d cm/).waitFor();
+  if (await card.count()) errors.push("la tarjeta sigue tras aceptar");
+  // Lo manual manda: un ajuste de ±1 cambia el resultado
+  await page.getByRole("button", { name: "+1", exact: true }).click();
+  await page.getByRole("button", { name: /^Marcar despegue/ }).click();
+  await page.getByRole("button", { name: "Añadir intento" }).click();
+  if (posts.some((u) => /\/api\/training\/tests\/jump/.test(u))) errors.push("se guardó algo antes de confirmar");
+  await page.getByRole("button", { name: /^Guardar 1 intento/ }).click();
+  await page.waitForURL(/\/training\/tests$/);
+  log("propuesta aceptada, ajustada a mano y guardada solo al confirmar");
+
+  // Ignorar: sin marcas
+  await go("/training/tests/salto");
+  await page.getByRole("radio", { name: "CMJ" }).click();
+  await page.getByLabel(/^Vídeo del salto/).first().setInputFiles({ name: "pies.webm", mimeType: "video/webm", buffer: feetJump });
+  await page.getByText(/El fichero tiene 240 fps/).waitFor({ timeout: 30_000 });
+  await page.getByRole("switch", { name: "Sugerir fotogramas" }).click();
+  await card.waitFor({ timeout: 120_000 });
+  await card.getByRole("button", { name: "Ignorar" }).click();
+  await card.waitFor({ state: "detached" });
+  await page.getByTestId("jump-result").getByText(/Marca despegue y aterrizaje/).waitFor();
+  log("propuesta ignorada: sin marcas");
+
+  // Vídeo quieto: baja confianza, no propone y lo dice
+  await go("/training/tests/salto");
+  await page.getByRole("radio", { name: "CMJ" }).click();
+  await page.getByLabel(/^Vídeo del salto/).first().setInputFiles({ name: "quieto.webm", mimeType: "video/webm", buffer: feetStill });
+  await page.getByText(/El fichero tiene 240 fps/).waitFor({ timeout: 30_000 });
+  await page.getByRole("switch", { name: "Sugerir fotogramas" }).click();
+  await page.getByText(/No propongo fotogramas/).waitFor({ timeout: 120_000 });
+  if (await card.count()) errors.push("propuesta en un vídeo sin salto");
+  await checkA11y("/training/tests/salto (sin propuesta)");
+  log("vídeo sin salto: «No propongo fotogramas»");
 }
 
 if (mov) {
