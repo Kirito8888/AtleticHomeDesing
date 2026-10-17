@@ -56,3 +56,46 @@ describe.skipIf(!HAS_DB)("motor de reglas (BD real)", () => {
     expect(await svc.rulesToday(userId, TODAY)).toEqual([]);
   });
 });
+
+describe.skipIf(!HAS_DB)("motor de reglas · combinadas (BD real)", () => {
+  let prisma: typeof import("@/lib/prisma").prisma;
+  let svc: typeof import("./rules-service");
+  let userId: string;
+  const TODAY = "2026-11-11";
+
+  const series = (date: string, reps: number, source?: string) =>
+    prisma.trainingSession.create({
+      data: { userId, date: new Date(date), type: "TRACK", source, track: { create: { modality: "SPRINT", intervals: { create: Array.from({ length: reps }, (_, order) => ({ order, distanceM: 100 })) } } } },
+    });
+  const jumps = (date: string, n: number, source?: string) =>
+    prisma.trainingSession.create({ data: { userId, date: new Date(date), type: "TECHNICAL", source, technical: { create: { event: "LONG_JUMP", attempts: { create: Array.from({ length: n }, (_, order) => ({ order, markM: 5 })) } } } } });
+  const ids = async () => (await svc.rulesToday(userId, TODAY)).map((a) => a.id).sort();
+
+  beforeAll(async () => {
+    prisma = (await import("@/lib/prisma")).prisma;
+    svc = await import("./rules-service");
+    userId = (await prisma.user.create({ data: { email: `rules-comb-${Date.now()}@test.dev` } })).id;
+    await prisma.athleteProfile.create({ data: { userId, primaryEvent: "decatlon" } });
+    for (const d of ["2026-10-13", "2026-10-20", "2026-10-27", "2026-11-03"]) {
+      await series(d, 6); // 600 m
+      await jumps(d, 20);
+    }
+    await series("2026-11-10", 7); // 700 m: cabe
+    await jumps("2026-11-10", 22); // cabe
+  });
+
+  afterAll(async () => {
+    await prisma.user.delete({ where: { id: userId } });
+  });
+
+  it("una decatleta recibe fast-cap y jump-cap solo al superar cada tope, y Strava no cuenta", async () => {
+    expect(await ids()).toEqual([]);
+    await series("2026-11-10", 50, "STRAVA");
+    await jumps("2026-11-10", 99, "STRAVA");
+    expect(await ids()).toEqual([]); // un Strava enorme no dispara nada
+    await series("2026-11-10", 3);
+    expect(await ids()).toEqual(["fast-cap"]);
+    await jumps("2026-11-10", 10);
+    expect(await ids()).toEqual(["fast-cap", "jump-cap"]);
+  });
+});

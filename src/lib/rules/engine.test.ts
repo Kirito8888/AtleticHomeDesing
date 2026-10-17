@@ -111,7 +111,7 @@ describe("reglas por familia de prueba (v2.2)", () => {
   const L = (date: string, v: Partial<TrackLoad>): TrackLoad => ({ date, fastM: 0, runKm: 0, jumps: 0, ...v });
   const MONDAYS = ["2026-10-12", "2026-10-19", "2026-10-26", "2026-11-02"];
   const hist = (key: keyof TrackLoad, vals: number[]) => vals.map((v, i) => L(MONDAYS[i], { [key]: v }));
-  const run = (family: "sprint" | "jumps" | "endurance" | "throws", trackLoads: TrackLoad[]) => ids(evaluateRules({ today: TODAY, prefs, checks: [], throws: [], family, trackLoads }));
+  const run = (family: "sprint" | "jumps" | "endurance" | "throws" | "combined", trackLoads: TrackLoad[]) => ids(evaluateRules({ today: TODAY, prefs, checks: [], throws: [], family, trackLoads }));
 
   it("velocidad: avisa si los metros de series pasan del tope y no si caben", () => {
     const base = hist("fastM", [600, 600, 600, 600]); // 12/10, 19/10, 26/10, 2/11
@@ -121,6 +121,25 @@ describe("reglas por familia de prueba (v2.2)", () => {
   it("saltos: tope semanal de saltos con umbral propio", () => {
     const base = hist("jumps", [20, 20, 20, 20]);
     expect(run("jumps", [...base, L("2026-11-10", { jumps: 30 })])).toEqual(["jump-cap"]);
+  });
+  describe("combinadas (v2.4): series y saltos a la vez", () => {
+    const base = MONDAYS.map((d) => L(d, { fastM: 600, jumps: 20 }));
+    const week = (fastM: number, jumps: number, extra: Partial<TrackLoad> = {}) => [...base, L("2026-11-10", { fastM, jumps, ...extra })];
+    it("dispara los dos topes si se superan los dos", () => {
+      expect(run("combined", week(900, 30))).toEqual(["fast-cap", "jump-cap"]);
+    });
+    it("dispara solo el tope que se supera", () => {
+      expect(run("combined", week(900, 22))).toEqual(["fast-cap"]);
+      expect(run("combined", week(700, 30))).toEqual(["jump-cap"]);
+    });
+    it("ninguno si caben, y no recibe la rampa de km", () => {
+      expect(run("combined", week(700, 22))).toEqual([]);
+      expect(run("combined", [L("2026-11-03", { runKm: 30 }), L("2026-11-10", { runKm: 60 })])).toEqual([]);
+    });
+    it("regresión: sprint y saltos siguen con su único tope", () => {
+      expect(run("sprint", week(900, 30))).toEqual(["fast-cap"]);
+      expect(run("jumps", week(900, 30))).toEqual(["jump-cap"]);
+    });
   });
   it("fondo: subida de km frente a la semana pasada, con mínimo de km", () => {
     expect(run("endurance", [L("2026-11-03", { runKm: 30 }), L("2026-11-10", { runKm: 36 })])).toEqual(["km-ramp"]);
