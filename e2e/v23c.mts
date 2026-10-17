@@ -68,7 +68,7 @@ const login = async (p: Page, email: string, pw: string) => {
 
 const stamp = Date.now();
 const mail = (k: string) => `v23c-${k}-${stamp}@e2e.test`;
-const pw = { coa: newUser(mail("coa"), "Entrenadora v23c", "COACH"), at: newUser(mail("at"), "Atleta v23c", "ATHLETE") };
+const pw = { coa: newUser(mail("coa"), "Entrenadora v23c", "COACH"), co2: newUser(mail("co2"), "Segunda entrenadora v23c", "COACH"), at: newUser(mail("at"), "Atleta v23c", "ATHLETE") };
 
 for (const scheme of ["light", "dark"] as const) {
   const n = scheme === "light" ? 1 : 2;
@@ -88,6 +88,20 @@ for (const scheme of ["light", "dark"] as const) {
     if (!orgId) errors.push(`crear club: HTTP ${club.status}`);
     else {
       await call(coa, "POST", `/api/clubs/${orgId}/members`, { email: mail("at"), role: "ATHLETE" });
+      // v2.4 · el cambio de rol del staff queda en la Actividad de la persona afectada
+      const co2 = await newPage("198.51.100.249", "light");
+      await login(co2, mail("co2"), pw.co2);
+      const inv = await call(coa, "POST", `/api/clubs/${orgId}/members`, { email: mail("co2"), role: "COACH" });
+      const mid = (inv.json as { id?: string } | null)?.id;
+      if (!mid) errors.push(`invitar staff: HTTP ${inv.status}`);
+      else {
+        const acc = await call(co2, "PATCH", `/api/clubs/${orgId}/members/${mid}`, { status: "ACTIVE" });
+        const rol = await call(coa, "PATCH", `/api/clubs/${orgId}/members/${mid}`, { role: "ADMIN" });
+        if (acc.status >= 300 || rol.status >= 300) errors.push(`cambio de rol: HTTP ${acc.status}/${rol.status}`);
+        await go(co2, "/settings");
+        if (!(await co2.getByText("rol: entrenadora → administración").count())) errors.push("la Actividad no muestra el cambio de rol");
+      }
+      await co2.context().close();
       await go(at, "/clubs");
       await at.getByRole("button", { name: "Aceptar" }).click();
       await at.getByRole("link", { name: /Club v23c/ }).waitFor();
