@@ -112,6 +112,7 @@ model User {
   womenHealth            WomenHealth?
   healthLogs             HealthLog[]
   testResults            TestResult[]
+  fvSeries               FvSeries[]
   returnProtocols        ReturnProtocol[]
   classSlots             ClassSlot[]
   studySessions          StudySession[]
@@ -1806,6 +1807,22 @@ model TestResult {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, testKey, date])
+}
+
+/// v2.4 · Serie de saltos SJ con 2–4 cargas para el perfil fuerza-velocidad (Samozino). Solo entradas;
+/// F0, V0, Pmax y desequilibrio se recalculan al leer (src/lib/training/fv-profile.ts). No va a la IA ni a la entrenadora.
+model FvSeries {
+  id         String   @id @default(cuid())
+  userId     String
+  date       DateTime @db.Date
+  bodyMassKg Float
+  hpoCm      Float // distancia de impulso (hPO), medida a mano
+  loads      Json // [{ addedKg, heightCm }]
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
 }
 
 /// Vuelta tras lesión por fases, con criterios para pasar de fase.
