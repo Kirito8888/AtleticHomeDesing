@@ -101,6 +101,7 @@ export function JumpGuide() {
             "Si el vídeo se ve a cámara lenta, marca «Sí» e indica 120 o 240 fps. La cámara lenta del iPhone solo ralentiza un tramo: amplíalo en Fotos › Editar para que cubra todo el salto. Si va a velocidad real, deja «No».",
             "Si no se pueden medir los fps del fichero, indícalos en «Fps del fichero» (están en la información del vídeo).",
             "Mueve el deslizador y afina con ±1. Despegue: primer fotograma sin contacto de ningún pie (el anterior aún toca con la punta). Aterrizaje: primer fotograma en que algún pie toca el suelo. La sombra en el suelo ayuda.",
+            "Opcional: activa «Sugerir fotogramas» y Atlenza propone despegue y aterrizaje mirando solo el tercio inferior del vídeo (los pies deben verse ahí; no vale para DJ). Es un borrador: revísalo con ±1 y acéptalo o ignóralo.",
             "Pulsa «Añadir intento» y repite con cada salto (hasta 10). Guarda: se registran el mejor y la media.",
           ]}
         />
