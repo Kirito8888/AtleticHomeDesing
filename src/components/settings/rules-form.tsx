@@ -104,10 +104,10 @@ export function RulesForm({ initial }: { initial: RuleValues }) {
         {num("bodyFatBlockPts", "% de grasa: cambio en un mes", { step: 0.5, decimals: 1, max: 20, suffix: "pts" })}
         {num("throwCapRatio", "Lanzamientos: tope", { step: 0.1, decimals: 1, min: 1, max: 3, suffix: "×" }, "× media de 4 semanas")}
         {num("throwMinHours", "Horas entre sesiones de lanzamiento", { step: 6, max: 168, suffix: "h" })}
-        {num("sprintVolumeRatio", "Velocidad: tope de metros en series", { step: 0.1, decimals: 1, min: 1, max: 3, suffix: "×" }, "× media de 4 semanas")}
+        {num("sprintVolumeRatio", "Velocidad y combinadas: tope de metros en series", { step: 0.1, decimals: 1, min: 1, max: 3, suffix: "×" }, "× media de 4 semanas")}
         {num("kmRampPct", "Fondo: subida máxima de km", { step: 1, min: 1, max: 100, suffix: "%" }, "Frente a la semana pasada")}
         {num("kmRampMinKm", "Fondo: km mínimos para avisar", { step: 1, max: 100, suffix: "km" })}
-        {num("jumpCapRatio", "Saltos: tope semanal", { step: 0.1, decimals: 1, min: 1, max: 3, suffix: "×" }, "× media de 4 semanas")}
+        {num("jumpCapRatio", "Saltos y combinadas: tope semanal", { step: 0.1, decimals: 1, min: 1, max: 3, suffix: "×" }, "× media de 4 semanas")}
         {num("hrvDropPct", "VFC: caída que cuenta", { step: 0.5, decimals: 1, max: 30, suffix: "%" })}
         {num("videoMinPct", "Vídeo: mínimo correcto", { step: 5, max: 100, suffix: "%" })}
         {num("monotonyMax", "Monotonía (Foster): avisar por encima de", { step: 0.1, decimals: 1, min: 1, max: 5 })}
