@@ -213,10 +213,11 @@ export function evaluateRules(input: {
     alerts.push({ id: "throw-48h", level: "warn", title: `Dos sesiones de lanzamiento con menos de ${prefs.throwMinHours} h`, message: `${throwDays[1]} y ${throwDays[0]}. Deja al menos ${prefs.throwMinHours} h entre sesiones de lanzamiento.` });
   }
 
-  // Pista y saltos (v2.2): la misma idea que el tope de lanzamientos, según la familia de la prueba
-  if (input.trackLoads && (input.family === "sprint" || input.family === "jumps")) {
-    const sprint = input.family === "sprint";
-    const wk = weeklyTrack(input.trackLoads, (l) => (sprint ? l.fastM : l.jumps), today, 5);
+  // Pista y saltos (v2.2): la misma idea que el tope de lanzamientos, según la familia de la prueba; combinadas (v2.4), los dos topes
+  const trackCaps = input.family === "sprint" ? ["fast"] : input.family === "jumps" ? ["jump"] : input.family === "combined" ? ["fast", "jump"] : [];
+  for (const kind of input.trackLoads ? trackCaps : []) {
+    const sprint = kind === "fast";
+    const wk = weeklyTrack(input.trackLoads!, (l) => (sprint ? l.fastM : l.jumps), today, 5);
     const ratio = sprint ? prefs.sprintVolumeRatio : prefs.jumpCapRatio;
     const cap = throwCap(wk, ratio);
     const cur = wk.at(-1)!.throws;
