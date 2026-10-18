@@ -2,7 +2,7 @@
 
 Manual para entrar al servidor con llave desde varios equipos (Windows y Mac) **antes** de aplicar `harden-server.sh --apply --only ssh`, que desactiva el SSH por contraseña. Si aplicas ese paso con un equipo sin llave instalada, ese equipo pierde el acceso.
 
-Los ejemplos usan `USUARIO@IP_DEL_SERVIDOR`: **cambia el usuario y la IP por los tuyos** en todos los comandos. Si algo sale distinto de lo esperado, para y no pases al siguiente paso.
+En los ejemplos, sustituye `USUARIO` e `IP_DEL_SERVIDOR` por los tuyos en todos los comandos. Si algo sale distinto de lo esperado, para y no pases al siguiente paso.
 
 **Cómo funciona.** Cada equipo tiene una pareja de ficheros. La **privada** (`id_ed25519`) no sale nunca de ese equipo. La **pública** (`id_ed25519.pub`) se copia al servidor, a `~/.ssh/authorized_keys`. Al conectar, el servidor comprueba que el equipo tiene la privada que encaja con una pública conocida. Por eso **cada equipo necesita su propia pareja**; no copies una privada de un equipo a otro. Tener una llave por equipo también sirve de respaldo: si pierdes uno, los demás siguen entrando.
 
