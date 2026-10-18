@@ -62,6 +62,77 @@ bash "$HERE/secure-env-permissions.sh" --apply "$T/srv" >>"$OUTALL" 2>&1
   && [ "$(stat -c %a "$T/srv/app/node_modules/x/.env")" = 644 ] && ok "--apply: 600, respeta .env.example y node_modules"
 [ "$(cat "$T/srv/app/.env.production")" = "A=1" ] && ok "contenido intacto"
 
+# ── harden-server.sh con sshd/systemctl/apt-get/tailscale/docker/ss SIMULADOS y raíz temporal ──
+H="$HERE/harden-server.sh"; HB="$T/hbin"; mkdir -p "$HB"
+bash -n "$H" && bash "$H" --help >>"$OUTALL" 2>&1 && ok "harden-server: sintaxis y --help"
+cat > "$HB/sshd" <<'STUB'
+#!/usr/bin/env bash
+case "$1" in
+  -t) [ -z "${SSHD_FAIL:-}" ] ;;
+  -T) echo "passwordauthentication ${SSHD_PW:-no}"; echo "kbdinteractiveauthentication no" ;;
+esac
+STUB
+for c in systemctl apt-get unattended-upgrade; do printf '#!/usr/bin/env bash\necho "%s $*" >> "$HLOG"\n' "$c" > "$HB/$c"; done
+printf '#!/usr/bin/env bash\n[ "$1" = ip ] && echo 100.64.0.5\n' > "$HB/tailscale"
+cat > "$HB/ss" <<'STUB'
+#!/usr/bin/env bash
+cat <<'X'
+Netid State  Recv-Q Send-Q Local Address:Port Peer Address:Port Process
+tcp   LISTEN 0 128  0.0.0.0:22        0.0.0.0:*
+tcp   LISTEN 0 4096 0.0.0.0:443       0.0.0.0:*
+tcp   LISTEN 0 4096 0.0.0.0:81        0.0.0.0:*
+tcp   LISTEN 0 4096 127.0.0.1:9443    0.0.0.0:*
+X
+STUB
+cat > "$HB/docker" <<'STUB'
+#!/usr/bin/env bash
+case "$*" in
+  ps*) echo 'nginx-proxy-manager|jc21/nginx-proxy-manager:latest|0.0.0.0:81->81/tcp'
+       echo 'portainer|portainer/portainer-ce:lts|0.0.0.0:9443->9443/tcp' ;;
+  *Config.Image*) case "$*" in *portainer) echo portainer/portainer-ce:lts ;; *) echo jc21/nginx-proxy-manager:latest ;; esac ;;
+  *Destination*) case "$*" in *'"/data"'*) echo /srv/datos ;; *letsencrypt*) echo /srv/le ;; esac ;;
+  *Networks*) echo "bridge red_atlenza " ;;
+esac
+STUB
+chmod +x "$HB"/*
+export HLOG="$T/hlog"; : > "$HLOG"
+HR="$T/hroot"; HH="$T/hhome"; mkdir -p "$HR/etc/ssh/sshd_config.d" "$HR/etc/apt/apt.conf.d" "$HH/.ssh"
+chmod 755 "$HH"; chmod 700 "$HH/.ssh"
+printf 'Include /etc/ssh/sshd_config.d/*.conf\n' > "$HR/etc/ssh/sshd_config"
+printf 'ID=debian\nVERSION_CODENAME=trixie\n' > "$HR/etc/os-release"
+HEXEC=(env PATH="$HB:$PATH" HARDEN_ROOT="$HR" HARDEN_HOME="$HH")
+OUTD="$T/hout"; CONF="$HR/etc/ssh/sshd_config.d/99-hardening.conf"
+
+"${HEXEC[@]}" bash "$H" --dry-run --out "$OUTD" >>"$OUTALL" 2>&1 && ok "harden --dry-run (sin llaves): exit 0"
+"${HEXEC[@]}" bash "$H" --out "$OUTD" >>"$OUTALL" 2>&1 && ok "harden sin argumentos = simulación (exit 0)"
+[ ! -e "$CONF" ] && [ ! -e "$OUTD" ] && [ ! -s "$HLOG" ] && ok "harden en seco no escribe ni ejecuta nada"
+if "${HEXEC[@]}" bash "$H" --apply --yes --out "$OUTD" >>"$OUTALL" 2>&1; then bad "harden --apply aceptó authorized_keys inexistente"; else ok "harden --apply sin authorized_keys aborta"; fi
+[ ! -e "$CONF" ] && [ ! -s "$HLOG" ] && ok "sin llaves: no hay 99-hardening.conf ni se ejecuta nada"
+
+printf 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGVsZW1lbnRvRGVQcnVlYmFTZWxmdGVzdA test@selftest\n' > "$HH/.ssh/authorized_keys"
+chmod 600 "$HH/.ssh/authorized_keys"
+"${HEXEC[@]}" bash "$H" --dry-run --out "$OUTD" >"$T/seco.txt" 2>&1 && ok "harden --dry-run con llave: exit 0"
+grep -q '100.64.0.5' "$T/seco.txt" && grep -q 'EXPUESTO' "$T/seco.txt" && ok "detecta Tailscale y marca el 81 expuesto"
+grep -E 'EXPUESTO' "$T/seco.txt" | grep -q ':81' && ! grep -E 'EXPUESTO' "$T/seco.txt" | grep -qE ':(9443|443|22)\b' && ok "solo el 81 se marca (443, 22 y 9443 privado, no)"
+[ ! -e "$CONF" ] && ok "dry-run con llave sigue sin escribir"
+
+chmod 666 "$HH/.ssh/authorized_keys"
+if "${HEXEC[@]}" bash "$H" --apply --yes --only ssh >>"$OUTALL" 2>&1; then bad "aceptó authorized_keys escribible por todos"; else ok "rechaza authorized_keys con permisos peligrosos (StrictModes)"; fi
+chmod 600 "$HH/.ssh/authorized_keys"
+
+if SSHD_FAIL=1 "${HEXEC[@]}" bash "$H" --apply --yes --only ssh >>"$OUTALL" 2>&1; then bad "no abortó con sshd -t fallando"; else ok "sshd -t falla: aborta"; fi
+[ ! -e "$CONF" ] && ! grep -q reload "$HLOG" && ok "sshd -t falla: sin fichero y sin reload"
+if SSHD_PW=yes "${HEXEC[@]}" bash "$H" --apply --yes --only ssh >>"$OUTALL" 2>&1; then bad "no detectó que otro fichero gana"; else ok "sshd -T aún permite contraseña: revierte"; fi
+[ ! -e "$CONF" ] && ok "sshd -T: sin fichero tras revertir"
+
+"${HEXEC[@]}" bash "$H" --apply --yes --out "$OUTD" >>"$OUTALL" 2>&1 && ok "harden --apply --yes (raíz temporal): exit 0"
+grep -q '^PasswordAuthentication no' "$CONF" && grep -q 'reload ssh' "$HLOG" && ! grep -Eq 'restart|compose|stop|rm ' "$HLOG" && ok "SSH: fichero 99 + reload (nunca restart)"
+grep -q 'install -y -q unattended-upgrades' "$HLOG" && grep -q 'Automatic-Reboot "false"' "$HR/etc/apt/apt.conf.d/52atlenza-unattended" && ok "unattended-upgrades instalado y sin reinicio automático"
+[ "$(stat -c %a "$OUTD/.env")" = 600 ] && grep -q '^PANEL_BIND=100.64.0.5' "$OUTD/.env" && grep -q '^NPM_DATA=/srv/datos' "$OUTD/.env" && ok "plantillas y .env (600) con IP de Tailscale y datos detectados"
+grep -q '0.0.0.0:80:80' "$OUTD/npm.compose.yml" && grep -q 'red_atlenza' "$OUTD/npm.compose.yml" && ok "NPM conserva la red de usuario y 80/443 públicos"
+if grep -Eq '"0\.0\.0\.0:(81|9000|9443):' "$OUTD"/*.compose.yml; then bad "una plantilla publica un panel en 0.0.0.0"; else ok "ningún panel en 0.0.0.0 en las plantillas"; fi
+if "${HEXEC[@]}" bash "$H" --bind 0.0.0.0 >>"$OUTALL" 2>&1; then bad "aceptó --bind 0.0.0.0"; else ok "rechaza --bind 0.0.0.0"; fi
+
 if grep -q "$FAKEPW" "$OUTALL"; then bad "aparece la contraseña ficticia en la salida"; fi
 ok "sin secretos en la salida"
 echo "Todo correcto."
