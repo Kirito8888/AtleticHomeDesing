@@ -1,4 +1,4 @@
-# Plantilla de Nginx Proxy Manager: 80 y 443 públicos (tráfico web), panel 81 SOLO en PANEL_BIND.
+# Plantilla de Nginx Proxy Manager: 80 y 443 públicos (tráfico web), panel 81 SOLO en NPM_ADMIN_BIND (127.0.0.1 por defecto: NPM es la puerta de Atlenza y no debe depender de Tailscale al arrancar).
 # Usa los MISMOS datos que el contenedor actual (NPM_DATA, NPM_LETSENCRYPT): si apuntan a otra ruta se pierden los hosts y certificados.
 # Si el NPM actual usa MariaDB (DB_MYSQL_*) o redes propias, esta plantilla no basta: edita el puerto en su compose original.
 name: npm-panel
@@ -10,7 +10,7 @@ services:
     ports:
       - "0.0.0.0:80:80"
       - "0.0.0.0:443:443"
-      - "${PANEL_BIND:-127.0.0.1}:81:81"
+      - "${NPM_ADMIN_BIND:-127.0.0.1}:81:81"
     volumes:
       - "${NPM_DATA:?define NPM_DATA en el .env (ruta del volumen /data actual)}:/data"
       - "${NPM_LETSENCRYPT:?define NPM_LETSENCRYPT en el .env (ruta de /etc/letsencrypt actual)}:/etc/letsencrypt"
