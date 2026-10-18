@@ -26,6 +26,8 @@ Para comandos que necesitan la BD: `set -a; . ./.env.local; set +a`.
 - Commits con autor David Ornelas Luna <82316475+Kirito8888@users.noreply.github.com>; la IA solo como co-autora.
 - Nunca: secretos o claves en el código, `.env*` (salvo `.env.example`), los PDF del plan, datos reales sin anonimizar,
   scraping, umbrales personales en el código (van en prefs), identificadores de modelo en el repo.
+- **El repo es público:** nunca IPs, usuarios, rutas, dominios, nombres de equipos ni la topología real del servidor o del router,
+  ni en docs, ni en tests, ni en mensajes de commit o PR. Usar marcadores (`USUARIO`, `IP_DEL_SERVIDOR`, `<RUTA>`).
 - La salud cifrada nunca va a la IA, al coach ni al `.ics`. Lo importado de Strava (`notFromStrava`) no va a la IA ni a la entrenadora.
 - Nada escribe en el plan sin confirmación (siempre borrador + aceptar).
 - Migraciones solo aditivas; una por versión, regenerada con `regen-mig.sh`.
