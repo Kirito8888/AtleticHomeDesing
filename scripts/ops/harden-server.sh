@@ -142,7 +142,7 @@ updates_apply() {
 APT::Periodic::Update-Package-Lists "1";
 APT::Periodic::Unattended-Upgrade "1";
 EOF
-  # Solo repositorio de seguridad de Debian (no Docker ni otros): no cambia versiones de contenedores ni de la app.
+  # Añade Debian-Security a lo que Debian ya permite por defecto (también las actualizaciones normales de la rama estable); no toca repos de terceros ni la app.
   # Sin reinicio automático: un reinicio del host reiniciaría Atlenza; los reinicios los decides tú.
   put "$ROOT/etc/apt/apt.conf.d/52atlenza-unattended" 644 <<'EOF'
 Unattended-Upgrade::Origins-Pattern {
