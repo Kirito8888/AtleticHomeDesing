@@ -5,6 +5,7 @@
 ## Dónde estamos
 - **Versión:** **v2.4.0 en PR de release** (17/10/2026), pendiente de que la usuaria la fusione. v2.0–v2.3 fusionadas. Estabilidad: ver «Cierre v2.4».
 - **Método:** por bloques, **una sesión por bloque**; cierre de versión con PR al final. La usuaria fusiona; Claude nunca.
+- **Ops (18/10/2026):** `scripts/ops/audit-server.sh` + `docs/servidor-auditoria.md`: auditoría de servidor de solo lectura y anonimizada, sin tocar la app. Probado en contenedor (sin escrituras, sin secretos); **no probado en un servidor real con SSH/ufw/PM2/systemd** (el contenedor no los tiene): la usuaria debe revisar el primer informe. En PR.
 - **Bloque en curso:** ninguno. v2.4 B1–B6 fusionados. Siguiente versión: sin decidir. Auditoría UI: `docs/auditoria-ui.md`.
 - **Medidor de salto con HEVC/.mov (P3-4):** la usuaria lo probó en iPhone (16/10/2026) y no le dio problemas. Es su comprobación a mano, sin cifras guardadas: si aparece un fallo con otro vídeo, reabrir.
 
