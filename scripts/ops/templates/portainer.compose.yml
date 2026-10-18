@@ -1,0 +1,15 @@
+# Plantilla de Portainer con los puertos de gestión SOLO en PANEL_BIND (127.0.0.1 o la IP de Tailscale).
+# Variables en el .env de al lado (lo genera harden-server.sh). Sin PANEL_BIND cae a 127.0.0.1, nunca a 0.0.0.0.
+# El puerto 8000 (túnel Edge) no se publica: solo hace falta con agentes Edge.
+name: portainer-panel
+services:
+  portainer:
+    image: ${PORTAINER_IMAGE:-portainer/portainer-ce:lts}
+    container_name: ${PORTAINER_CONTAINER:-portainer}
+    restart: unless-stopped
+    ports:
+      - "${PANEL_BIND:-127.0.0.1}:9000:9000"
+      - "${PANEL_BIND:-127.0.0.1}:9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - "${PORTAINER_DATA:?define PORTAINER_DATA en el .env (ruta del volumen /data actual)}:/data"
