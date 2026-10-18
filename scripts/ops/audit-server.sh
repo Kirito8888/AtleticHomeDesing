@@ -170,34 +170,40 @@ ssh_audit() {
 
 firewall_audit() {
   h3 'Firewall'
-  FW=""
+  RULES=0; FILTER=0
   if has ufw && [ $IS_ROOT = 1 ]; then
     U="$(tmo ufw status verbose 2>&1)"; open; printf '%s\n' "$U"; close
-    case "$U" in *"Status: active"*) FW=1;; *) FW=0;; esac
+    case "$U" in *"Status: active"*) RULES=1; FILTER=1;; esac
   fi
   if has nft && [ $IS_ROOT = 1 ]; then
     N="$(tmo nft list ruleset 2>/dev/null)"
     NR="$(printf '%s\n' "$N" | grep -cE '^[[:space:]]+(ip|ip6|iifname|oifname|tcp|udp|meta|ct|counter|jump|accept|drop|reject)' )"
     printf 'nftables: %s tabla(s), ~%s regla(s).\n' "$(printf '%s\n' "$N" | grep -c '^table')" "$NR"
-    [ "$NR" -gt 0 ] && [ -z "$FW" ] && FW=1
+    [ "$NR" -gt 0 ] && RULES=1
+    printf '%s\n' "$N" | grep -Eq 'hook input.*policy (drop|reject)' && FILTER=1
   fi
   if has iptables-save && [ $IS_ROOT = 1 ]; then
     I="$(tmo iptables-save 2>/dev/null)"
     IR="$(printf '%s\n' "$I" | grep -c '^-A')"
     printf 'iptables: %s regla(s). Políticas: %s\n' "$IR" "$(printf '%s\n' "$I" | grep -E '^:(INPUT|FORWARD) ' | awk '{printf "%s=%s ", substr($1,2), $2}')"
-    [ "$IR" -gt 0 ] && [ -z "$FW" ] && FW=1
+    [ "$IR" -gt 0 ] && RULES=1
+    printf '%s\n' "$I" | grep -Eq '^:INPUT (DROP|REJECT)' && FILTER=1
   fi
   if has firewall-cmd && [ $IS_ROOT = 1 ]; then
     printf 'firewalld: %s\n' "$(tmo firewall-cmd --state 2>&1)"
-    [ "$(tmo firewall-cmd --state 2>/dev/null)" = running ] && FW=1
+    [ "$(tmo firewall-cmd --state 2>/dev/null)" = running ] && { RULES=1; FILTER=1; }
   fi
   if [ $IS_ROOT = 0 ]; then
     printf '_No se puede leer el firewall sin root._\n'
-  elif [ "${FW:-0}" != 1 ]; then
+  elif [ "$RULES" != 1 ]; then
     printf '⚠️ No se detecta ningún firewall con reglas (ufw, nftables, iptables, firewalld).\n'
     warn 'Sin firewall activo detectado: todo puerto a la escucha está expuesto.'
+  elif [ "$FILTER" != 1 ]; then
+    printf '⚠️ Hay reglas (normalmente de Docker o Tailscale), pero la entrada no se filtra: la política de INPUT es ACCEPT y no hay ufw ni firewalld activos.\n'
+    printf 'Todo puerto a la escucha en todas las interfaces lo ve toda la red local. Que llegue a Internet depende del reenvío de puertos del router y de si hay IPv6 público.\n'
+    warn 'Las reglas del cortafuegos no filtran la entrada (INPUT=ACCEPT, sin ufw/firewalld): los puertos a la escucha son accesibles desde la red local.'
   else
-    printf '✅ Hay un firewall con reglas.\n'
+    printf '✅ Hay un firewall que filtra la entrada.\n'
   fi
 }
 

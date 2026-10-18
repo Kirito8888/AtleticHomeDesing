@@ -1,5 +1,7 @@
 # Endurecimiento del servidor físico (SSH, parches y paneles)
 
+En el servidor no hace falta tener el repo: copia `scripts/ops` a una carpeta aparte (ver [servidor-llaves-ssh.md](servidor-llaves-ssh.md), Parte 4) y sustituye `scripts/ops/` por `ops/` en los comandos de abajo.
+
 `scripts/ops/harden-server.sh` cierra a Internet los paneles de gestión (Portainer 9000/9443, panel de NPM 81), desactiva el SSH por contraseña y activa los parches de seguridad desatendidos. **No toca Atlenza** (`lifeos-web`, `lifeos-db`), no reinicia servicios de la app y no recrea contenedores.
 
 ## Lo incómodo primero
@@ -13,7 +15,7 @@
 |---|---|---|
 | `ssh` | `/etc/ssh/sshd_config.d/99-hardening.conf`: `PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PubkeyAuthentication yes`, `PermitRootLogin prohibit-password` | Exige `~usuario/.ssh/authorized_keys` con ≥ 1 clave válida y permisos que `StrictModes` acepte; comprueba que `sshd_config` incluye `sshd_config.d`; `sshd -t`; comprueba con `sshd -T` que la contraseña queda realmente desactivada (sshd usa la **primera** coincidencia: un `50-cloud-init.conf` con `yes` ganaría al 99); si algo falla, **revierte** el fichero. Solo `reload`, nunca `restart` |
 | `updates` | `unattended-upgrades` + `20auto-upgrades` + `52atlenza-unattended` | Solo origen `Debian-Security` de trixie (no Docker ni otros repos); `Automatic-Reboot "false"` (un reinicio del host reiniciaría Atlenza). Avisa si `needrestart` puede reiniciar Docker |
-| `panels` | Plantillas `scripts/ops/templates/{portainer,npm}.compose.yml` + `.env` en `--out` | 9000/9443/81 en `PANEL_BIND` (IP de Tailscale detectada, si no `127.0.0.1`); solo 80/443 en `0.0.0.0`. `--bind 0.0.0.0` se rechaza |
+| `panels` | Plantillas `scripts/ops/templates/{portainer,npm}.compose.yml` + `.env` en `--out` | Portainer 9000/9443 en `PANEL_BIND` (IP de Tailscale detectada, si no `127.0.0.1`); **panel 81 de NPM siempre en `127.0.0.1`** (`NPM_ADMIN_BIND`), con acceso por túnel SSH; solo 80/443 en `0.0.0.0`. `--bind 0.0.0.0` se rechaza. Si Portainer o NPM viven en un `docker-compose.yml` propio, no genera plantilla para ellos: indica la carpeta y la edición exacta del `ports:` |
 
 Opciones: `--dry-run` (por defecto), `--apply` (root, avisos y escribir `SI`; `--yes` se salta solo la pregunta), `--only ssh|updates|panels`, `--user`, `--bind`, `--out`.
 
@@ -43,7 +45,15 @@ Acceso a los paneles: con Tailscale, `https://<IP-tailscale>:9443` y `http://<IP
 6. Si usas otro usuario (p. ej. `root`), pásalo con `--user`: el script comprueba las llaves de **ese** usuario, no de quien eres tú ahora.
 
 ## Tailscale y el orden de arranque
-Un contenedor publicado en `100.x.y.z` no arranca si `tailscale0` aún no existe cuando Docker lo levanta (*cannot assign requested address*). [Suponiendo] que es lo que verás tras un reinicio del host; no lo he probado. Opciones: un *drop-in* que haga `After=tailscaled.service` en `docker.service` (`systemctl edit docker`), o `--bind 127.0.0.1` y acceso por túnel SSH (más simple y sin dependencia).
+Un contenedor publicado en `100.x.y.z` no arranca si `tailscale0` aún no existe cuando Docker lo levanta (*cannot assign requested address*). [Probable] que, tras un reinicio del host, el contenedor se quede parado hasta que lo arranques a mano; no lo he probado. Por eso **el panel 81 de NPM va siempre a `127.0.0.1`**: NPM es la puerta pública de Atlenza (80/443) y no debe depender de Tailscale. El panel se abre con un túnel: `ssh -L 8081:127.0.0.1:81 usuario@servidor` y luego `http://localhost:8081`.
+Portainer sí puede ir a la IP de Tailscale: si no arranca tras un reinicio, solo cae Portainer. Para evitarlo, un *drop-in* que haga `After=tailscaled.service` en `docker.service` (`systemctl edit docker`), o `--bind 127.0.0.1` y túnel.
+
+## Cuánta exposición hay de verdad
+«Escucha en todas las interfaces» no es «está en Internet»: Docker publica en `0.0.0.0`, que ve toda tu red local, y llega a Internet solo si **el router reenvía ese puerto** o si el servidor tiene **IPv6 público**. Antes de decidir la urgencia comprueba:
+- En el router, NAT/PAT: qué puertos externos van al servidor (lo normal es solo 80 y 443), la pestaña **DMZ** (debe estar vacía) y **UPnP** (si está activo, cualquier programa de tu red puede abrir puertos; desactívalo si no lo necesitas).
+- IPv6: `ip -6 addr show scope global | grep inet6`. Una dirección `fd7a:...` es la de Tailscale, no es pública.
+- Desde fuera de casa (datos del móvil, sin wifi ni Tailscale), un comprobador de puertos sobre tu IP pública: 80 y 443 abiertos, el resto cerrados.
+- Cualquier otro reenvío del router (p. ej. Escritorio Remoto, puerto 3389) es una puerta a ese equipo, y el equipo desde el que administras el servidor guarda tus llaves SSH: usa Tailscale para eso en vez de abrir el puerto.
 
 ## Deshacer
 - SSH: borrar `99-hardening.conf` + `reload` (arriba).

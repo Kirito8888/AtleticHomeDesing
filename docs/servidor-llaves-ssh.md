@@ -44,12 +44,15 @@ Debe salir **una línea por equipo** (`ssh-ed25519 mi-portatil`, `ssh-ed25519 mi
 ## Parte 4: aplicar el endurecimiento
 Usa **dos ventanas**: la **1** se queda conectada al servidor y no se cierra hasta el paso 8; la **2** es para probar.
 1. **Entra** (ventana 1): `ssh USUARIO@IP_DEL_SERVIDOR`.
-2. **Localiza el repo:** `find ~ /opt /srv -name harden-server.sh 2>/dev/null`. Si no sale nada, para y averigua cómo se desplegó Atlenza.
-3. **Actualiza:** entra en la carpeta del repo (la ruta anterior sin `/scripts/ops/harden-server.sh`) y `git pull origin main`. Si se queja de cambios locales, no uses `--force`.
+2. **Lleva los scripts al servidor sin tocar la carpeta de Atlenza.** Un `git pull` sobre el despliegue traería código nuevo de la app, y no sabes qué hace tu forma de actualizar con él. En su lugar, copia solo `scripts/ops` a una carpeta aparte:
+   - En el navegador, abre el repo, rama `main`, Code → Download ZIP, y descomprímelo. En PowerShell entra en la carpeta que contiene `scripts` (`dir scripts\ops` debe mostrar `harden-server.sh`).
+   - `ssh USUARIO@IP_DEL_SERVIDOR "mkdir -p ~/atlenza-ops"` y luego `scp -r .\scripts\ops USUARIO@IP_DEL_SERVIDOR:~/atlenza-ops/`.
+   - En el servidor, `grep -c $'\r' ~/atlenza-ops/ops/harden-server.sh` debe dar `0`. Si da otro número (saltos de línea de Windows): `sed -i 's/\r$//' ~/atlenza-ops/ops/*.sh ~/atlenza-ops/ops/templates/*.yml`.
+3. **Entra en esa carpeta:** `cd ~/atlenza-ops`. Desde aquí, todos los comandos usan `ops/harden-server.sh`.
 4. **Foto de puertos antes:** `sudo ss -tulpn > ~/puertos-antes.txt`.
-5. **Simulación (no cambia nada):** `sudo bash scripts/ops/harden-server.sh --user servidor`. Esperado: `bloqueos detectados: 0` y, en SSH, tantas claves como equipos. Los puertos 81, 9000 y 9443 saldrán `EXPUESTO` (se cierran en otra sesión). Con cualquier `BLOQUEO`, para.
-6. **Parches:** `sudo bash scripts/ops/harden-server.sh --apply --only updates` (escribe `SI`). Comprueba `systemctl list-timers 'apt-daily*'` y `sudo unattended-upgrade --dry-run`.
-7. **Desactivar la contraseña** (solo con todas las llaves probadas): `sudo bash scripts/ops/harden-server.sh --apply --only ssh --user servidor` (escribe `SI`). Esperado: `sshd -t y sshd -T: contraseña desactivada` y `sshd recargado`.
+5. **Simulación (no cambia nada):** `sudo bash ops/harden-server.sh --user servidor`. Esperado: `bloqueos detectados: 0` y, en SSH, tantas claves como equipos. Los puertos 81, 9000 y 9443 saldrán «escucha en TODAS las interfaces» (se cierran en otra sesión). Con cualquier `BLOQUEO`, para.
+6. **Parches:** `sudo bash ops/harden-server.sh --apply --only updates` (escribe `SI`). Comprueba `systemctl list-timers 'apt-daily*'` y `sudo unattended-upgrade --dry-run`.
+7. **Desactivar la contraseña** (solo con todas las llaves probadas): `sudo bash ops/harden-server.sh --apply --only ssh --user servidor` (escribe `SI`). Esperado: `sshd -t y sshd -T: contraseña desactivada` y `sshd recargado`.
 8. **Verifica desde la ventana 2**, sin cerrar la 1:
    - Con llave entra: `ssh USUARIO@IP_DEL_SERVIDOR`.
    - Con contraseña falla: `ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password USUARIO@IP_DEL_SERVIDOR` → `Permission denied (publickey)`.
