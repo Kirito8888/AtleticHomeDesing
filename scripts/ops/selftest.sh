@@ -89,6 +89,7 @@ cat > "$HB/docker" <<'STUB'
 case "$*" in
   ps*) echo 'nginx-proxy-manager|jc21/nginx-proxy-manager:latest|0.0.0.0:81->81/tcp'
        echo 'portainer|portainer/portainer-ce:lts|0.0.0.0:9443->9443/tcp' ;;
+  *compose.project.working_dir*) case "$*" in *nginx-proxy-manager) echo "${NPM_COMPOSE_DIR:-}" ;; esac ;;
   *Config.Image*) case "$*" in *portainer) echo portainer/portainer-ce:lts ;; *) echo jc21/nginx-proxy-manager:latest ;; esac ;;
   *Destination*) case "$*" in *'"/data"'*) echo /srv/datos ;; *letsencrypt*) echo /srv/le ;; esac ;;
   *Networks*) echo "bridge red_atlenza " ;;
@@ -112,8 +113,8 @@ if "${HEXEC[@]}" bash "$H" --apply --yes --out "$OUTD" >>"$OUTALL" 2>&1; then ba
 printf 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGVsZW1lbnRvRGVQcnVlYmFTZWxmdGVzdA test@selftest\n' > "$HH/.ssh/authorized_keys"
 chmod 600 "$HH/.ssh/authorized_keys"
 "${HEXEC[@]}" bash "$H" --dry-run --out "$OUTD" >"$T/seco.txt" 2>&1 && ok "harden --dry-run con llave: exit 0"
-grep -q '100.64.0.5' "$T/seco.txt" && grep -q 'EXPUESTO' "$T/seco.txt" && ok "detecta Tailscale y marca el 81 expuesto"
-grep -E 'EXPUESTO' "$T/seco.txt" | grep -q ':81' && ! grep -E 'EXPUESTO' "$T/seco.txt" | grep -qE ':(9443|443|22)\b' && ok "solo el 81 se marca (443, 22 y 9443 privado, no)"
+grep -q '100.64.0.5' "$T/seco.txt" && grep -q 'todas las interfaces' "$T/seco.txt" && ok "detecta Tailscale y marca el 81 como escucha en todas las interfaces"
+grep -E 'TODAS las interfaces' "$T/seco.txt" | grep -q ':81' && ! grep -E 'TODAS las interfaces' "$T/seco.txt" | grep -qE ':(9443|443|22)\b' && ok "solo el 81 se marca (443, 22 y 9443 privado, no)"
 [ ! -e "$CONF" ] && ok "dry-run con llave sigue sin escribir"
 
 chmod 666 "$HH/.ssh/authorized_keys"
@@ -131,6 +132,34 @@ grep -q 'install -y -q unattended-upgrades' "$HLOG" && grep -q 'Automatic-Reboot
 [ "$(stat -c %a "$OUTD/.env")" = 600 ] && grep -q '^PANEL_BIND=100.64.0.5' "$OUTD/.env" && grep -q '^NPM_DATA=/srv/datos' "$OUTD/.env" && ok "plantillas y .env (600) con IP de Tailscale y datos detectados"
 grep -q '0.0.0.0:80:80' "$OUTD/npm.compose.yml" && grep -q 'red_atlenza' "$OUTD/npm.compose.yml" && ok "NPM conserva la red de usuario y 80/443 públicos"
 if grep -Eq '"0\.0\.0\.0:(81|9000|9443):' "$OUTD"/*.compose.yml; then bad "una plantilla publica un panel en 0.0.0.0"; else ok "ningún panel en 0.0.0.0 en las plantillas"; fi
+# NPM con panel 81 en 127.0.0.1 (no depende de Tailscale) y plantilla coherente
+grep -q 'NPM_ADMIN_BIND:-127.0.0.1}:81:81' "$OUTD/npm.compose.yml" && grep -q '^NPM_ADMIN_BIND=127.0.0.1' "$OUTD/.env" && ok "NPM: panel 81 a 127.0.0.1 por defecto"
+# NPM y Portainer gestionados por compose: no se genera plantilla y se explica la edición
+OUTC="$T/hout-compose"
+NPM_COMPOSE_DIR=/home/x/reverse-proxy "${HEXEC[@]}" bash "$H" --apply --yes --only panels --out "$OUTC" >"$T/compose.txt" 2>&1 && ok "panels con NPM en compose: exit 0"
+[ ! -e "$OUTC/npm.compose.yml" ] && [ -e "$OUTC/portainer.compose.yml" ] && ok "NPM en compose: sin plantilla de NPM (Portainer sí)"
+grep -q '/home/x/reverse-proxy' "$T/compose.txt" && grep -q '127.0.0.1:81:81' "$T/compose.txt" && ok "NPM en compose: indica la carpeta y la edición del puerto"
+# con sudo, lo generado queda a nombre del usuario
+if [ "$(id -u)" = 0 ] && id nobody >/dev/null 2>&1; then
+  OUTS="$T/hout-sudo"
+  SUDO_USER=nobody "${HEXEC[@]}" bash "$H" --apply --yes --only panels --out "$OUTS" >>"$OUTALL" 2>&1
+  [ "$(stat -c %U "$OUTS/.env")" = nobody ] && [ "$(stat -c %a "$OUTS/.env")" = 600 ] && ok "con sudo: el .env generado es del usuario (600)"
+fi
+
+# audit-server: INPUT=ACCEPT no es un firewall que filtre
+AB="$T/abin"; mkdir -p "$AB"
+printf '#!/bin/sh\necho "Status: inactive"\n' > "$AB/ufw"
+printf '#!/bin/sh\nexit 1\n' > "$AB/firewall-cmd"
+printf '#!/bin/sh\nprintf "table ip filter {\\n\\tchain DOCKER {\\n\\t\\tcounter accept\\n\\t}\\n\\tchain INPUT {\\n\\t\\ttype filter hook input priority filter; policy %%s;\\n\\t}\\n}\\n" "${AUDIT_NFT_POLICY:-accept}"\n' > "$AB/nft"
+printf '#!/bin/sh\nprintf ":INPUT %%s [0:0]\\n:FORWARD DROP [0:0]\\n-A DOCKER -j ACCEPT\\n" "${AUDIT_NFT_POLICY:-ACCEPT}"\n' > "$AB/iptables-save"
+chmod +x "$AB"/*
+if [ "$(id -u)" = 0 ]; then
+  PATH="$AB:$PATH" sh "$HERE/audit-server.sh" > "$T/aud1.md" 2>&1 || true
+  if grep -q 'la entrada no se filtra' "$T/aud1.md" && ! grep -q 'Hay un firewall que filtra' "$T/aud1.md"; then ok "audit: INPUT=ACCEPT avisa en vez de dar ✅"; else bad "audit dio por bueno un firewall con INPUT=ACCEPT"; fi
+  AUDIT_NFT_POLICY=drop PATH="$AB:$PATH" sh "$HERE/audit-server.sh" > "$T/aud2.md" 2>&1 || true
+  if grep -q 'Hay un firewall que filtra la entrada' "$T/aud2.md"; then ok "audit: política INPUT=DROP sí cuenta como firewall"; else bad "audit no reconoce INPUT=DROP"; fi
+fi
+
 if "${HEXEC[@]}" bash "$H" --bind 0.0.0.0 >>"$OUTALL" 2>&1; then bad "aceptó --bind 0.0.0.0"; else ok "rechaza --bind 0.0.0.0"; fi
 
 if grep -q "$FAKEPW" "$OUTALL"; then bad "aparece la contraseña ficticia en la salida"; fi

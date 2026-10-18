@@ -165,6 +165,7 @@ EOF
 # ───────────────────────── Paneles ─────────────────────────
 mount_src() { docker inspect -f "{{range .Mounts}}{{if eq .Destination \"$2\"}}{{.Source}}{{end}}{{end}}" "$1" 2>/dev/null || true; }
 image_of() { docker inspect -f '{{.Config.Image}}' "$1" 2>/dev/null || true; }
+compose_dir_of() { docker inspect -f '{{index .Config.Labels "com.docker.compose.project.working_dir"}}' "$1" 2>/dev/null || true; }
 nets_of() { docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$1" 2>/dev/null || true; }
 
 # network_block CONTENEDOR: texto YAML para conservar las redes de usuario del contenedor actual (la app puede depender de ellas)
@@ -177,7 +178,7 @@ network_block() {
 }
 
 panels_apply() {
-  local ts="" pc="" nc="" ports="" envf="" v net
+  local ts="" pc="" nc="" pcdir="" ncdir="" ports="" envf="" v net created_out=0
   say; say "== Paneles de gestión =="
   if [ -n "$BIND" ]; then ts="$BIND"; say "interfaz forzada con --bind: $ts"
   else
@@ -192,6 +193,8 @@ panels_apply() {
     ports="$(docker ps --format '{{.Names}}|{{.Image}}|{{.Ports}}' 2>/dev/null || true)"
     pc="$(printf '%s\n' "$ports" | grep -Ei 'portainer' | head -n1 | cut -d'|' -f1 || true)"
     nc="$(printf '%s\n' "$ports" | grep -Ei 'nginx-proxy-manager|jc21' | head -n1 | cut -d'|' -f1 || true)"
+    [ -z "$pc" ] || pcdir="$(compose_dir_of "$pc")"
+    [ -z "$nc" ] || ncdir="$(compose_dir_of "$nc")"
     say "Contenedores de gestión detectados (solo lectura):"
     printf '%s\n' "$ports" | grep -Ei 'portainer|nginx-proxy-manager|jc21' | sed 's/^/    /' || say "    (ninguno)"
     if [ -n "$nc" ] && docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$nc" 2>/dev/null | grep -q '^DB_MYSQL_HOST'; then
@@ -204,6 +207,7 @@ panels_apply() {
   # .env: valores detectados; lo no detectado queda comentado y la plantilla se negará a arrancar sin definirlo
   envf="$({
     printf '# Generado por harden-server.sh. PANEL_BIND: IP donde escuchan los paneles (nunca 0.0.0.0).\nPANEL_BIND=%s\n' "$ts"
+    printf '# NPM_ADMIN_BIND: panel 81 de NPM. Siempre 127.0.0.1 (existe en el arranque); NPM es la puerta pública de Atlenza y no debe depender de Tailscale.\nNPM_ADMIN_BIND=127.0.0.1\n'
     if [ -n "$pc" ]; then
       printf 'PORTAINER_CONTAINER=%s\nPORTAINER_IMAGE=%s\n' "$pc" "$(image_of "$pc")"
       v="$(mount_src "$pc" /data)"; [ -n "$v" ] && printf 'PORTAINER_DATA=%s\n' "$v" || printf '# PORTAINER_DATA=  (no detectado: ruta del volumen /data)\n'
@@ -214,21 +218,44 @@ panels_apply() {
       v="$(mount_src "$nc" /etc/letsencrypt)"; [ -n "$v" ] && printf 'NPM_LETSENCRYPT=%s\n' "$v" || printf '# NPM_LETSENCRYPT=  (no detectado)\n'
     else printf '# NPM_DATA= y NPM_LETSENCRYPT=  (NPM no detectado: define las rutas de /data y /etc/letsencrypt)\n'; fi
   })"
+  [ -d "$OUT" ] || created_out=1
   printf '%s\n' "$envf" | put "$OUT/.env" 600
   for net in portainer npm; do
+    if [ "$net" = portainer ] && [ -n "$pcdir" ]; then say "Portainer vive en un compose ($pcdir): no se genera plantilla, se edita ese fichero."; continue; fi
+    if [ "$net" = npm ] && [ -n "$ncdir" ]; then say "NPM vive en un compose ($ncdir): no se genera plantilla, se edita ese fichero."; continue; fi
     { cat "$HERE/templates/$net.compose.yml"
       if [ "$net" = portainer ] && [ -n "$pc" ]; then network_block "$pc"; fi
       if [ "$net" = npm ] && [ -n "$nc" ]; then network_block "$nc"; fi
     } | put "$OUT/$net.compose.yml" 644
   done
+  # con sudo, lo generado debe seguir siendo del usuario (un .env de root con modo 600 no lo lee docker compose)
+  if [ "$APPLY" = 1 ] && [ -n "${SUDO_USER:-}" ] && [ "$(id -u)" = 0 ]; then
+    for v in .env portainer.compose.yml npm.compose.yml; do
+      [ ! -e "$OUT/$v" ] || chown "$SUDO_USER:" "$OUT/$v" 2>/dev/null || warn "no pude dejar $OUT/$v a nombre de $SUDO_USER"
+    done
+    [ "$created_out" = 0 ] || chown "$SUDO_USER:" "$OUT" 2>/dev/null || true
+  fi
 
   say; say "Para cerrar los paneles (lo haces tú, en una ventana tranquila; el script NO lo ejecuta):"
-  say "  0) Si Portainer/NPM ya viven en un docker-compose.yml propio, no uses estas plantillas: cambia ahí \"9000:9000\" por \"$ts:9000:9000\" (idem 9443 y 81) y haz docker compose up -d."
   say "  1) Guarda cómo corren hoy:  docker inspect ${pc:-portainer} ${nc:-nginx-proxy-manager} > ~/paneles-antes.json && chmod 600 ~/paneles-antes.json   (contiene variables de entorno: no lo subas a ningún sitio)"
-  [ -z "$pc" ] || say "  2) Portainer (sin efecto sobre Atlenza):  docker stop $pc && docker rm $pc && docker compose -f $OUT/portainer.compose.yml --env-file $OUT/.env up -d"
-  [ -z "$nc" ] || say "  3) NPM (CORTA 80/443 unos segundos, Atlenza no responde en ese tiempo):  docker stop $nc && docker rm $nc && docker compose -f $OUT/npm.compose.yml --env-file $OUT/.env up -d"
-  say "  4) Comprueba:  ss -tulpn | grep -E ':(81|9000|9443)\\b'   → solo $ts / 127.0.0.1, nunca 0.0.0.0, [::] ni *"
-  say "  5) Si Tailscale arranca después de Docker, los contenedores pueden no levantar con esa IP: ver docs/servidor-hardening.md § «Tailscale y el orden de arranque»."
+  if [ -n "$nc" ] && [ -n "$ncdir" ]; then
+    say "  2) NPM (compose en $ncdir; CORTA 80/443 unos segundos, Atlenza no responde en ese tiempo):"
+    say "       cd $ncdir && cp docker-compose.yml docker-compose.yml.bak   (copia también data y letsencrypt si no tienes otra)"
+    say "       edita el puerto del panel: \"81:81\" → \"127.0.0.1:81:81\" (80 y 443 no se tocan; si ves un rango tipo 80-81:80-81, sepáralo)"
+    say "       p. ej. sed -i \"s/- '81:81'/- '127.0.0.1:81:81'/\" docker-compose.yml  ·  diff docker-compose.yml.bak docker-compose.yml  ·  docker compose config -q"
+    say "       aplicar: docker compose up -d     deshacer: cp docker-compose.yml.bak docker-compose.yml && docker compose up -d"
+  elif [ -n "$nc" ]; then
+    say "  2) NPM (CORTA 80/443 unos segundos, Atlenza no responde en ese tiempo):  docker stop $nc && docker rm $nc && docker compose -f $OUT/npm.compose.yml --env-file $OUT/.env up -d"
+  fi
+  if [ -n "$pc" ] && [ -n "$pcdir" ]; then
+    say "  3) Portainer (compose en $pcdir): cambia ahí \"9000:9000\" y \"9443:9443\" por \"$ts:9000:9000\" y \"$ts:9443:9443\" y haz docker compose up -d."
+  elif [ -n "$pc" ]; then
+    say "  3) Portainer (sin efecto sobre Atlenza):  docker stop $pc && docker rm $pc && docker compose -f $OUT/portainer.compose.yml --env-file $OUT/.env up -d"
+  fi
+  say "  4) Comprueba:  ss -tulpn | grep -E ':(81|9000|9443)\\b'   → 81 solo en 127.0.0.1; 9000/9443 solo en $ts (o 127.0.0.1); nunca 0.0.0.0, [::] ni *"
+  say "     El panel de NPM se abre con un túnel:  ssh -L 8081:127.0.0.1:81 usuario@servidor  →  http://localhost:8081"
+  say "     (el 81 va a 127.0.0.1 y no a Tailscale a propósito: si Docker arrancara antes que Tailscale, NPM no levantaría y Atlenza quedaría caído)"
+  say "  5) Portainer sí va a $ts: si no arranca tras un reinicio, solo cae Portainer. Ver docs/servidor-hardening.md § «Tailscale y el orden de arranque»."
 }
 
 # ───────────────────────── Informe de puertos ─────────────────────────
@@ -240,12 +267,12 @@ ports_report() {
       n=split($5,a,":"); port=a[n]; host=substr($5,1,length($5)-length(port)-1)
       if (port!~/^(22|80|81|443|9000|9443)$/) next
       pub=(host=="0.0.0.0"||host=="*"||host=="[::]"||host=="::")
-      if (pub && port!~/^(22|80|443)$/) tag="⚠️  EXPUESTO a Internet: debe cerrarse"
+      if (pub && port!~/^(22|80|443)$/) tag="⚠️  escucha en TODAS las interfaces (red local; Internet solo si el router lo reenvía o hay IPv6 público)"
       else if (pub && port=="22") tag="público (SSH, esperado)"
       else if (pub) tag="público (web, esperado)"
       else tag="privado (" host ")"
       printf "  %-4s %-22s %s\n", $1, $5, tag }' || true
-  say "  (¡Docker publica con sus propias reglas de iptables y SALTA ufw: un puerto expuesto aquí lo está aunque ufw diga lo contrario!)"
+  say "  (¡Docker publica con sus propias reglas de iptables y SALTA ufw: lo que escucha aquí en todas las interfaces lo ve tu red aunque ufw diga lo contrario! Para saber si llega a Internet mira el reenvío de puertos de tu router y si tienes IPv6 público.)"
 }
 
 # ───────────────────────── Principal ─────────────────────────
