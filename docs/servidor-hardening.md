@@ -18,7 +18,7 @@
 Opciones: `--dry-run` (por defecto), `--apply` (root, avisos y escribir `SI`; `--yes` se salta solo la pregunta), `--only ssh|updates|panels`, `--user`, `--bind`, `--out`.
 
 ## Procedimiento paso a paso
-1. **Antes de nada (en tu portátil):** copia tu llave si no lo has hecho (`ssh-copy-id usuario@servidor`) y comprueba que entra **sin contraseña**: `ssh -o PasswordAuthentication=no usuario@servidor`. Deja esa sesión abierta y ten a mano la consola web del proveedor o teclado físico (plan B).
+1. **Antes de nada (en tu portátil):** copia tu llave si no lo has hecho (`ssh-copy-id usuario@servidor`) y comprueba que entra **sin contraseña**: `ssh -o PasswordAuthentication=no usuario@servidor`. Deja esa sesión abierta y ten a mano la consola web del proveedor o teclado físico (plan B). Con varios equipos, cada uno necesita su llave: ver [servidor-llaves-ssh.md](servidor-llaves-ssh.md).
 2. **Foto de puertos antes:** `sudo ss -tulpn` y guarda la salida (te servirá para comparar).
 3. **Simulación:** `sudo bash scripts/ops/harden-server.sh` (o `--dry-run`). Lee los `BLOQUEO` y `AVISO`; no cambia nada.
 4. **Parches:** `sudo bash scripts/ops/harden-server.sh --apply --only updates`. Comprueba `systemctl list-timers 'apt-daily*'` y `sudo unattended-upgrade --dry-run`.
