@@ -46,7 +46,7 @@ Acceso a los paneles: con Tailscale, `https://<IP-tailscale>:9443` y `http://<IP
 
 ## Tailscale y el orden de arranque
 Un contenedor publicado en `100.x.y.z` no arranca si `tailscale0` aún no existe cuando Docker lo levanta (*cannot assign requested address*). [Probable] que, tras un reinicio del host, el contenedor se quede parado hasta que lo arranques a mano; no lo he probado. Por eso **el panel 81 de NPM va siempre a `127.0.0.1`**: NPM es la puerta pública de Atlenza (80/443) y no debe depender de Tailscale. El panel se abre con un túnel: `ssh -L 8081:127.0.0.1:81 usuario@servidor` y luego `http://localhost:8081`.
-Portainer sí puede ir a la IP de Tailscale: si no arranca tras un reinicio, solo cae Portainer. Para evitarlo, un *drop-in* que haga `After=tailscaled.service` en `docker.service` (`systemctl edit docker`), o `--bind 127.0.0.1` y túnel.
+Portainer sí puede ir a la IP de Tailscale: si no arranca tras un reinicio, solo cae Portainer. En un reinicio real (una sola prueba) arrancó bien. Para evitarlo, un *drop-in* que haga `After=tailscaled.service` en `docker.service` (`systemctl edit docker`), o `--bind 127.0.0.1` y túnel.
 
 ## Cuánta exposición hay de verdad
 «Escucha en todas las interfaces» no es «está en Internet»: Docker publica en `0.0.0.0`, que ve toda tu red local, y llega a Internet solo si **el router reenvía ese puerto** o si el servidor tiene **IPv6 público**. Antes de decidir la urgencia comprueba:
@@ -54,6 +54,10 @@ Portainer sí puede ir a la IP de Tailscale: si no arranca tras un reinicio, sol
 - IPv6: `ip -6 addr show scope global | grep inet6`. Una dirección `fd7a:...` es la de Tailscale, no es pública.
 - Desde fuera de casa (datos del móvil, sin wifi ni Tailscale), un comprobador de puertos sobre tu IP pública: 80 y 443 abiertos, el resto cerrados.
 - Cualquier otro reenvío del router (p. ej. Escritorio Remoto, puerto 3389) es una puerta a ese equipo, y el equipo desde el que administras el servidor guarda tus llaves SSH: usa Tailscale para eso en vez de abrir el puerto.
+
+## Kernel nuevo y reinicio
+`unattended-upgrades` instala solo los kernels nuevos (y borra el más viejo), pero no reinicia (`Automatic-Reboot "false"`): hasta que reinicies sigues con el kernel anterior. `sudo needrestart -b -r l` lo dice (`NEEDRESTART-KSTA: 3` = hay un kernel nuevo pendiente; `1` = al día). Fíate de la ejecución real y no del `--dry-run`: la simulación no listaba el kernel y la real sí lo instaló.
+Reinicia en un momento tranquilo y con acceso físico por si algo no arranca (GRUB conserva el kernel anterior). Después comprueba `uname -r`, `docker ps`, los puertos (`ss -tulpn`) y Atlenza por su dominio. Tras el reinicio, la base de datos y la web pueden tardar 1-2 minutos en pasar a `healthy` (primero `unhealthy` y `starting`): no reinicies nada a mano. Si Portainer no arranca, `docker start portainer`.
 
 ## Deshacer
 - SSH: borrar `99-hardening.conf` + `reload` (arriba).
