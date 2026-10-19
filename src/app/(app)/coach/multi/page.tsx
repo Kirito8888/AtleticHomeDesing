@@ -4,6 +4,7 @@ import { MultiPlan } from "@/components/coach/multi-plan";
 import { PageHeader } from "@/components/page-header";
 import { pageUser } from "@/lib/auth/page";
 import { multiPlanOverview } from "@/lib/coach/multi-plan";
+import { defaultMultiStart } from "@/lib/coach/multi-start";
 import { toIsoDay, today } from "@/lib/dates";
 
 export const metadata = { title: "Planificar varios atletas · Atlenza" };
@@ -20,7 +21,7 @@ export default async function MultiPlanPage() {
           ← Mis atletas
         </Link>
       </p>
-      <MultiPlan athletes={o.athletes} templates={o.templates} plans={o.plans} defaultStart={toIsoDay(today())} />
+      <MultiPlan athletes={o.athletes} templates={o.templates} plans={o.plans} defaultStart={defaultMultiStart(toIsoDay(today()))} />
     </>
   );
 }
