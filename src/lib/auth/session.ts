@@ -29,7 +29,7 @@ export function mergeGrants(grants: Grant[]): Grant {
 /**
  * Resuelve de qué atleta se leen/escriben datos deportivos.
  * - Sin athleteId (o el propio) → el usuario actual.
- * - Coach/Admin con vínculo ACTIVE (1:1 o por pertenencia a un club, v2.0) → ese atleta, solo para los
+ * - Coach/Admin (el ADMIN global no se salta nada) con vínculo ACTIVE (1:1 o por pertenencia a un club, v2.0) → ese atleta, solo para los
  *   ámbitos (`scope`) que el atleta le haya concedido (escritura además exige canPlan).
  *   En un club, el acceso lo da la membresía ACTIVE de la atleta (aceptada por ella) con staff ADMIN/COACH activo.
  * - La limitación del tratamiento (art. 18 RGPD) bloquea siempre, sea cual sea la vía.
@@ -42,8 +42,8 @@ export async function resolveAthleteId(
   mode: "read" | "write" = "read",
 ): Promise<string> {
   if (!athleteId || athleteId === user.id) return user.id;
-  if (user.role === "ADMIN") return athleteId;
-  if (user.role !== "COACH") throw new ApiError(403, "Sin permiso sobre este atleta");
+  // El ADMIN global no es un acceso libre a datos deportivos: pasa por el mismo vínculo, ámbito y art. 18 que una entrenadora.
+  if (user.role !== "COACH" && user.role !== "ADMIN") throw new ApiError(403, "Sin permiso sobre este atleta");
   const [link, memberships] = await Promise.all([
     prisma.coachAthlete.findUnique({ where: { coachId_athleteId: { coachId: user.id, athleteId } } }),
     prisma.orgMember.findMany({
