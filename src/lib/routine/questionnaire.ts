@@ -2,7 +2,7 @@
 // para que la misma lista sirva a la UI, a la validación y al generador.
 import { z } from "zod";
 
-import { AVOID, BODY_AREAS, EQUIPMENT, LOCATIONS, MINUTES } from "@/lib/ai-plan/options";
+import { AVOID, BODY_AREAS, EQUIPMENT, type Location, LOCATIONS, MINUTES } from "@/lib/ai-plan/options";
 import { isoDate } from "@/lib/dates";
 
 const options = <const T extends string>(o: Record<T, string>) => o;
@@ -67,7 +67,20 @@ export type TestKey = keyof typeof TESTS;
 
 const testSchema = z.object(Object.fromEntries((Object.keys(TESTS) as TestKey[]).map((k) => [k, z.number().min(0).max(TESTS[k].max).nullish()])) as Record<TestKey, z.ZodOptional<z.ZodNullable<z.ZodNumber>>>);
 
-export const routineAnswersSchema = z
+const locationEnum = z.enum(keys(LOCATIONS));
+
+/** Las respuestas antiguas traían un solo `location`: pasa a `locations: [location]`. */
+const upgradeLocation = (raw: unknown) => {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const { location, ...rest } = raw as Record<string, unknown>;
+    if (rest.locations === undefined && typeof location === "string") return { ...rest, locations: [location] };
+  }
+  return raw;
+};
+
+export const routineAnswersSchema = z.preprocess(
+  upgradeLocation,
+  z
   .object({
     sex: z.enum(keys(SEXES)),
     age: z.number().int().min(14).max(95),
@@ -84,7 +97,10 @@ export const routineAnswersSchema = z
     horizonMonths: z.number().int().refine((m) => (HORIZONS as readonly number[]).includes(m), "Horizonte no válido"),
     weekdays: z.array(z.number().int().min(1).max(7)).min(1).max(6),
     minutes: z.number().int().refine((m) => (MINUTES as readonly number[]).includes(m), "Duración no válida"),
-    location: z.enum(keys(LOCATIONS)),
+    /** Espacios disponibles (pista + gimnasio, etc.). */
+    locations: z.array(locationEnum).min(1).max(6),
+    /** Ajuste por día, en el orden de `weekdays`; si falta, todos los días usan `locations`. */
+    dayLocations: z.array(z.array(locationEnum).min(1).max(6)).max(6).optional(),
     equipment: z.array(z.enum(keys(EQUIPMENT))).max(16).default([]),
     areas: z.array(z.enum(keys(BODY_AREAS))).max(17).default([]),
     avoid: z.array(z.enum(keys(AVOID))).max(7).default([]),
@@ -92,5 +108,17 @@ export const routineAnswersSchema = z
   })
   .superRefine((r, ctx) => {
     if (new Set(r.weekdays).size !== r.weekdays.length) ctx.addIssue({ code: "custom", path: ["weekdays"], message: "Días repetidos" });
-  });
+    if (new Set(r.locations).size !== r.locations.length) ctx.addIssue({ code: "custom", path: ["locations"], message: "Espacios repetidos" });
+    if (r.dayLocations) {
+      if (r.dayLocations.length !== r.weekdays.length) ctx.addIssue({ code: "custom", path: ["dayLocations"], message: "Indica los espacios de cada día" });
+      if (r.dayLocations.some((d) => new Set(d).size !== d.length || d.some((l) => !r.locations.includes(l)))) ctx.addIssue({ code: "custom", path: ["dayLocations"], message: "Espacios no válidos en algún día" });
+    }
+  }),
+);
 export type RoutineAnswers = z.infer<typeof routineAnswersSchema>;
+
+/** Espacios de cada día en el orden de `weekdays`; también para respuestas guardadas antes del multiespacio (`location`). */
+export function routineSpaces(a: { weekdays: number[]; locations?: Location[]; location?: Location; dayLocations?: Location[][] }): Location[][] {
+  const all = a.locations?.length ? a.locations : a.location ? [a.location] : [];
+  return a.weekdays.map((_, i) => (a.dayLocations?.[i]?.length ? a.dayLocations[i] : all));
+}

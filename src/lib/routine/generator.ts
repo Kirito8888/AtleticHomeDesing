@@ -5,7 +5,7 @@ import { allowedEquipment, type Area, type Avoid, type Equipment, type PlanReque
 import type { AiExercise, AiPlan } from "@/lib/ai-plan/schema";
 
 import type { Level } from "./profile";
-import type { RoutineAnswers } from "./questionnaire";
+import { type RoutineAnswers, routineSpaces } from "./questionnaire";
 
 type Slot = "pierna" | "empuje" | "tiron" | "core" | "cardio" | "movilidad" | "equilibrio";
 type Lib = { name: string; slot: Slot; equipment: Equipment[]; patterns: Avoid[]; areas: Area[]; how: string };
@@ -58,6 +58,9 @@ const L: Lib[] = [
 export function toPlanRequest(a: RoutineAnswers, level: Level): PlanRequest {
   const goal = a.shortGoal === "fuerza" ? "fuerza" : a.shortGoal === "perder_grasa" ? "recomposicion" : a.shortGoal === "resistencia" || a.shortGoal === "correr_5k" ? "resistencia" : "salud";
   const age = a.age;
+  // Los días van ordenados, así que los espacios de cada día se reordenan con ellos
+  const byDay = new Map(a.weekdays.map((wd, i) => [wd, routineSpaces(a)[i]]));
+  const spaces = [...a.weekdays].sort().map((wd) => byDay.get(wd)!);
   return {
     goal,
     discipline: a.shortGoal === "correr_5k" ? "fondo" : "general",
@@ -67,7 +70,8 @@ export function toPlanRequest(a: RoutineAnswers, level: Level): PlanRequest {
     minutes: a.minutes,
     weeks: a.shortWeeks,
     startDate: a.startDate,
-    dayLocations: a.weekdays.map(() => a.location),
+    dayLocations: spaces.map((d) => d[0]),
+    daySpaces: spaces,
     equipment: a.equipment,
     areas: a.areas,
     avoid: a.avoid,
@@ -128,11 +132,12 @@ function daySlots(a: RoutineAnswers, i: number): Slot[] {
 
 export function generateRoutine(a: RoutineAnswers, level: Level): { plan: AiPlan; request: PlanRequest } {
   const r = toPlanRequest(a, level);
-  const allowed = allowedEquipment(a.location, a.equipment);
-  const pool = L.filter((e) => fits(e, allowed, r));
+  // Un conjunto de ejercicios por día: solo lo factible con los espacios de ese día
+  const poolOf = (i: number) => L.filter((e) => fits(e, allowedEquipment(r.daySpaces![i], a.equipment), r));
   const cardioBase = Math.max(10, Math.round(a.minutes * (a.shortGoal === "resistencia" || a.shortGoal === "correr_5k" ? 0.6 : 0.25) / 5) * 5);
 
   const days = r.weekdays.map((wd, i) => {
+    const pool = poolOf(i);
     const used = new Set<string>();
     const exs: AiExercise[] = [];
     for (const [j, slot] of daySlots(a, i).entries()) {
