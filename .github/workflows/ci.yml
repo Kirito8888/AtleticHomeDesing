@@ -148,6 +148,72 @@ jobs:
             server-*.log
             e2e/screenshots/
 
+  # Resto de suites E2E (v2.x y salto), en paralelo con «e2e»: un solo build y un solo servidor para todas.
+  # Corre todas aunque una falle y al final rompe si alguna falló (resumen OK/FALLA por suite).
+  e2e-extra:
+    name: E2E (suites v2.x)
+    runs-on: ubuntu-latest
+    needs: check
+    env:
+      DATABASE_URL: postgresql://lifeos:lifeos@localhost:5432/lifeos?schema=public
+      AUTH_SECRET: ci-only-not-a-secret
+      AUTH_URL: http://localhost:3000
+      BASE_URL: http://localhost:3000
+      CHROMIUM_PATH: /usr/bin/google-chrome
+      SCHEDULER_ENABLED: "false"
+      LIFEOS_NO_WEATHER: "1"
+      # Mismos valores solo-CI que el job «e2e» (no son secretos reales)
+      TOTP_ENCRYPTION_KEY: Y2ktb25seS0zMi1ieXRlcy1rZXktZm9yLXRvdHAhISE=
+      VAPID_PUBLIC_KEY: BJ12Ybt-28O9IW2mu3X0U_6wCoqBaUTzVASwoOk8wWidqzWk5PnUV3Mi8lekFvqhStgSUNLj1X882CARKCPFPJg
+      VAPID_PRIVATE_KEY: WR6TKd8X0HhDbnzMaiYLa1-Ye5SPRYYjarLHcVna1Is
+      VAPID_SUBJECT: mailto:ci@example.com
+    steps:
+      - uses: actions/checkout@v4
+      - name: Espejo de Docker Hub
+        run: |
+          sudo sh -c '[ -s /etc/docker/daemon.json ] || echo "{}" > /etc/docker/daemon.json'
+          sudo jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' /etc/docker/daemon.json | sudo tee /etc/docker/daemon.json.new >/dev/null
+          sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json && sudo systemctl restart docker
+      - name: Base de datos
+        run: |
+          for i in 1 2 3; do docker pull -q pgvector/pgvector:pg17 && break; sleep $((i * 10)); done
+          docker run -d --name db -p 5432:5432 -e POSTGRES_USER=lifeos -e POSTGRES_PASSWORD=lifeos -e POSTGRES_DB=lifeos pgvector/pgvector:pg17
+          for i in $(seq 60); do docker exec db pg_isready -U lifeos -h 127.0.0.1 >/dev/null 2>&1 && break; sleep 1; done
+          docker exec db pg_isready -U lifeos -h 127.0.0.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma migrate deploy && npx prisma db seed
+      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils
+      - run: npm run build
+      - name: Preparar el servidor standalone
+        run: cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/
+      - name: Suites E2E v2.x (registro abierto)
+        run: |
+          LIFEOS_FAKE_AI=1 AI_LOCAL_BASE_URLS=http://127.0.0.1:39999/v1 ALLOW_REGISTRATION=true PORT=3000 node .next/standalone/server.js > server-extra.log 2>&1 &
+          SERVER=$!
+          for i in $(seq 60); do curl -sf -o /dev/null http://localhost:3000/login && break; sleep 1; done
+          fail=""
+          for s in salto v20a v20b v20c v20d v20e v21a v21b v21c v22a v22b v23a v23b v23c v23d v24a v24b v24c v25a v25b; do
+            echo "::group::e2e:$s"
+            if npm run -s "e2e:$s" > "e2e-$s.log" 2>&1; then echo "OK e2e:$s"; else echo "FALLA e2e:$s"; fail="$fail $s"; fi
+            tail -20 "e2e-$s.log"
+            echo "::endgroup::"
+          done
+          kill $SERVER
+          if [ -n "$fail" ]; then echo "Suites con fallo:$fail"; exit 1; fi
+          echo "Todas las suites v2.x en verde"
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-extra-logs
+          path: |
+            server-*.log
+            e2e-*.log
+            e2e/screenshots/
+
   docker:
     name: Stack Docker (healthcheck, copias y update.sh)
     runs-on: ubuntu-latest
