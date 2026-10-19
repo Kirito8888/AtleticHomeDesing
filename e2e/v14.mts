@@ -61,8 +61,8 @@ await next();
 await check("Días de entrenamiento", "Mié").click(); // quita el miércoles: quedan lunes y viernes
 await radio("Semanas", "4").click();
 await next();
-await radio("Sitio del Lunes", "Gimnasio").click();
-await radio("Sitio del Viernes", "Casa").click();
+await check("Sitio del Lunes", "Gimnasio").click();
+await check("Sitio del Viernes", "Casa").click();
 await next();
 await check("Material", "Gomas elásticas").click();
 await next();
