@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import { allowedEquipment, spacesLabel, spacesOf } from "@/lib/ai-plan/options";
+import { buildPlanPrompt } from "@/lib/ai-plan/prompt";
 import { validateAiPlan } from "@/lib/ai-plan/validate";
 import { aiPlanSchema } from "@/lib/ai-plan/schema";
 
 import { generateRoutine } from "./generator";
 import { buildProfile, frequencyFactor, project, testBand } from "./profile";
-import { routineAnswersSchema } from "./questionnaire";
+import { routineAnswersSchema, routineSpaces } from "./questionnaire";
 
 const base = routineAnswersSchema.parse({
   sex: "F",
@@ -19,7 +21,7 @@ const base = routineAnswersSchema.parse({
   horizonMonths: 6,
   weekdays: [1, 3, 5],
   minutes: 45,
-  location: "casa",
+  locations: ["casa"],
   equipment: ["gomas"],
   startDate: "2026-10-12",
 });
@@ -73,9 +75,43 @@ describe("generador de rutinas", () => {
     }
   });
   it("en el gimnasio usa máquinas o pesas y el avanzado lleva más series", () => {
-    const { plan } = generateRoutine({ ...base, location: "gimnasio", shortGoal: "fuerza" }, "avanzado");
+    const { plan } = generateRoutine({ ...base, locations: ["gimnasio"], shortGoal: "fuerza" }, "avanzado");
     const ex = plan.phases[0].days[0].exercises;
     expect(ex.some((e) => e.equipment.some((q) => q !== "peso_corporal"))).toBe(true);
     expect(ex.find((e) => !e.reps.endsWith("min") && !e.reps.endsWith("s"))!.sets).toBe(4);
+  });
+});
+
+describe("multiespacio", () => {
+  it("validador: el `location` antiguo pasa a `locations`; rechaza vacío, repetidos y ajustes incoherentes", () => {
+    expect(routineAnswersSchema.parse({ ...base, locations: undefined, location: "casa" }).locations).toEqual(["casa"]);
+    expect(routineAnswersSchema.safeParse({ ...base, locations: [] }).success).toBe(false);
+    expect(routineAnswersSchema.safeParse({ ...base, locations: ["pista", "pista"] }).success).toBe(false);
+    expect(routineAnswersSchema.safeParse({ ...base, locations: ["pista", "gimnasio"], dayLocations: [["pista"]] }).success).toBe(false);
+    expect(routineAnswersSchema.safeParse({ ...base, locations: ["pista"], dayLocations: [["pista"], ["piscina"], ["pista"]] }).success).toBe(false);
+    expect(routineAnswersSchema.safeParse({ ...base, locations: ["pista", "gimnasio"], dayLocations: [["pista"], ["gimnasio"], ["pista", "gimnasio"]] }).success).toBe(true);
+  });
+  it("ensamblador: une el material de los espacios de cada día y lee respuestas antiguas", () => {
+    const eq = allowedEquipment(["pista", "gimnasio"], []);
+    expect(eq.has("pista") && eq.has("maquinas") && eq.has("barra_discos")).toBe(true);
+    expect(allowedEquipment(["piscina"], []).has("maquinas")).toBe(false);
+    expect(routineSpaces({ weekdays: [1, 3], location: "casa" })).toEqual([["casa"], ["casa"]]);
+    const { request } = generateRoutine({ ...base, locations: ["pista", "gimnasio"], dayLocations: [["pista", "gimnasio"], ["gimnasio"], ["pista", "gimnasio"]] }, "principiante");
+    expect(spacesOf(request, 3)).toEqual(["gimnasio"]);
+    expect(spacesLabel(spacesOf(request, 1)!)).toBe("Pista de atletismo + Gimnasio");
+    expect(spacesOf({ weekdays: [2], dayLocations: ["casa"] }, 2)).toEqual(["casa"]);
+  });
+  it("el prompt de la IA lista los espacios y su material", () => {
+    const { request } = generateRoutine({ ...base, locations: ["pista", "piscina"] }, "principiante");
+    const prompt = buildPlanPrompt(request);
+    expect(prompt).toContain("Pista de atletismo + Piscina");
+    expect(prompt).toContain("piscina (Piscina)");
+  });
+  it("generador: cada día solo lleva ejercicios factibles en sus espacios", () => {
+    const a = { ...base, shortGoal: "fuerza" as const, equipment: [], locations: ["gimnasio" as const, "piscina" as const], dayLocations: [["piscina" as const], ["gimnasio" as const, "piscina" as const], ["piscina" as const]] };
+    const { plan, request } = generateRoutine(a, "intermedio");
+    expect(validateAiPlan(plan, request)).toEqual([]);
+    expect(plan.phases[0].days[0].exercises.every((e) => e.equipment.every((q) => q === "peso_corporal" || q === "piscina"))).toBe(true);
+    expect(plan.phases[0].days[1].exercises.some((e) => e.equipment.some((q) => q === "maquinas" || q === "barra_discos" || q === "mancuernas" || q === "kettlebell"))).toBe(true);
   });
 });

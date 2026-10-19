@@ -74,7 +74,7 @@ export function PlanWizard({
   const [level, setLevel] = useState<keyof typeof LEVELS | null>(null);
   const [ageBand, setAgeBand] = useState<keyof typeof AGE_BANDS | null>(defaultAgeBand);
   const [weekdays, setWeekdays] = useState<number[]>([1, 3, 5]);
-  const [locations, setLocations] = useState<Record<number, keyof typeof LOCATIONS>>({});
+  const [locations, setLocations] = useState<Record<number, Array<keyof typeof LOCATIONS>>>({});
   const [minutes, setMinutes] = useState<number | null>(60);
   const [weeks, setWeeks] = useState<number | null>(8);
   const [startDate, setStartDate] = useState(nextMonday());
@@ -166,12 +166,12 @@ export function PlanWizard({
     },
     {
       title: "¿Dónde entrenas cada día?",
-      ok: sortedDays.every((d) => locations[d]),
+      ok: sortedDays.every((d) => locations[d]?.length),
       body: (
         <div className="grid gap-3">
           {sortedDays.map((d) => (
             <Field key={d} label={WEEKDAY_LABEL[d - 1]}>
-              <Chips label={`Sitio del ${WEEKDAY_LABEL[d - 1]}`} options={opts(LOCATIONS)} value={locations[d] ?? null} onChange={(v) => setLocations((l) => ({ ...l, [d]: v! }))} />
+              <MultiChips label={`Sitio del ${WEEKDAY_LABEL[d - 1]}`} options={opts(LOCATIONS)} value={locations[d] ?? []} onChange={(v) => setLocations((l) => ({ ...l, [d]: v }))} />
             </Field>
           ))}
         </div>
@@ -340,7 +340,8 @@ export function PlanWizard({
           level,
           ageBand,
           weekdays: sortedDays,
-          dayLocations: sortedDays.map((d) => locations[d]),
+          dayLocations: sortedDays.map((d) => locations[d][0]),
+          daySpaces: sortedDays.map((d) => locations[d]),
           minutes,
           weeks,
           startDate,

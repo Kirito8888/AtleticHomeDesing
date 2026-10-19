@@ -154,6 +154,8 @@ export const planRequestSchema = z
     startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     /** Sitio de cada día elegido, en el mismo orden que `weekdays`. */
     dayLocations: z.array(z.enum(keys(LOCATIONS))).min(1).max(7),
+    /** Espacios disponibles a la vez cada día (p. ej. pista + gimnasio), mismo orden que `weekdays`. Si falta, vale `dayLocations`. */
+    daySpaces: z.array(z.array(z.enum(keys(LOCATIONS))).min(1).max(6)).max(7).nullish(),
     equipment: z.array(z.enum(keys(EQUIPMENT))).max(16).default([]),
     areas: z.array(z.enum(keys(BODY_AREAS))).max(17).default([]),
     avoid: z.array(z.enum(keys(AVOID))).max(7).default([]),
@@ -166,14 +168,31 @@ export const planRequestSchema = z
   .superRefine((r, ctx) => {
     if (new Set(r.weekdays).size !== r.weekdays.length) ctx.addIssue({ code: "custom", path: ["weekdays"], message: "Días repetidos" });
     if (r.dayLocations.length !== r.weekdays.length) ctx.addIssue({ code: "custom", path: ["dayLocations"], message: "Indica dónde entrenas cada día" });
+    if (r.daySpaces) {
+      if (r.daySpaces.length !== r.weekdays.length) ctx.addIssue({ code: "custom", path: ["daySpaces"], message: "Indica los espacios de cada día" });
+      if (r.daySpaces.some((d) => new Set(d).size !== d.length)) ctx.addIssue({ code: "custom", path: ["daySpaces"], message: "Espacios repetidos" });
+    }
     if (r.competitionWeek && r.competitionWeek > r.weeks) ctx.addIssue({ code: "custom", path: ["competitionWeek"], message: "La competición cae fuera del plan" });
   });
 
 export type PlanRequest = z.infer<typeof planRequestSchema>;
 
-/** Material disponible un día concreto: lo marcado + lo propio del sitio + peso corporal. */
-export function allowedEquipment(location: Location, chosen: readonly Equipment[]): Set<Equipment> {
-  return new Set<Equipment>(["peso_corporal", ...chosen, ...LOCATION_EQUIPMENT[location]]);
+/** Material disponible un día concreto: lo marcado + lo propio de cada espacio de ese día + peso corporal. */
+export function allowedEquipment(location: Location | readonly Location[], chosen: readonly Equipment[]): Set<Equipment> {
+  const spaces: readonly Location[] = typeof location === "string" ? [location] : location;
+  return new Set<Equipment>(["peso_corporal", ...chosen, ...spaces.flatMap((l) => LOCATION_EQUIPMENT[l])]);
+}
+
+/** Espacios de un día de la semana elegido (varios a la vez); los planes antiguos, solo su sitio. */
+export function spacesOf(r: Pick<PlanRequest, "weekdays" | "dayLocations" | "daySpaces">, weekday: number): Location[] | null {
+  const i = r.weekdays.indexOf(weekday);
+  if (i < 0) return null;
+  return r.daySpaces?.[i]?.length ? r.daySpaces[i] : r.dayLocations[i] ? [r.dayLocations[i]] : null;
+}
+
+/** «Pista + Gimnasio». */
+export function spacesLabel(spaces: readonly Location[]): string {
+  return spaces.map((l) => LOCATIONS[l]).join(" + ");
 }
 
 /** Sitio de cada día de la semana elegido. */
