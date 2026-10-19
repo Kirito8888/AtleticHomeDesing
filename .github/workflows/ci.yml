@@ -186,7 +186,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma migrate deploy && npx prisma db seed
-      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils
+      # ffmpeg: v21b genera los clips de vídeo sintéticos
+      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils ffmpeg
       - run: npm run build
       - name: Preparar el servidor standalone
         run: cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/
