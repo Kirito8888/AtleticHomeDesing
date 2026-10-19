@@ -1,4 +1,4 @@
-import { allowedEquipment, EQUIPMENT, locationOf, type PlanRequest } from "./options";
+import { allowedEquipment, EQUIPMENT, type PlanRequest, spacesOf } from "./options";
 import type { AiExercise, AiPlan } from "./schema";
 
 /**
@@ -19,9 +19,9 @@ export function validateAiPlan(plan: AiPlan, r: PlanRequest): string[] {
       const where = `Fase «${phase.name}», weekday ${day.weekday}`;
       if (day.durationMin > Math.round(r.minutes * 1.15)) errors.push(`${where}: dura ${day.durationMin} min (máximo ${r.minutes}).`);
       if (day.warmup.trim().length < 5) errors.push(`${where}: falta el calentamiento.`);
-      const location = locationOf(r, day.weekday);
-      if (!location) continue;
-      const allowed = allowedEquipment(location, r.equipment);
+      const spaces = spacesOf(r, day.weekday);
+      if (!spaces) continue;
+      const allowed = allowedEquipment(spaces, r.equipment);
       for (const [label, list] of [
         ["", day.exercises],
         [" (versión suave)", day.light.exercises],

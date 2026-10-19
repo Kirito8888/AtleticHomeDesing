@@ -158,7 +158,7 @@ await radio("Objetivo a corto plazo", "Ganar fuerza").click();
 await radio("Objetivo a largo plazo", "Hacer del ejercicio un hábito").click();
 await page.getByRole("button", { name: "Siguiente" }).click();
 for (const d of ["Lun", "Mié", "Vie"]) await page.getByRole("group", { name: "Días por semana" }).getByRole("checkbox", { name: d }).click();
-await radio("Dónde entrenas", "Casa").click();
+await page.getByRole("group", { name: "Dónde entrenas" }).getByRole("checkbox", { name: "Casa" }).click();
 await page.getByRole("group", { name: "Material que tienes" }).getByRole("checkbox", { name: "Gomas elásticas" }).click();
 await page.getByRole("group", { name: "Zonas con molestias" }).getByRole("checkbox", { name: "Rodilla" }).click();
 await noOverflow("/training/routine");

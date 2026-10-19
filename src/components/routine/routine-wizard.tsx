@@ -33,7 +33,9 @@ type State = {
   horizonMonths: number | null;
   weekdays: number[];
   minutes: number | null;
-  location: keyof typeof LOCATIONS | null;
+  locations: Array<keyof typeof LOCATIONS>;
+  /** Ajuste de espacios por día (weekday → espacios); sin ajuste, todos los marcados. */
+  dayLocations: Record<number, Array<keyof typeof LOCATIONS>>;
   equipment: Array<keyof typeof EQUIPMENT>;
   areas: Array<keyof typeof BODY_AREAS>;
   avoid: Array<keyof typeof AVOID>;
@@ -65,7 +67,8 @@ export function RoutineWizard({ today }: { today: string }) {
     horizonMonths: 6,
     weekdays: [],
     minutes: 45,
-    location: null,
+    locations: [],
+    dayLocations: {},
     equipment: [],
     areas: [],
     avoid: [],
@@ -73,12 +76,15 @@ export function RoutineWizard({ today }: { today: string }) {
   });
   const set = <K extends keyof State>(k: K, v: State[K]) => setS((x) => ({ ...x, [k]: v }));
 
+  const spacesOfDay = (d: number) => (s.dayLocations[d] ?? s.locations).filter((l) => s.locations.includes(l));
+  const customDays = s.locations.length > 1 && s.weekdays.some((d) => s.dayLocations[d]);
+
   const ok = [
     Boolean(s.sex && Number(s.age) >= 14 && s.experience && s.activity),
     s.parq.length > 0 || s.parqNone,
     true,
     Boolean(s.shortGoal && s.shortWeeks && s.longGoal && s.horizonMonths),
-    Boolean(s.weekdays.length && s.minutes && s.location && s.startDate),
+    Boolean(s.weekdays.length && s.minutes && s.locations.length && s.weekdays.every((d) => spacesOfDay(d).length) && s.startDate),
   ][step];
 
   async function submit() {
@@ -100,7 +106,8 @@ export function RoutineWizard({ today }: { today: string }) {
         horizonMonths: s.horizonMonths,
         weekdays: s.weekdays,
         minutes: s.minutes,
-        location: s.location,
+        locations: s.locations,
+        dayLocations: customDays ? s.weekdays.map(spacesOfDay) : undefined,
         equipment: s.equipment,
         areas: s.areas,
         avoid: s.avoid,
@@ -209,9 +216,29 @@ export function RoutineWizard({ today }: { today: string }) {
           <Field label="Minutos por sesión">
             <Chips label="Minutos por sesión" options={MINUTES.map((m) => ({ value: m, label: `${m}` }))} value={s.minutes} onChange={(v) => set("minutes", v)} />
           </Field>
-          <Field label="Dónde entrenas">
-            <Chips label="Dónde entrenas" options={opts(LOCATIONS)} value={s.location} onChange={(v) => set("location", v)} />
+          <Field label="Dónde entrenas (marca todos los espacios que tengas)">
+            <MultiChips label="Dónde entrenas" options={opts(LOCATIONS)} value={s.locations} onChange={(v) => set("locations", v)} />
           </Field>
+          {s.locations.length > 1 && s.weekdays.length ? (
+            <details className="rounded-lg border p-3" open={customDays}>
+              <summary className="flex min-h-11 cursor-pointer items-center font-medium">Ajustar por día (opcional)</summary>
+              <div className="mt-2 grid gap-3">
+                <p className="text-xs text-muted-foreground">Por defecto cada día usa todos los espacios marcados. Quita los que ese día no tengas.</p>
+                {[...s.weekdays]
+                  .sort((a, b) => a - b)
+                  .map((d) => (
+                    <Field key={d} label={WEEKDAY_LABEL[d - 1]}>
+                      <MultiChips
+                        label={`Espacios del ${WEEKDAY_LABEL[d - 1]}`}
+                        options={s.locations.map((l) => ({ value: l, label: LOCATIONS[l] }))}
+                        value={spacesOfDay(d)}
+                        onChange={(v) => setS((x) => ({ ...x, dayLocations: { ...x.dayLocations, [d]: v } }))}
+                      />
+                    </Field>
+                  ))}
+              </div>
+            </details>
+          ) : null}
           <Field label="Material que tienes">
             <MultiChips label="Material que tienes" options={opts(EQUIPMENT)} value={s.equipment} onChange={(v) => set("equipment", v)} />
           </Field>

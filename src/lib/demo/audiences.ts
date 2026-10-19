@@ -40,7 +40,7 @@ export const SPECS: Record<Audience, Spec> = {
     rhr: 68,
     hrv: 45,
     weight: 82,
-    routine: r({ sex: "M", age: 29, weightKg: 82, heightCm: 178, experience: "nunca", activity: "sedentaria", sleepHours: 7, tests: { pushups: 8, squats60: 25, plankSec: 35 }, shortGoal: "empezar", shortWeeks: 8, longGoal: "constancia", horizonMonths: 6, weekdays: [1, 4], minutes: 45, location: "casa", equipment: ["peso_corporal", "gomas"] }),
+    routine: r({ sex: "M", age: 29, weightKg: 82, heightCm: 178, experience: "nunca", activity: "sedentaria", sleepHours: 7, tests: { pushups: 8, squats60: 25, plankSec: 35 }, shortGoal: "empezar", shortWeeks: 8, longGoal: "constancia", horizonMonths: 6, weekdays: [1, 4], minutes: 45, locations: ["casa"], equipment: ["peso_corporal", "gomas"] }),
   },
   RUNNER: {
     name: "Demo Corredora",
@@ -56,7 +56,7 @@ export const SPECS: Record<Audience, Spec> = {
     rhr: 54,
     hrv: 62,
     weight: 58,
-    routine: r({ sex: "F", age: 38, weightKg: 58, heightCm: 165, experience: "1a3", activity: "activa", sleepHours: 7, tests: { pushups: 15, km1Sec: 290, plankSec: 70 }, shortGoal: "resistencia", shortWeeks: 6, longGoal: "carrera", horizonMonths: 6, weekdays: [2, 3, 4, 6], minutes: 60, location: "parque", equipment: ["peso_corporal", "gomas"] }),
+    routine: r({ sex: "F", age: 38, weightKg: 58, heightCm: 165, experience: "1a3", activity: "activa", sleepHours: 7, tests: { pushups: 15, km1Sec: 290, plankSec: 70 }, shortGoal: "resistencia", shortWeeks: 6, longGoal: "carrera", horizonMonths: 6, weekdays: [2, 3, 4, 6], minutes: 60, locations: ["parque"], equipment: ["peso_corporal", "gomas"] }),
   },
   SENIOR: {
     name: "Demo Mayor",
@@ -71,7 +71,7 @@ export const SPECS: Record<Audience, Spec> = {
     rhr: 66,
     hrv: 28,
     weight: 64,
-    routine: r({ sex: "F", age: 71, weightKg: 64, heightCm: 158, experience: "retomo", activity: "ligera", sleepHours: 7, tests: { sitStand30: 11, walk6Meters: 480 }, shortGoal: "movilidad", shortWeeks: 8, longGoal: "autonomia", horizonMonths: 12, weekdays: [1, 3, 5], minutes: 30, location: "casa", equipment: ["peso_corporal", "gomas"] }),
+    routine: r({ sex: "F", age: 71, weightKg: 64, heightCm: 158, experience: "retomo", activity: "ligera", sleepHours: 7, tests: { sitStand30: 11, walk6Meters: 480 }, shortGoal: "movilidad", shortWeeks: 8, longGoal: "autonomia", horizonMonths: 12, weekdays: [1, 3, 5], minutes: 30, locations: ["casa"], equipment: ["peso_corporal", "gomas"] }),
   },
   POSTPARTUM: {
     name: "Demo Posparto",
