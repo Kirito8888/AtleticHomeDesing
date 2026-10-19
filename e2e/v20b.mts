@@ -80,12 +80,6 @@ function mondayOfThisWeek() {
   return d.toISOString().slice(0, 10);
 }
 
-function nextMonday() {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() + 7 - ((d.getUTCDay() + 6) % 7));
-  return d.toISOString().slice(0, 10);
-}
-
 // La entrenadora crea un plan propio, guarda su semana 1 como semana tipo
 const plan = await call(coa, "POST", "/api/planning/manual", { name: "Base E2E", start: mondayOfThisWeek(), weeks: 1, weekdays: [0, 2, 4], type: "STRENGTH" });
 const code = (plan.json as { code: string }).code;
@@ -102,7 +96,19 @@ await coa.getByText("No te ha dado permiso de planificación").waitFor();
 await coa.getByLabel("Atleta Uno").check();
 await coa.getByLabel("Atleta Dos").check();
 await coa.getByLabel("Qué copiar").selectOption({ label: "Semana E2E" });
-await coa.locator('input[type="date"]').fill(nextMonday());
+// Inicio por defecto: hoy si es lunes, si no el lunes siguiente (en fin de semana «hoy» dejaba la copia vacía con un 422)
+const dateInput = coa.locator('input[type="date"]');
+const defStart = await dateInput.inputValue();
+const todayIso = new Date().toISOString().slice(0, 10);
+const ahead = (Date.parse(defStart) - Date.parse(todayIso)) / 864e5;
+if (new Date(`${defStart}T00:00:00Z`).getUTCDay() !== 1 || ahead < -1 || ahead > 7) errors.push(`inicio por defecto ${defStart} no es el lunes de hoy o el siguiente`);
+// A mitad de semana se avisa de los días que quedan fuera; en lunes, no
+const wed = new Date(Date.parse(defStart) + 2 * 864e5).toISOString().slice(0, 10);
+await dateInput.fill(wed);
+await coa.getByRole("status").filter({ hasText: "quedan fuera 2 días" }).waitFor();
+await dateInput.fill(defStart);
+if (await coa.getByText(/quedan fuera/).count()) errors.push("aviso de días fuera con inicio en lunes");
+log(`inicio por defecto ${defStart} (lunes); aviso a mitad de semana`);
 await noHScroll(coa, "selección 390 px");
 log("selección: la atleta sin canPlan no se puede marcar");
 
