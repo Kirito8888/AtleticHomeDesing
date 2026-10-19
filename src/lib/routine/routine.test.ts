@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { allowedEquipment, spacesLabel, spacesOf } from "@/lib/ai-plan/options";
 import { buildPlanPrompt } from "@/lib/ai-plan/prompt";
 import { validateAiPlan } from "@/lib/ai-plan/validate";
-import { aiPlanSchema } from "@/lib/ai-plan/schema";
+import { expandAiPlan } from "@/lib/ai-plan/expand";
+import { type AiExerciseWithBasis, aiPlanSchema } from "@/lib/ai-plan/schema";
+import { CITATIONS } from "@/lib/training/prescription";
 
 import { generateRoutine } from "./generator";
 import { buildProfile, frequencyFactor, project, testBand } from "./profile";
@@ -74,11 +76,12 @@ describe("generador de rutinas", () => {
       expect(validateAiPlan(plan, request)).toEqual([]);
     }
   });
-  it("en el gimnasio usa máquinas o pesas y el avanzado lleva más series", () => {
+  it("en el gimnasio usa máquinas o pesas y el avanzado lleva 3-6 repeticiones con descanso largo", () => {
     const { plan } = generateRoutine({ ...base, locations: ["gimnasio"], shortGoal: "fuerza" }, "avanzado");
     const ex = plan.phases[0].days[0].exercises;
     expect(ex.some((e) => e.equipment.some((q) => q !== "peso_corporal"))).toBe(true);
-    expect(ex.find((e) => !e.reps.endsWith("min") && !e.reps.endsWith("s"))!.sets).toBe(4);
+    const first = ex.find((e) => !e.reps.endsWith("min") && !e.reps.endsWith("s"))!;
+    expect(first).toMatchObject({ reps: "3-6", rest: "3 min", intensity: "RIR 1-2" });
   });
 });
 
@@ -113,5 +116,57 @@ describe("multiespacio", () => {
     expect(validateAiPlan(plan, request)).toEqual([]);
     expect(plan.phases[0].days[0].exercises.every((e) => e.equipment.every((q) => q === "peso_corporal" || q === "piscina"))).toBe(true);
     expect(plan.phases[0].days[1].exercises.some((e) => e.equipment.some((q) => q === "maquinas" || q === "barra_discos" || q === "mancuernas" || q === "kettlebell"))).toBe(true);
+  });
+});
+
+describe("prescripción científica en el generador", () => {
+  const strength = (plan: ReturnType<typeof generateRoutine>["plan"]) => plan.phases[0].days.flatMap((d) => d.exercises).filter((e) => !e.reps.endsWith("min") && !e.reps.endsWith("s"));
+
+  it("cada ejercicio de la rutina lleva justificación con citas que existen y DOI", () => {
+    const ids = new Set(CITATIONS.map((c) => c.id));
+    for (const goal of ["empezar", "fuerza", "resistencia", "correr_5k", "perder_grasa", "movilidad", "salud"] as const) {
+      const { plan } = generateRoutine({ ...base, shortGoal: goal }, "intermedio");
+      for (const e of plan.phases[0].days.flatMap((d) => d.exercises)) {
+        const b = (e as AiExerciseWithBasis).basis;
+        expect(b, `${goal}: ${e.name}`).toBeDefined();
+        expect(b!.why.length).toBeGreaterThan(20);
+        expect(b!.refs.length).toBeGreaterThan(0);
+        for (const r of b!.refs) expect(ids.has(r)).toBe(true);
+      }
+    }
+  });
+  it("fuerza e hipertrofia (salud) dan dosis distintas, con la pauta citada", () => {
+    const f = strength(generateRoutine({ ...base, shortGoal: "fuerza", equipment: ["mancuernas", "banco", "gomas"] }, "intermedio").plan)[0];
+    const h = strength(generateRoutine({ ...base, shortGoal: "salud", equipment: ["mancuernas", "banco", "gomas"] }, "intermedio").plan)[0];
+    expect(f).toMatchObject({ reps: "6-8", rest: "2,5 min" });
+    expect(h).toMatchObject({ reps: "6-12", rest: "2 min" });
+    expect((f as AiExerciseWithBasis).basis!.refs).toContain("grgic2018");
+    expect((h as AiExerciseWithBasis).basis!.refs).toContain("schoenfeld2017");
+  });
+  it("las series reparten el volumen semanal y, si el día no cabe, se deja el mínimo y se dice", () => {
+    const rich = { ...base, shortGoal: "fuerza" as const, equipment: ["mancuernas" as const, "banco" as const, "gomas" as const] };
+    const normal = generateRoutine({ ...rich, minutes: 90 }, "avanzado").plan;
+    expect(strength(normal).every((e) => e.sets >= 2 && e.sets <= 5)).toBe(true);
+    const short = generateRoutine({ ...rich, minutes: 20 }, "avanzado").plan;
+    expect(strength(short).every((e) => e.sets === 2)).toBe(true);
+    expect((strength(short)[0] as AiExerciseWithBasis).basis!.why).toContain("tiempo");
+  });
+  it("sigue siendo un plan válido: la versión suave y la descarga no arrastran la justificación", () => {
+    const { plan, request } = generateRoutine({ ...base, shortGoal: "fuerza", shortWeeks: 6 }, "principiante");
+    expect(validateAiPlan(plan, request)).toEqual([]);
+    expect(plan.why.length).toBeLessThanOrEqual(700);
+    const deload = plan.phases.find((p) => p.deload)!;
+    expect(deload.days.flatMap((d) => d.exercises).every((e) => !(e as AiExerciseWithBasis).basis)).toBe(true);
+    expect(plan.phases[0].days[0].light.exercises.every((e) => !(e as AiExerciseWithBasis).basis)).toBe(true);
+  });
+  it("al expandir, la fila lleva `basis` y la introducción lista las referencias con DOI", () => {
+    const { plan, request } = generateRoutine({ ...base, shortGoal: "fuerza" }, "principiante");
+    const e = expandAiPlan(plan, request, "RT1");
+    const rows = e.days[0].blocks.flatMap((b) => (b.kind === "table" ? b.rows : []));
+    expect(rows.some((r) => r.basis?.refs.length)).toBe(true);
+    const refs = e.intro.find((s) => s.title === "Referencias")!;
+    expect(refs.text).toMatch(/doi:10\.\d{4,9}\//);
+    // la versión suave no lleva justificación
+    expect(e.days[0].light.blocks.flatMap((b) => (b.kind === "table" ? b.rows : [])).every((r) => !r.basis)).toBe(true);
   });
 });

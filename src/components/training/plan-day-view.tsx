@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PlanBlock, PlanRow } from "@/lib/planning/plan-import/types";
+import { citationsFor, doiUrl } from "@/lib/training/prescription";
 import { cn } from "@/lib/utils";
 
 const empty = (s: string) => !s || s === "-";
@@ -41,6 +42,7 @@ function Exercise({ row }: { row: PlanRow }) {
             </div>
           ))}
       </dl>
+      {row.basis ? <Basis basis={row.basis} /> : null}
       {row.how ? (
         <details className="mt-2 text-sm">
           <summary className="min-h-11 cursor-pointer py-3 text-xs text-muted-foreground">Cómo lo hago</summary>
@@ -48,6 +50,31 @@ function Exercise({ row }: { row: PlanRow }) {
         </details>
       ) : null}
     </li>
+  );
+}
+
+/** Justificación científica de la dosis, plegada: texto y citas con enlace público al DOI. */
+function Basis({ basis }: { basis: NonNullable<PlanRow["basis"]> }) {
+  const cites = citationsFor(basis.refs);
+  return (
+    <details className="mt-2 text-sm">
+      <summary className="min-h-11 cursor-pointer py-3 text-xs text-muted-foreground">
+        Por qué estas series{cites.length ? ` · ${cites.length} ${cites.length === 1 ? "referencia" : "referencias"}` : ""}
+      </summary>
+      <p className="mt-1 break-words text-muted-foreground">{basis.why}</p>
+      {cites.length ? (
+        <ul className="mt-2 grid gap-2" aria-label="Referencias">
+          {cites.map((c) => (
+            <li key={c.id} className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+              {c.authors} ({c.year}). {c.title}. <em>{c.journal}</em>.{" "}
+              <a href={doiUrl(c)} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center text-foreground underline">
+                doi:{c.doi}
+              </a>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </details>
   );
 }
 

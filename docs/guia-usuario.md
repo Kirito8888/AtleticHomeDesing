@@ -391,6 +391,8 @@ Además:
   - línea esperada y franja prudente–optimista;
   - es una estimación, no una promesa.
 - Repite los tests cada 4 semanas («Anotar test»): tus puntos aparecen sobre la curva.
+- **Series, repeticiones y descanso justificados:** en cada ejercicio del borrador, «Por qué estas series» explica la pauta (series semanales por grupo, repeticiones, esfuerzo y descanso según tu objetivo y nivel) con las citas científicas y el enlace público a cada artículo (DOI). Son pautas generales de la literatura, no un consejo médico.
+- **«Editar este día»** (solo mientras es borrador): cambia series, ejercicios o descansos de ese día; nada pasa a tus entrenamientos hasta que pulses «Activar».
 
 **Entreno y competición**
 - **Etiquetas** en cada sesión, con su **Diario técnico** (Entreno) para buscar por etiqueta.

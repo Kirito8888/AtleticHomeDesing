@@ -61,6 +61,8 @@ export const aiPlanSchema = z.object({
 
 export type AiPlan = z.infer<typeof aiPlanSchema>;
 export type AiExercise = z.infer<typeof aiExerciseSchema>;
+/** Solo el generador determinista de rutinas añade `basis`; el esquema de la IA no lo admite (zod lo descarta), así no inventa citas. */
+export type AiExerciseWithBasis = AiExercise & { basis?: { why: string; refs: string[] } };
 export type AiDay = AiPlan["phases"][number]["days"][number];
 
 /** Respuesta para sustituir ejercicios de un día (cambio de sitio o de material). */
