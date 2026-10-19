@@ -72,11 +72,14 @@ export function ManualDayEditor({
   backHref,
   initial,
   exercises,
+  showNotes = true,
 }: {
   dayId: string;
   backHref: string;
   initial: { title: string; durationMin: number | null; type: Kind; notes: string; rows: Row[] };
   exercises: string[];
+  /** Borrador de rutina: las notas (calentamiento, dónde, por qué) no se editan aquí. */
+  showNotes?: boolean;
 }) {
   const router = useRouter();
   const [v, setV] = useState(initial);
@@ -118,9 +121,11 @@ export function ManualDayEditor({
           </Select>
         </Field>
       </div>
-      <Field label="Notas (calentamiento, objetivos…)" htmlFor="md-notes">
-        <Textarea id="md-notes" value={v.notes} maxLength={2000} onChange={(e) => setV({ ...v, notes: e.target.value })} />
-      </Field>
+      {showNotes ? (
+        <Field label="Notas (calentamiento, objetivos…)" htmlFor="md-notes">
+          <Textarea id="md-notes" value={v.notes} maxLength={2000} onChange={(e) => setV({ ...v, notes: e.target.value })} />
+        </Field>
+      ) : null}
       <div className="grid gap-2" aria-label="Ejercicios del día">
         {v.rows.map((r, i) => (
           <div key={i} className="grid gap-2 rounded-md border p-2">

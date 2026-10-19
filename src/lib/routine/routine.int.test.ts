@@ -1,6 +1,8 @@
 // Integración con BD real (v1.7): crear rutina (borrador), bloqueo por salud, retest y proyección.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import type { PlanBlock } from "@/lib/planning/plan-import/types";
+
 import { routineAnswersSchema } from "./questionnaire";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
@@ -54,6 +56,35 @@ describe.skipIf(!HAS_DB)("rutinas del cuestionario (BD real)", () => {
     expect(push.real.map((x) => x.value)).toEqual([12, 15]);
     expect(push.curve.at(-1)!.week).toBe(v!.horizonWeeks);
     expect(push.longTerm.expected).toBeGreaterThan(12);
+  });
+
+  it("el borrador guarda la justificación con citas; editar un día la conserva, y una rutina activa o ajena no se edita", async () => {
+    const meso = await prisma.planMeso.findUniqueOrThrow({ where: { userId_code: { userId, code: "RT1" } }, include: { days: { orderBy: { date: "asc" }, take: 1 } } });
+    const day = meso.days[0];
+    const before = day.content as PlanBlock[];
+    const rows = before.flatMap((b) => (b.kind === "table" ? b.rows : []));
+    expect(rows.every((r) => r.basis && r.basis.refs.length > 0)).toBe(true);
+    expect(JSON.stringify(meso.intro)).toContain("Referencias");
+
+    const { updateManualDay } = await import("@/lib/planning/manual-plan");
+    const edit = rows.map((r, i) => ({ exercise: r.exercise, sets: i === 0 ? "5 × 5" : r.sets, load: r.load, rir: r.rir, rest: r.rest, how: r.how }));
+    await updateManualDay(userId, day.id, { title: day.title, durationMin: day.durationMin, type: "STRENGTH", notes: "ignorada", rows: [...edit, { exercise: "Ejercicio nuevo", sets: "2 × 10", load: "", rir: "", rest: "", how: "" }] });
+    const after = (await prisma.planDay.findUniqueOrThrow({ where: { id: day.id } })).content as PlanBlock[];
+    expect(after.map((b) => b.kind)).toEqual(before.map((b) => b.kind)); // calentamiento, «Dónde» y «Por qué» se quedan
+    const out = after.flatMap((b) => (b.kind === "table" ? b.rows : []));
+    expect(out[0].sets).toBe("5 × 5");
+    expect(out[0].basis).toEqual(rows[0].basis);
+    expect(out.at(-1)).toMatchObject({ exercise: "Ejercicio nuevo" });
+    expect(out.at(-1)!.basis).toBeUndefined();
+    expect(JSON.stringify(after)).not.toContain("ignorada");
+
+    const other = await prisma.user.create({ data: { email: `rt-otra-${Date.now()}@test.dev` } });
+    const input = { title: "x", durationMin: 30, type: "STRENGTH" as const, notes: "", rows: [] };
+    await expect(updateManualDay(other.id, day.id, input)).rejects.toThrow(/no encontrado/i);
+    await prisma.user.delete({ where: { id: other.id } });
+    await prisma.planMeso.update({ where: { id: meso.id }, data: { status: "ACTIVE" } });
+    await expect(updateManualDay(userId, day.id, input)).rejects.toThrow(/no encontrado/i);
+    await prisma.planMeso.update({ where: { id: meso.id }, data: { status: "DRAFT" } });
   });
 
   it("una rutina guardada con un solo `location` sigue abriéndose", async () => {
