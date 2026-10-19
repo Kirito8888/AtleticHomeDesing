@@ -14,8 +14,9 @@ export const metadata = { title: "Editar día · Atlenza" };
 export default async function EditManualDayPage({ params }: PageProps<"/planning/plan/[id]/edit">) {
   const user = await pageUser();
   const { id } = await params;
-  const d = await prisma.planDay.findFirst({ where: { id, userId: user.id }, include: { meso: { select: { code: true, source: true } } } });
-  if (!d || d.meso.source !== "MANUAL") notFound();
+  const d = await prisma.planDay.findFirst({ where: { id, userId: user.id }, include: { meso: { select: { code: true, source: true, status: true } } } });
+  const routine = d?.meso.source === "ROUTINE" && d.meso.status === "DRAFT";
+  if (!d || !(d.meso.source === "MANUAL" || routine)) notFound();
   const blocks = d.content as PlanBlock[];
   const notes = blocks.filter((b) => b.kind === "text").map((b) => (b as { text: string }).text).join("\n\n");
   const rows = blocks.flatMap((b) => (b.kind === "table" ? b.rows : [])).map((r) => ({ exercise: r.exercise, sets: r.sets, load: r.load, rir: r.rir, rest: r.rest, how: r.how }));
@@ -28,6 +29,7 @@ export default async function EditManualDayPage({ params }: PageProps<"/planning
         backHref={`/planning/meso/${d.meso.code}`}
         initial={{ title: d.title, durationMin: d.durationMin, type: d.type as "STRENGTH" | "TECHNICAL" | "TRACK" | "MIXED", notes, rows }}
         exercises={exercises.map((e) => e.name)}
+        showNotes={!routine}
       />
     </>
   );

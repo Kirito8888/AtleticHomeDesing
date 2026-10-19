@@ -1,8 +1,9 @@
 import { addDays, dateOnly, startOfIsoWeek, toIsoDay } from "@/lib/dates";
+import { citationsFor, formatCitation } from "@/lib/training/prescription";
 import type { PlanBlock, PlanRow, SessionKind } from "@/lib/planning/plan-import/types";
 
 import { AGE_BANDS, AVOID, BODY_AREAS, DISCIPLINES, EQUIPMENT, GOALS, LEVELS, type PlanRequest, spacesLabel, spacesOf, WEEKDAY_LABEL } from "./options";
-import type { AiDay, AiExercise, AiPlan } from "./schema";
+import type { AiDay, AiExercise, AiExerciseWithBasis, AiPlan } from "./schema";
 
 export type ExpandedDay = {
   key: string;
@@ -77,6 +78,8 @@ export function expandAiPlan(plan: AiPlan, r: PlanRequest, code: string): Expand
       }
     }
   }
+  // Referencias de las pautas usadas (solo rutinas con `basis`); los ids desconocidos se ignoran
+  const refs = citationsFor(plan.phases.flatMap((p) => p.days.flatMap((d) => d.exercises.flatMap((e) => (e as AiExerciseWithBasis).basis?.refs ?? []))));
   const first = days[0]?.date ?? r.startDate;
   const last = days.at(-1)?.date ?? r.startDate;
   return {
@@ -89,6 +92,7 @@ export function expandAiPlan(plan: AiPlan, r: PlanRequest, code: string): Expand
       { title: "Por qué este plan", text: plan.why },
       { title: "Lo que pediste", text: describeRequest(r) },
       { title: "Fases", text: plan.phases.map((p) => `${p.name} (${p.weeks} sem.${p.deload ? ", descarga" : ""}): ${p.focus}`).join(" · ") },
+      ...(refs.length ? [{ title: "Referencias", text: refs.map(formatCitation).join(" · ") }] : []),
     ],
     weeks,
     days,
@@ -105,7 +109,7 @@ function dayBlocks(d: AiDay, exercises: AiExercise[], where: string | null, focu
   return blocks;
 }
 
-export function toRow(e: AiExercise): PlanRow {
+export function toRow(e: AiExerciseWithBasis): PlanRow {
   return {
     exercise: e.name,
     sets: `${e.sets} × ${e.reps}`,
@@ -116,6 +120,7 @@ export function toRow(e: AiExercise): PlanRow {
     ramp: false,
     equipment: e.equipment,
     alternatives: e.alternatives,
+    ...(e.basis ? { basis: e.basis } : {}),
   };
 }
 

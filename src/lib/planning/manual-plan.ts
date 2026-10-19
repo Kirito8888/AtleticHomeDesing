@@ -91,9 +91,10 @@ export async function createManualPlan(userId: string, input: z.infer<typeof man
   });
 }
 
+/** Un día de un plan propio o de un borrador de rutina (la rutina ya activa no se edita desde aquí). */
 async function ownDay(userId: string, dayId: string) {
   const d = await prisma.planDay.findFirst({ where: { id: dayId, userId }, include: { meso: { select: { id: true, source: true, status: true } } } });
-  if (!d || d.meso.source !== "MANUAL") throw new ApiError(404, "Día no encontrado en tus planes propios");
+  if (!d || !(d.meso.source === "MANUAL" || (d.meso.source === "ROUTINE" && d.meso.status === "DRAFT"))) throw new ApiError(404, "Día no encontrado en tus planes propios ni en un borrador de rutina");
   return d;
 }
 
@@ -104,9 +105,21 @@ export function dayContent(input: z.infer<typeof manualDaySchema>): PlanBlock[] 
   return [...(input.notes ? [{ kind: "text" as const, title: null, text: input.notes }] : []), { kind: "table" as const, rows }];
 }
 
+/**
+ * Borrador de rutina: solo cambia la tabla de ejercicios; calentamiento, «Dónde» y «Por qué» se quedan y cada fila
+ * que conserva su ejercicio mantiene su justificación y citas (`basis`).
+ */
+export function routineDayContent(current: PlanBlock[], input: z.infer<typeof manualDaySchema>): PlanBlock[] {
+  const basis = new Map(current.flatMap((b) => (b.kind === "table" ? b.rows : [])).flatMap((r) => (r.basis ? [[r.exercise, r.basis] as const] : [])));
+  const rows: PlanRow[] = input.rows.map((r) => ({ ...r, ramp: false, ...(basis.has(r.exercise) ? { basis: basis.get(r.exercise) } : {}) }));
+  let done = false;
+  return current.map((b) => (b.kind === "table" && !done ? ((done = true), { kind: "table" as const, rows }) : b));
+}
+
 export async function updateManualDay(userId: string, dayId: string, input: z.infer<typeof manualDaySchema>) {
   const d = await ownDay(userId, dayId);
-  await prisma.planDay.update({ where: { id: d.id }, data: { title: input.title, durationMin: input.durationMin, type: input.type, content: json(dayContent(input)) } });
+  const content = d.meso.source === "ROUTINE" ? routineDayContent(d.content as PlanBlock[], input) : dayContent(input);
+  await prisma.planDay.update({ where: { id: d.id }, data: { title: input.title, durationMin: input.durationMin, type: input.type, content: json(content) } });
   if (d.meso.status === "ACTIVE") await rematerialize(userId, d.meso.id);
   return { ok: true };
 }

@@ -36,7 +36,7 @@ export default async function PlanDayPage({ params }: PageProps<"/planning/plan/
         description={`${when}${d.durationMin ? ` · ~${d.durationMin} min` : ""}`}
         action={
           <div className="flex gap-2">
-            {d.meso.source === "MANUAL" ? (
+            {d.meso.source === "MANUAL" || (d.meso.source === "ROUTINE" && d.meso.status === "DRAFT") ? (
               <Button asChild size="sm">
                 <Link href={`/planning/plan/${d.id}/edit`}>Editar este día</Link>
               </Button>
