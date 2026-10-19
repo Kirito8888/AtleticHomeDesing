@@ -30,6 +30,7 @@ describe.skipIf(!HAS_DB)("Strava no llega a terceros (BD real)", () => {
     ownId = (await prisma.trainingSession.create({ data: { userId: athlete, date: day, type: "STRENGTH", status: "COMPLETED", durationSec: 3600, tss: 40, title: "Fuerza propia" } })).id;
     await prisma.personalRecord.create({ data: { userId: athlete, kind: "TECHNICAL_MARK", value: 40, achievedOn: day, sessionId: stravaId } });
     await prisma.personalRecord.create({ data: { userId: athlete, kind: "TECHNICAL_MARK", value: 41, achievedOn: day, sessionId: ownId } });
+    await prisma.recoveryMetrics.create({ data: { userId: athlete, date: day, hrvRmssdMs: 77.7, sleepHours: 6.5 } });
     await prisma.sessionComment.create({ data: { sessionId: stravaId, athleteId: athlete, authorId: athlete, body: "nota privada" } });
   });
 
@@ -125,5 +126,34 @@ describe.skipIf(!HAS_DB)("Strava no llega a terceros (BD real)", () => {
     expect(a?.simulation).toBeNull();
     expect(a?.simulationNote).toMatch(/Strava/);
     expect(JSON.stringify(r)).not.toContain(TITLE);
+  });
+  it("v2.5 · el ADMIN global no lee a una atleta sin vínculo (misma regla que una entrenadora)", async () => {
+    const admin = (await prisma.user.create({ data: { email: `pad-${t}@test.dev`, name: "Admin", role: "ADMIN" } })).id;
+    try {
+      current = { id: admin, role: "ADMIN" as never };
+      const sessions = await import("@/app/api/training/sessions/route");
+      expect((await sessions.GET(req(`/api/training/sessions?athleteId=${athlete}`), undefined as never)).status).toBe(403);
+    } finally {
+      await prisma.user.delete({ where: { id: admin } });
+    }
+  });
+
+  it("v2.5 · informe semanal: con solo REPORTS no se ve la recuperación; la atleta sí", async () => {
+    const weekly = await import("@/app/api/ai/coach/weekly/route");
+    current = { id: coach, role: "COACH" };
+    const r = await weekly.GET(req(`/api/ai/coach/weekly?athleteId=${athlete}&preview=1&weekOf=2026-10-05`), undefined as never);
+    const asCoach = JSON.stringify(await r.json());
+    expect(asCoach).not.toContain("77.7");
+    expect(asCoach).not.toContain('"recovery"');
+    current = { id: athlete, role: "ATHLETE" };
+    const own = JSON.stringify(await (await weekly.GET(req("/api/ai/coach/weekly?preview=1&weekOf=2026-10-05"), undefined as never)).json());
+    expect(own).toContain("77.7");
+  });
+
+  it("v2.5 · el .ics (Google/Apple Calendar) no lleva la sesión de Strava", async () => {
+    const { createFeed, feedIcs } = await import("@/lib/planning/feed-service");
+    const ics = (await feedIcs(await createFeed(athlete))) ?? "";
+    expect(ics).toContain("Fuerza propia");
+    expect(ics).not.toContain(TITLE);
   });
 });

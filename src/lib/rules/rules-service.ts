@@ -29,14 +29,14 @@ export async function loadRuleInputs(userId: string, day: string, days = 63) {
       select: { date: true, squeezePain: true, heelPain: true, jumpCm: true, elbowSymptoms: true, bodyWeightKg: true, bodyFatPct: true, hrvRmssdMs: true, sleepHours: true },
     }),
     prisma.trainingSession.findMany({
-      where: { userId, status: "COMPLETED", date: { gte: from, lte: to }, technical: { event: { in: [...THROW_EVENTS] } } },
+      where: { userId, status: "COMPLETED", date: { gte: from, lte: to }, technical: { event: { in: [...THROW_EVENTS] } }, ...notFromStrava },
       select: { date: true, technical: { select: { isCompetition: true, videoTotal: true, videoElbowOk: true, videoHeadOk: true, _count: { select: { attempts: true } } } } },
     }),
     prisma.trainingSession.findMany({
-      where: { userId, status: "COMPLETED", date: { gte: addDays(to, -7), lte: to }, feelings: { not: Prisma.AnyNull } },
+      where: { userId, status: "COMPLETED", date: { gte: addDays(to, -7), lte: to }, feelings: { not: Prisma.AnyNull }, ...notFromStrava },
       select: { date: true, feelings: true },
     }),
-    prisma.trainingSession.findMany({ where: { userId, status: "COMPLETED", date: { gte: addDays(to, -6), lte: to } }, select: { date: true, sessionRpe: true, durationSec: true } }),
+    prisma.trainingSession.findMany({ where: { userId, status: "COMPLETED", date: { gte: addDays(to, -6), lte: to }, ...notFromStrava }, select: { date: true, sessionRpe: true, durationSec: true } }),
     prisma.returnProtocol.findFirst({ where: { userId, injury: { resolvedOn: null } }, orderBy: { updatedAt: "desc" }, select: { phases: true } }),
     hrvWeekRanges(userId),
     prisma.athleteProfile.findUnique({ where: { userId }, select: { primaryDiscipline: true, primaryEvent: true } }),
