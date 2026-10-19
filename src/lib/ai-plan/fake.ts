@@ -1,4 +1,4 @@
-import { allowedEquipment, type Area, type Avoid, type Equipment, locationOf, type PlanRequest } from "./options";
+import { allowedEquipment, type Area, type Avoid, type Equipment, type PlanRequest, spacesOf } from "./options";
 import type { AiExercise, AiPlan } from "./schema";
 
 /**
@@ -71,7 +71,7 @@ export function fakeAiPlan(r: PlanRequest): AiPlan {
     }
   }
   const days = r.weekdays.map((wd) => {
-    const allowed = allowedEquipment(locationOf(r, wd)!, r.equipment);
+    const allowed = allowedEquipment(spacesOf(r, wd) ?? [], r.equipment);
     const pool = LIBRARY.filter((e) => fits(e, allowed, r));
     const pick = pool.slice(0, 4);
     const exs = pick.map((e) => exercise(e, 3, allowed, r, pool));

@@ -1,7 +1,7 @@
 import { addDays, dateOnly, startOfIsoWeek, toIsoDay } from "@/lib/dates";
 import type { PlanBlock, PlanRow, SessionKind } from "@/lib/planning/plan-import/types";
 
-import { AGE_BANDS, AVOID, BODY_AREAS, DISCIPLINES, EQUIPMENT, GOALS, LEVELS, LOCATIONS, locationOf, type PlanRequest, WEEKDAY_LABEL } from "./options";
+import { AGE_BANDS, AVOID, BODY_AREAS, DISCIPLINES, EQUIPMENT, GOALS, LEVELS, type PlanRequest, spacesLabel, spacesOf, WEEKDAY_LABEL } from "./options";
 import type { AiDay, AiExercise, AiPlan } from "./schema";
 
 export type ExpandedDay = {
@@ -51,7 +51,8 @@ export function expandAiPlan(plan: AiPlan, r: PlanRequest, code: string): Expand
         if (date < start) continue; // primera semana incompleta: el plan empieza el día elegido
         const iso = toIsoDay(date);
         const exercises = progress(d.exercises, phase.progression, i);
-        const location = locationOf(r, d.weekday);
+        const spaces = spacesOf(r, d.weekday);
+        const location = spaces?.[0] ?? null;
         days.push({
           key: `${code}|-|${iso}|1`,
           date: iso,
@@ -63,7 +64,7 @@ export function expandAiPlan(plan: AiPlan, r: PlanRequest, code: string): Expand
           durationMin: d.durationMin,
           weekTitle: phase.name,
           location,
-          blocks: dayBlocks(d, exercises, location, phase.focus),
+          blocks: dayBlocks(d, exercises, spaces ? spacesLabel(spaces) : null, phase.focus),
           light: {
             durationMin: d.light.durationMin,
             blocks: [
@@ -94,9 +95,9 @@ export function expandAiPlan(plan: AiPlan, r: PlanRequest, code: string): Expand
   };
 }
 
-function dayBlocks(d: AiDay, exercises: AiExercise[], location: string | null, focus: string): PlanBlock[] {
+function dayBlocks(d: AiDay, exercises: AiExercise[], where: string | null, focus: string): PlanBlock[] {
   const blocks: PlanBlock[] = [];
-  if (location) blocks.push({ kind: "text", title: "Dónde", text: LOCATIONS[location as keyof typeof LOCATIONS] ?? location });
+  if (where) blocks.push({ kind: "text", title: "Dónde", text: where });
   blocks.push({ kind: "text", title: "Calentamiento", text: d.warmup });
   blocks.push({ kind: "table", rows: exercises.map(toRow) });
   if (d.cooldown) blocks.push({ kind: "text", title: "Vuelta a la calma", text: d.cooldown });
@@ -139,7 +140,7 @@ export function progress(exercises: AiExercise[], direction: number, i: number):
 }
 
 export function describeRequest(r: PlanRequest): string {
-  const days = r.weekdays.map((wd) => `${WEEKDAY_LABEL[wd - 1].toLowerCase()} (${LOCATIONS[locationOf(r, wd)!]})`).join(", ");
+  const days = r.weekdays.map((wd) => `${WEEKDAY_LABEL[wd - 1].toLowerCase()} (${spacesLabel(spacesOf(r, wd) ?? [])})`).join(", ");
   return [
     `${GOALS[r.goal]} · ${DISCIPLINES[r.discipline]} · ${LEVELS[r.level]} · edad ${AGE_BANDS[r.ageBand]}.`,
     `${r.weeks} semanas desde el ${r.startDate.split("-").reverse().join("/")}, ${r.minutes} min: ${days}.`,

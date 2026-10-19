@@ -21,7 +21,8 @@ describe.skipIf(!HAS_DB)("rutinas del cuestionario (BD real)", () => {
     horizonMonths: 6,
     weekdays: [2, 4],
     minutes: 60,
-    location: "gimnasio",
+    locations: ["pista", "gimnasio"],
+    dayLocations: [["pista", "gimnasio"], ["gimnasio"]],
     startDate: "2026-10-12",
   });
 
@@ -41,6 +42,11 @@ describe.skipIf(!HAS_DB)("rutinas del cuestionario (BD real)", () => {
     expect(meso).toMatchObject({ source: "ROUTINE", status: "DRAFT" });
     expect(await prisma.planDay.count({ where: { mesoId: meso.id } })).toBe(12); // 6 semanas × 2 días
     expect(await prisma.trainingSession.count({ where: { userId } })).toBe(0);
+    // varios espacios: se guardan y el plan lo dice día a día (martes: pista + gimnasio; jueves: solo gimnasio)
+    const saved = await prisma.routineProfile.findUniqueOrThrow({ where: { id: r.id } });
+    expect(saved.answers).toMatchObject({ locations: ["pista", "gimnasio"], dayLocations: [["pista", "gimnasio"], ["gimnasio"]] });
+    const where = JSON.stringify(await prisma.planDay.findMany({ where: { mesoId: meso.id }, orderBy: { date: "asc" }, take: 2 }));
+    expect(where).toContain("Pista de atletismo + Gimnasio");
 
     await svc.addRoutineTest(userId, r.id, "pushups", 15, "2026-11-06");
     const v = await svc.routineView(userId, r.id);
@@ -48,6 +54,17 @@ describe.skipIf(!HAS_DB)("rutinas del cuestionario (BD real)", () => {
     expect(push.real.map((x) => x.value)).toEqual([12, 15]);
     expect(push.curve.at(-1)!.week).toBe(v!.horizonWeeks);
     expect(push.longTerm.expected).toBeGreaterThan(12);
+  });
+
+  it("una rutina guardada con un solo `location` sigue abriéndose", async () => {
+    const { locations, dayLocations, ...rest } = answers;
+    void locations;
+    void dayLocations;
+    const old = await prisma.routineProfile.create({ data: { userId, mesoCode: "RT-OLD", answers: { ...rest, location: "casa" }, profile: { level: "principiante" } }, select: { id: true } });
+    const v = await svc.routineView(userId, old.id);
+    expect(v).not.toBeNull();
+    expect(routineAnswersSchema.parse({ ...rest, location: "casa" }).locations).toEqual(["casa"]);
+    await prisma.routineProfile.delete({ where: { id: old.id } });
   });
 
   it("con una respuesta de salud marcada no crea nada", async () => {

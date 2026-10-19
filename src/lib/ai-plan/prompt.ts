@@ -12,6 +12,8 @@ import {
   LEVELS,
   LOCATIONS,
   type PlanRequest,
+  spacesLabel,
+  spacesOf,
   STYLES,
   WEEKDAY_LABEL,
 } from "./options";
@@ -36,10 +38,10 @@ Reglas obligatorias:
 - No des consejos médicos ni nutricionales.`;
 
 export function buildPlanPrompt(r: PlanRequest, feedback?: string[]): string {
-  const days = r.weekdays.map((wd, i) => {
-    const loc = r.dayLocations[i];
-    const eq = [...allowedEquipment(loc, r.equipment)].map((k) => `${k} (${EQUIPMENT[k]})`).join(", ");
-    return `- weekday ${wd} (${WEEKDAY_LABEL[wd - 1]}): ${LOCATIONS[loc]}. Material permitido: ${eq}`;
+  const days = r.weekdays.map((wd) => {
+    const spaces = spacesOf(r, wd) ?? [];
+    const eq = [...allowedEquipment(spaces, r.equipment)].map((k) => `${k} (${EQUIPMENT[k]})`).join(", ");
+    return `- weekday ${wd} (${WEEKDAY_LABEL[wd - 1]}): ${spacesLabel(spaces)}. Material permitido: ${eq}`;
   });
   const lines = [
     `Objetivo: ${GOALS[r.goal]}. Disciplina: ${DISCIPLINES[r.discipline]}${r.event && EVENTS[r.event] ? ` (prueba principal: ${EVENTS[r.event].label})` : ""}. Nivel: ${LEVELS[r.level]}. Edad: ${AGE_BANDS[r.ageBand]}.`,
