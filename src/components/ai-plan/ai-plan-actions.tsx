@@ -74,7 +74,7 @@ export function AiPlanActions({ code, status, overlapDays, canRegenerate = true 
   );
 }
 
-/** «¿Cómo fue la semana N?» → ajusta la siguiente. */
+/** «¿Cómo fue la semana N?» → guarda la valoración; los cambios se proponen aparte. */
 export function WeekFeedback({ code, week }: { code: string; week: number }) {
   const router = useRouter();
   const [rating, setRating] = useState<"EASY" | "OK" | "HARD" | null>(null);
@@ -84,8 +84,8 @@ export function WeekFeedback({ code, week }: { code: string; week: number }) {
   async function send() {
     setBusy(true);
     try {
-      const r = await api<{ adjusted: number }>(`/api/ai-plan/${code}/feedback`, { body: { week, rating, pain } });
-      toast.success(r.adjusted ? `Semana ${week + 1} ajustada (${r.adjusted} días)` : "Gracias: la semana siguiente se queda igual");
+      await api(`/api/ai-plan/${code}/feedback`, { body: { week, rating, pain } });
+      toast.success("Valoración guardada. Revisa los cambios propuestos: el plan no cambia hasta que los apliques.");
       router.refresh();
     } catch (e) {
       toast.error((e as Error).message);
@@ -111,9 +111,55 @@ export function WeekFeedback({ code, week }: { code: string; week: number }) {
       <Field label="Dolor o molestias (0 = nada, 10 = mucho)">
         <Chips label="Dolor" options={[0, 2, 4, 6, 8].map((n) => ({ value: n, label: String(n) }))} value={pain} onChange={setPain} allowDeselect />
       </Field>
-      <Button type="button" className="w-fit" disabled={!rating || busy} onClick={() => void send()}>
-        Ajustar la semana siguiente
+      <Button type="button" className="min-h-11 w-fit" disabled={!rating || busy} onClick={() => void send()}>
+        Enviar valoración
       </Button>
     </div>
+  );
+}
+
+export type ProposalDay = { dayId: string; code: string; title: string; label: string; toLight: boolean; rows: Array<{ exercise: string; before: string; after: string }> };
+
+/** Cambios propuestos para la semana siguiente: nada se escribe hasta pulsar «Aplicar cambios». */
+export function WeekFeedbackProposal({ code, week, version, days, pain }: { code: string; week: number; version: string; days: ProposalDay[]; pain: number | null }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+
+  async function apply() {
+    setBusy(true);
+    try {
+      const r = await api<{ adjusted: number }>(`/api/ai-plan/${code}/feedback/apply`, { body: { week, version } });
+      toast.success(`Semana ${week + 1} ajustada (${r.adjusted} ${r.adjusted === 1 ? "día" : "días"})`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+      router.refresh();
+    }
+  }
+
+  return (
+    <section className="grid gap-3 rounded-lg border p-3" aria-label={`Cambios propuestos para la semana ${week + 1}`}>
+      <h3 className="text-sm font-medium">Cambios propuestos para la semana {week + 1}</h3>
+      <p className="text-xs text-muted-foreground">El plan sigue igual hasta que pulses «Aplicar cambios».{pain != null && pain >= 4 ? " Con dolor ≥ 4 la semana pasa a la versión suave." : ""}</p>
+      <ul className="grid gap-2">
+        {days.map((d) => (
+          <li key={d.dayId} className="min-w-0 break-words rounded-md bg-muted/40 p-2 text-sm">
+            <p className="font-medium">
+              {d.label} · {d.title}
+            </p>
+            {d.toLight ? <p className="text-amber-700 dark:text-amber-400">Pasa a la versión suave (dolor ≥ 4)</p> : null}
+            {d.rows.map((r, i) => (
+              <p key={i} className="text-muted-foreground">
+                {r.exercise}: {r.before} → {r.after}
+              </p>
+            ))}
+          </li>
+        ))}
+      </ul>
+      <Button type="button" className="min-h-11 w-full" disabled={busy} onClick={() => void apply()}>
+        Aplicar cambios
+      </Button>
+    </section>
   );
 }

@@ -10,7 +10,7 @@ const schema = z.object({
   pain: z.number().int().min(0).max(10).nullish(),
 });
 
-/** «¿Cómo fue la semana?» → ajusta la siguiente. */
+/** «¿Cómo fue la semana?» → guarda la valoración y propone cambios (no toca el plan). */
 export const POST = route(async (req, ctx: RouteContext<"/api/ai-plan/[code]/feedback">) => {
   const user = await requireUser();
   const { code } = await ctx.params;

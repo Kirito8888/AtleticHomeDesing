@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { AiPlanActions, WeekFeedback } from "@/components/ai-plan/ai-plan-actions";
+import { AiPlanActions, WeekFeedback, WeekFeedbackProposal } from "@/components/ai-plan/ai-plan-actions";
 import { DuplicateWeek, WeekTemplates } from "@/components/planning/manual-plan";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
-import { overlapDays } from "@/lib/ai-plan/service";
+import { overlapDays, previewWeekFeedback } from "@/lib/ai-plan/service";
 import { compliance } from "@/lib/planning/compliance";
 import { today, toIsoDay } from "@/lib/dates";
 import { formatDate } from "@/lib/format";
@@ -37,7 +37,7 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
     where: { userId_code: { userId: user.id, code: decodeURIComponent(code) } },
     include: {
       days: { orderBy: [{ date: { sort: "asc", nulls: "last" } }, { relDay: "asc" }], select: { id: true, date: true, relDay: true, title: true, code: true, sessionId: true, week: true } },
-      feedback: { select: { week: true } },
+      feedback: { select: { week: true, pain: true } },
     },
   });
   if (!meso) notFound();
@@ -65,6 +65,11 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
         .filter((n) => (meso.weeks as ParsedWeek[]).some((w) => w.number === n + 1))
         .at(-1) ?? null
     : null;
+  // Última semana valorada cuyos cambios aún no se han aplicado: se muestran como propuesta.
+  const appliedFb = ((meso.meta as { feedbackApplied?: number[] } | null)?.feedbackApplied ?? []) as number[];
+  const proposalWeek = isAi && meso.status === "ACTIVE" ? (meso.feedback.map((f) => f.week).filter((w) => !appliedFb.includes(w)).sort((a, b) => a - b).at(-1) ?? null) : null;
+  const proposal = proposalWeek ? await previewWeekFeedback(user.id, meso.code, proposalWeek) : null;
+  const proposalPain = proposalWeek ? (meso.feedback.find((f) => f.week === proposalWeek)?.pain ?? null) : null;
   const intro = sections(meso.intro as Section[]);
   const annexes = sections(meso.annexes as Section[]);
   const weeks = meso.weeks as ParsedWeek[];
@@ -105,6 +110,15 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
                 </details>
               ) : null}
               {pendingWeek ? <WeekFeedback code={meso.code} week={pendingWeek} /> : null}
+              {proposalWeek && proposal?.days.length ? (
+                <WeekFeedbackProposal
+                  code={meso.code}
+                  week={proposalWeek}
+                  version={proposal.version}
+                  pain={proposalPain}
+                  days={proposal.days.map((d) => ({ dayId: d.dayId, code: d.code, title: d.title, label: d.date ? formatDate(d.date) : d.code, toLight: d.toLight, rows: d.rows }))}
+                />
+              ) : null}
               <p className="text-xs text-muted-foreground">Generado por IA: es una propuesta. Si algo te duele o no encaja, ajústalo o consulta con tu entrenador/a.</p>
             </CardContent>
           </Card>
