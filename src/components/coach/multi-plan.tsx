@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
+import { daysLeftOut } from "@/lib/coach/multi-start";
 
 type Athlete = { id: string; name: string; eligible: boolean; reason: string | null; canSimulate: boolean };
 type Origin = { templates: Array<{ id: string; name: string }>; plans: Array<{ code: string; name: string }> };
@@ -86,6 +87,7 @@ export function MultiPlan({ athletes, templates, plans, defaultStart }: { athlet
   }
 
   const nOk = preview?.athletes.length ?? 0;
+  const out = /^\d{4}-\d{2}-\d{2}$/.test(start) ? daysLeftOut(start) : { count: 0, label: "" };
   return (
     <div className="grid gap-4 text-sm">
       <fieldset className="grid gap-1 rounded-md border p-3">
@@ -134,6 +136,11 @@ export function MultiPlan({ athletes, templates, plans, defaultStart }: { athlet
           <input type="number" min={1} max={10} step={0.5} className="min-h-11 rounded-md border bg-background px-2" value={rpe} onChange={(e) => { setRpe(Number(e.target.value) || 6); reset(); }} />
         </label>
       </div>
+      {out.count ? (
+        <p role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
+          La copia va por semanas de lunes a domingo: con este inicio quedan fuera {out.count} {out.count === 1 ? "día" : "días"} de la primera semana ({out.label}).
+        </p>
+      ) : null}
       {!origin ? <p className="text-muted-foreground">Guarda antes una semana tipo o crea un plan propio en Planificación.</p> : null}
       <Button className="min-h-11" disabled={busy || !picked.size || !origin} onClick={run}>
         {busy ? "Calculando…" : `Previsualizar (${picked.size})`}
