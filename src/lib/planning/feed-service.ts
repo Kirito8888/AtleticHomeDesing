@@ -3,6 +3,7 @@ import "server-only";
 import { addDays, today, toIsoDay } from "@/lib/dates";
 import { SESSION_TYPE_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
+import { notFromStrava } from "@/lib/strava/policy";
 import { assertNotRestricted, isRestricted } from "@/lib/privacy/service";
 import { getPrefs } from "@/lib/rules/prefs-service";
 import { hashShareToken, isShareToken, newShareToken } from "@/lib/security/share-token";
@@ -43,7 +44,8 @@ export async function feedIcs(token: string): Promise<string | null> {
   const now = today();
   const [sessions, events] = await Promise.all([
     prisma.trainingSession.findMany({
-      where: { userId: feed.userId, date: { gte: addDays(now, -30), lte: addDays(now, 180) } },
+      // El .ics acaba en Google/Apple Calendar (terceros): nada importado de Strava
+      where: { userId: feed.userId, date: { gte: addDays(now, -30), lte: addDays(now, 180) }, ...notFromStrava },
       select: { id: true, date: true, title: true, type: true, status: true },
       orderBy: { date: "asc" },
       take: 1000,

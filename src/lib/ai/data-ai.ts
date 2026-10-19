@@ -30,7 +30,7 @@ export async function trainingSummary(userId: string, day = toIsoDay(today())) {
   const [sessions, perf, bests, rms, tests, rule] = await Promise.all([
     prisma.trainingSession.findMany({ where: { userId, status: "COMPLETED", date: { gte: from, lte: dateOnly(day) }, ...notFromStrava }, select: { date: true, type: true, durationSec: true, sessionRpe: true, tss: true } }),
     getPerformanceSeries(userId, 56),
-    implementBestsFor(userId),
+    implementBestsFor(userId, { noStrava: true }),
     currentRms(userId),
     prisma.testResult.findMany({ where: { userId }, orderBy: { date: "asc" } }),
     loadRuleInputs(userId, day, 56),

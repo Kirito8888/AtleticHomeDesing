@@ -27,10 +27,19 @@ beforeEach(() => {
 });
 
 describe("resolveAthleteId · permisos", () => {
-  it("el propio usuario y el ADMIN global pasan sin consultar", async () => {
+  it("el propio usuario pasa sin consultar", async () => {
     expect(await resolveAthleteId(coach, undefined, "LOAD")).toBe("c1");
     expect(await resolveAthleteId(coach, "c1", "LOAD")).toBe("c1");
-    expect(await resolveAthleteId({ id: "a", role: "ADMIN" }, "x", "LOAD", "write")).toBe("x");
+  });
+
+  it("el ADMIN global no se salta el vínculo ni el ámbito", async () => {
+    const admin = { id: "a", role: "ADMIN" as const };
+    await expect(resolveAthleteId(admin, "x", "LOAD")).rejects.toThrow(/Sin vínculo activo/);
+    db.link = { status: "ACTIVE", scopes: ["LOAD"], canPlan: false };
+    expect(await resolveAthleteId(admin, "x", "LOAD")).toBe("x");
+    await expect(resolveAthleteId(admin, "x", "RECOVERY")).rejects.toThrow(/no te ha dado acceso/);
+    db.restricted = new Date();
+    await expect(resolveAthleteId(admin, "x", "LOAD")).rejects.toThrow(/limitado el tratamiento/);
   });
 
   it("una atleta no accede a otra", async () => {
