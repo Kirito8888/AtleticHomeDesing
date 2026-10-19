@@ -7,6 +7,7 @@ import { basisFor, CITATIONS, citationsFor, doiUrl, formatCitation, goalFor, MAX
 const LEVELS: Level[] = ["principiante", "intermedio", "avanzado"];
 const GOALS = Object.keys(PRESCRIPTION) as PrescriptionGoal[];
 
+// DOI verificados contra Crossref (api.crossref.org) y doi.org el 2026-10-19: los 10 existen y coinciden en autores, año, título y revista. Los tests no llaman a la red.
 describe("citas", () => {
   it("cada cita tiene autores, año, título, revista y un DOI bien formado (enlace público de doi.org)", () => {
     for (const c of CITATIONS) {
