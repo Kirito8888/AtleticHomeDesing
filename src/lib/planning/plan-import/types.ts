@@ -28,6 +28,8 @@ export type PlanRow = {
   equipment?: string[];
   alternatives?: Array<{ name: string; equipment: string[] }>;
   original?: string;
+  /** Rutinas del cuestionario: por qué esas series/reps/descanso y qué citas (ids de `CITATIONS`) lo respaldan. */
+  basis?: { why: string; refs: string[] };
   /** Calculado al mostrar (no se guarda): kg desde %RM con la tabla de RM. */
   kg?: string;
 };

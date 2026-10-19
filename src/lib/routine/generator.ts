@@ -2,7 +2,8 @@
 // formato que los planes con IA (AiPlan), para reutilizar la expansión a días, la validación,
 // la versión suave y la activación.
 import { allowedEquipment, type Area, type Avoid, type Equipment, type PlanRequest } from "@/lib/ai-plan/options";
-import type { AiExercise, AiPlan } from "@/lib/ai-plan/schema";
+import type { AiExerciseWithBasis, AiPlan } from "@/lib/ai-plan/schema";
+import { basisFor, goalFor, type PrescriptionGoal, prescribe, repsText, restLabel, rirText, setsPerExercise, supportBasis } from "@/lib/training/prescription";
 
 import type { Level } from "./profile";
 import { type RoutineAnswers, routineSpaces } from "./questionnaire";
@@ -88,29 +89,34 @@ function fits(e: Lib, allowed: Set<string>, r: PlanRequest) {
   return e.equipment.every((q) => allowed.has(q)) && !e.patterns.some((p) => avoid.has(p)) && !e.areas.some((a) => r.areas.includes(a));
 }
 
-const DOSE: Record<Level, { sets: number; reps: string; intensity: string; rest: string }> = {
-  principiante: { sets: 2, reps: "10-12", intensity: "RIR 3 (te sobran 3 repeticiones)", rest: "90 s" },
-  intermedio: { sets: 3, reps: "8-12", intensity: "RIR 2", rest: "90 s" },
-  avanzado: { sets: 4, reps: "6-10", intensity: "RIR 1-2", rest: "2 min" },
-};
+const GROUP: Partial<Record<Slot, string>> = { pierna: "piernas", empuje: "empuje: pecho, hombro y tríceps", tiron: "tirón: espalda y bíceps", core: "tronco" };
 
-function toExercise(e: Lib, level: Level, pool: Lib[], variant: number, cardioMin: number): AiExercise {
-  const d = DOSE[level];
+type Ctx = { goal: PrescriptionGoal; timesPerWeek: Map<Slot, number>; minutes: number };
+
+/** Dosis y justificación (series, reps, esfuerzo y descanso) desde `prescription.ts`; `trimmed` si hay que dejar el mínimo por tiempo. */
+function toExercise(e: Lib, level: Level, pool: Lib[], variant: number, cardioMin: number, ctx: Ctx, trimmed: boolean): AiExerciseWithBasis {
+  const rule = prescribe(ctx.goal, level);
+  const times = ctx.timesPerWeek.get(e.slot) ?? 1;
   const timed = e.slot === "cardio";
   const hold = e.name.startsWith("Plancha") || e.slot === "movilidad" || e.slot === "equilibrio";
+  const sets = trimmed ? 2 : setsPerExercise(rule, times);
   return {
     name: e.name,
-    sets: timed ? 1 : hold ? 2 : d.sets,
-    reps: timed ? `${cardioMin} min` : hold ? (level === "principiante" ? "20-30 s" : "30-45 s") : d.reps,
-    intensity: timed ? (variant % 2 ? "Moderada (RPE 6)" : "Suave (RPE 4-5)") : hold ? "Controlado" : d.intensity,
-    rest: timed ? "—" : hold ? "30 s" : d.rest,
+    sets: timed ? 1 : hold ? 2 : sets,
+    reps: timed ? `${cardioMin} min` : hold ? (level === "principiante" ? "20-30 s" : "30-45 s") : repsText(rule),
+    intensity: timed ? (variant % 2 ? "Moderada (RPE 6)" : "Suave (RPE 4-5)") : hold ? "Controlado" : rirText(rule),
+    rest: timed ? "—" : hold ? "30 s" : restLabel(rule.restSec),
     how: e.how,
     equipment: e.equipment,
     patterns: e.patterns,
     areas: e.areas,
     alternatives: pool.filter((x) => x.slot === e.slot && x !== e).slice(0, 2).map((x) => ({ name: x.name, equipment: x.equipment })),
+    basis: timed ? supportBasis("cardio") : hold ? supportBasis("hold") : basisFor(ctx.goal, level, { group: GROUP[e.slot] ?? e.slot, timesPerWeek: times, sets, trimmed }),
   };
 }
+
+/** Minutos aproximados de un ejercicio de fuerza (40 s por serie + descanso) para ver si el día cabe en el tiempo pedido. */
+const strengthMin = (sets: number, restSec: number) => (sets * (40 + restSec)) / 60;
 
 /** Qué bloques lleva cada día según el objetivo a corto plazo y la edad. */
 function daySlots(a: RoutineAnswers, i: number): Slot[] {
@@ -136,18 +142,28 @@ export function generateRoutine(a: RoutineAnswers, level: Level): { plan: AiPlan
   const poolOf = (i: number) => L.filter((e) => fits(e, allowedEquipment(r.daySpaces![i], a.equipment), r));
   const cardioBase = Math.max(10, Math.round(a.minutes * (a.shortGoal === "resistencia" || a.shortGoal === "correr_5k" ? 0.6 : 0.25) / 5) * 5);
 
+  // Cuántas veces a la semana sale cada bloque (reparte el volumen semanal por grupo)
+  const timesPerWeek = new Map<Slot, number>();
+  for (const i of r.weekdays.keys()) for (const slot of daySlots(a, i)) timesPerWeek.set(slot, (timesPerWeek.get(slot) ?? 0) + 1);
+  const ctx: Ctx = { goal: goalFor(a.shortGoal), timesPerWeek, minutes: a.minutes };
+  const rule = prescribe(ctx.goal, level);
+
   const days = r.weekdays.map((wd, i) => {
     const pool = poolOf(i);
     const used = new Set<string>();
-    const exs: AiExercise[] = [];
+    const exs: AiExerciseWithBasis[] = [];
+    // Si con las series de la pauta el día se pasa del tiempo (menos 10 min de calentamiento y vuelta a la calma), se deja el mínimo
+    const strengthSlots = daySlots(a, i).filter((s) => s === "pierna" || s === "empuje" || s === "tiron" || s === "core").length;
+    const wanted = daySlots(a, i).reduce((m, s) => m + (s === "pierna" || s === "empuje" || s === "tiron" || s === "core" ? strengthMin(setsPerExercise(rule, timesPerWeek.get(s) ?? 1), rule.restSec) : 0), 0);
+    const trimmed = strengthSlots > 0 && wanted > a.minutes - 10;
     for (const [j, slot] of daySlots(a, i).entries()) {
       const options = pool.filter((e) => e.slot === slot && !used.has(e.name));
       const e = options[(i + j) % Math.max(1, options.length)];
       if (!e) continue;
       used.add(e.name);
-      exs.push(toExercise(e, level, pool, i, cardioBase));
+      exs.push(toExercise(e, level, pool, i, cardioBase, ctx, trimmed));
     }
-    if (!exs.length) exs.push(toExercise(L.find((e) => e.name === "Caminar a paso vivo")!, level, pool, i, cardioBase));
+    if (!exs.length) exs.push(toExercise(L.find((e) => e.name === "Caminar a paso vivo")!, level, pool, i, cardioBase, ctx, false));
     const cardioDay = exs[0]?.reps.endsWith("min");
     return {
       weekday: wd,
@@ -159,7 +175,7 @@ export function generateRoutine(a: RoutineAnswers, level: Level): { plan: AiPlan
       cooldown: "5 min de respiración y estiramientos suaves de lo trabajado.",
       light: {
         durationMin: Math.max(10, Math.round(a.minutes * 0.6)),
-        exercises: exs.slice(0, 3).map((e) => ({ ...e, sets: Math.max(1, e.sets - 1), intensity: "Suave" })),
+        exercises: exs.slice(0, 3).map((e) => ({ ...e, sets: Math.max(1, e.sets - 1), intensity: "Suave", basis: undefined })),
         note: "Día flojo o con molestias: menos series y sin apurar.",
       },
     };
@@ -174,7 +190,7 @@ export function generateRoutine(a: RoutineAnswers, level: Level): { plan: AiPlan
     phases.push({ name: `Bloque ${n}`, focus: n === 1 ? "Técnica y hábito: aprender los movimientos con margen." : "Subir poco a poco el volumen.", weeks: build, deload: false, progression: 1, days });
     left -= build;
     if (left > 0) {
-      phases.push({ name: "Semana de descarga", focus: "Menos volumen para asimilar lo trabajado.", weeks: 1, deload: true, progression: 0, days: days.map((d) => ({ ...d, exercises: d.exercises.map((e) => ({ ...e, sets: Math.max(1, e.sets - 1) })) })) });
+      phases.push({ name: "Semana de descarga", focus: "Menos volumen para asimilar lo trabajado.", weeks: 1, deload: true, progression: 0, days: days.map((d) => ({ ...d, exercises: d.exercises.map((e) => ({ ...e, sets: Math.max(1, e.sets - 1), basis: undefined })) })) });
       left -= 1;
     }
     n++;
@@ -184,7 +200,7 @@ export function generateRoutine(a: RoutineAnswers, level: Level): { plan: AiPlan
     plan: {
       title: `Rutina ${a.shortWeeks} semanas`.slice(0, 60),
       summary: `Rutina de ${r.weekdays.length} días por semana, ${a.minutes} min, nivel ${level}. Generada con tus respuestas y tus tests, sin IA.`,
-      why: "Progresión lenta (≈10 % por semana), descarga cada 4 semanas y solo ejercicios con el material que tienes y sin cargar tus zonas con molestias.",
+      why: `Series, repeticiones, esfuerzo y descanso siguen pautas de consenso científico (${rule.weeklySets[0]}-${rule.weeklySets[1]} series semanales por grupo muscular, ${repsText(rule)} repeticiones, ${rule.rir}, descanso de ${restLabel(rule.restSec)}); cada ejercicio muestra su justificación y las citas. Progresión lenta (≈10 % por semana), descarga cada 4 semanas y solo ejercicios con el material que tienes y sin cargar tus zonas con molestias.`,
       phases,
     },
   };
