@@ -1,4 +1,6 @@
 // Integración (seguridad · bloque 6): guardián de login, registro por API, 2FA, condiciones en escrituras y Origin.
+import { randomUUID } from "node:crypto";
+
 import { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -121,7 +123,7 @@ describe.skipIf(!HAS_DB)("recuento deslizante", () => {
   it("los fallos repartidos a ambos lados del cambio de ventana siguen sumando", async () => {
     vi.resetModules();
     const { rateLimitPersistent, countPersistent } = await import("@/lib/rate-limit-db");
-    const key = `slide-${t}-${Math.random()}`;
+    const key = `slide-${t}-${randomUUID()}`;
     const win = 15 * 60_000;
     const edge = Math.ceil(Date.now() / win) * win; // próximo cambio de ventana
     for (let i = 0; i < 3; i++) await rateLimitPersistent(key, 99, win, edge - 5000 + i);
