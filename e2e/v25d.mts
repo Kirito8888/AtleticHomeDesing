@@ -61,6 +61,13 @@ await noOverflow("404");
 errors.push(...(await a11y(page, "404")));
 log("404 en español");
 
+// 2b · Los detalles inexistentes siguen devolviendo 404 real (un loading.tsx encima lo dejaría en 200)
+for (const p of ["/clubs/inexistente", "/training/inexistente"]) {
+  const r = await page.request.get(B + p);
+  if (r.status() !== 404) errors.push(`${p} → ${r.status()} (se esperaba 404)`);
+}
+log("detalles inexistentes: 404");
+
 // 3 · La caché del service worker no guarda salud ni finanzas
 await page.goto(B + "/");
 await page.evaluate(() => navigator.serviceWorker.ready);
