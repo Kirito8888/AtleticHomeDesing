@@ -10,5 +10,7 @@ export const POST = route(async (req) => {
   const user = await requireUser();
   const body = await parseBody(req, z.object({ athleteId: z.string().optional(), from: isoDate.optional() }));
   const userId = await resolveAthleteId(user, body.athleteId, "LOAD", "write");
-  return recomputeSessionsTss(userId, body.from ? dateOnly(body.from) : undefined);
+  const r = await recomputeSessionsTss(userId, body.from ? dateOnly(body.from) : undefined);
+  // Una entrenadora no debe poder deducir cuántas sesiones de Strava tiene la atleta: solo los conteos sin Strava.
+  return userId === user.id ? r : { sessions: r.visibleSessions, changed: r.visibleChanged };
 });

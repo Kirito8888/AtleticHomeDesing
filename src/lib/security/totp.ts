@@ -47,7 +47,10 @@ export async function startTotpSetup(userId: string, email: string) {
 async function checkTotp(userId: string, sealedSecret: string, lastStep: number | null, token: string): Promise<boolean> {
   if (!/^\d{6}$/.test(token)) return false;
   const secret = openAny(sealedSecret, [encryptionKey(), env().TOTP_ENCRYPTION_KEY_PREVIOUS]).plaintext;
-  const result = await verify({ secret, token, epochTolerance: 30, afterTimeStep: lastStep ?? undefined });
+  // Si el reloj del servidor retrocede por debajo del último paso gastado, otplib lanza en vez de devolver
+  // `valid: false`: se trata como código no válido (antes, un 500 en el login).
+  const result = await verify({ secret, token, epochTolerance: 30, afterTimeStep: lastStep ?? undefined }).catch(() => null);
+  if (!result) return false;
   // verify() devuelve un tipo común a HOTP y TOTP: timeStep solo existe en TOTP.
   if (!result.valid || !("timeStep" in result)) return false;
   const step = result.timeStep;

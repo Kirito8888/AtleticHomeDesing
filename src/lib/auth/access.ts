@@ -128,29 +128,31 @@ async function otherUser(adminId: string, userId: string) {
   return u;
 }
 
+// Las acciones de la administración sobre otra cuenta anotan el evento en la Actividad de esa persona SIN la IP ni el
+// navegador de quien las hace (por eso no reciben contexto): la IP solo se guarda para la propia persona.
 /** Suspender: no puede entrar y sus sesiones abiertas caen (sube sessionVersion). No borra datos. */
-export async function suspendUser(adminId: string, userId: string, ctx: AuditContext = {}) {
+export async function suspendUser(adminId: string, userId: string) {
   const u = await otherUser(adminId, userId);
   await prisma.user.update({ where: { id: u.id }, data: { suspendedAt: new Date(), sessionVersion: { increment: 1 } } });
-  await recordEvent(u.id, "ACCOUNT_SUSPENDED", ctx, "por la administración");
+  await recordEvent(u.id, "ACCOUNT_SUSPENDED", {}, "por la administración");
 }
 
-export async function reactivateUser(adminId: string, userId: string, ctx: AuditContext = {}) {
+export async function reactivateUser(adminId: string, userId: string) {
   const u = await otherUser(adminId, userId);
   await prisma.user.update({ where: { id: u.id }, data: { suspendedAt: null, failedLogins: 0, lockedUntil: null } });
   await clearGlobalFailures(u.email);
-  await recordEvent(u.id, "ACCOUNT_REACTIVATED", ctx, "por la administración");
+  await recordEvent(u.id, "ACCOUNT_REACTIVATED", {}, "por la administración");
 }
 
 /** Enlace de un solo uso (1 h) para poner una contraseña nueva. Invalida los anteriores sin usar. */
-export async function issuePasswordReset(adminId: string, userId: string, ctx: AuditContext = {}) {
+export async function issuePasswordReset(adminId: string, userId: string) {
   const u = await otherUser(adminId, userId);
   const { token, hash } = newShareToken();
   await prisma.$transaction([
     prisma.passwordReset.deleteMany({ where: { userId: u.id, usedAt: null } }),
     prisma.passwordReset.create({ data: { userId: u.id, tokenHash: hash, createdById: adminId, expiresAt: new Date(Date.now() + RESET_MINUTES * 60_000) } }),
   ]);
-  await recordEvent(u.id, "PASSWORD_RESET_ISSUED", ctx, "enlace generado por la administración");
+  await recordEvent(u.id, "PASSWORD_RESET_ISSUED", {}, "enlace generado por la administración");
   return { url: publicUrl(`/reset?token=${token}`), expiresInMinutes: RESET_MINUTES };
 }
 
