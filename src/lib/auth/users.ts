@@ -15,7 +15,6 @@ export const registerSchema = z.object({
   name: z.string().trim().min(1, "Indica tu nombre").max(100),
   email: z.string().trim().toLowerCase().email("Email no válido"),
   password: passwordSchema,
-  role: z.enum(["ATHLETE", "COACH"]).default("ATHLETE"),
 });
 
 /**
@@ -34,7 +33,7 @@ export async function createUser(data: z.infer<typeof registerSchema>, invited?:
     data: {
       name: data.name,
       email: data.email,
-      role: invited?.role ?? data.role,
+      role: invited?.role ?? "ATHLETE",
       passwordHash: await hashPassword(data.password),
       // Todo usuario puede entrenar: el perfil se crea siempre (un coach también puede ser atleta).
       athleteProfile: { create: {} },

@@ -4,6 +4,7 @@ import { Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { CoachPanel, type CoachReportView } from "@/components/study/coach-panel";
 import { DocumentsPanel } from "@/components/study/documents-panel";
+import { publicDocError } from "@/lib/ai/doc-error";
 import { listDecks } from "@/lib/ai/flashcards";
 import { FlashcardReview } from "@/components/study/flashcard-review";
 import { ManualCards } from "@/components/study/coursework";
@@ -100,7 +101,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
               title: d.title,
               subject: d.subject,
               status: d.status,
-              error: d.error,
+              error: publicDocError(d.error),
               createdAt: toIsoDay(d.createdAt),
               chunks: d._count.chunks,
               flashcards: d._count.flashcards,

@@ -39,6 +39,8 @@ function prune(s: Store, now: number, windowMs: number) {
 export const LIMITS = {
   login: { limit: 10, windowMs: 15 * 60_000 },
   register: { limit: 5, windowMs: 60 * 60_000 },
+  /** Confirmar o desactivar el 2FA: cada intento prueba un código, por usuario. */
+  totpConfirm: { limit: 5, windowMs: 15 * 60_000 },
   passwordCheck: { limit: 5, windowMs: 15 * 60_000 },
   aiChat: { limit: 60, windowMs: 60 * 60_000 },
   aiUpload: { limit: 10, windowMs: 60 * 60_000 },
