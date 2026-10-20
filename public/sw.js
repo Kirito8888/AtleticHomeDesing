@@ -1,13 +1,15 @@
 // Atlenza service worker — mínimo y conservador.
 // - /_next/static e /icons: cache-first (ficheros con hash, inmutables).
-// - Navegación: network-first; sin red, la última versión cacheada de esa página
-//   o la página /offline.
+// - Navegación: network-first; solo se guardan /offline y las páginas del plan del día
+//   (PRECACHE_PATH): nunca finanzas, salud ni el resto. Sin red, la copia o /offline.
 // - /api: nunca se cachea (datos personales y siempre frescos).
-const VERSION = "lifeos-v2";
+const VERSION = "lifeos-v3";
 const STATIC = `${VERSION}-static`;
 const PAGES = `${VERSION}-pages`;
 // v1.8 · Ficheros recibidos con «Compartir» (los recoge la página /share; ver src/lib/share.ts)
 const SHARE = "lifeos-share";
+// Únicas páginas que se guardan para verlas sin red (sesiones y días del plan).
+const PRECACHE_PATH = /^\/(training\/[A-Za-z0-9_-]{1,40}|planning\/plan\/[A-Za-z0-9_-]{1,40})$/;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(PAGES).then((c) => c.add("/offline")));
@@ -67,7 +69,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          if (res.ok && !res.redirected) {
+          if (res.ok && !res.redirected && PRECACHE_PATH.test(url.pathname)) {
             const copy = res.clone();
             caches.open(PAGES).then((c) => c.put(req, copy));
           }
@@ -81,7 +83,6 @@ self.addEventListener("fetch", (event) => {
 // Plan del día sin conexión: la app pide guardar las páginas de las sesiones de
 // hoy y mañana (para la pista sin cobertura). Van a la misma caché de páginas,
 // que se vacía al cerrar sesión (PurgePrivateCache).
-const PRECACHE_PATH = /^\/(training\/[A-Za-z0-9_-]{1,40}|planning\/plan\/[A-Za-z0-9_-]{1,40})$/;
 self.addEventListener("message", (event) => {
   const data = event.data;
   if (!data || data.type !== "precache" || !Array.isArray(data.paths)) return;
