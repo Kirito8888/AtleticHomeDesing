@@ -32,12 +32,22 @@ export async function rateLimitPersistent(key: string, limit: number, windowMs: 
   }
 }
 
-/** Recuento de la ventana actual sin sumar (0 si la BD no responde: el límite en memoria no se consulta aquí). */
+/**
+ * Recuento sin sumar, como ventana deslizante aproximada: ventana actual + la anterior ponderada por lo que le queda
+ * de vida. Evita que unos fallos repartidos a ambos lados del cambio de ventana fija duplicaran el cupo.
+ * Devuelve 0 si la BD no responde.
+ */
 export async function countPersistent(key: string, windowMs: number, now = Date.now()): Promise<number> {
-  const windowStart = new Date(Math.floor(now / windowMs) * windowMs);
+  const cur = Math.floor(now / windowMs) * windowMs;
+  const hashed = hashKey(key);
   try {
-    const row = await prisma.rateLimitHit.findUnique({ where: { key_windowStart: { key: hashKey(key), windowStart } }, select: { count: true } });
-    return row?.count ?? 0;
+    const rows = await prisma.rateLimitHit.findMany({
+      where: { key: hashed, windowStart: { in: [new Date(cur), new Date(cur - windowMs)] } },
+      select: { windowStart: true, count: true },
+    });
+    const current = rows.find((r) => r.windowStart.getTime() === cur)?.count ?? 0;
+    const previous = rows.find((r) => r.windowStart.getTime() === cur - windowMs)?.count ?? 0;
+    return Math.ceil(current + previous * (1 - (now - cur) / windowMs));
   } catch {
     return 0;
   }
