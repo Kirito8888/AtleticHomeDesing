@@ -20,6 +20,11 @@ export default async function ReviewPage() {
   return (
     <>
       <PageHeader title="Revisión semanal" description={`Semana del ${from} al ${to}. Cinco minutos para cerrar la semana y elegir un foco.`} />
+      <nav aria-label="Más resúmenes" className="mb-2 flex flex-wrap gap-x-4 text-sm">
+        <Link href="/glance" className="inline-flex min-h-11 items-center underline underline-offset-4">
+          Hoy de un vistazo
+        </Link>
+      </nav>
       <div className="grid max-w-xl gap-4">
         <Card className="gap-2 py-4">
           <CardHeader className="px-4">

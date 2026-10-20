@@ -49,6 +49,11 @@ export default async function GlancePage() {
   return (
     <>
       <PageHeader title="De un vistazo" description={formatDate(day, { weekday: "long", day: "numeric", month: "long" })} />
+      <nav aria-label="Más resúmenes" className="mb-2 flex flex-wrap gap-x-4 text-sm">
+        <Link href="/review" className="inline-flex min-h-11 items-center underline underline-offset-4">
+          Revisión semanal
+        </Link>
+      </nav>
       <ul className="max-w-xl rounded-lg border px-4 text-sm" aria-label="Resumen del día">
         <Row label="Readiness" href="/recovery">
           {rec?.readinessScore != null ? <span className="font-semibold tabular-nums">{Math.round(rec.readinessScore)}</span> : "sin registrar"}

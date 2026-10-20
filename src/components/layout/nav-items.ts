@@ -60,6 +60,20 @@ export const NAV_GROUPS: readonly { id: string; label: string; items: readonly N
 export type ModuleKey = ModuleName;
 export const MODULE_LABEL: Record<ModuleKey, string> = { training: "Entreno", recovery: "Recuperación", planning: "Planificación", nutrition: "Nutrición", finance: "Finanzas", study: "Atlenza IA (estudio)" };
 
+/** Exp. B10 · Lo que una cuenta nueva trae activado en la bienvenida; el resto se ofrece. */
+export const NEW_ACCOUNT_MODULES: readonly ModuleKey[] = ["training", "recovery"];
+
+/**
+ * Módulos marcados al abrir la bienvenida: la cuenta que no la ha hecho y nunca ocultó nada parte de
+ * {@link NEW_ACCOUNT_MODULES}; si ya eligió (bienvenida hecha o algo oculto), se respeta lo suyo.
+ * No escribe nada: el menú solo cambia al terminar la bienvenida.
+ */
+export function welcomeModules({ onboarded, hidden }: { onboarded: boolean; hidden: readonly string[] }): ModuleKey[] {
+  const all = Object.keys(MODULE_LABEL) as ModuleKey[];
+  if (!onboarded && hidden.length === 0) return all.filter((m) => NEW_ACCOUNT_MODULES.includes(m));
+  return all.filter((m) => !hidden.includes(m));
+}
+
 /** Candidatos de la barra inferior, por prioridad; si se ocultan módulos entran los siguientes. */
 const BAR_ORDER = ["/training", "/planning", "/recovery", "/nutrition", "/goals", "/clubs"] as const;
 const BAR_SLOTS = 3; // + Inicio + «Más» = 5 huecos

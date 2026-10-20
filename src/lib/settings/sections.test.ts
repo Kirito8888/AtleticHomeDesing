@@ -15,6 +15,6 @@ describe("settingsGroups", () => {
   });
   it("conserva las anclas que usan otros enlaces", () => {
     const all = SETTINGS_GROUPS.flatMap((g) => g.sections);
-    for (const a of ["entrenadora", "mis-reglas", "pista", "notificaciones", "modulos", "strava", "ia"]) expect(all).toContain(a);
+    for (const a of ["entrenadora", "mis-reglas", "pista", "notificaciones", "modulos", "strava", "ia", "entreno-sola"]) expect(all).toContain(a);
   });
 });

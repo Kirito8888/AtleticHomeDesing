@@ -117,6 +117,12 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
         }
       />
 
+      <nav aria-label="Más de planificación" className="mb-2 flex flex-wrap gap-x-4 text-sm">
+        <Link href="/review" className="inline-flex min-h-11 items-center underline underline-offset-4">
+          Revisión semanal
+        </Link>
+      </nav>
+
       <div className="mb-3 flex items-center justify-between">
         <Button asChild variant="ghost" size="icon" aria-label="Mes anterior">
           <Link href={`?month=${prev}`}>
