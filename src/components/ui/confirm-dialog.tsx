@@ -41,9 +41,10 @@ export function confirmDialog(options: ConfirmOptions): Promise<boolean> {
   });
 }
 
-function settle(ok: boolean) {
+/** Resuelve `item` solo si sigue siendo el de delante: Radix también avisa de «cerrado» tras pulsar un botón. */
+function settle(item: Pending | null, ok: boolean) {
   const cur = queue[0];
-  if (!cur) return;
+  if (!cur || cur !== item) return;
   queue = queue.slice(1);
   emit();
   cur.resolve(ok);
@@ -53,14 +54,14 @@ function settle(ok: boolean) {
 export function ConfirmHost() {
   const cur = React.useSyncExternalStore(subscribe, head, () => null);
   return (
-    <AlertDialog open={cur != null} onOpenChange={(open) => !open && settle(false)}>
+    <AlertDialog open={cur != null} onOpenChange={(open) => !open && settle(cur, false)}>
       {cur ? (
         <AlertDialogContent>
           <AlertDialogTitle>{cur.title}</AlertDialogTitle>
           {cur.description ? <AlertDialogDescription>{cur.description}</AlertDialogDescription> : null}
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => settle(false)}>{cur.cancelLabel ?? "Cancelar"}</AlertDialogCancel>
-            <AlertDialogAction destructive={cur.destructive} onClick={() => settle(true)}>
+            <AlertDialogCancel onClick={() => settle(cur, false)}>{cur.cancelLabel ?? "Cancelar"}</AlertDialogCancel>
+            <AlertDialogAction destructive={cur.destructive} onClick={() => settle(cur, true)}>
               {cur.confirmLabel ?? "Seguir"}
             </AlertDialogAction>
           </AlertDialogFooter>
