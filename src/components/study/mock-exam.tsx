@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
 import { examScore } from "@/lib/study/mock-exam";
+import { formatNum } from "@/lib/format";
 
 type Card = { id: string; front: string; back: string };
 
@@ -73,7 +74,7 @@ export function MockExam({ decks }: { decks: Array<{ id: string; name: string; t
     const { score, passed } = examScore(cards.length - failed.length, cards.length);
     return (
       <div className="grid gap-3 text-sm" role="status" aria-label="Resultado del examen">
-        <p className="text-3xl font-semibold tabular-nums">{score.toLocaleString("es-ES")} / 10</p>
+        <p className="text-3xl font-semibold tabular-nums">{formatNum(score, 2)} / 10</p>
         <p>
           {passed ? "Aprobado" : "Suspenso"} · {cards.length - failed.length} de {cards.length} bien
         </p>

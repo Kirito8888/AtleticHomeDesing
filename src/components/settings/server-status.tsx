@@ -1,13 +1,13 @@
 import type { ServerStatus } from "@/lib/admin/status";
 import { cn } from "@/lib/utils";
+import { formatDateTime, formatNum } from "@/lib/format";
 
-const gb = (b: number) => `${(b / 1024 ** 3).toFixed(1)} GB`;
+const gb = (b: number) => `${formatNum(b / 1024 ** 3)} GB`;
 const mb = (b: number) => (b >= 1024 ** 3 ? gb(b) : `${Math.round(b / 1024 ** 2)} MB`);
-const fmt = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" });
 /** Una fecha ilegible no puede tumbar la pantalla de Ajustes: `format` lanza RangeError con fechas inválidas. */
 export const shortWhen = (iso: string) => {
   const t = Date.parse(iso);
-  return Number.isNaN(t) ? "—" : fmt.format(t);
+  return Number.isNaN(t) ? "—" : formatDateTime(new Date(t), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 };
 const when = shortWhen;
 const hoursAgo = (iso: string) => {

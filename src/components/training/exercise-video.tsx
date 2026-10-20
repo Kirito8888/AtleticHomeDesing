@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { VIDEO_MAX_BYTES } from "@/lib/files/video";
+import { formatNum } from "@/lib/format";
 
 /**
  * Reproductor de bajo consumo: no se pide nada hasta pulsar «Ver vídeo»; entonces se descifra en el servidor (sin
@@ -85,7 +86,7 @@ export function ExerciseVideo({ id, hasVideo, bytes, editable, athlete }: { id: 
             </Button>
           ) : (
             <Button type="button" size="sm" onClick={load} disabled={busy}>
-              Ver vídeo ({(bytes / 1048576).toFixed(1)} MB)
+              Ver vídeo ({formatNum(bytes / 1048576)} MB)
             </Button>
           )
         ) : (

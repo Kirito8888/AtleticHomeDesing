@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 /** Restaurar «Descargar mis datos» en una cuenta vacía (p. ej. al cambiar de servidor). */
 export function RestoreForm() {
@@ -16,7 +17,7 @@ export function RestoreForm() {
   const [result, setResult] = useState<string | null>(null);
   async function go() {
     if (!file) return;
-    if (!confirm("Se importan tus entrenos, recuperación, salud, calendario, comidas y estudio. Las finanzas y los apuntes no. ¿Seguir?")) return;
+    if (!(await confirmDialog({ title: "¿Importar la copia?", description: "Se importan tus entrenos, recuperación, salud, calendario, comidas y estudio. Las finanzas y los apuntes no.", confirmLabel: "Importar" }))) return;
     setBusy(true);
     const form = new FormData();
     form.append("file", file);

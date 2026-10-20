@@ -13,7 +13,7 @@ export function ReferenceChart({ points, rows, unit, higherIsBetter, title }: { 
   const t = useCssTokens(TOKENS);
   const data = [
     ...points.map((p) => ({ x: p.x, p50: p.p50, band: p.low !== undefined && p.high !== undefined ? [p.low, p.high] : undefined, value: undefined as number | undefined })),
-    ...rows.map((r) => ({ x: Number(r.age.toFixed(2)), p50: undefined as number | undefined, band: undefined, value: r.value })),
+    ...rows.map((r) => ({ x: Math.round(r.age * 100) / 100, p50: undefined as number | undefined, band: undefined, value: r.value })),
   ].sort((a, b) => a.x - b.x);
   return (
     <figure className="grid gap-1" aria-label={`Comparativa con la curva: ${title}`}>

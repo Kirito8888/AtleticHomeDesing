@@ -6,6 +6,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
+import { formatDateTime } from "@/lib/format";
 
 type Status = { configured: boolean; connected: boolean; connectedAt: string | null; lastSyncAt: string | null; lastError: string | null; sessions: number };
 
@@ -21,7 +23,7 @@ export function StravaSettings({ status, result }: { status: Status; result?: st
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   if (!status.configured) return <p className="text-sm text-muted-foreground">Strava no está activado en este servidor (lo configura la administración).</p>;
-  const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—");
+  const when = (iso: string | null) => (iso ? formatDateTime(iso, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—");
   return (
     <div className="grid gap-3 text-sm">
       {result && RESULT[result] ? <p role="status" className="rounded-md border p-2">{RESULT[result]}</p> : null}
@@ -58,8 +60,8 @@ export function StravaSettings({ status, result }: { status: Status; result?: st
               size="sm"
               disabled={busy}
               onClick={async () => {
-                if (!confirm("¿Desconectar Strava?")) return;
-                const del = confirm(`¿Borrar también las ${status.sessions} sesiones importadas de Strava? (Cancelar = conservarlas)`);
+                if (!(await confirmDialog({ title: "¿Desconectar Strava?", confirmLabel: "Desconectar", destructive: true }))) return;
+                const del = (await confirmDialog({ title: `¿Borrar también las ${status.sessions} sesiones importadas de Strava?`, description: "Si eliges Conservarlas, se quedan como están.", confirmLabel: "Borrar sesiones", cancelLabel: "Conservarlas", destructive: true }));
                 setBusy(true);
                 try {
                   await api(`/api/strava${del ? "?deleteSessions=1" : ""}`, { method: "DELETE" });

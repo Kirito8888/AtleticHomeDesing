@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 /** Envuelve una llamada: avisa del error, refresca la página al terminar bien. */
 function useAction() {
@@ -120,7 +121,7 @@ export function InviteMember({ orgId }: { orgId: string }) {
 export function RemoveMember({ orgId, memberId, label }: { orgId: string; memberId: string; label: string }) {
   const { busy, run } = useAction();
   return (
-    <Button variant="ghost" size="sm" className="max-md:min-h-11" disabled={busy} aria-label={label} onClick={() => confirm("¿Seguro?") && run(() => api(`/api/clubs/${orgId}/members/${memberId}`, { method: "DELETE" }))}>
+    <Button variant="ghost" size="sm" className="max-md:min-h-11" disabled={busy} aria-label={label} onClick={async () => (await confirmDialog({ title: "¿Seguro?", confirmLabel: "Seguir" })) && run(() => api(`/api/clubs/${orgId}/members/${memberId}`, { method: "DELETE" }))}>
       Quitar
     </Button>
   );

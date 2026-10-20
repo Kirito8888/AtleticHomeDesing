@@ -8,9 +8,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
+import { formatDateTime } from "@/lib/format";
 
 type Passkey = { id: string; name: string; createdAt: string; lastUsedAt: string | null; backedUp: boolean };
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/Madrid" }) : "nunca");
+const when = (iso: string | null) => (iso ? formatDateTime(iso) : "nunca");
 const noop = () => () => undefined;
 
 /** v1.7 · Llaves de acceso: entrar con la huella, la cara o el PIN del móvil, sin contraseña ni código. */
@@ -38,7 +40,7 @@ export function PasskeySettings({ passkeys }: { passkeys: Passkey[] }) {
     }
   }
   async function remove(p: Passkey) {
-    if (!confirm(`¿Quitar la llave «${p.name}»? No podrás entrar con ella.`)) return;
+    if (!(await confirmDialog({ title: `¿Quitar la llave «${p.name}»?`, description: "No podrás entrar con ella.", confirmLabel: "Quitar", destructive: true }))) return;
     try {
       await api(`/api/account/passkeys/${p.id}`, { method: "DELETE" });
       toast.success("Llave quitada");

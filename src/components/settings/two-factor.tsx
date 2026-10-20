@@ -8,6 +8,8 @@ import { Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
+import { formatDateTime } from "@/lib/format";
 
 interface Status {
   enabled: boolean;
@@ -149,7 +151,7 @@ export function TwoFactorSettings({ initial }: { initial: Status }) {
   return (
     <div className="grid gap-4">
       <p className="text-sm">
-        ✅ Activada{initial.enabledAt ? ` desde el ${new Date(initial.enabledAt).toLocaleDateString("es-ES")}` : ""}. Te quedan{" "}
+        ✅ Activada{initial.enabledAt ? ` desde el ${formatDateTime(initial.enabledAt)}` : ""}. Te quedan{" "}
         <strong>{initial.recoveryCodesLeft}</strong> códigos de recuperación.
       </p>
       <form
@@ -177,7 +179,7 @@ export function TwoFactorSettings({ initial }: { initial: Status }) {
         onSubmit={async (e) => {
           e.preventDefault();
           const f = new FormData(e.currentTarget);
-          if (!confirm("¿Desactivar la verificación en dos pasos? Tu cuenta quedará protegida solo por la contraseña.")) return;
+          if (!(await confirmDialog({ title: "¿Desactivar la verificación en dos pasos?", description: "Tu cuenta quedará protegida solo por la contraseña.", confirmLabel: "Desactivar", destructive: true }))) return;
           const res = await call(() => api("/api/account/2fa", { method: "DELETE", body: { password: str(f, "password"), code: str(f, "code") } }));
           if (res) {
             toast.success("Verificación en dos pasos desactivada");

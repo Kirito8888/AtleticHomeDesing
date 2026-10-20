@@ -8,10 +8,11 @@ import { Chips, Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
+import { localDay } from "@/lib/dates";
 
 type Run = { phase: "focus" | "break"; endAt: number; minutes: number; subject: string };
 const KEY = "lifeos.pomodoro";
-const madridDay = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+const madridDay = () => localDay(new Date());
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 function load(): Run | null {

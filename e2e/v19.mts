@@ -105,7 +105,6 @@ log("pantalla de condiciones (sin navegación hasta aceptar), página Acerca de 
 // 3. Panel de administración: necesita segundo factor; invitar, revocar, enlace de contraseña nueva y suspender
 const adminEmail = `v19admin${run}@test.dev`;
 const admin = await newPage();
-admin.on("dialog", (d) => d.accept());
 await login(admin, adminEmail, newUser(adminEmail, "ADMIN"));
 await go(admin, "/admin");
 await admin.getByText(/activa antes la verificación en dos pasos/).waitFor();
@@ -162,6 +161,7 @@ log("enlace de contraseña nueva de un solo uso: confirma, cambia, cierra la ses
 await go(admin, "/admin");
 const row = admin.getByLabel("Cuentas").getByRole("listitem").filter({ hasText: athleteEmail });
 await row.getByRole("button", { name: "Suspender" }).click();
+await admin.getByRole("alertdialog").getByRole("button", { name: "Suspender" }).click();
 await row.getByText(/suspendida/).waitFor();
 await go(athlete, "/training");
 if (!/\/login/.test(athlete.url())) errors.push("la sesión de una cuenta suspendida sigue abierta");

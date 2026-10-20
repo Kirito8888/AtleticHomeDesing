@@ -2,7 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import { formatEur } from "@/lib/format";
+import { formatEur, formatInt, formatMonth } from "@/lib/format";
 import { useCssTokens } from "@/lib/use-css-tokens";
 
 export interface CashflowRow {
@@ -15,7 +15,7 @@ export interface CashflowRow {
 const TOKENS = ["--series-1", "--series-2", "--chart-grid", "--muted-foreground"] as const;
 
 const monthLabel = (m: string) =>
-  new Intl.DateTimeFormat("es-ES", { month: "short", timeZone: "UTC" }).format(new Date(`${m}-01T00:00:00Z`));
+  formatMonth(m);
 
 /** Ingresos vs gastos por mes: barras agrupadas, un único eje en euros. */
 export function CashflowChart({ data }: { data: CashflowRow[] }) {
@@ -40,7 +40,7 @@ export function CashflowChart({ data }: { data: CashflowRow[] }) {
           <BarChart data={rows} margin={{ top: 4, right: 4, bottom: 0, left: 0 }} barGap={2}>
             <CartesianGrid stroke={grid} vertical={false} />
             <XAxis dataKey="month" tickFormatter={monthLabel} {...axis} />
-            <YAxis width={56} tickFormatter={(v: number) => `${Math.round(v).toLocaleString("es-ES")} €`} {...axis} />
+            <YAxis width={56} tickFormatter={(v: number) => `${formatInt(v)} €`} {...axis} />
             <Tooltip
               cursor={{ fill: grid }}
               content={(props: unknown) => {
@@ -50,7 +50,7 @@ export function CashflowChart({ data }: { data: CashflowRow[] }) {
                 return (
                   <div className="rounded-md border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md">
                     <div className="mb-1 font-medium capitalize">
-                      {new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${r.month}-01T00:00:00Z`))}
+                      {formatMonth(r.month, "long")}
                     </div>
                     <div className="tabular-nums">Ingresos: {formatEur(r.incomeCents)}</div>
                     <div className="tabular-nums">Gastos: {formatEur(r.expenseCents)}</div>

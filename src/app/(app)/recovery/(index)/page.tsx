@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
+import { Moon } from "lucide-react";
+
+import { EmptyState } from "@/components/empty-state";
 import { CycleCard } from "@/components/recovery/cycle-card";
 import { InjuriesPanel } from "@/components/recovery/injuries-panel";
 import { RecoveryForm } from "@/components/recovery/recovery-form";
@@ -93,6 +96,7 @@ export default async function RecoveryPage() {
         </Link>
       </nav>
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+        <div id="registro" className="scroll-mt-20">
         <RecoveryForm
           initial={{
             date: toIsoDay(now),
@@ -112,6 +116,7 @@ export default async function RecoveryPage() {
             elbowSymptoms: todayRow?.elbowSymptoms ?? null,
           }}
         />
+        </div>
         <div className="grid content-start gap-4">
           {showCycle && cycle ? (
             <CycleCard
@@ -258,7 +263,9 @@ export default async function RecoveryPage() {
                 </div>
               </CardContent>
             </Card>
-          ) : null}
+          ) : (
+            <EmptyState icon={Moon} title="Aún no hay registros de recuperación" text="Apunta cómo has dormido y cómo te sientes; en unos días verás aquí tu evolución." action={{ href: "#registro", label: "Registrar cómo estoy" }} />
+          )}
         </div>
       </div>
     </>

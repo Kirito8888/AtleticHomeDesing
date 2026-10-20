@@ -16,6 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/client-api";
 import { trashedToast } from "@/lib/trash-client";
 import { toCents } from "@/lib/finance/ledger";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 export interface AccountOpt {
   id: string;
@@ -91,6 +92,8 @@ export function QuickTransaction({
       const el = f.elements.namedItem(name) as HTMLInputElement | null;
       if (el && v) el.value = v;
     };
+    // Valor de un <input>: coma decimal y sin separador de miles, como lo escribe la persona.
+    // eslint-disable-next-line no-restricted-syntax
     set("amount", r.amount != null ? r.amount.toFixed(2).replace(".", ",") : null);
     set("date", r.date);
     set("description", r.merchant);
@@ -483,7 +486,7 @@ export function DeleteTransaction({ id }: { id: string }) {
       type="button"
       className="text-xs text-muted-foreground hover:underline"
       onClick={async () => {
-        if (!confirm("¿Borrar el movimiento?")) return;
+        if (!(await confirmDialog({ title: "¿Borrar el movimiento?", confirmLabel: "Borrar", destructive: true }))) return;
         try {
           const r = await api<{ trashId?: string }>(`/api/finance/transactions/${id}`, { method: "DELETE" });
           trashedToast(r.trashId, "Movimiento borrado", () => router.refresh());

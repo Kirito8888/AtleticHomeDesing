@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
 import { CYCLE_PARTS, type CycleSettings, PART_LABEL, SYMPTOMS } from "@/lib/health/cycle";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 type Opt<T extends string> = Array<{ value: T; label: string }>;
 const opts = <T extends string>(o: Record<T, string>): Opt<T> => (Object.entries(o) as Array<[T, string]>).map(([value, label]) => ({ value, label }));
@@ -144,8 +145,8 @@ export function CycleCard({
                   size="sm"
                   variant="ghost"
                   disabled={busy}
-                  onClick={() => {
-                    if (confirm("¿Borrar todos tus datos del ciclo? No se puede deshacer.")) void call("/api/health/cycle", { method: "DELETE" }, "Datos del ciclo borrados");
+                  onClick={async () => {
+                    if ((await confirmDialog({ title: "¿Borrar todos tus datos del ciclo?", description: "No se puede deshacer.", confirmLabel: "Borrar", destructive: true }))) void call("/api/health/cycle", { method: "DELETE" }, "Datos del ciclo borrados");
                   }}
                 >
                   Borrar mis datos del ciclo

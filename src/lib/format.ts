@@ -4,6 +4,29 @@ const eur = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" 
 const num1 = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 });
 const num2 = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 2 });
 
+/** Zona horaria de toda la presentación (instantes y horas). Los días de calendario van en UTC (`formatDate`). */
+export const TZ = "Europe/Madrid";
+
+const int0 = new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 });
+const decFmt = new Map<number, Intl.NumberFormat>();
+/** Decimales fijos con coma: formatDec(7.5, 1) → "7,5"; formatDec(1234.5, 2) → "1234,50" (sin separador de miles en cifras cortas, como es-ES). */
+export function formatDec(n: number | null | undefined, decimals: number): string {
+  if (n == null || !Number.isFinite(n)) return "—";
+  let f = decFmt.get(decimals);
+  if (!f) decFmt.set(decimals, (f = new Intl.NumberFormat("es-ES", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })));
+  return f.format(n);
+}
+/** Entero con separador de miles: 12345 → "12.345". */
+export const formatInt = (n: number | null | undefined) => (n == null || !Number.isFinite(n) ? "—" : int0.format(Math.round(n)));
+/** Importe en cualquier moneda (céntimos). */
+export const formatMoney = (cents: number, currency = "EUR") => new Intl.NumberFormat("es-ES", { style: "currency", currency }).format(cents / 100);
+/** 1572864 → "1,5 MB"; 2048 → "2 KB". */
+export function formatBytes(n: number): string {
+  if (n < 1024 * 1024) return `${formatInt(Math.max(1, n / 1024))} KB`;
+  if (n < 1024 ** 3) return `${formatNum(n / 1024 ** 2)} MB`;
+  return `${formatNum(n / 1024 ** 3)} GB`;
+}
+
 export const formatEur = (cents: number) => eur.format(cents / 100);
 export const formatNum = (n: number | null | undefined, decimals: 1 | 2 = 1) =>
   n == null ? "—" : (decimals === 1 ? num1 : num2).format(n);
@@ -35,6 +58,17 @@ export function parseDuration(text: string): number | null {
 export function formatDate(iso: string | Date, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" }) {
   const d = typeof iso === "string" ? new Date(`${iso.slice(0, 10)}T00:00:00Z`) : iso;
   return new Intl.DateTimeFormat("es-ES", { timeZone: "UTC", ...opts }).format(d);
+}
+
+/** Instante → fecha (y hora si se pide) en la zona fija. Por defecto "5 oct 2026". */
+export function formatDateTime(instant: string | Date, opts: Intl.DateTimeFormatOptions = { day: "numeric", month: "short", year: "numeric" }) {
+  return new Intl.DateTimeFormat("es-ES", { timeZone: TZ, ...opts }).format(typeof instant === "string" ? new Date(instant) : instant);
+}
+/** Instante → "14:05" en la zona fija. */
+export const formatTime = (instant: string | Date) => formatDateTime(instant, { hour: "2-digit", minute: "2-digit" });
+/** "2026-10" → "oct" | "octubre de 2026". */
+export function formatMonth(yyyyMm: string, style: "short" | "long" = "short"): string {
+  return formatDate(`${yyyyMm}-01`, style === "short" ? { month: "short" } : { month: "long", year: "numeric" });
 }
 
 export const SESSION_TYPE_LABEL = {

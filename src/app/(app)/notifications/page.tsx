@@ -5,10 +5,11 @@ import { PageHeader } from "@/components/page-header";
 import { pageUser } from "@/lib/auth/page";
 import { listInbox } from "@/lib/push/inbox";
 import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/format";
 
 export const metadata = { title: "Notificaciones · Atlenza" };
 
-const when = (d: Date) => new Intl.DateTimeFormat("es-ES", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(d);
+const when = (d: Date) => formatDateTime(d, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 /** v1.8 · Lo que Atlenza te ha avisado (60 días), aunque no tengas las notificaciones push activadas. */
 export default async function NotificationsPage() {

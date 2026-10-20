@@ -14,6 +14,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 interface CycleOption {
   id: string;
@@ -223,7 +224,7 @@ export function DeleteButton({ url, label }: { url: string; label: string }) {
       type="button"
       className="text-xs text-muted-foreground underline-offset-2 hover:underline"
       onClick={async () => {
-        if (!confirm(`¿Borrar ${label}?`)) return;
+        if (!(await confirmDialog({ title: `¿Borrar ${label}?`, confirmLabel: "Borrar", destructive: true }))) return;
         try {
           await api(url, { method: "DELETE" });
           router.refresh();
