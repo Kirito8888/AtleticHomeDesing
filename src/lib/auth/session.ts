@@ -1,6 +1,6 @@
 import "server-only";
 
-import { auth } from "@/auth";
+import { currentSession } from "@/lib/auth/current";
 import type { CoachScope, UserRole } from "@/generated/prisma/enums";
 import { ApiError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
@@ -11,7 +11,7 @@ export interface CurrentUser {
 }
 
 export async function requireUser(): Promise<CurrentUser> {
-  const session = await auth();
+  const session = await currentSession();
   if (!session?.user?.id) throw new ApiError(401, "No autenticado");
   return { id: session.user.id, role: session.user.role };
 }
@@ -65,6 +65,37 @@ export async function resolveAthleteId(
   if (!grant.scopes.includes(scope)) throw new ApiError(403, `El atleta no te ha dado acceso a: ${SCOPE_LABEL[scope]}`);
   if (mode === "write" && !grant.canPlan) throw new ApiError(403, "El atleta no te ha dado permiso de planificación");
   return athleteId;
+}
+
+/**
+ * `resolveAthleteId` para muchas atletas a la vez (panel del club): mismas reglas (vínculo 1:1 ACTIVE + membresías ACTIVE de club con
+ * staff ADMIN/COACH activo, art. 18 bloqueante, ADMIN global sin atajos) en 3 consultas, sea cual sea el número de atletas.
+ * Devuelve los ámbitos de lectura de cada una; las que no aparecen o salen vacías no se pueden leer.
+ */
+export async function readableScopes(user: CurrentUser, athleteIds: string[]): Promise<Map<string, Set<CoachScope>>> {
+  const out = new Map<string, Set<CoachScope>>();
+  const others = athleteIds.filter((id) => id !== user.id);
+  if (athleteIds.includes(user.id)) out.set(user.id, new Set(Object.keys(SCOPE_LABEL) as CoachScope[]));
+  if ((user.role !== "COACH" && user.role !== "ADMIN") || !others.length) return out;
+  const [links, memberships, restricted] = await Promise.all([
+    prisma.coachAthlete.findMany({ where: { coachId: user.id, athleteId: { in: others }, status: "ACTIVE" }, select: { athleteId: true, scopes: true, canPlan: true } }),
+    prisma.orgMember.findMany({
+      where: {
+        userId: { in: others },
+        role: "ATHLETE",
+        status: "ACTIVE",
+        org: { members: { some: { userId: user.id, role: { in: ["ADMIN", "COACH"] }, status: "ACTIVE" } } },
+      },
+      select: { userId: true, scopes: true, canPlan: true },
+    }),
+    prisma.user.findMany({ where: { id: { in: others }, processingRestrictedAt: { not: null } }, select: { id: true } }),
+  ]);
+  const blocked = new Set(restricted.map((r) => r.id));
+  const grants = new Map<string, Grant[]>();
+  for (const l of links) grants.set(l.athleteId, [...(grants.get(l.athleteId) ?? []), l]);
+  for (const m of memberships) grants.set(m.userId, [...(grants.get(m.userId) ?? []), m]);
+  for (const [id, g] of grants) if (!blocked.has(id)) out.set(id, new Set(mergeGrants(g).scopes));
+  return out;
 }
 
 export const SCOPE_LABEL: Record<CoachScope, string> = {
