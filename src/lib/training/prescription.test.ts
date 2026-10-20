@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Level } from "@/lib/routine/profile";
 
-import { basisFor, CITATIONS, citationsFor, doiUrl, formatCitation, goalFor, MAX_SETS, MIN_SETS, PRESCRIPTION, type PrescriptionGoal, prescribe, restLabel, setsPerExercise } from "./prescription";
+import { basisFor, CITATIONS, citationsFor, doiUrl, formatCitation, goalFor, MAX_SETS, MIN_SETS, PRESCRIPTION, type PrescriptionGoal, prescribe, rebaseBasis, restLabel, setsOfRow, setsPerExercise, supportBasis } from "./prescription";
 
 const LEVELS: Level[] = ["principiante", "intermedio", "avanzado"];
 const GOALS = Object.keys(PRESCRIPTION) as PrescriptionGoal[];
@@ -72,6 +72,17 @@ describe("dosis", () => {
     expect(b.why).toContain("RIR 2");
     expect(b.why).toContain("2,5 min");
     expect(basisFor("fuerza", "intermedio", { group: "piernas", timesPerWeek: 1, sets: 2, trimmed: true }).why).toContain("tiempo");
+  });
+  it("al editar las series, «Por qué» dice las nuevas, quita el recorte por tiempo y conserva las citas", () => {
+    expect([setsOfRow("3 × 8-12"), setsOfRow("10x5"), setsOfRow("al fallo"), setsOfRow("")]).toEqual([3, 10, null, null]);
+    const trimmed = basisFor("fuerza", "intermedio", { group: "piernas", timesPerWeek: 1, sets: 2, trimmed: true });
+    const out = rebaseBasis(trimmed, 4);
+    expect(out.why).toContain("se empieza con 4 series por ejercicio");
+    expect(out.why).not.toContain("tiempo que indicaste");
+    expect(out.refs).toEqual(trimmed.refs);
+    expect(rebaseBasis(trimmed, 1).why).toContain("se empieza con 1 serie por ejercicio");
+    const support = supportBasis("hold"); // sin frase de series: igual
+    expect(rebaseBasis(support, 3)).toBe(support);
   });
   it("objetivo de la rutina y descansos legibles", () => {
     expect(goalFor("fuerza")).toBe("fuerza");

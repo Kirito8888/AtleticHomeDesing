@@ -85,6 +85,21 @@ export function basisFor(goal: PrescriptionGoal, level: Level, o: { group: strin
   return { why: `${volume}${trim} ${intensity}`, refs: r.refs };
 }
 
+/** Series iniciales de una fila («3 × 8-12» → 3); null si no empieza por un número. */
+export const setsOfRow = (sets: string): number | null => {
+  const m = /^\s*(\d{1,2})\s*[×x]/i.exec(sets);
+  return m ? Number(m[1]) : null;
+};
+
+/**
+ * Tras editar las series de una fila, el texto de «Por qué» dice las nuevas y deja de afirmar que se recortó por tiempo.
+ * Las citas no cambian. Si el texto no tiene la frase de las series (planes de apoyo: cardio, planchas), se devuelve igual.
+ */
+export function rebaseBasis(basis: Basis, sets: number): Basis {
+  const why = basis.why.replace(/se empieza con \d+ series? por ejercicio/, `se empieza con ${sets} ${sets === 1 ? "serie" : "series"} por ejercicio`);
+  return why === basis.why ? basis : { ...basis, why: why.replace(/ Se ha dejado el mínimo de series para que quepa en el tiempo que indicaste\./, "") };
+}
+
 /** Justificación de planchas, movilidad, equilibrio y cardio. */
 export function supportBasis(kind: "cardio" | "hold"): Basis {
   return {

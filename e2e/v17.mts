@@ -382,6 +382,11 @@ await demoPage.getByText(/Cuenta de demostración/).waitFor();
 await demoPage.goto(B + "/training");
 if (!(await demoPage.getByText(/Técnica de jabalina|Fuerza máxima|Potencia y pliometría/).count())) errors.push("demo: no hay sesiones sintéticas");
 await demoPage.context().close();
+// Limpieza: la cuenta demo se borra para que repetir la suite no agote el límite de cuentas demo.
+const demos = (await (await admin.request.get(B + "/api/admin/demo")).json()) as Array<{ id: string; email: string }>;
+const mine = demos.find((d) => d.email === demoEmail);
+if (!mine) errors.push("demo: la cuenta creada no aparece en el listado");
+else if (!(await admin.request.delete(B + `/api/admin/demo/${mine.id}`)).ok()) errors.push("demo: no se pudo borrar la cuenta demo");
 await admin.context().close();
 log("presupuesto de temporada, justificante cifrado, subida de precio, agua sin conexión, de un vistazo y cuenta demo");
 
