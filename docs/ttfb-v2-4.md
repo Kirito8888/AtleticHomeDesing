@@ -156,3 +156,14 @@ Sentencias más caras de las 10 rutas más lentas:
 4. **No merece la pena:** `/training/performance`, `/study/focus`, `/search` (los 45–50 ms de BD son picos sin atribuir, no se repiten) ni ninguna ruta pública (`/login` 8 ms).
 
 Para repetir la medida tras el cambio del punto 1: misma orden de arriba; basta con comparar «Consultas SSR» de `/` y `/planning`.
+
+## Tras Rendimiento B5 (20/10/2026)
+Mismo método (`TTFB_QUERIES=1 npm run e2e:v24a`), mismo contenedor; ruido de ±15 ms.
+
+| Ruta | Mediana antes → después (claro) | Consultas SSR antes → después |
+|---|---|---|
+| `/` | 89 → 102 ms | 89 → 95 |
+| `/planning` | 76 → 67 ms | 44 → 48 |
+
+**Sin mejora medible en estas rutas, y la causa del punto 1 estaba mal atribuida.** Con un contador temporal en `currentSession` (`e2e:v24b`): 110 llamadas → 92 ejecuciones de `auth()`; solo 18 renders llamaban dos veces (layout + página). Las 20–50 sentencias `User` por visita son **peticiones distintas** (el proxy y el prefetch RSC de los enlaces, cada uno con su comprobación de revocación), que `cache` no puede compartir. Quitar esas exigiría cambiar la revocación (no se ha tocado).
+Panel del club (`club-panel.int.test.ts`): 80 → 15 operaciones con 5 atletas y 410 → 15 con 20.
