@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Activity, Apple, Brain, CalendarDays, ChevronRight, HeartPulse, ListChecks, ListTodo, Plus, Target, Trophy, Wallet } from "lucide-react";
 
+import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { OfflineDayCache } from "@/components/offline-day-cache";
 import { RuleAlerts } from "@/components/rules/rule-alerts";
@@ -59,6 +60,8 @@ export default async function DashboardPage() {
   const cur = d.perf.current;
   const goal = d.nutrition.goal;
   const totals = d.nutrition.totals as Record<string, number>;
+  // Cuenta nueva: sin sesiones, recuperación, tareas, objetivos ni competición.
+  const isNewAccount = !d.perf.current && !d.recovery && !d.sessions.length && !d.tasks.length && !openGoals.length && !d.nextCompetition;
   const daysToComp = d.nextCompetition ? diffDays(d.nextCompetition.startAt, today()) : null;
 
   return (
@@ -141,6 +144,17 @@ export default async function DashboardPage() {
         </Link>
       ) : null}
 
+      {isNewAccount ? (
+        <div className="mb-4">
+          <EmptyState
+            icon={Activity}
+            title="Empieza por tu primer entreno"
+            text="Registra una sesión y verás aquí tu carga, tu recuperación y lo que toca después. También puedes anotar cómo has dormido."
+            action={{ href: "/training/new", label: "Registrar mi primer entreno" }}
+          />
+        </div>
+      ) : null}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Widget hide={off("recovery")} title="Readiness" icon={HeartPulse} href="/recovery">
           {readiness != null && rStatus ? (
@@ -149,12 +163,7 @@ export default async function DashboardPage() {
               <StatusLabel status={rStatus}>{label ? READINESS_LABEL[label] : ""}</StatusLabel>
             </div>
           ) : (
-            <div className="grid gap-2">
-              <p className="text-sm text-muted-foreground">Aún no has registrado sueño y VFC hoy.</p>
-              <Button asChild variant="outline" size="sm">
-                <Link href="/recovery">Registrar recuperación</Link>
-              </Button>
-            </div>
+            <EmptyState icon={HeartPulse} title="Aún no has registrado sueño y VFC hoy" text="Con ellos calculamos tu readiness." action={{ href: "/recovery", label: "Registrar recuperación" }} />
           )}
         </Widget>
 

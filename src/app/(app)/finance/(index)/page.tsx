@@ -14,6 +14,9 @@ import { addDays, today, toIsoDay } from "@/lib/dates";
 import { periodWindow } from "@/lib/finance/ledger";
 import { budgetsStatus, cashflow, listAccounts, spendingByCategory, sportExpenses, sportSeasonBalance, subscriptionsOverview } from "@/lib/finance/service";
 import { formatDate, formatEur } from "@/lib/format";
+import { Wallet } from "lucide-react";
+
+import { EmptyState } from "@/components/empty-state";
 import { CategorizeTx, CategoryRules } from "@/components/finance/categorize";
 import { emergencyFund } from "@/lib/finance/emergency";
 import { listRules } from "@/lib/finance/category-rules-service";
@@ -79,7 +82,7 @@ export default async function FinancePage() {
               />
             ) : null}
             <ManageFinance accounts={accounts} categories={categories} today={todayIso} />
-            <QuickTransaction accounts={accounts} categories={categories} today={todayIso} competitions={competitions.map((c) => ({ id: c.id, title: c.title, date: toIsoDay(c.startAt) }))} />
+            <div id="nuevo-movimiento" className="scroll-mt-20"><QuickTransaction accounts={accounts} categories={categories} today={todayIso} competitions={competitions.map((c) => ({ id: c.id, title: c.title, date: toIsoDay(c.startAt) }))} /></div>
           </div>
         }
       />
@@ -387,7 +390,7 @@ export default async function FinancePage() {
                 })}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">Sin movimientos.</p>
+              <EmptyState icon={Wallet} title="Aún no hay movimientos" text="Anota un gasto o un ingreso, o importa el extracto de tu banco, y aquí verás tu flujo y tus presupuestos." action={{ href: "#nuevo-movimiento", label: "Añadir un movimiento" }} />
             )}
           </CardContent>
         </Card>
