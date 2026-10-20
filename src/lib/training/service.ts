@@ -6,6 +6,7 @@ import { Prisma, type TechnicalEvent, type TssMethod } from "@/generated/prisma/
 import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { STRAVA } from "@/lib/strava/policy";
 import { bestTimesByDistance } from "@/lib/training/disciplines";
 import { computePmc } from "@/lib/training/pmc";
 import { computeReadiness } from "@/lib/training/readiness";
@@ -262,6 +263,7 @@ export async function recomputeSessionsTss(userId: string, from?: Date) {
   const thresholdsOn = (d: Date) => thresholdRows.findLast((t) => t.effectiveFrom <= d) ?? null;
 
   let changed = 0;
+  let changedVisible = 0;
   for (const s of sessions) {
     if (s.tssMethod === "MANUAL") continue;
     const r = computeSessionTss({
@@ -285,10 +287,12 @@ export async function recomputeSessionsTss(userId: string, from?: Date) {
         data: { tss: r.tss, tssMethod: r.method as TssMethod | null, tssComputedAt: new Date() },
       });
       changed++;
+      if (s.source !== STRAVA) changedVisible++;
     }
   }
   if (sessions.length) await recomputeDailyLoads(userId, sessions[0].date);
-  return { sessions: sessions.length, changed };
+  // `visible*`: lo que puede ver otra persona (sin Strava); la ruta devuelve solo esto a una entrenadora.
+  return { sessions: sessions.length, changed, visibleSessions: sessions.filter((s) => s.source !== STRAVA).length, visibleChanged: changedVisible };
 }
 
 /** Sustituye una sesión existente por `input` (mismo id; conserva quién la planificó). */
