@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { PageHeader } from "@/components/page-header";
 import { MockExam } from "@/components/study/mock-exam";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +20,9 @@ export default async function MockExamPage() {
           <MockExam decks={decks.filter((d) => d.total >= 3).map((d) => ({ id: d.id, name: d.name, total: d.total }))} />
         </CardContent>
       </Card>
+      <Link href="/study/exams" className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-4">
+        ¿Buscas el plan de estudio y las notas? Exámenes y notas →
+      </Link>
     </>
   );
 }

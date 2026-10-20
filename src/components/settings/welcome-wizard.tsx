@@ -21,12 +21,12 @@ type Discipline = keyof typeof DISCIPLINES;
  * v1.8 · Primer uso: qué partes de Atlenza vas a usar (el resto se oculta y se puede recuperar en
  * Ajustes → Módulos), tu perfil básico y las horas de silencio. Todo opcional.
  */
-export function WelcomeWizard({ initial }: { initial: { name: string; sex: "MALE" | "FEMALE" | "OTHER" | null; birthDate: string; disciplines: Discipline[]; primaryEvent: string; hidden: ModuleKey[] } }) {
+export function WelcomeWizard({ initial }: { initial: { name: string; sex: "MALE" | "FEMALE" | "OTHER" | null; birthDate: string; disciplines: Discipline[]; primaryEvent: string; modules: ModuleKey[] } }) {
   const router = useRouter();
   const all = Object.keys(MODULE_LABEL) as ModuleKey[];
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [modules, setModules] = useState<ModuleKey[]>(all.filter((m) => !initial.hidden.includes(m)));
+  const [modules, setModules] = useState<ModuleKey[]>(initial.modules);
   const [name, setName] = useState(initial.name);
   const [sex, setSex] = useState(initial.sex);
   const [birthDate, setBirthDate] = useState(initial.birthDate);
@@ -59,7 +59,7 @@ export function WelcomeWizard({ initial }: { initial: { name: string; sex: "MALE
       </div>
       {step === 0 ? (
         <>
-          <p>¿Qué vas a usar? Lo demás se oculta (sin borrar nada) y lo recuperas cuando quieras en Ajustes → Módulos.</p>
+          <p>Empezamos con Entreno y Recuperación. Activa lo demás si lo vas a usar; lo que dejes sin marcar se oculta (sin borrar nada) y lo activas cuando quieras en Ajustes → Módulos.</p>
           <MultiChips label="Partes de Atlenza" options={all.map((m) => ({ value: m, label: MODULE_LABEL[m] }))} value={modules} onChange={setModules} />
         </>
       ) : null}

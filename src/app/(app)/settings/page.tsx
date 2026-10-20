@@ -777,6 +777,15 @@ export default async function SettingsPage({
                 : `El registro de actividad se ha alterado (${integrity.reason}). Alguien ha tocado la base de datos: sigue el plan de incidentes.`}
             </p>
           </Section>
+          <Section
+            id="entreno-sola"
+            title="Entreno sola, con aviso"
+            description="Si no marcas «llegué» a tiempo, tus contactos de confianza reciben un aviso."
+          >
+            <Button asChild variant="outline" className="min-h-11">
+              <Link href="/safety">Abrir Entreno sola</Link>
+            </Button>
+          </Section>
         </div>
       </section>
       <section
