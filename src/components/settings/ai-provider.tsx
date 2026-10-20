@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 type Provider = "GEMINI" | "OPENAI" | "ANTHROPIC";
 
@@ -187,8 +188,8 @@ export function AiProviderSettings({
                 type="button"
                 variant="ghost"
                 disabled={busy}
-                onClick={() =>
-                  confirm("¿Quitar tu IA? Se borra la clave guardada.") &&
+                onClick={async () =>
+                  (await confirmDialog({ title: "¿Quitar tu IA?", description: "Se borra la clave guardada.", confirmLabel: "Quitar", destructive: true })) &&
                   run(async () => {
                     await api("/api/account/ai-provider", { method: "DELETE" });
                     toast.success("Tu IA se ha quitado");

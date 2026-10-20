@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { DeckShares } from "@/components/study/deck-shares";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Deck {
   id: string;
@@ -50,7 +51,7 @@ export function FlashcardReview({ decks }: { decks: Deck[] }) {
   }
 
   async function leave(deckId: string) {
-    if (!window.confirm("¿Dejar este mazo? Se borra también tu progreso en él.")) return;
+    if (!(await confirmDialog({ title: "¿Dejar este mazo?", description: "Se borra también tu progreso en él.", confirmLabel: "Dejar mazo", destructive: true }))) return;
     try {
       await api(`/api/ai/flashcards/decks/${deckId}/shares`, { method: "DELETE" });
       router.refresh();

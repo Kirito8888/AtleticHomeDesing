@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 export function NewExercise() {
   const router = useRouter();
@@ -98,7 +99,7 @@ export function ExerciseEditor({ id, name: n0, description: d0 }: { id: string; 
         className="justify-self-start text-destructive"
         disabled={busy}
         onClick={async () => {
-          if (!confirm("¿Borrar este ejercicio y su vídeo? No se puede deshacer.")) return;
+          if (!(await confirmDialog({ title: "¿Borrar este ejercicio y su vídeo?", description: "No se puede deshacer.", confirmLabel: "Borrar", destructive: true }))) return;
           setBusy(true);
           try {
             await api(`/api/training/exercises/${id}`, { method: "DELETE" });

@@ -8,6 +8,7 @@ import { Chips } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
 import { AUDIENCES, type Audience } from "@/lib/demo/audiences";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 /** v1.7 · Crear y borrar cuentas demo por tipo de público (datos sintéticos, caducan a los 30 días). */
 export function DemoAccounts({ accounts }: { accounts: Array<{ id: string; email: string; demoAudience: string | null; demoExpiresAt: string }> }) {
@@ -57,7 +58,7 @@ export function DemoAccounts({ accounts }: { accounts: Array<{ id: string; email
                 size="sm"
                 variant="ghost"
                 onClick={async () => {
-                  if (!confirm(`¿Borrar ${a.email}?`)) return;
+                  if (!(await confirmDialog({ title: `¿Borrar ${a.email}?`, confirmLabel: "Borrar", destructive: true }))) return;
                   try {
                     await api(`/api/admin/demo/${a.id}`, { method: "DELETE" });
                     router.refresh();

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import { formatDate } from "@/lib/format";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 export type PlanMesoItem = {
   code: string;
@@ -32,7 +33,7 @@ function DeleteMeso({ code }: { code: string }) {
       type="button"
       className="text-xs text-muted-foreground underline-offset-2 hover:underline"
       onClick={async () => {
-        if (!confirm(`¿Borrar el bloque ${code} importado? Se quitan sus sesiones planificadas; las hechas se quedan.`)) return;
+        if (!(await confirmDialog({ title: `¿Borrar el bloque ${code} importado?`, description: "Se quitan sus sesiones planificadas; las hechas se quedan.", confirmLabel: "Borrar", destructive: true }))) return;
         try {
           await api(`/api/planning/plan/${encodeURIComponent(code)}`, { method: "DELETE" });
           router.refresh();

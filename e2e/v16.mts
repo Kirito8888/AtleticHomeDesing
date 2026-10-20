@@ -290,8 +290,8 @@ for (let i = 0; i < 5 && (await restoreBtn.isDisabled()); i++) {
   await rest.getByLabel("Exportación de Atlenza (JSON)").setInputFiles({ name: "lifeos.json", mimeType: "application/json", buffer: Buffer.from(exported) });
   await rest.waitForTimeout(500);
 }
-rest.once("dialog", (d) => d.accept());
 await restoreBtn.click();
+await rest.getByRole("alertdialog").getByRole("button", { name: "Importar" }).click();
 await rest.getByText(/\d+ sesiones/).first().waitFor();
 await rest.context().close();
 log("restaurar la exportación en una cuenta vacía");

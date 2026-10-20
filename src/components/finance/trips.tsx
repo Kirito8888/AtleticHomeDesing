@@ -12,6 +12,7 @@ import { api } from "@/lib/client-api";
 import { formatEur } from "@/lib/format";
 import { DEADLINE_KIND, TRIP_PARTS, type TripPart } from "@/lib/finance/trips";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 const toCents = (s: string) => Math.max(0, Math.round((Number(s.replace(",", ".")) || 0) * 100));
 
@@ -137,7 +138,7 @@ export function TripCard({ trip: t, unlinked }: { trip: Trip; unlinked: Array<{ 
         <button
           type="button"
           className="shrink-0 text-xs text-destructive underline-offset-2 hover:underline"
-          onClick={() => confirm(`¿Borrar el viaje «${t.name}»? Los gastos se quedan.`) && call(() => api(`/api/finance/trips/${t.id}`, { method: "DELETE" }), "Viaje borrado")}
+          onClick={async () => (await confirmDialog({ title: `¿Borrar el viaje «${t.name}»?`, description: "Los gastos se quedan.", confirmLabel: "Borrar", destructive: true })) && call(() => api(`/api/finance/trips/${t.id}`, { method: "DELETE" }), "Viaje borrado")}
         >
           Borrar
         </button>

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 /** Enlace .ics para suscribirse desde Google/Apple Calendar (solo títulos y fechas). */
 export function CalendarFeedSettings({ active: initialActive, lastUsedAt, study: initialStudy }: { active: boolean; lastUsedAt: string | null; study: boolean }) {
@@ -15,7 +16,7 @@ export function CalendarFeedSettings({ active: initialActive, lastUsedAt, study:
   const [busy, setBusy] = useState(false);
 
   async function create() {
-    if (active && !confirm("Se crea un enlace nuevo y el anterior deja de funcionar. ¿Seguir?")) return;
+    if (active && !(await confirmDialog({ title: "¿Crear un enlace nuevo?", description: "El anterior deja de funcionar.", confirmLabel: "Crear enlace" }))) return;
     setBusy(true);
     try {
       const r = await api<{ url: string }>("/api/calendar/feed", { method: "POST" });
@@ -29,7 +30,7 @@ export function CalendarFeedSettings({ active: initialActive, lastUsedAt, study:
   }
 
   async function revoke() {
-    if (!confirm("¿Revocar el enlace? Los calendarios suscritos dejarán de actualizarse.")) return;
+    if (!(await confirmDialog({ title: "¿Revocar el enlace?", description: "Los calendarios suscritos dejarán de actualizarse.", confirmLabel: "Revocar", destructive: true }))) return;
     setBusy(true);
     try {
       await api("/api/calendar/feed", { method: "DELETE" });

@@ -25,6 +25,7 @@ import {
   type ScreenKey,
   type WomenSettings,
 } from "@/lib/health/women";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 function useCall() {
   const router = useRouter();
@@ -243,7 +244,7 @@ export function WomenSettingsForm({ initial }: { initial: WomenSettings }) {
         variant="ghost"
         className="justify-self-start text-destructive"
         disabled={busy}
-        onClick={() => confirm("¿Borrar todos tus datos de esta sección (ajustes, cribados, analíticas, suelo pélvico)? No se puede deshacer.") && call("/api/health/women", { method: "DELETE" }, "Datos borrados")}
+        onClick={async () => (await confirmDialog({ title: "¿Borrar todos tus datos de esta sección?", description: "Ajustes, cribados, analíticas y suelo pélvico. No se puede deshacer.", confirmLabel: "Borrar", destructive: true })) && call("/api/health/women", { method: "DELETE" }, "Datos borrados")}
       >
         Borrar mis datos de esta sección
       </Button>

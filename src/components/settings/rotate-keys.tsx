@@ -5,13 +5,14 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 /** v1.7 · Tras rotar las claves (las viejas en *_PREVIOUS): vuelve a cifrar todo con la nueva. */
 export function RotateKeys() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Record<string, { rotated: number; current: number; failed: number }> | null>(null);
   async function run() {
-    if (!confirm("¿Volver a cifrar todos los datos cifrados con la clave actual? Hazlo solo después de poner la clave anterior en *_PREVIOUS.")) return;
+    if (!(await confirmDialog({ title: "¿Volver a cifrar los datos con la clave actual?", description: "Hazlo solo después de poner la clave anterior en *_PREVIOUS.", confirmLabel: "Volver a cifrar" }))) return;
     setBusy(true);
     try {
       setResult(await api("/api/admin/rotate-keys", { method: "POST" }));

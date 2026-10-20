@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
 import { parsePhasesText } from "@/lib/recovery/physio-protocol";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 const HELP = "# Nombre de fase | dolor máx 2 | objetivo\n- Ejercicio: dosis\n? Criterio para pasar de fase";
 
@@ -133,7 +134,7 @@ export function DeleteProtocol({ id }: { id: string }) {
       variant="outline"
       size="sm"
       onClick={async () => {
-        if (!confirm("¿Borrar el protocolo? Se retira también a las atletas con las que lo compartiste.")) return;
+        if (!(await confirmDialog({ title: "¿Borrar el protocolo?", description: "Se retira también a las atletas con las que lo compartiste.", confirmLabel: "Borrar", destructive: true }))) return;
         try {
           await api(`/api/recovery/physio/${id}`, { method: "DELETE" });
           router.push("/recovery/fisio");

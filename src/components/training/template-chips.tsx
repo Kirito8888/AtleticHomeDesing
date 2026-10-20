@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { api } from "@/lib/client-api";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 export interface TemplateChip {
   id: string;
@@ -29,7 +30,7 @@ export function TemplateChips({ templates, activeId }: { templates: TemplateChip
             aria-label={`Borrar plantilla ${t.name}`}
             className="rounded-full p-1.5 text-muted-foreground hover:text-foreground"
             onClick={async () => {
-              if (!confirm(`¿Borrar la plantilla «${t.name}»?`)) return;
+              if (!(await confirmDialog({ title: `¿Borrar la plantilla «${t.name}»?`, confirmLabel: "Borrar", destructive: true }))) return;
               try {
                 await api(`/api/training/templates/${t.id}`, { method: "DELETE" });
                 toast.success("Plantilla borrada");

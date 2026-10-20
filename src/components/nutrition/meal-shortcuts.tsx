@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { MEAL_LABEL } from "@/components/nutrition/meals";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 type Meal = keyof typeof MEAL_LABEL;
 
@@ -86,8 +87,8 @@ export function MealShortcuts({
                   type="button"
                   aria-label={`Borrar favorita ${f.name}`}
                   className="p-1.5 text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    if (confirm(`¿Borrar la comida favorita «${f.name}»?`)) {
+                  onClick={async () => {
+                    if ((await confirmDialog({ title: `¿Borrar la comida favorita «${f.name}»?`, confirmLabel: "Borrar", destructive: true }))) {
                       void run(() => api(`/api/nutrition/meal-templates/${f.id}`, { method: "DELETE" }), "Favorita borrada");
                     }
                   }}

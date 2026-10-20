@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Chips, Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 /** Borrador de plan con IA: activar, regenerar o borrar. */
 export function AiPlanActions({ code, status, overlapDays, canRegenerate = true }: { code: string; status: string; overlapDays: number; canRegenerate?: boolean }) {
@@ -14,7 +15,7 @@ export function AiPlanActions({ code, status, overlapDays, canRegenerate = true 
   const [busy, setBusy] = useState<string | null>(null);
 
   async function run(kind: "activate" | "regenerate" | "delete") {
-    if (kind === "delete" && !confirm("¿Borrar este plan? Se quitan sus sesiones planificadas; lo que ya hiciste se queda.")) return;
+    if (kind === "delete" && !(await confirmDialog({ title: "¿Borrar este plan?", description: "Se quitan sus sesiones planificadas; lo que ya hiciste se queda.", confirmLabel: "Borrar", destructive: true }))) return;
     setBusy(kind);
     try {
       if (kind === "activate") {

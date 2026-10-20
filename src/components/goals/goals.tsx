@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
 import { formatDate } from "@/lib/format";
 import { GOAL_KIND_LABEL, GOAL_KINDS, goalValue, type GoalKindKey, type GoalProgress } from "@/lib/goals/goals";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 export type GoalOptions = {
   events: Array<{ value: string; label: string }>;
@@ -158,7 +159,7 @@ export function GoalList({ goals }: { goals: GoalRow[] }) {
               <Button type="button" size="sm" variant="outline" onClick={() => act(`/api/goals/${g.id}`, { method: "PATCH", body: { done: !g.doneAt } }, g.doneAt ? "Reabierto" : "¡Conseguido!")}>
                 {g.doneAt ? "Reabrir" : "Conseguido"}
               </Button>
-              <Button type="button" size="sm" variant="ghost" aria-label={`Borrar ${g.title}`} onClick={() => confirm("¿Borrar este objetivo?") && act(`/api/goals/${g.id}`, { method: "DELETE" }, "Objetivo borrado")}>
+              <Button type="button" size="sm" variant="ghost" aria-label={`Borrar ${g.title}`} onClick={async () => (await confirmDialog({ title: "¿Borrar este objetivo?", confirmLabel: "Borrar", destructive: true })) && act(`/api/goals/${g.id}`, { method: "DELETE" }, "Objetivo borrado")}>
                 Borrar
               </Button>
             </span>
