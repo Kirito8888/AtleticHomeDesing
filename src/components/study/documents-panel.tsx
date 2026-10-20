@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import { useSharedFiles } from "@/lib/share-client";
 import { formatDate } from "@/lib/format";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 export interface DocItem {
   id: string;
@@ -135,7 +136,7 @@ export function DocumentsPanel({ docs, aiEnabled }: { docs: DocItem[]; aiEnabled
                   variant="ghost"
                   aria-label={`Borrar ${d.title}`}
                   disabled={busy === d.id}
-                  onClick={() => confirm(`¿Borrar «${d.title}»?`) && action(d.id, () => api(`/api/ai/documents/${d.id}`, { method: "DELETE" }), "Documento borrado")}
+                  onClick={async () => (await confirmDialog({ title: `¿Borrar «${d.title}»?`, confirmLabel: "Borrar", destructive: true })) && action(d.id, () => api(`/api/ai/documents/${d.id}`, { method: "DELETE" }), "Documento borrado")}
                 >
                   <Trash2 />
                 </Button>

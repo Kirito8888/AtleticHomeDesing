@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
 import { ASSIGNMENT_STATUS, type AssignmentStatus } from "@/lib/study/coursework";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 /** 22 · Tarjetas a mano (sin IA): una a una o pegando «pregunta | respuesta» por línea. */
 export function ManualCards({ decks }: { decks: string[] }) {
@@ -126,7 +127,7 @@ export function AssignmentActions({ id, title, status, grade }: { id: string; ti
             Guardar nota
           </Button>
           <Button type="button" size="sm" variant="ghost" onClick={async () => {
-              if (!confirm(`¿Borrar «${title}»?`)) return;
+              if (!(await confirmDialog({ title: `¿Borrar «${title}»?`, confirmLabel: "Borrar", destructive: true }))) return;
               try {
                 await api(`/api/study/assignments/${id}`, { method: "DELETE" });
                 router.refresh();

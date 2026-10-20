@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
 import { APPOINTMENT_LABEL } from "@/lib/recovery/health-admin";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 function useCall() {
   const router = useRouter();
@@ -79,7 +80,7 @@ export function SupplementActions({ id, name, today, active }: { id: string; nam
           Lo dejo
         </button>
       ) : null}
-      <button type="button" disabled={busy} className="text-destructive underline underline-offset-2" onClick={() => confirm(`¿Borrar «${name}»?`) && call(`/api/recovery/supplements/${id}`, { method: "DELETE" }, "Borrado")}>
+      <button type="button" disabled={busy} className="text-destructive underline underline-offset-2" onClick={async () => (await confirmDialog({ title: `¿Borrar «${name}»?`, confirmLabel: "Borrar", destructive: true })) && call(`/api/recovery/supplements/${id}`, { method: "DELETE" }, "Borrado")}>
         Borrar
       </button>
     </span>

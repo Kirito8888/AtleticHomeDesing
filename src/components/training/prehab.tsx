@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 export function AddPrehab({ templates }: { templates: Array<{ key: string; name: string }> }) {
   const router = useRouter();
@@ -70,7 +71,7 @@ export function PrehabActions({ id, name, today, done }: { id: string; name: str
         type="button"
         className={cn("text-xs text-muted-foreground underline-offset-2 hover:underline")}
         onClick={async () => {
-          if (!confirm(`¿Archivar «${name}»?`)) return;
+          if (!(await confirmDialog({ title: `¿Archivar «${name}»?`, confirmLabel: "Archivar" }))) return;
           try {
             await api(`/api/training/prehab/${id}`, { method: "PATCH", body: { archived: true } });
             router.refresh();

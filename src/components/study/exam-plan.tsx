@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}` : `${m} min`);
 const day = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" });
@@ -120,7 +121,7 @@ export function GradesPanel({ grades, average, passedCredits, pendingCredits }: 
     }
   }
   async function remove(g: Grade) {
-    if (!confirm(`¿Borrar ${g.subject}?`)) return;
+    if (!(await confirmDialog({ title: `¿Borrar ${g.subject}?`, confirmLabel: "Borrar", destructive: true }))) return;
     await api(`/api/study/grades/${g.id}`, { method: "DELETE" }).catch((e: Error) => toast.error(e.message));
     router.refresh();
   }

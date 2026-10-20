@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 const ROLE_LABEL = { ATHLETE: "Atleta", COACH: "Entrenador/a", ADMIN: "Administración" } as const;
 const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", year: "numeric" }).format(new Date(iso)) : "—");
@@ -202,7 +203,7 @@ export function UserList({ users }: { users: AdminUserRow[] }) {
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => confirm(`¿Suspender el acceso de ${u.name ?? u.email}? No se borran sus datos.`) && act(u.id, "suspend", u.name ?? u.email)}
+                    onClick={async () => (await confirmDialog({ title: `¿Suspender el acceso de ${u.name ?? u.email}?`, description: "No se borran sus datos.", confirmLabel: "Suspender", destructive: true })) && act(u.id, "suspend", u.name ?? u.email)}
                   >
                     Suspender
                   </Button>

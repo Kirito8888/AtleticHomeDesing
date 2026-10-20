@@ -12,6 +12,7 @@ import { BarcodeScanner } from "@/components/nutrition/barcode-scanner";
 import { api } from "@/lib/client-api";
 import { recipeMacros, type RecipeItem } from "@/lib/nutrition/kitchen";
 import { cn } from "@/lib/utils";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 // ---------- Lista de la compra ----------
 export function ShoppingList({ items: initial, favorites }: { items: Array<{ id: string; name: string; qty: string | null; done: boolean }>; favorites: Array<{ id: string; name: string }> }) {
@@ -271,7 +272,7 @@ export function RecipeActions({ id, name, today }: { id: string; name: string; t
         type="button"
         className="text-destructive underline-offset-2 hover:underline"
         onClick={async () => {
-          if (!confirm(`¿Borrar «${name}»?`)) return;
+          if (!(await confirmDialog({ title: `¿Borrar «${name}»?`, confirmLabel: "Borrar", destructive: true }))) return;
           await api(`/api/nutrition/recipes/${id}`, { method: "DELETE" }).catch((e: Error) => toast.error(e.message));
           router.refresh();
         }}

@@ -221,8 +221,8 @@ const ics = await page.request.get(icsUrl.replace(/^https?:\/\/[^/]+/, B), { hea
 const icsText = await ics.text();
 if (!ics.ok() || !/text\/calendar/.test(ics.headers()["content-type"] ?? "") || !icsText.includes("SUMMARY:Control de otoño")) errors.push(`ics: ${ics.status()} ${icsText.slice(0, 120)}`);
 if (/squeeze|versión suave/i.test(icsText)) errors.push("ics: contiene datos que no debe");
-page.once("dialog", (d) => d.accept());
 await page.getByRole("button", { name: "Revocar" }).click();
+await page.getByRole("alertdialog").getByRole("button", { name: "Revocar" }).click();
 await toast(/Enlace revocado/);
 if ((await page.request.get(icsUrl.replace(/^https?:\/\/[^/]+/, B))).status() !== 404) errors.push("ics: el enlace revocado sigue respondiendo");
 log("calendario .ics: crear, leer sin datos de salud y revocar");
