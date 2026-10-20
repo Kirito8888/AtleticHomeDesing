@@ -1,8 +1,12 @@
+import { Dumbbell } from "lucide-react";
+
+import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { AddPrehab, PrehabActions } from "@/components/training/prehab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, today, toIsoDay } from "@/lib/dates";
+import { formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { adherence, PREHAB_TEMPLATES } from "@/lib/training/prehab";
 import { cn } from "@/lib/utils";
@@ -53,9 +57,9 @@ export default async function PrehabPage() {
                     </li>
                   ))}
                 </ul>
-                <div className="flex gap-1" aria-hidden>
+                <div className="flex gap-1" role="img" aria-label={`Últimos 7 días: hecho ${a.last7.filter((d) => d.done).length} de ${a.last7.length}`}>
                   {a.last7.map((d) => (
-                    <span key={d.date} className={cn("size-2 rounded-full", d.done ? "bg-primary" : "bg-muted")} />
+                    <span key={d.date} title={`${formatDate(d.date, { weekday: "short", day: "numeric" })}: ${d.done ? "hecho" : "no hecho"}`} className={cn("size-2 rounded-full", d.done ? "bg-primary" : "bg-muted")} />
                   ))}
                 </div>
                 <PrehabActions id={r.id} name={r.name} today={day} done={a.doneToday} />
@@ -64,7 +68,7 @@ export default async function PrehabPage() {
           );
         })}
       </div>
-      {!routines.length ? <p className="text-sm text-muted-foreground">Añade una rutina de las plantillas. Son genéricas: ajústalas con tu fisio.</p> : null}
+      {!routines.length ? <EmptyState icon={Dumbbell} title="Aún no tienes rutinas de prehab" text="Añade una de las plantillas de arriba. Son genéricas: ajústalas con tu fisio." /> : null}
     </>
   );
 }

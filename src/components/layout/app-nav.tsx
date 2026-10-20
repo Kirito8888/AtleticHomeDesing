@@ -110,7 +110,7 @@ export function AppNav({ userName, hidden = [], role = "ATHLETE", bell }: { user
             href={href}
             aria-current={barCurrent === href && !moreOn ? "page" : undefined}
             className={cn(
-              "flex min-h-11 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium text-muted-foreground",
+              "flex min-h-11 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium text-muted-foreground",
               barCurrent === href && !moreOn && "text-foreground",
             )}
           >
@@ -124,7 +124,7 @@ export function AppNav({ userName, hidden = [], role = "ATHLETE", bell }: { user
               type="button"
               aria-label="Más secciones"
               aria-current={moreOn ? "page" : undefined}
-              className={cn("flex min-h-11 flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium text-muted-foreground", moreOn && "text-foreground")}
+              className={cn("flex min-h-11 flex-col items-center justify-center gap-0.5 py-2 text-xs font-medium text-muted-foreground", moreOn && "text-foreground")}
             >
               <Menu className="size-5" />
               Más
