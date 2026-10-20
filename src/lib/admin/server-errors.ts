@@ -2,27 +2,14 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 
+import { anonPath } from "@/lib/admin/metrics";
+import { scrubText } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
 
-/** Ruta sin identificadores (cuid, uuid, números, tokens largos): /api/training/sessions/[id]. */
-export function routePattern(path: string): string {
-  return path
-    .split("?")[0]
-    .split("/")
-    .map((seg) => (/^[0-9]+$/.test(seg) || /^c[a-z0-9]{20,}$/.test(seg) || /^[0-9a-f-]{32,}$/i.test(seg) || seg.length > 40 ? "[id]" : seg))
-    .join("/")
-    .slice(0, 200);
-}
+export const routePattern = (path: string): string => anonPath(path, 200);
 
-/** Mensaje recortado y sin lo que parezca un email o un token (no guardamos datos personales). */
-export function scrubMessage(msg: string): string {
-  return msg
-    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, "[email]")
-    .replace(/[A-Za-z0-9_-]{32,}/g, "[token]")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 300);
-}
+/** Mensaje sin datos personales ni valores (emails, tokens, IP, lo que vaya entre comillas o llaves). */
+export const scrubMessage = (msg: string): string => scrubText(msg, 300);
 
 /**
  * v1.8 · Errores 500 e informes de la CSP, agregados por tipo, ruta y mensaje (contador y

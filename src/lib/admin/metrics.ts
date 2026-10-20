@@ -14,14 +14,17 @@ const store = (): Map<string, Bucket[]> => (g.__lifeosMetrics ??= new Map());
 export const replicaId = (): string => (g.__lifeosReplica ??= randomUUID());
 
 /** Ruta sin identificadores (cuid, uuid, números, tokens largos): /api/training/sessions/[id]. */
-export function routeKey(method: string, path: string): string {
-  const p = path
+export function anonPath(path: string, max = 160): string {
+  return path
     .split("?")[0]
     .split("/")
     .map((seg) => (/^[0-9]+$/.test(seg) || /^c[a-z0-9]{20,}$/.test(seg) || /^[0-9a-f-]{32,}$/i.test(seg) || seg.length > 40 ? "[id]" : seg))
     .join("/")
-    .slice(0, 160);
-  return `${method.toUpperCase()} ${p}`;
+    .slice(0, max);
+}
+
+export function routeKey(method: string, path: string): string {
+  return `${method.toUpperCase()} ${anonPath(path)}`;
 }
 
 export function recordRequest(method: string, path: string, status: number, ms: number, now = Date.now()) {
@@ -78,6 +81,11 @@ export function summarize(rows: Row[], top = 12) {
   all.sort((a, b) => a - b);
   routes.sort((a, b) => b.count - a.count);
   return { windowMin: WINDOW_MIN, count, errors, p50: Math.round(pct(all, 50)), p95: Math.round(pct(all, 95)), routes: routes.slice(0, top) };
+}
+
+/** Rutas con errores 5xx en el resumen (las que más fallan primero). Solo rutas anónimas y recuentos. */
+export function errorRoutes(summary: { routes: Array<{ route: string; count: number; errors: number }> }) {
+  return summary.routes.filter((r) => r.errors > 0).sort((a, b) => b.errors - a.errors).map((r) => ({ route: r.route, errors: r.errors, count: r.count }));
 }
 
 /** Resumen solo de esta réplica (sin BD). */

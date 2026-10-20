@@ -7,6 +7,7 @@ import { sendToUser } from "@/lib/push/service";
 import { clientIp } from "@/lib/rate-limit";
 
 import { chainKey, eventHash, verifyChain } from "./audit-chain";
+import { log } from "@/lib/log";
 
 let key: Buffer | null | undefined;
 /** Clave de la cadena: derivada de AUTH_SECRET. Sin AUTH_SECRET (tests, build) no se encadena. */
@@ -61,7 +62,7 @@ export async function recordEvent(userId: string, type: SecurityEventType, ctx: 
       await tx.securityEvent.create({ data: { ...data, prevHash, hash: eventHash(k, prevHash, data) } });
     });
   } catch (err) {
-    console.error("[audit] no se pudo registrar", type, err);
+    log.error("no se pudo registrar el evento de seguridad", { kind: String(type), err });
   }
   const alert = ALERTS[type];
   if (alert) void sendToUser(userId, { title: "Atlenza · seguridad", body: `${alert} Si no has sido tú, revisa Ajustes → Seguridad.`, url: "/settings", tag: `sec-${type}` }).catch(() => undefined);

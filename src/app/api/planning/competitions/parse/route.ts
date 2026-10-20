@@ -4,6 +4,7 @@ import { ApiError, enforceRateLimit, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { sniffFile } from "@/lib/files/sealed-files";
 import { eventsFromPdfText, eventsFromRows, readXlsxRows, XlsxError } from "@/lib/planning/calendar-import";
+import { log } from "@/lib/log";
 
 const MAX = 5 * 1024 * 1024;
 
@@ -24,7 +25,7 @@ export const POST = route(async (req) => {
       return { events: eventsFromRows(readXlsxRows(new Uint8Array(buf))).slice(0, 300) };
     } catch (e) {
       if (e instanceof XlsxError) throw new ApiError(422, e.message);
-      console.warn("[excel]", e instanceof Error ? e.message : e);
+      log.warn("lectura de Excel fallida", { err: e });
       throw new ApiError(422, "No se pudo leer el Excel. Comprueba que es un .xlsx válido.");
     }
   }

@@ -14,6 +14,7 @@ import { assertAiAllowed } from "@/lib/ai/guard";
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { log } from "@/lib/log";
 
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 const ALLOWED: Record<string, string> = {
@@ -160,7 +161,7 @@ export async function processDocument(documentId: string, deps: ProcessDeps = de
       include: { _count: { select: { chunks: true } } },
     });
   } catch (err) {
-    console.warn("[documentos]", doc.id, err instanceof Error ? err.message : err);
+    log.warn("ingesta de documento fallida", { job: "ingest", err });
     await prisma.studyDocument
       .update({ where: { id: doc.id }, data: { status: "FAILED", error: DOC_ERROR } })
       .catch(() => {}); // el documento pudo borrarse mientras tanto

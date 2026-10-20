@@ -160,5 +160,10 @@ if dc --profile backup ps --services --status running 2>/dev/null | grep -qx bac
   dc --profile backup up -d --build backup || log "Aviso: no se pudo actualizar el servicio de copias (la web ya está actualizada)."
 fi
 
+# 9. Aviso (solo informa; nunca revierte ni falla): ¿las copias de seguridad funcionan?
+if ! bash scripts/ops/check-backups.sh; then
+  log "Aviso: las copias de seguridad no están al día (detalle arriba). La actualización ya está hecha."
+fi
+
 docker image prune -f >/dev/null || true
 log "Actualizado correctamente a $(git log --oneline -1)"
