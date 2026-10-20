@@ -284,9 +284,14 @@ const exported = await (await page.request.get(B + "/api/account/export")).text(
 const restEmail = `restore-v16-${Date.now()}@test.dev`;
 const rest = await login(restEmail, newUser(restEmail));
 await rest.goto(B + "/settings");
-await rest.getByLabel("Exportación de Atlenza (JSON)").setInputFiles({ name: "lifeos.json", mimeType: "application/json", buffer: Buffer.from(exported) });
+await rest.waitForLoadState("networkidle"); // hidratado: si el fichero entra antes, el change se pierde y el botón sigue desactivado
+const restoreBtn = rest.getByRole("button", { name: "Restaurar en esta cuenta" });
+for (let i = 0; i < 5 && (await restoreBtn.isDisabled()); i++) {
+  await rest.getByLabel("Exportación de Atlenza (JSON)").setInputFiles({ name: "lifeos.json", mimeType: "application/json", buffer: Buffer.from(exported) });
+  await rest.waitForTimeout(500);
+}
 rest.once("dialog", (d) => d.accept());
-await rest.getByRole("button", { name: "Restaurar en esta cuenta" }).click();
+await restoreBtn.click();
 await rest.getByText(/\d+ sesiones/).first().waitFor();
 await rest.context().close();
 log("restaurar la exportación en una cuenta vacía");

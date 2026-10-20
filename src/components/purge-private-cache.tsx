@@ -3,8 +3,8 @@
 import { useEffect } from "react";
 
 /**
- * El service worker (public/sw.js) guarda el HTML de las páginas visitadas para
- * verlas sin conexión, y eso incluye finanzas y salud. Cualquier cierre de
+ * El service worker (public/sw.js) guarda el HTML de las sesiones y días del plan para
+ * verlas sin conexión (nunca finanzas ni salud). Cualquier cierre de
  * sesión, revocación o borrado de cuenta termina en /login: al llegar aquí se
  * vacía esa caché (solo se conserva /offline). Se hace desde la página, sin
  * depender de que el service worker esté activo.
