@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import { cn } from "@/lib/utils";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
+import { formatDate, formatDec } from "@/lib/format";
 
 const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60} min` : ""}` : `${m} min`);
-const day = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "short", timeZone: "UTC" });
+const day = (iso: string) => formatDate(iso, { weekday: "long", day: "numeric", month: "short" });
 const num = (s: string) => Number(s.replace(",", "."));
 
 type Exam = { id: string; subject: string; date: string; hours: number; plannedMin: number; doneMin: number };
@@ -128,7 +129,7 @@ export function GradesPanel({ grades, average, passedCredits, pendingCredits }: 
   return (
     <div className="grid gap-3 text-sm">
       <p aria-label="Media ponderada" className="rounded-md bg-muted p-2">
-        Media ponderada: <span className="font-semibold tabular-nums">{average != null ? average.toFixed(2) : "—"}</span> · {passedCredits} créditos aprobados · {pendingCredits} sin nota
+        Media ponderada: <span className="font-semibold tabular-nums">{average != null ? formatDec(average, 2) : "—"}</span> · {passedCredits} créditos aprobados · {pendingCredits} sin nota
       </p>
       {grades.length ? (
         <div className="overflow-x-auto">

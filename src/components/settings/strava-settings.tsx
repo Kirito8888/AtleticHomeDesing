@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
+import { formatDateTime } from "@/lib/format";
 
 type Status = { configured: boolean; connected: boolean; connectedAt: string | null; lastSyncAt: string | null; lastError: string | null; sessions: number };
 
@@ -22,7 +23,7 @@ export function StravaSettings({ status, result }: { status: Status; result?: st
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   if (!status.configured) return <p className="text-sm text-muted-foreground">Strava no está activado en este servidor (lo configura la administración).</p>;
-  const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—");
+  const when = (iso: string | null) => (iso ? formatDateTime(iso, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—");
   return (
     <div className="grid gap-3 text-sm">
       {result && RESULT[result] ? <p role="status" className="rounded-md border p-2">{RESULT[result]}</p> : null}

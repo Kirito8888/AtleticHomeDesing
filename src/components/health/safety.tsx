@@ -8,8 +8,9 @@ import { Chips, Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
+import { formatTime } from "@/lib/format";
 
-const hhmm = (iso: string) => new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(new Date(iso));
+const hhmm = (iso: string) => formatTime(iso);
 
 function useCall() {
   const router = useRouter();

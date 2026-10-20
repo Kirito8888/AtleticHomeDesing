@@ -1,5 +1,6 @@
 // Cuotas internas del club (v2.0): apunte contable manual, sin pasarela de pago. Puro.
 import { z } from "zod";
+import { formatMoney } from "@/lib/format";
 
 /** «25», «25,5», «25.50», «1.250,00» → céntimos; null si no es un importe válido. */
 export function parseAmount(raw: string): number | null {
@@ -12,7 +13,7 @@ export function parseAmount(raw: string): number | null {
 }
 
 export function formatAmount(cents: number, currency = "EUR"): string {
-  return new Intl.NumberFormat("es-ES", { style: "currency", currency }).format(cents / 100);
+  return formatMoney(cents, currency);
 }
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha no válida");

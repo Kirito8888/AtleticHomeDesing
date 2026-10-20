@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
+import { formatDateTime, formatNum } from "@/lib/format";
 
 type Provider = "GEMINI" | "OPENAI" | "ANTHROPIC";
 
@@ -86,7 +87,7 @@ export function AiProviderSettings({
             <strong>Tu IA:</strong> {own.label} · {own.model}
             {own.embeddingModel ? ` · apuntes con ${own.embeddingModel}` : " · apuntes buscados por texto"}
             {own.keyHint ? ` · clave …${own.keyHint}` : " · sin clave"}
-            {own.verifiedAt ? ` · probada el ${new Date(own.verifiedAt).toLocaleDateString("es-ES")}` : ""}
+            {own.verifiedAt ? ` · probada el ${formatDateTime(own.verifiedAt)}` : ""}
           </>
         ) : view.serverFallback ? (
           <>
@@ -177,7 +178,7 @@ export function AiProviderSettings({
                 onClick={() =>
                   run(async () => {
                     const r = await api<{ ms: number; label: string; embeddings: boolean }>("/api/account/ai-provider/test", { method: "POST" });
-                    toast.success(`${r.label} responde (${(r.ms / 1000).toFixed(1)} s)${r.embeddings ? " · embeddings correctos" : ""}`);
+                    toast.success(`${r.label} responde (${formatNum(r.ms / 1000)} s)${r.embeddings ? " · embeddings correctos" : ""}`);
                     router.refresh();
                   })
                 }

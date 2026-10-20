@@ -4,10 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { safetyOverview } from "@/lib/health/safety-service";
 import { pushConfigured } from "@/lib/push/service";
+import { formatTime } from "@/lib/format";
 
 export const metadata = { title: "Entreno sola · Atlenza" };
 
-const hhmm = (iso: string) => new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(new Date(iso));
+const hhmm = (iso: string) => formatTime(iso);
 
 export default async function SafetyPage() {
   const user = await pageUser();

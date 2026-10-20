@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
 import { daysLeftOut } from "@/lib/coach/multi-start";
+import { formatNum } from "@/lib/format";
 
 type Athlete = { id: string; name: string; eligible: boolean; reason: string | null; canSimulate: boolean };
 type Origin = { templates: Array<{ id: string; name: string }>; plans: Array<{ code: string; name: string }> };
@@ -17,7 +18,7 @@ type Preview = {
   rejected: Array<{ id: string; reason: string }>;
 };
 
-const f = (n: number) => (Math.round(n * 10) / 10).toLocaleString("es-ES");
+const f = (n: number) => formatNum(n);
 
 /** Línea de TSB (forma) de cada escenario; el eje cero marca el límite fatiga/forma. */
 function TsbChart({ scenarios }: { scenarios: Scenario[] }) {

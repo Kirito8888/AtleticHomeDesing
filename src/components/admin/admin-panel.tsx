@@ -10,9 +10,10 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
+import { formatDateTime } from "@/lib/format";
 
 const ROLE_LABEL = { ATHLETE: "Atleta", COACH: "Entrenador/a", ADMIN: "Administración" } as const;
-const when = (iso: string | null) => (iso ? new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", year: "numeric" }).format(new Date(iso)) : "—");
+const when = (iso: string | null) => (iso ? formatDateTime(iso) : "—");
 
 /** Enlace que solo se ve una vez: se copia y se entrega por el canal que elija la administración. */
 function OneTimeLink({ url, label, onClose }: { url: string; label: string; onClose: () => void }) {
