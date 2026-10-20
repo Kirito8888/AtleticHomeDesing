@@ -755,7 +755,7 @@ Todas las rutas requieren sesión, salvo `/api/auth/*`, `/api/health` y las dos 
 | `/api/nutrition/meals/copy` | POST | `{fromDate, toDate, mealType}` repetir una comida |
 | `/api/nutrition/meal-templates` (`/[id]`, `/[id]/apply`) | GET, POST, DELETE, POST | Comidas favoritas |
 | `/api/finance/import` (`/profiles`) | POST · GET, POST, DELETE | multipart `file`, `accountId`, `mapping`; `?commit=1` importa · formatos guardados |
-| `/api/health` | GET | Healthcheck público (`SELECT 1`), sin datos |
+| `/api/health` | GET | Healthcheck público: sin sesión solo `{status: ok\|degradado}` (BD + cola de trabajos; 503 si no hay BD); con sesión añade `checks` |
 | `/api/planning/import` | POST | multipart `files` (zip o PDF «día a día», ≤ 30 MB); vista previa, o importa con `?commit=1`. Límite: 20/hora |
 | `/api/planning/plan` | GET | Bloques importados con sus versiones (`needsAnchor` si cuentan días hacia atrás) |
 | `/api/planning/plan/variant` | POST | `{code, variant, anchorDate?}` → activa una versión: crea sus sesiones y retira las planificadas de la otra |

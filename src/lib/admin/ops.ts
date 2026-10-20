@@ -37,13 +37,25 @@ export async function checkIntegrity() {
   return { checkedAt: new Date().toISOString(), orphanFiles, missingFiles, sessionsNoTss, staleLoads, ok: orphanFiles + missingFiles + sessionsNoTss + staleLoads === 0 };
 }
 
-/** Copias: ¿hay un aviso que dar? (el servicio de copias está en uso pero la última buena es vieja o falló). */
+/** Horas sin copia buena a partir de las cuales se avisa (la misma cifra para Telegram, «Estado» y update.sh). */
+export const BACKUP_MAX_AGE_H = 36;
+type Run = { ok: boolean; at: Date; detail?: string | null };
+
+/** Estado de las copias (puro): `none` = nunca se registró una, es decir, el servicio no está en uso o no corre. */
+export function backupState(last: Run | null, lastOk: Run | null, now = new Date()): { ok: boolean; none: boolean; message: string | null } {
+  if (!last) return { ok: false, none: true, message: "No consta ninguna copia de seguridad: el servicio de copias no está activo (o aún no ha corrido)." };
+  if (!last.ok) return { ok: false, none: false, message: `La última copia de seguridad falló (${last.detail ?? "sin detalle"}).` };
+  if (!lastOk || now.getTime() - lastOk.at.getTime() > BACKUP_MAX_AGE_H * 3600_000) {
+    return { ok: false, none: false, message: `No hay copia de seguridad buena desde hace más de ${BACKUP_MAX_AGE_H} horas: revisa el servicio de copias.` };
+  }
+  return { ok: true, none: false, message: null };
+}
+
+/** Copias: ¿hay un aviso que dar por Telegram? Sin ninguna copia registrada calla (no se vigila lo que no se usa). */
 export async function backupAlert(now = new Date()): Promise<string | null> {
   const [last, lastOk] = await Promise.all([prisma.backupRun.findFirst({ orderBy: { at: "desc" } }), prisma.backupRun.findFirst({ where: { ok: true }, orderBy: { at: "desc" } })]);
-  if (!last) return null; // sin servicio de copias: nada que vigilar
-  if (!last.ok) return `La última copia de seguridad falló (${last.detail ?? "sin detalle"}).`;
-  if (!lastOk || now.getTime() - lastOk.at.getTime() > 36 * 3600_000) return "No hay copia de seguridad buena desde hace más de 36 horas: revisa el servicio de copias.";
-  return null;
+  const st = backupState(last, lastOk, now);
+  return st.none ? null : st.message;
 }
 
 // Versión nueva: último commit de main en GitHub (repositorio público; sin credenciales), con caché de 6 h

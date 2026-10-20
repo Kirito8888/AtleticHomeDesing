@@ -1,6 +1,7 @@
 import "server-only";
 
 import { env } from "@/lib/env";
+import { log } from "@/lib/log";
 
 /** Hay bot (v1.10: para los usuarios que lo vinculen). */
 export const telegramBotConfigured = () => Boolean(env().TELEGRAM_BOT_TOKEN);
@@ -26,13 +27,13 @@ export async function telegramApi<T = unknown>(method: string, body: Record<stri
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!r.ok) {
-      console.warn(`[telegram] ${method}: respuesta ${r.status}`);
+      log.warn("telegram: respuesta no válida", { job: method, status: r.status });
       return null;
     }
     const j = (await r.json()) as { ok?: boolean; result?: T };
     return j.ok ? (j.result ?? null) : null;
   } catch (e) {
-    console.warn(`[telegram] ${method}:`, scrub(e instanceof Error ? e.message : String(e)));
+    log.warn("telegram: fallo de red", { job: method, err: scrub(e instanceof Error ? e.message : String(e)) });
     return null;
   }
 }

@@ -14,6 +14,7 @@ case "\$1" in
   exec)
     last="\${*: -1}"
     case "\$last" in
+      *psql*) cat >> "\${FAKE_PSQL_IN:-/dev/null}"; [ -z "\${FAKE_PSQL_FAIL:-}" ] || exit 1; printf '%s' "\${FAKE_PSQL_OUT:-}" ;;
       *pg_dump*) printf -- '--\n-- PostgreSQL database dump\n--\nCREATE TABLE public._prisma_migrations (id text);\nCREATE TABLE public."User" (id text);\n-- PostgreSQL database dump complete\n' ;;
       *POSTGRES_DB\"\ *|*printf*) printf lifeos ;;
       *count*) echo 2 ;;
@@ -161,6 +162,24 @@ if [ "$(id -u)" = 0 ]; then
 fi
 
 if "${HEXEC[@]}" bash "$H" --bind 0.0.0.0 >>"$OUTALL" 2>&1; then bad "aceptó --bind 0.0.0.0"; else ok "rechaza --bind 0.0.0.0"; fi
+
+# ── check-backups.sh y el registro de backup-lifeos.sh (docker/crontab simulados) ──
+CB="$HERE/check-backups.sh"; NOW="$(date +%s)"
+bash -n "$CB" && bash "$CB" --help >>"$OUTALL" 2>&1 && ok "check-backups: sintaxis y --help"
+bash -n "$HERE/../update.sh" && ok "update.sh: sintaxis"
+# shellcheck disable=SC2016  # el stub se escribe tal cual, sin expandir
+printf '#!/usr/bin/env bash\n[ -n "${FAKE_CRON:-}" ] && echo "30 3 * * * <RUTA>/scripts/ops/backup-lifeos.sh"\nexit 0\n' > "$T/bin/crontab"; chmod +x "$T/bin/crontab"
+FAKE_CRON=1 FAKE_PSQL_OUT="$((NOW - 3600)) $((NOW - 3600)) true" bash "$CB" >"$T/cb1.txt" 2>&1 && grep -q 'Copias al día' "$T/cb1.txt" && ok "check-backups: cron + copia reciente → exit 0"
+if FAKE_CRON=1 FAKE_PSQL_OUT="$((NOW - 3600)) $((NOW - 3600)) true" bash "$CB" 2>&1 | grep -q '⚠️'; then bad "aviso con las copias al día y cron"; fi
+FAKE_CRON=1 FAKE_PSQL_OUT="$((NOW - 100 * 3600)) $((NOW - 100 * 3600)) true" bash "$CB" >"$T/cb2.txt" 2>&1 && bad "no avisó de una copia vieja" || grep -q 'más de 36 horas' "$T/cb2.txt" && ok "check-backups: copia vieja → aviso y exit 1"
+FAKE_CRON=1 FAKE_PSQL_OUT="$((NOW - 7200)) $((NOW - 60)) false" bash "$CB" >"$T/cb3.txt" 2>&1 && bad "no avisó de la copia fallida" || grep -q 'última copia falló' "$T/cb3.txt" && ok "check-backups: última fallida → aviso"
+FAKE_PSQL_OUT="0 0 " bash "$CB" >"$T/cb4.txt" 2>&1 && bad "no avisó sin copias" || grep -q 'no está activo' "$T/cb4.txt" && ok "check-backups: sin copias ni servicio → aviso de servicio inactivo"
+FAKE_PSQL_FAIL=1 bash "$CB" >"$T/cb5.txt" 2>&1 && bad "no avisó con la BD ilegible" || grep -q 'No se pudo leer' "$T/cb5.txt" && ok "check-backups: BD ilegible → aviso"
+# backup-lifeos.sh anota la ejecución
+export FAKE_PSQL_IN="$T/psql-in.txt"; : > "$FAKE_PSQL_IN"
+bash "$HERE/backup-lifeos.sh" >>"$OUTALL" 2>&1 && grep -q 'insert into "BackupRun"' "$FAKE_PSQL_IN" && grep -q ' true, ' "$FAKE_PSQL_IN" && ok "backup real anota BackupRun (ok)"
+: > "$FAKE_PSQL_IN"; bash "$HERE/backup-lifeos.sh" --dry-run >>"$OUTALL" 2>&1; [ ! -s "$FAKE_PSQL_IN" ] && ok "backup --dry-run no anota nada"
+unset FAKE_PSQL_IN
 
 if grep -q "$FAKEPW" "$OUTALL"; then bad "aparece la contraseña ficticia en la salida"; fi
 ok "sin secretos en la salida"

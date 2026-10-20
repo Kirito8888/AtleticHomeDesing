@@ -7,6 +7,7 @@ import { ApiError } from "@/lib/api";
 import { withJobLock } from "@/lib/job-lock";
 import { prisma } from "@/lib/prisma";
 import { recordEvent, type AuditContext } from "@/lib/security/audit";
+import { log } from "@/lib/log";
 
 /**
  * v1.10 · Telegram por usuario. Se vincula con un código de un solo uso que la persona envía al bot
@@ -111,7 +112,7 @@ export async function pollTelegram(fetcher: typeof fetch = fetch): Promise<numbe
     let last = 0;
     for (const u of updates) {
       last = Math.max(last, u.update_id);
-      await handleUpdate(u, (c, t) => sendTelegram(c, t, fetcher)).catch((e) => console.error("[telegram] mensaje:", e));
+      await handleUpdate(u, (c, t) => sendTelegram(c, t, fetcher)).catch((e) => log.error("telegram: mensaje no procesado", { err: e }));
     }
     // Confirma el lote: pedir con offset = último + 1 descarta lo anterior en Telegram
     await telegramApi("getUpdates", { offset: last + 1, limit: 1, timeout: 0, allowed_updates: ["message"] }, fetcher);

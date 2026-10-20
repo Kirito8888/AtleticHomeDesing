@@ -9,3 +9,9 @@ export function authFailureLine(ip: string, reason: AuthFailReason): string {
   const safeIp = /^[0-9a-fA-F:.]{2,45}$/.test(ip) ? ip : "unknown";
   return `[auth] login fallido ip=${safeIp} motivo=${reason}`;
 }
+
+/** Única salida por `console` fuera de `lib/log.ts`: fail2ban lee este formato exacto, no puede ir en JSON. */
+export function failureLog(line: string): void {
+  // eslint-disable-next-line no-console
+  console.warn(line);
+}

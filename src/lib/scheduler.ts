@@ -27,6 +27,7 @@ import { runCatalogSyncJob } from "@/lib/nutrition/catalog-sync";
 import { runStravaSyncJob } from "@/lib/strava/service";
 import { readWomenSettings } from "@/lib/health/women";
 import { dataKeyConfigured, openJson } from "@/lib/security/data-key";
+import { log } from "@/lib/log";
 
 const HOUR_MS = 60 * 60_000;
 
@@ -42,7 +43,7 @@ export async function runSubscriptionsJob(): Promise<number> {
     try {
       posted += (await runDueSubscriptions(userId)).length;
     } catch (err) {
-      console.error(`[scheduler] suscripciones de ${userId}:`, err);
+      log.error("suscripciones de una persona fallidas", { job: "subscriptions", err });
     }
   }
   return posted;
@@ -79,7 +80,7 @@ export async function runWeeklyCoachJob(): Promise<number> {
         tag: "coach",
       });
     } catch (err) {
-      console.error(`[scheduler] coach semanal de ${id}:`, err);
+      log.error("coach semanal de una persona fallido", { job: "coach", err });
     }
   }
   return generated;
@@ -245,7 +246,7 @@ export async function runPeriodReminderJob(hour = madridHour(), weekday = madrid
       if (last && (Date.parse(day) - Date.parse(last)) / 864e5 <= settings.avgLength + 7) continue;
       if (await notifyOnce(u.id, `period:${toIsoDay(startOfIsoWeek(today()))}`, { title: "Atlenza", body: "Tienes un registro pendiente de actualizar en Recuperación.", url: "/recovery", tag: "period" })) sent++;
     } catch (err) {
-      console.error(`[scheduler] recordatorio de ${u.id}:`, err);
+      log.error("recordatorio de una persona fallido", { job: "period-reminder", err });
     }
   }
   return sent;
@@ -307,7 +308,7 @@ export async function runDeadlineReminders(now = new Date()): Promise<number> {
 async function job<T>(name: string, fn: () => Promise<T>): Promise<T | undefined> {
   const r = await withJobLock(`scheduler:${name}`, fn);
   if (!r.ran) {
-    console.debug(`[scheduler] ${name}: la lleva otra réplica`);
+    log.info("tarea en otra réplica", { job: name });
     return undefined;
   }
   return r.value;
@@ -326,15 +327,15 @@ async function tick() {
     await job("weekly-review", () => runWeeklyReviewJob());
     const posted = await job("subscriptions", () => runSubscriptionsJob());
     const reports = await job("coach", () => runWeeklyCoachJob());
-    if (posted || reports) console.info(`[scheduler] ${posted ?? 0} cobro(s) de suscripciones, ${reports ?? 0} informe(s) del coach`);
+    if (posted || reports) log.info("suscripciones e informes del coach", { job: "subscriptions", count: (posted ?? 0) + (reports ?? 0) });
     // v1.10 · Actividades nuevas de Strava de quien lo haya conectado
     const strava = await job("strava", () => runStravaSyncJob());
-    if (strava) console.info(`[scheduler] ${strava} actividad(es) importadas de Strava`);
+    if (strava) log.info("actividades importadas de Strava", { job: "strava", count: Number(strava) });
     // v1.10 · Catálogo de alimentos (OFF): unas 50 páginas por hora como mucho, al final de la pasada
     const sync = await job("catalog-sync", () => runCatalogSyncJob());
-    if (sync?.pages) console.info(`[scheduler] catálogo de alimentos: ${sync.products} productos en ${sync.pages} página(s)`);
+    if (sync?.pages) log.info("catálogo de alimentos sincronizado", { job: "catalog-sync", count: sync.products });
   } catch (err) {
-    console.error("[scheduler]", err);
+    log.error("pasada del planificador", { job: "tick", err });
   }
 }
 
@@ -344,15 +345,15 @@ const g = globalThis as unknown as { __lifeosScheduler?: NodeJS.Timeout; __lifeo
 async function safetyTick() {
   try {
     const n = await job("safety", () => runSafetyJob());
-    if (n) console.info(`[scheduler] ${n} aviso(s) de «entreno sola»`);
+    if (n) log.info("avisos de «entreno sola»", { job: "safety", count: Number(n) });
   } catch (err) {
-    console.error("[scheduler] entreno sola:", err);
+    log.error("entreno sola", { job: "safety", err });
   }
   // v1.8 · notificaciones pospuestas
   try {
     await job("snoozed", () => runSnoozedJob());
   } catch (err) {
-    console.error("[scheduler] pospuestas:", err);
+    log.error("notificaciones pospuestas", { job: "snoozed", err });
   }
   // v2.2 · cada réplica sube sus métricas (fuera del cerrojo: son suyas) antes de que la vigilancia las lea
   await flushMetrics().catch(() => {});
@@ -360,7 +361,7 @@ async function safetyTick() {
   try {
     await job("watch", () => runWatchJob());
   } catch (err) {
-    console.error("[scheduler] vigilancia:", err);
+    log.error("vigilancia", { job: "watch", err });
   }
 }
 
@@ -376,6 +377,6 @@ export function startScheduler() {
   g.__lifeosScheduler = setInterval(tick, HOUR_MS).unref();
   g.__lifeosSafety = setInterval(safetyTick, 5 * 60_000).unref();
   // v1.10 · Mensajes al bot de Telegram (vincular y /stop), solo si hay bot
-  if (env().TELEGRAM_BOT_TOKEN) g.__lifeosTelegram = setInterval(() => void pollTelegram().catch((e) => console.error("[scheduler] telegram:", e)), 30_000).unref();
-  console.info("[scheduler] activo: suscripciones diarias y coach semanal");
+  if (env().TELEGRAM_BOT_TOKEN) g.__lifeosTelegram = setInterval(() => void pollTelegram().catch((e) => log.error("sondeo de telegram", { job: "telegram", err: e })), 30_000).unref();
+  log.info("planificador activo", { job: "scheduler" });
 }

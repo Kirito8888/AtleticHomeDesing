@@ -9,6 +9,7 @@ import { type PushMessage, sendPush, type SendResult, type VapidKeys } from "@/l
 import { inQuietHours, isUrgent } from "@/lib/push/quiet";
 import { readPrefs } from "@/lib/rules/prefs";
 import { sendTelegram } from "@/lib/admin/telegram";
+import { log } from "@/lib/log";
 
 export function vapidKeys(): VapidKeys | null {
   const { VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT } = env();
@@ -72,11 +73,11 @@ export async function sendToUser(userId: string, msg: PushMessage, send: Sender 
         removed++;
         await prisma.pushSubscription.delete({ where: { id: s.id } }).catch(() => {});
       } else {
-        console.warn(`[push] envío fallido (${r.status ?? "sin respuesta"}) a ${new URL(s.endpoint).host}`);
+        log.warn("push: envío fallido", { job: "push", status: r.status ?? 0 });
       }
     }
   } catch (err) {
-    console.error("[push]", err);
+    log.error("push", { job: "push", err });
   }
   return { sent, removed, telegram };
 }
