@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 
 import { ServiceWorkerRegister } from "@/components/sw-register";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ConfirmHost } from "@/components/ui/confirm-dialog";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -48,6 +49,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider nonce={nonce} attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
           <Toaster />
+          <ConfirmHost />
           <ServiceWorkerRegister />
         </ThemeProvider>
       </body>

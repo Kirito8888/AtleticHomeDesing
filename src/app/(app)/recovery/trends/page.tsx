@@ -4,12 +4,13 @@ import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
 import { type MonthStat } from "@/lib/recovery/trends";
 import { trendsFor } from "@/lib/recovery/trends-service";
+import { formatDec } from "@/lib/format";
 
 export const metadata = { title: "Tendencias · Atlenza" };
 
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const label = (m: string) => `${MONTHS[Number(m.slice(5, 7)) - 1]} ${m.slice(2, 4)}`;
-const num = (v: number | null, d = 1) => (v == null ? "—" : v.toFixed(d).replace(".", ","));
+const num = (v: number | null, d = 1) => (v == null ? "—" : formatDec(v, d));
 
 function Spark({ months, pick, title }: { months: MonthStat[]; pick: (m: MonthStat) => number | null; title: string }) {
   const vals = months.map(pick);

@@ -8,10 +8,11 @@ import { pageUser } from "@/lib/auth/page";
 import { prisma } from "@/lib/prisma";
 import { retentionDays } from "@/lib/privacy/retention";
 import { CONSENT_TEXT, consentOverview, RIGHTS, type ConsentPurpose } from "@/lib/privacy/service";
+import { formatDateTime } from "@/lib/format";
 
 export const metadata = { title: "Privacidad y derechos · Atlenza" };
 
-const fmt = (d: Date) => d.toLocaleString("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+const fmt = (d: Date) => formatDateTime(d, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /** v1.7 · Privacidad (RGPD y LOPDGDD): consentimientos con historial, derechos y plazos de conservación. */
 export default async function PrivacyPage() {

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 const TYPES = [
   { value: "STRENGTH", label: "Fuerza" },
@@ -179,7 +180,7 @@ export function DuplicateWeek({ code, weeks }: { code: string; weeks: number[] }
         size="sm"
         disabled={busy}
         onClick={async () => {
-          if (!confirm(`Se sustituyen los días de la semana ${from + 1} por una copia de la ${from}. ¿Seguir?`)) return;
+          if (!(await confirmDialog({ title: `¿Copiar la semana ${from} en la ${from + 1}?`, description: `Se sustituyen los días de la semana ${from + 1} por una copia de la ${from}.`, confirmLabel: "Copiar" }))) return;
           setBusy(true);
           try {
             const r = await api<{ copied: number }>(`/api/planning/manual/${code}/duplicate`, { body: { from } });
@@ -268,8 +269,8 @@ export function WeekTemplates({ code, weeks, templates }: { code: string; weeks:
             variant="outline"
             size="sm"
             disabled={busy || !tpl}
-            onClick={() => {
-              if (!confirm(`Se sustituyen los días de la semana ${target} (salvo los ya hechos). ¿Seguir?`)) return;
+            onClick={async () => {
+              if (!(await confirmDialog({ title: `¿Sustituir los días de la semana ${target}?`, description: "Se mantienen los ya hechos.", confirmLabel: "Sustituir" }))) return;
               void run(async () => `${(await api<{ applied: number }>(`/api/planning/manual/${code}/week-template`, { method: "PUT", body: { week: target, templateId: tpl } })).applied} días aplicados`);
             }}
           >

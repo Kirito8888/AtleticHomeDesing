@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
+import { formatDateTime, formatInt } from "@/lib/format";
 
 type State = { brand: string; page: number; total: number | null; products: number; finishedAt: string | null; error: string | null };
 
@@ -15,7 +16,7 @@ export function CatalogCard({ enabled, total, states, brands }: { enabled: boole
   return (
     <div className="grid gap-3 text-sm">
       <p>
-        {total.toLocaleString("es-ES")} productos en el catálogo local. {enabled ? "Se actualiza solo cada semana, sin pasar de 10 búsquedas por minuto en OpenFoodFacts." : "Sincronización desactivada (OFF_SYNC_ENABLED=false)."}
+        {formatInt(total)} productos en el catálogo local. {enabled ? "Se actualiza solo cada semana, sin pasar de 10 búsquedas por minuto en OpenFoodFacts." : "Sincronización desactivada (OFF_SYNC_ENABLED=false)."}
       </p>
       <ul className="grid gap-1 text-xs" aria-label="Marcas del catálogo">
         {brands.map((b) => {
@@ -24,7 +25,7 @@ export function CatalogCard({ enabled, total, states, brands }: { enabled: boole
             <li key={b} className="flex justify-between gap-2">
               <span className="capitalize">{b.replace(/-/g, " ")}</span>
               <span className="tabular-nums text-muted-foreground">
-                {!s ? "pendiente" : s.error ? `error: ${s.error}` : s.finishedAt ? `${s.products} · al día (${new Date(s.finishedAt).toLocaleDateString("es-ES")})` : `${s.products} de ${s.total ?? "?"} · en curso`}
+                {!s ? "pendiente" : s.error ? `error: ${s.error}` : s.finishedAt ? `${s.products} · al día (${formatDateTime(s.finishedAt)})` : `${s.products} de ${s.total ?? "?"} · en curso`}
               </span>
             </li>
           );

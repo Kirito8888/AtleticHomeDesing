@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { recordConsent } from "@/lib/privacy/service";
 import { sendToUser } from "@/lib/push/service";
 import { dataKeyConfigured, openJson, sealJson } from "@/lib/security/data-key";
+import { formatTime } from "@/lib/format";
 
 /**
  * «Entreno sola, con aviso»: sales con una hora prevista de vuelta y, si no marcas
@@ -22,7 +23,7 @@ export const startTripSchema = z.object({
 });
 type TripData = { note?: string; lat?: number; lon?: number };
 
-const hhmm = (d: Date) => new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(d);
+const hhmm = (d: Date) => formatTime(d);
 const nameOf = (u: { name: string | null; email: string }) => u.name ?? u.email.split("@")[0];
 
 export async function inviteContact(userId: string, email: string) {

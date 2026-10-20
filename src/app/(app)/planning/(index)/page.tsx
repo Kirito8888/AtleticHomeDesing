@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
-import { capitalizeFirst, formatDate, formatNum, SESSION_TYPE_LABEL } from "@/lib/format";
+import { SESSION_TYPE_LABEL, capitalizeFirst, formatDate, formatNum } from "@/lib/format";
 import { sessionHeadline } from "@/lib/training/disciplines";
 import { agendaForDay, tasksDuePerDay } from "@/lib/planning/agenda";
 import { hrvWeekRanges } from "@/lib/planning/plan-import/hrv-weeks";
@@ -98,7 +98,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
   const days: Date[] = [];
   for (let d = gridStart; d <= gridEnd; d = addDays(d, 1)) days.push(d);
   const todayIso = toIsoDay(now);
-  const monthLabel = capitalizeFirst(new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: "UTC" }).format(first));
+  const monthLabel = capitalizeFirst(formatDate(first, { month: "long", year: "numeric" }));
   const monthEvents = events.filter((e) => e.startAt >= first && e.startAt <= last);
   const taskItems: TaskItem[] = tasks
     .map((t) => ({ id: t.id, title: t.title, priority: t.priority, status: t.status, dueDate: t.dueDate ? toIsoDay(t.dueDate) : null }))

@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { MIN_PASSWORD_LENGTH } from "@/lib/auth/constants";
 import { api } from "@/lib/client-api";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 const str = (f: FormData, k: string) => String(f.get(k) ?? "");
 
@@ -115,8 +116,8 @@ export function SignOutEverywhere() {
     <Button
       variant="outline"
       disabled={busy}
-      onClick={() => {
-        if (confirm("¿Cerrar la sesión en todos tus dispositivos, incluido este?")) {
+      onClick={async () => {
+        if ((await confirmDialog({ title: "¿Cerrar la sesión en todos tus dispositivos?", description: "Incluido este.", confirmLabel: "Cerrar sesiones" }))) {
           void run("/api/account/sessions", "DELETE", undefined, "Sesiones cerradas");
         }
       }}

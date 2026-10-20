@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { isoDate } from "@/lib/dates";
+import { formatEur, formatNum } from "@/lib/format";
 
 export const reviewSchema = z.object({
   weekStart: isoDate,
@@ -17,8 +18,8 @@ export function summaryLines(s: WeekSummary, prev: WeekSummary | null): string[]
   const delta = (a: number, b: number | undefined) => (b == null || b === 0 ? "" : ` (${a >= b ? "+" : ""}${Math.round(((a - b) / b) * 100)} % vs. la anterior)`);
   return [
     `${s.sessions} ${s.sessions === 1 ? "sesión" : "sesiones"} · TSS ${Math.round(s.tss)}${delta(s.tss, prev?.tss)}`,
-    s.sleepH != null ? `Sueño medio: ${s.sleepH.toFixed(1)} h` : "Sin registros de sueño",
+    s.sleepH != null ? `Sueño medio: ${formatNum(s.sleepH)} h` : "Sin registros de sueño",
     `Estudio: ${Math.floor(s.studyMin / 60)} h ${s.studyMin % 60} min${delta(s.studyMin, prev?.studyMin)}`,
-    `Gasto: ${(s.spentCents / 100).toLocaleString("es-ES", { style: "currency", currency: "EUR" })}`,
+    `Gasto: ${formatEur(s.spentCents)}`,
   ];
 }

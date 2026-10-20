@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import { appleDays, type DayAgg, feedApple, newAppleState } from "@/lib/recovery/apple-health";
+import { formatNum } from "@/lib/format";
 
 /**
  * Apple Health: el export.xml (puede pesar cientos de MB) se lee aquí, en el móvil u ordenador,
@@ -67,7 +68,7 @@ export function AppleImport() {
       {days?.length ? (
         <div className="grid gap-2 rounded-md border p-2" aria-label="Vista previa de Apple Health">
           <p>
-            {days.length} días · último: {days.at(-1)!.date} · {(days.at(-1)!.sleepMin / 60).toFixed(1).replace(".", ",")} h de sueño
+            {days.length} días · último: {days.at(-1)!.date} · {formatNum(days.at(-1)!.sleepMin / 60)} h de sueño
             {days.at(-1)!.restingHr ? ` · ${days.at(-1)!.restingHr} lpm` : ""}
           </p>
           <Button type="button" size="sm" disabled={busy} onClick={save}>

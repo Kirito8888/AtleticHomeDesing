@@ -9,7 +9,7 @@ import { pageUser } from "@/lib/auth/page";
 import { overlapDays, previewWeekFeedback } from "@/lib/ai-plan/service";
 import { compliance } from "@/lib/planning/compliance";
 import { today, toIsoDay } from "@/lib/dates";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatInt } from "@/lib/format";
 import type { ParsedWeek } from "@/lib/planning/plan-import/types";
 import { prisma } from "@/lib/prisma";
 import { mesoWeeklyTonnage } from "@/lib/training/plan-vs-done-service";
@@ -209,8 +209,8 @@ export default async function MesoPage({ params }: PageProps<"/planning/meso/[co
                     {tonnage.map((w) => (
                       <tr key={w.week}>
                         <td>S{w.week}</td>
-                        <td className="text-right">{Math.round(w.planned).toLocaleString("es-ES")} kg</td>
-                        <td className="text-right">{Math.round(w.done).toLocaleString("es-ES")} kg</td>
+                        <td className="text-right">{formatInt(w.planned)} kg</td>
+                        <td className="text-right">{formatInt(w.done)} kg</td>
                         <td className="text-right">{w.planned ? Math.round((w.done / w.planned) * 100) : "—"}</td>
                       </tr>
                     ))}

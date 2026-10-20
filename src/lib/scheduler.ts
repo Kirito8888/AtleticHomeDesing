@@ -2,7 +2,7 @@ import "server-only";
 
 import { generateWeeklyCoachReport } from "@/lib/ai/coach";
 import { addDays, dateOnly, localDay, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
-import { formatEur } from "@/lib/format";
+import { formatEur, formatTime } from "@/lib/format";
 import { env } from "@/lib/env";
 import { runDueSubscriptions } from "@/lib/finance/service";
 import { subscriptionAlerts } from "@/lib/finance/season-service";
@@ -279,7 +279,7 @@ export async function runAppointmentReminders(now = new Date()): Promise<number>
   const appts = await prisma.appointment.findMany({ where: { at: { gt: from, lte: to }, user: { pushSubscriptions: { some: {} } } }, select: { id: true, userId: true, at: true, kind: true, place: true } });
   let sent = 0;
   for (const a of appts) {
-    const hour = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(a.at);
+    const hour = formatTime(a.at);
     const what = a.kind === "PHYSIO" ? "Fisio" : a.kind === "DOCTOR" ? "Médico/a" : "Cita";
     if (await notifyOnce(a.userId, `appt:${a.id}`, { title: "Atlenza", body: `Mañana: ${what} a las ${hour}${a.place ? ` (${a.place})` : ""}.`, url: "/recovery/health", tag: `appt-${a.id}` })) sent++;
   }

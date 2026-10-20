@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
 import { PLAN_MEALS } from "@/lib/nutrition/planning";
+import { formatDate } from "@/lib/format";
 
 type Item = { name: string; grams: number; match: { id: string; name: string; brand: string | null; kcalPer100g: number | null } | null };
 
@@ -129,7 +130,7 @@ export function PlanSuggest({ weekStart }: { weekStart: string }) {
               <li key={d.date} className="grid gap-1">
                 <label className="flex items-center gap-2 font-medium">
                   <input type="checkbox" className="size-4" checked={keep.has(d.date)} disabled={!d.meals.length} onChange={(e) => setKeep((s) => { const n = new Set(s); if (e.target.checked) n.add(d.date); else n.delete(d.date); return n; })} />
-                  {new Date(`${d.date}T12:00:00Z`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "short" })} · {d.kcal} kcal · {d.proteinG} g prot.
+                  {formatDate(d.date, { weekday: "long", day: "numeric", month: "short" })} · {d.kcal} kcal · {d.proteinG} g prot.
                 </label>
                 <span className="pl-6 text-xs text-muted-foreground">{d.meals.map((m) => `${PLAN_MEALS[m.mealType]}: ${m.recipe}${m.servings !== 1 ? ` ×${m.servings}` : ""}`).join(" · ") || "Sin propuesta"}</span>
               </li>

@@ -142,8 +142,8 @@ await api("patch", "/api/settings/prefs", { hiddenModules: [] });
 // Papelera: sesión borrada y recuperada con «Deshacer»; comida borrada y recuperada desde Ajustes → Papelera
 const tagged = (await api("post", "/api/training/sessions", { date: madrid, type: "STRENGTH", status: "COMPLETED", title: "Salidas de tacos V18", durationMin: 40, rpe: 6, tags: ["reaccion"], strength: { sets: [] } })) as { id?: string };
 await go(`${B}/training/${tagged.id}`);
-page.once("dialog", (d) => void d.accept());
 await page.getByRole("button", { name: "Borrar" }).click();
+await page.getByRole("alertdialog").getByRole("button", { name: "Borrar" }).click();
 await page.waitForURL(/\/training$/);
 await page.getByRole("button", { name: "Deshacer" }).click();
 await toast(/Recuperado/);

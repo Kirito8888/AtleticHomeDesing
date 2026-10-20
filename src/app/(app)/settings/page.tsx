@@ -61,7 +61,7 @@ import { credentialView, DEFAULT_MODELS } from "@/lib/ai/credentials";
 import { localBaseUrls, OPENAI_PRESETS } from "@/lib/ai/provider";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
-import { formatDate, formatDuration } from "@/lib/format";
+import { formatDate, formatDateTime, formatDuration } from "@/lib/format";
 import { feedStatus } from "@/lib/planning/feed-service";
 import { listReports } from "@/lib/report/service";
 import { prisma } from "@/lib/prisma";
@@ -753,13 +753,7 @@ export default async function SettingsPage({
                       className="shrink-0 text-xs text-muted-foreground tabular-nums"
                       dateTime={e.createdAt.toISOString()}
                     >
-                      {e.createdAt.toLocaleString("es-ES", {
-                        timeZone: "Europe/Madrid",
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
+                      {formatDateTime(e.createdAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </time>
                   </li>
                 ))}

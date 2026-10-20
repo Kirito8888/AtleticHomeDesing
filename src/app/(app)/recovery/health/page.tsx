@@ -4,7 +4,7 @@ import { AppointmentForm, DeleteAppointment, SupplementActions, SupplementForm }
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { listHealthReports } from "@/lib/health/health-report";
 import { prisma } from "@/lib/prisma";
 import { APPOINTMENT_LABEL, supplementsToCheck } from "@/lib/recovery/health-admin";
@@ -15,7 +15,7 @@ import { supplementWeek } from "@/lib/nutrition/planning";
 
 export const metadata = { title: "Citas y suplementos · Atlenza" };
 
-const when = (d: Date) => new Intl.DateTimeFormat("es-ES", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(d);
+const when = (d: Date) => formatDateTime(d, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 export default async function HealthAdminPage() {
   const user = await pageUser();

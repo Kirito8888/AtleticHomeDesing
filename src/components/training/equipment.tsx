@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
 import { EQUIPMENT_KINDS, type EquipmentKind } from "@/lib/training/equipment";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 
 const num = (s: string) => (s.trim() ? Number(s.replace(",", ".")) : null);
 
@@ -133,8 +134,8 @@ export function EquipmentActions({ id, name, retired }: { id: string; name: stri
         size="sm"
         variant="ghost"
         className="text-destructive"
-        onClick={() => {
-          if (confirm(`¿Borrar «${name}»?`)) call(null, "DELETE");
+        onClick={async () => {
+          if ((await confirmDialog({ title: `¿Borrar «${name}»?`, confirmLabel: "Borrar", destructive: true }))) call(null, "DELETE");
         }}
       >
         Borrar
