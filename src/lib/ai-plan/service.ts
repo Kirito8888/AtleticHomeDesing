@@ -13,7 +13,7 @@ import { chooseAlternative, type Rating, swapForEquipment } from "./adjust";
 import { expandAiPlan, toRow } from "./expand";
 import { fakeAiPlan } from "./fake";
 import { proposeWeekChanges, type WeekProposal } from "./feedback";
-import { allowedEquipment, type Equipment, type Location, LOCATIONS, type PlanRequest, SAFETY } from "./options";
+import { allowedEquipment, type Equipment, type Location, type PlanRequest, SAFETY, spacesLabel } from "./options";
 import { buildPlanPrompt, buildSwapPrompt, PLAN_SYSTEM } from "./prompt";
 import { type AiPlan, aiPlanSchema, aiSwapSchema } from "./schema";
 import { validateAiPlan } from "./validate";
@@ -182,9 +182,10 @@ export async function setDayMode(userId: string, dayId: string, mode: "LIGHT" | 
  * se pueden hacer por alternativas compatibles; si alguno no tiene, se pide a
  * la IA solo ese cambio (si está permitida).
  */
-export async function swapDayLocation(userId: string, dayId: string, location: Location, equipment: Equipment[], deps: AiDeps = {}) {
+export async function swapDayLocation(userId: string, dayId: string, location: Location | readonly Location[], equipment: Equipment[], deps: AiDeps = {}) {
   const day = await dayOf(userId, dayId);
-  const allowed = allowedEquipment(location, equipment);
+  const spaces: readonly Location[] = typeof location === "string" ? [location] : location;
+  const allowed = allowedEquipment(spaces, equipment);
   const content = day.content as PlanBlock[];
   const res = swapForEquipment(content, allowed);
   let blocks = res.blocks;
@@ -204,7 +205,7 @@ export async function swapDayLocation(userId: string, dayId: string, location: L
           system: PLAN_SYSTEM,
           prompt: buildSwapPrompt({
             exercises: res.unresolved.map((u) => `${u.item.exercise} (${u.item.sets})`),
-            location,
+            locations: spaces,
             equipment: [...allowed],
             areas: req?.areas ?? [],
             avoid: req?.avoid ?? [],
@@ -236,7 +237,7 @@ export async function swapDayLocation(userId: string, dayId: string, location: L
       );
     }
   }
-  blocks = blocks.map((b) => (b.kind === "text" && b.title === "Dónde" ? { ...b, text: LOCATIONS[location] } : b));
+  blocks = blocks.map((b) => (b.kind === "text" && b.title === "Dónde" ? { ...b, text: spacesLabel(spaces) } : b));
   await prisma.planDay.update({ where: { id: day.id }, data: { content: blocks as Prisma.InputJsonValue } });
   return { swapped: res.swapped + aiSwapped, pending: res.unresolved.length - aiSwapped };
 }

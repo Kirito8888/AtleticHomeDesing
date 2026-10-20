@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Chips, Field, MultiChips } from "@/components/form/chips";
+import { Field, MultiChips } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { EQUIPMENT, LOCATIONS } from "@/lib/ai-plan/options";
@@ -24,7 +24,7 @@ const eqOpts = (Object.entries(EQUIPMENT) as Array<[keyof typeof EQUIPMENT, stri
 export function DayActions({ dayId, mode, hasLight, swappable, suggestion }: { dayId: string; mode: string | null; hasLight: boolean; swappable: SwappableRow[]; suggestion?: string | null }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [location, setLocation] = useState<keyof typeof LOCATIONS | null>(null);
+  const [locations, setLocations] = useState<Array<keyof typeof LOCATIONS>>([]);
   const [equipment, setEquipment] = useState<Array<keyof typeof EQUIPMENT>>([]);
 
   async function post(body: object, ok: (r: Record<string, number>) => string) {
@@ -65,8 +65,8 @@ export function DayActions({ dayId, mode, hasLight, swappable, suggestion }: { d
           <summary className="cursor-pointer font-medium">Ajustar este día</summary>
           <div className="mt-3 grid gap-4">
             <div className="grid gap-2">
-              <Field label="Hoy entreno en">
-                <Chips label="Sitio de hoy" options={locOpts} value={location} onChange={setLocation} />
+              <Field label="Hoy entreno en" hint="Puedes marcar varios.">
+                <MultiChips label="Sitio de hoy" options={locOpts} value={locations} onChange={setLocations} />
               </Field>
               <Field label="Y tengo" hint="El peso corporal siempre cuenta.">
                 <MultiChips label="Material de hoy" options={eqOpts} value={equipment} onChange={setEquipment} />
@@ -75,9 +75,9 @@ export function DayActions({ dayId, mode, hasLight, swappable, suggestion }: { d
                 type="button"
                 size="sm"
                 className="w-fit"
-                disabled={busy || !location}
+                disabled={busy || !locations.length}
                 onClick={() =>
-                  void post({ action: "swap", location, equipment }, (r) =>
+                  void post({ action: "swap", locations, equipment }, (r) =>
                     r.pending ? `${r.swapped} cambiados; ${r.pending} sin alternativa (hazlos con lo que tengas o sáltalos)` : r.swapped ? `${r.swapped} ejercicios cambiados` : "Todo se puede hacer ahí: sin cambios",
                   )
                 }
