@@ -6,6 +6,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, isoDate, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { rebaseBasis, setsOfRow } from "@/lib/training/prescription";
 
 import { materialize } from "./plan-import/service";
 import type { PlanBlock, PlanRow } from "./plan-import/types";
@@ -110,8 +111,15 @@ export function dayContent(input: z.infer<typeof manualDaySchema>): PlanBlock[] 
  * que conserva su ejercicio mantiene su justificación y citas (`basis`).
  */
 export function routineDayContent(current: PlanBlock[], input: z.infer<typeof manualDaySchema>): PlanBlock[] {
-  const basis = new Map(current.flatMap((b) => (b.kind === "table" ? b.rows : [])).flatMap((r) => (r.basis ? [[r.exercise, r.basis] as const] : [])));
-  const rows: PlanRow[] = input.rows.map((r) => ({ ...r, ramp: false, ...(basis.has(r.exercise) ? { basis: basis.get(r.exercise) } : {}) }));
+  const before = new Map(current.flatMap((b) => (b.kind === "table" ? b.rows : [])).flatMap((r) => (r.basis ? [[r.exercise, r] as const] : [])));
+  const rows: PlanRow[] = input.rows.map((r) => {
+    const old = before.get(r.exercise);
+    if (!old?.basis) return { ...r, ramp: false };
+    const was = setsOfRow(old.sets);
+    const now = setsOfRow(r.sets);
+    // Series editadas: el texto de «Por qué» se recalcula con las nuevas.
+    return { ...r, ramp: false, basis: now !== null && now !== was ? rebaseBasis(old.basis, now) : old.basis };
+  });
   let done = false;
   return current.map((b) => (b.kind === "table" && !done ? ((done = true), { kind: "table" as const, rows }) : b));
 }
