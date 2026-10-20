@@ -9,9 +9,10 @@ import { materialize } from "@/lib/planning/plan-import/service";
 import type { PlanBlock } from "@/lib/planning/plan-import/types";
 import { prisma } from "@/lib/prisma";
 
-import { adjustBlocks, chooseAlternative, type Rating, swapForEquipment } from "./adjust";
+import { chooseAlternative, type Rating, swapForEquipment } from "./adjust";
 import { expandAiPlan, toRow } from "./expand";
 import { fakeAiPlan } from "./fake";
+import { proposeWeekChanges, type WeekProposal } from "./feedback";
 import { allowedEquipment, type Equipment, type Location, LOCATIONS, type PlanRequest, SAFETY } from "./options";
 import { buildPlanPrompt, buildSwapPrompt, PLAN_SYSTEM } from "./prompt";
 import { type AiPlan, aiPlanSchema, aiSwapSchema } from "./schema";
@@ -248,34 +249,70 @@ export async function chooseDayAlternative(userId: string, dayId: string, block:
   return { ok: true };
 }
 
+/** Días de la semana siguiente y cuáles ya se hicieron (no se tocan). */
+async function nextWeekState(userId: string, mesoId: string, week: number, db: Pick<typeof prisma, "planDay" | "trainingSession"> = prisma) {
+  const days = await db.planDay.findMany({ where: { mesoId, week: week + 1 }, orderBy: { key: "asc" } });
+  const ids = days.flatMap((d) => (d.sessionId ? [d.sessionId] : []));
+  const done = new Set((await db.trainingSession.findMany({ where: { userId, id: { in: ids }, status: { not: "PLANNED" } }, select: { id: true } })).map((s) => s.id));
+  return { days, done };
+}
+
+const appliedWeeks = (meta: unknown): number[] => {
+  const a = (meta as { feedbackApplied?: unknown } | null)?.feedbackApplied;
+  return Array.isArray(a) ? a.filter((n): n is number => typeof n === "number") : [];
+};
+
 /**
- * «¿Cómo fue la semana?»: ajusta la siguiente (solo días aún pendientes).
- * Con dolor ≥ 4 la semana siguiente pasa a la versión suave.
+ * «¿Cómo fue la semana?»: guarda la valoración y propone cambios para la
+ * siguiente (solo días aún pendientes). NO escribe en el plan: eso lo hace
+ * `applyWeekFeedback` tras confirmar. Con dolor ≥ 4 propone la versión suave.
  */
 export async function submitWeekFeedback(userId: string, code: string, week: number, rating: Rating, pain: number | null) {
-  const meso = await prisma.planMeso.findUnique({ where: { userId_code: { userId, code } }, include: { days: true } });
+  const meso = await prisma.planMeso.findUnique({ where: { userId_code: { userId, code } } });
   if (!meso) throw new ApiError(404, "Plan no encontrado");
   await prisma.planFeedback.upsert({
     where: { mesoId_week: { mesoId: meso.id, week } },
     create: { userId, mesoId: meso.id, week, rating, pain },
     update: { rating, pain },
   });
-  const next = meso.days.filter((d) => d.week === week + 1);
-  const done = new Set(
-    (
-      await prisma.trainingSession.findMany({ where: { userId, id: { in: next.flatMap((d) => (d.sessionId ? [d.sessionId] : [])) }, status: { not: "PLANNED" } }, select: { id: true } })
-    ).map((s) => s.id),
+  return { saved: true, proposal: await previewWeekFeedback(userId, code, week) };
+}
+
+/** Vista previa de lo que cambiaría (solo lecturas). `null` si no hay valoración o ya se aplicó. */
+export async function previewWeekFeedback(userId: string, code: string, week: number): Promise<WeekProposal | null> {
+  const meso = await prisma.planMeso.findUnique({ where: { userId_code: { userId, code } } });
+  if (!meso) throw new ApiError(404, "Plan no encontrado");
+  if (appliedWeeks(meso.meta).includes(week)) return null;
+  const fb = await prisma.planFeedback.findUnique({ where: { mesoId_week: { mesoId: meso.id, week } } });
+  if (!fb) return null;
+  const { days, done } = await nextWeekState(userId, meso.id, week);
+  return proposeWeekChanges(days, done, fb.rating as Rating, fb.pain);
+}
+
+/** Aplica la propuesta confirmada, una sola vez; rechaza si el plan cambió desde la vista previa. */
+export async function applyWeekFeedback(userId: string, code: string, week: number, version: string) {
+  const stale = () => new ApiError(409, "El plan cambió desde la propuesta: revísala de nuevo");
+  return prisma.$transaction(
+    async (tx) => {
+      const meso = await tx.planMeso.findUnique({ where: { userId_code: { userId, code } } });
+      if (!meso) throw new ApiError(404, "Plan no encontrado");
+      const applied = appliedWeeks(meso.meta);
+      if (applied.includes(week)) throw new ApiError(409, "Estos cambios ya se aplicaron");
+      const fb = await tx.planFeedback.findUnique({ where: { mesoId_week: { mesoId: meso.id, week } } });
+      if (!fb) throw new ApiError(409, "Primero envía cómo fue la semana");
+      const { days, done } = await nextWeekState(userId, meso.id, week, tx);
+      const proposal = proposeWeekChanges(days, done, fb.rating as Rating, fb.pain);
+      if (proposal.version !== version) throw stale();
+      const updatedAt = new Map(days.map((d) => [d.id, d.updatedAt]));
+      for (const c of proposal.days) {
+        const r = await tx.planDay.updateMany({ where: { id: c.dayId, updatedAt: updatedAt.get(c.dayId) }, data: { content: c.content as Prisma.InputJsonValue, mode: c.mode } });
+        if (r.count !== 1) throw stale();
+      }
+      const meta = { ...((meso.meta as Record<string, unknown> | null) ?? {}), feedbackApplied: [...applied, week] };
+      await tx.planMeso.update({ where: { id: meso.id }, data: { meta: meta as Prisma.InputJsonValue } });
+      if (proposal.days.length) await materialize(tx, userId, meso.id);
+      return { adjusted: proposal.days.length };
+    },
+    { timeout: 60_000, maxWait: 10_000 },
   );
-  let adjusted = 0;
-  for (const d of next) {
-    if (d.sessionId && done.has(d.sessionId)) continue;
-    const { blocks, changed } = adjustBlocks(d.content as PlanBlock[], rating);
-    const light = pain != null && pain >= 4 && d.light ? "LIGHT" : d.mode;
-    if (changed || light !== d.mode) {
-      await prisma.planDay.update({ where: { id: d.id }, data: { content: blocks as Prisma.InputJsonValue, mode: light } });
-      adjusted++;
-    }
-  }
-  if (adjusted) await rematerialize(userId, meso.id);
-  return { adjusted };
 }
