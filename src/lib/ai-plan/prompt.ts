@@ -60,9 +60,9 @@ export function buildPlanPrompt(r: PlanRequest, feedback?: string[]): string {
 }
 
 /** Prompt para sustituir ejercicios de un día por otros que se puedan hacer con otro material. */
-export function buildSwapPrompt(params: { exercises: string[]; location: keyof typeof LOCATIONS; equipment: string[]; areas: string[]; avoid: string[] }) {
+export function buildSwapPrompt(params: { exercises: string[]; locations: readonly (keyof typeof LOCATIONS)[]; equipment: string[]; areas: string[]; avoid: string[] }) {
   return [
-    `Sustituye estos ejercicios por equivalentes (mismo objetivo y volumen) que se puedan hacer en: ${LOCATIONS[params.location]}.`,
+    `Sustituye estos ejercicios por equivalentes (mismo objetivo y volumen) que se puedan hacer en: ${spacesLabel(params.locations)}.`,
     `Material permitido: ${params.equipment.join(", ")}.`,
     params.areas.length ? `No cargar: ${params.areas.join(", ")}.` : "",
     params.avoid.length ? `Evitar: ${params.avoid.join(", ")}.` : "",

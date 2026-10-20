@@ -73,7 +73,9 @@ describe.skipIf(!HAS_DB)("rutinas del cuestionario (BD real)", () => {
     expect(after.map((b) => b.kind)).toEqual(before.map((b) => b.kind)); // calentamiento, «Dónde» y «Por qué» se quedan
     const out = after.flatMap((b) => (b.kind === "table" ? b.rows : []));
     expect(out[0].sets).toBe("5 × 5");
-    expect(out[0].basis).toEqual(rows[0].basis);
+    expect(out[0].basis!.refs).toEqual(rows[0].basis!.refs); // las citas se conservan
+    expect(out[0].basis!.why).toContain("se empieza con 5 series por ejercicio"); // y el texto sigue a las series editadas
+    expect(out[1].basis).toEqual(rows[1].basis); // una fila sin tocar queda igual
     expect(out.at(-1)).toMatchObject({ exercise: "Ejercicio nuevo" });
     expect(out.at(-1)!.basis).toBeUndefined();
     expect(JSON.stringify(after)).not.toContain("ignorada");
