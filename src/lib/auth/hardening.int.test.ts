@@ -116,3 +116,17 @@ describe.skipIf(!HAS_DB)("endurecimiento de cuentas y API (BD real)", () => {
     });
   });
 });
+
+describe.skipIf(!HAS_DB)("recuento deslizante", () => {
+  it("los fallos repartidos a ambos lados del cambio de ventana siguen sumando", async () => {
+    vi.resetModules();
+    const { rateLimitPersistent, countPersistent } = await import("@/lib/rate-limit-db");
+    const key = `slide-${t}-${Math.random()}`;
+    const win = 15 * 60_000;
+    const edge = Math.ceil(Date.now() / win) * win; // próximo cambio de ventana
+    for (let i = 0; i < 3; i++) await rateLimitPersistent(key, 99, win, edge - 5000 + i);
+    for (let i = 0; i < 2; i++) await rateLimitPersistent(key, 99, win, edge + 1000 + i);
+    expect(await countPersistent(key, win, edge + 2000)).toBeGreaterThanOrEqual(5);
+    expect(await countPersistent(key, win, edge + win + 2000)).toBeLessThan(5); // dos ventanas después ya no
+  });
+});
