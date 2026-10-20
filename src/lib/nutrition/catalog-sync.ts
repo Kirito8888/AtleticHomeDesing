@@ -38,6 +38,12 @@ async function saveProducts(foods: NormalizedFood[], now: Date) {
  * Una pasada: sigue por donde se quedó, hasta `maxPages` páginas, esperando `delayMs` entre
  * peticiones. Si OFF limita (429/503) o falla, guarda el error y lo intenta en la siguiente pasada.
  */
+/** Texto fijo por tipo de fallo para el panel de administración; el detalle va al log. */
+export function catalogErrorText(e: unknown): string {
+  if (e instanceof OffError && e.status === 429) return "OpenFoodFacts limitó las peticiones; se reintenta en la siguiente pasada";
+  return "OpenFoodFacts no responde; se reintenta en la siguiente pasada";
+}
+
 export async function runCatalogSyncJob(opts: { client?: Client; maxPages?: number; delayMs?: number; now?: Date; sleep?: (ms: number) => Promise<void> } = {}) {
   if (!env().OFF_SYNC_ENABLED) return { pages: 0, products: 0 };
   const client = opts.client ?? defaultClient();
@@ -60,7 +66,8 @@ export async function runCatalogSyncJob(opts: { client?: Client; maxPages?: numb
       try {
         r = await client.brandPage(brand, page, PAGE_SIZE);
       } catch (e) {
-        const msg = e instanceof OffError ? e.message : "OpenFoodFacts no responde";
+        console.warn("[catálogo]", brand, e instanceof Error ? e.message : e);
+        const msg = catalogErrorText(e);
         await prisma.catalogSyncState.update({ where: { brand }, data: { error: msg.slice(0, 200) } });
         return { pages, products, stopped: msg };
       }

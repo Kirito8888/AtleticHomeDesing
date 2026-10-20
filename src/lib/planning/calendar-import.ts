@@ -4,6 +4,9 @@ import { unzipSync } from "fflate";
 
 import type { ImportedEvent } from "@/lib/training/competition-tools";
 
+/** Error con mensaje pensado para la usuaria; cualquier otro (fflate, etc.) es interno. */
+export class XlsxError extends Error {}
+
 const MAX_XML = 20 * 1024 * 1024;
 const decode = (s: string) => s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n))).replace(/&amp;/g, "&");
 
@@ -14,13 +17,13 @@ export function readXlsxRows(buf: Uint8Array): string[][] {
     filter: (f) => {
       const want = f.name === "xl/sharedStrings.xml" || /^xl\/worksheets\/sheet1\.xml$/.test(f.name) || f.name === "xl/workbook.xml";
       if (want) total += f.originalSize;
-      if (total > MAX_XML) throw new Error("Excel demasiado grande");
+      if (total > MAX_XML) throw new XlsxError("Excel demasiado grande");
       return want;
     },
   });
   const td = new TextDecoder();
   const sheet = files["xl/worksheets/sheet1.xml"];
-  if (!sheet) throw new Error("No es un Excel (.xlsx) válido");
+  if (!sheet) throw new XlsxError("No es un Excel (.xlsx) válido");
   const shared = files["xl/sharedStrings.xml"] ? [...td.decode(files["xl/sharedStrings.xml"]).matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => decode([...m[1].matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)].map((t) => t[1]).join(""))) : [];
   const col = (ref: string) => [...ref.replace(/\d+/g, "")].reduce((a, ch) => a * 26 + ch.charCodeAt(0) - 64, 0) - 1;
   const rows: string[][] = [];

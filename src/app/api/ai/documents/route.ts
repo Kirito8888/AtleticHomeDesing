@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { publicDocError } from "@/lib/ai/doc-error";
 import { createDocumentFromUpload } from "@/lib/ai/rag";
 import { ApiError, enforceRateLimit, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
@@ -8,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 
 export const GET = route(async () => {
   const user = await requireUser();
-  return prisma.studyDocument.findMany({
+  const docs = await prisma.studyDocument.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
     select: {
@@ -23,6 +24,7 @@ export const GET = route(async () => {
       _count: { select: { chunks: true, flashcards: true } },
     },
   });
+  return docs.map((d) => ({ ...d, error: publicDocError(d.error) }));
 });
 
 /**
