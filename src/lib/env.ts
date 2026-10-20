@@ -87,9 +87,46 @@ const schema = z.object({
 
 export type Env = z.infer<typeof schema>;
 
+// Valores de ejemplo (.env.example, documentación) que nunca deben llegar a un servidor público.
+const PLACEHOLDERS = new Set(["change-me", "changeme", "secret", "dev", "test", "password"]);
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * En producción con una URL pública, rechaza la configuración insegura: AUTH_URL sin https, AUTH_SECRET
+ * ausente, corto o de ejemplo y la contraseña de ejemplo de la BD. Con AUTH_URL en localhost (CI, E2E,
+ * pruebas en la propia máquina) o durante `next build` no se exige, para no romper el build ni las pruebas.
+ */
+function productionIssues(v: Env, source: Record<string, string | undefined>): string[] {
+  if (source.NODE_ENV !== "production" || source.NEXT_PHASE === "phase-production-build") return [];
+  const url = v.AUTH_URL ? new URL(v.AUTH_URL) : null;
+  if (url && LOCAL_HOSTS.has(url.hostname)) return [];
+  const issues: string[] = [];
+  if (!url) issues.push("Falta AUTH_URL: pon la URL pública con https://");
+  else if (url.protocol !== "https:") issues.push("AUTH_URL debe usar https:// en producción");
+  const secret = v.AUTH_SECRET ?? "";
+  if (secret.length < 32 || PLACEHOLDERS.has(secret.toLowerCase())) issues.push("AUTH_SECRET debe tener al menos 32 caracteres aleatorios (openssl rand -base64 32)");
+  const dbPassword = (() => {
+    try {
+      return decodeURIComponent(new URL(v.DATABASE_URL).password);
+    } catch {
+      return "";
+    }
+  })();
+  if (PLACEHOLDERS.has(dbPassword.toLowerCase())) issues.push("La contraseña de DATABASE_URL es la de ejemplo: cambia POSTGRES_PASSWORD");
+  return issues;
+}
+
+/** Valida un conjunto de variables (puro: los tests le pasan el suyo). */
+export function parseEnv(source: Record<string, string | undefined>): Env {
+  const v = schema.parse(source);
+  const issues = productionIssues(v, source);
+  if (issues.length) throw new Error(`Configuración insegura para producción:\n- ${issues.join("\n- ")}`);
+  return v;
+}
+
 let cached: Env | undefined;
 
 export function env(): Env {
-  cached ??= schema.parse(process.env);
+  cached ??= parseEnv(process.env);
   return cached;
 }
