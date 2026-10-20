@@ -27,10 +27,14 @@ function Row({ label, value, bad = false }: { label: string; value: React.ReactN
 /** «Estado del servidor» (solo admin): para comprobar que una actualización salió bien. */
 export function ServerStatusView({ s }: { s: ServerStatus }) {
   const freePct = s.uploads ? Math.round((s.uploads.freeBytes / s.uploads.totalBytes) * 100) : null;
-  const backupOld = !s.backup || !s.backup.lastOkAt || hoursAgo(s.backup.lastOkAt) > 48;
   const failedJobs = s.queue?.failed ?? 0;
   return (
     <dl className="grid text-sm" aria-label="Estado del servidor">
+      {s.backupWarning && (
+        <div role="alert" className="mb-2 rounded-md border border-destructive/50 bg-destructive/10 p-2 text-sm font-medium text-destructive">
+          Copias de seguridad: {s.backupWarning}
+        </div>
+      )}
       <Row label="Versión" value={`v${s.version} · Node ${s.node} · arrancado hace ${Math.floor(s.uptimeSec / 3600)} h`} />
       <Row label="Base de datos" value={s.db.ok ? `OK (${s.db.latencyMs} ms${s.db.sizeBytes != null ? ` · ${mb(s.db.sizeBytes)}` : ""}${s.db.pgvector ? ` · pgvector ${s.db.pgvector}` : ""})` : "Sin conexión"} bad={!s.db.ok} />
       <Row
@@ -62,7 +66,7 @@ export function ServerStatusView({ s }: { s: ServerStatus }) {
             ? `${s.backup.ok ? "OK" : "FALLÓ"} · ${when(s.backup.at)}${s.backup.lastOkAt && !s.backup.ok ? ` · última buena ${when(s.backup.lastOkAt)}` : ""}`
             : "Sin registro (¿está activo el servicio backup?)"
         }
-        bad={backupOld || (s.backup != null && !s.backup.ok)}
+        bad={s.backupWarning != null}
       />
       <Row
         label="Versión del código"
@@ -74,6 +78,23 @@ export function ServerStatusView({ s }: { s: ServerStatus }) {
               : "sin commit en la imagen (se rellena al actualizar con update.sh)"
         }
         bad={Boolean(s.update?.newer)}
+      />
+      <Row
+        label="Errores 5xx (última hora)"
+        value={
+          s.errors5xx.length ? (
+            <ul className="grid gap-0.5 text-left text-xs" aria-label="Errores 5xx por ruta">
+              {s.errors5xx.map((e) => (
+                <li key={e.route}>
+                  <span className="font-mono break-all">{e.route}</span> · {e.errors} de {e.count}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            "ninguno"
+          )
+        }
+        bad={s.errors5xx.length > 0}
       />
       <Row
         label="Errores recientes"

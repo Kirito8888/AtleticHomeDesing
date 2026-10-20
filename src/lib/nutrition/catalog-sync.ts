@@ -3,6 +3,7 @@ import "server-only";
 import { env } from "@/lib/env";
 import { createOffClient, OffError, type NormalizedFood } from "@/lib/nutrition/openfoodfacts";
 import { prisma } from "@/lib/prisma";
+import { log } from "@/lib/log";
 
 /**
  * v1.10 · Catálogo local de alimentos de marcas españolas desde OpenFoodFacts (licencia ODbL: uso
@@ -66,7 +67,7 @@ export async function runCatalogSyncJob(opts: { client?: Client; maxPages?: numb
       try {
         r = await client.brandPage(brand, page, PAGE_SIZE);
       } catch (e) {
-        console.warn("[catálogo]", brand, e instanceof Error ? e.message : e);
+        log.warn("catálogo: página fallida", { job: "catalog-sync", err: e });
         const msg = catalogErrorText(e);
         await prisma.catalogSyncState.update({ where: { brand }, data: { error: msg.slice(0, 200) } });
         return { pages, products, stopped: msg };

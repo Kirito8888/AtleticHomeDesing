@@ -2,6 +2,7 @@ import "server-only";
 import { PgBoss } from "pg-boss";
 
 import { processDocument, type ProcessDeps } from "@/lib/ai/rag";
+import { log } from "@/lib/log";
 
 // Cola de trabajos en segundo plano sobre el mismo PostgreSQL (pg-boss crea su
 // propio esquema "pgboss"): sin Redis ni contenedores nuevos. Hoy procesa la
@@ -31,7 +32,7 @@ const created = new Set<string>();
 
 async function create(): Promise<PgBoss> {
   const boss = new PgBoss({ connectionString: connectionString(), schema: "pgboss" });
-  boss.on("error", (err) => console.error("[jobs]", err));
+  boss.on("error", (err) => log.error("cola de trabajos", { job: "pgboss", err }));
   await boss.start();
   return boss;
 }
@@ -67,7 +68,7 @@ export async function startIngestWorker(deps?: ProcessDeps, queue = INGEST_QUEUE
   await boss.work<{ documentId: string }>(queue, { batchSize: 1 }, async ([job]) => {
     await processDocument(job.data.documentId, deps);
   });
-  console.info("[jobs] trabajador de ingesta de apuntes activo");
+  log.info("trabajador de ingesta de apuntes activo", { job: "ingest" });
 }
 
 export async function stopBoss(): Promise<void> {

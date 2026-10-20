@@ -6,5 +6,6 @@ export async function register() {
   const { startScheduler } = await import("@/lib/scheduler");
   startScheduler();
   const { startIngestWorker } = await import("@/lib/jobs/queue");
-  startIngestWorker().catch((err) => console.error("[jobs] no se pudo arrancar la cola:", err));
+  const { log } = await import("@/lib/log");
+  startIngestWorker().catch((err) => log.error("no se pudo arrancar la cola", { job: "ingest", err }));
 }
