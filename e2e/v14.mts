@@ -102,7 +102,7 @@ await page.getByText("Hoy usas la versión suave.").waitFor();
 await page.getByRole("button", { name: "Volver a la normal" }).click();
 await toast(/Vuelves a la versión normal/);
 await page.getByText("Ajustar este día").click();
-await radio("Sitio de hoy", "Casa").click();
+await check("Sitio de hoy", "Casa").click();
 await page.getByRole("button", { name: "Adaptar los ejercicios" }).click();
 await toast(/ejercicios cambiados|sin alternativa|sin cambios/);
 await page.waitForTimeout(800);

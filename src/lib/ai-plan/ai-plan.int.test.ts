@@ -2,7 +2,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { fakeAiPlan } from "./fake";
-import { planRequestSchema } from "./options";
+import { planRequestSchema, spacesLabel } from "./options";
 import { aiPlanSchema } from "./schema";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
@@ -95,6 +95,12 @@ describe.skipIf(!HAS_DB)("plan con IA (BD real, Gemini simulado)", () => {
     const rows = (after.content as Array<{ kind: string; rows?: Array<{ equipment?: string[] }> }>).flatMap((b) => b.rows ?? []);
     expect(sw.pending).toBe(0);
     expect(rows.every((r) => r.equipment!.every((e) => e === "peso_corporal"))).toBe(true);
+
+    // Varios espacios a la vez: «Dónde» los lista todos.
+    await svc.swapDayLocation(userId, day.id, ["pista", "gimnasio"], [], deps);
+    const multi = await prisma.planDay.findUniqueOrThrow({ where: { id: day.id } });
+    const where = (multi.content as Array<{ kind: string; title?: string | null; text?: string }>).find((b) => b.kind === "text" && b.title === "Dónde");
+    expect(where?.text).toBe(spacesLabel(["pista", "gimnasio"]));
 
     // Enviar la valoración la guarda y propone, pero NO toca el plan.
     const snap = async () => JSON.stringify(await prisma.planDay.findMany({ where: { userId, week: 2 }, orderBy: { key: "asc" }, select: { id: true, content: true, mode: true, updatedAt: true, sessionId: true } }));
