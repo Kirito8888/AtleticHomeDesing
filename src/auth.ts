@@ -14,8 +14,9 @@ import { prisma } from "@/lib/prisma";
 import { sendToUser } from "@/lib/push/service";
 import { clientIp, LIMITS } from "@/lib/rate-limit";
 import { auditContext, recordEvent } from "@/lib/security/audit";
-import { authFailureLine, type AuthFailReason } from "@/lib/security/auth-log";
+import { authFailureLine, failureLog, type AuthFailReason } from "@/lib/security/auth-log";
 import { verifySecondFactor } from "@/lib/security/totp";
+import { log } from "@/lib/log";
 
 const credentialsSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -63,7 +64,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // (la que lee fail2ban); aquí se silencia la traza que Auth.js añadiría.
   logger: {
     error(error) {
-      if (!(error instanceof CredentialsSignin)) console.error("[auth]", error);
+      if (!(error instanceof CredentialsSignin)) log.error("fallo de autenticación", { err: error });
     },
   },
   providers: [
@@ -73,7 +74,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ip = clientIp(request.headers);
         const ctx = auditContext(request.headers);
         const fail = (reason: AuthFailReason, err: CredentialsSignin = new CredentialsSignin()) => {
-          console.warn(authFailureLine(ip, reason));
+          failureLog(authFailureLine(ip, reason));
           return err;
         };
         if (!(await rateLimitPersistent(`login:${ip}`, LIMITS.login.limit, LIMITS.login.windowMs)).ok) {
@@ -161,13 +162,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ctx = auditContext(request.headers);
         // Contador propio: una firma de llave no se puede adivinar, así que no gasta los intentos de contraseña
         if (!(await rateLimitPersistent(`passkey:${ip}`, LIMITS.login.limit, LIMITS.login.windowMs)).ok) {
-          console.warn(authFailureLine(ip, "rate_limited"));
+          failureLog(authFailureLine(ip, "rate_limited"));
           throw new TooManyAttempts();
         }
         const parsed = passkeySchema.safeParse(raw);
         const userId = parsed.success ? await verifyLogin(parsed.data.challengeId, parsed.data.response, new URL(request.url).origin).catch(() => null) : null;
         if (!userId) {
-          console.warn(authFailureLine(ip, "credentials"));
+          failureLog(authFailureLine(ip, "credentials"));
           throw new CredentialsSignin();
         }
         const user = await prisma.user.findUnique({ where: { id: userId } });

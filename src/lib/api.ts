@@ -5,7 +5,8 @@ import { ZodError, type z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { recordRequest } from "@/lib/admin/metrics";
 import { LIMITS } from "@/lib/rate-limit";
-import { isMutation, requestContext } from "@/lib/request-context";
+import { log } from "@/lib/log";
+import { isMutation, makeRequestId, requestContext } from "@/lib/request-context";
 import { expectedOrigin, originAllowed } from "@/lib/security/origin";
 import { rateLimitPersistent } from "@/lib/rate-limit-db";
 
@@ -29,20 +30,26 @@ type Handler<C> = (req: NextRequest, ctx: C) => Promise<unknown>;
 export function route<C = unknown>(fn: Handler<C>) {
   return async (req: NextRequest, ctx: C): Promise<Response> => {
     const t0 = performance.now();
+    const reqId = makeRequestId(req.headers.get("x-request-id"));
     let res: Response;
     try {
       if (isMutation(req.method) && !originAllowed(req.headers, expectedOrigin(process.env.AUTH_URL, req.url))) {
         throw new ApiError(403, "Origen no permitido");
       }
-      const result = await requestContext.run({ method: req.method, path: req.nextUrl.pathname }, () => fn(req, ctx));
+      const result = await requestContext.run({ method: req.method, path: req.nextUrl.pathname, reqId }, () => fn(req, ctx));
       res = result instanceof Response ? result : NextResponse.json(result ?? { ok: true });
     } catch (err) {
-      res = errorResponse(err);
+      res = requestContext.run({ method: req.method, path: req.nextUrl.pathname, reqId }, () => errorResponse(err));
       // v1.8 · Los 500 quedan registrados (agregados, sin datos) para «Estado del servidor»
       if (res.status >= 500) void import("@/lib/admin/server-errors").then((m) => m.recordServerError("ERROR", req.nextUrl.pathname, err instanceof Error ? `${err.name}: ${err.message}` : String(err)));
     }
     // v1.9 · Métricas internas (en memoria) para el panel de administración
     recordRequest(req.method, req.nextUrl.pathname, res.status, performance.now() - t0);
+    try {
+      res.headers.set("x-request-id", reqId);
+    } catch {
+      // cabeceras inmutables (respuesta de fetch reenviada): sin id en la respuesta
+    }
     return res;
   };
 }
@@ -62,7 +69,7 @@ export function errorResponse(err: unknown): Response {
     if (err.code === "P2025") return NextResponse.json({ error: "No encontrado" }, { status: 404 });
     if (err.code === "P2003") return NextResponse.json({ error: "Referencia a un registro inexistente" }, { status: 400 });
   }
-  console.error(err);
+  log.error("error interno", { err, status: 500 });
   return NextResponse.json({ error: "Error interno" }, { status: 500 });
 }
 

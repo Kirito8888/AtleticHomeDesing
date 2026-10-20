@@ -30,6 +30,7 @@
     "e2e:v25b": "tsx e2e/v25b.mts",
     "e2e:v25c": "tsx e2e/v25c.mts",
     "e2e:v25d": "tsx e2e/v25d.mts",
+    "e2e:v25e": "tsx e2e/v25e.mts",
     "budget": "node scripts/bundle-budget.mjs",
     "e2e:v18": "tsx e2e/v18.mts",
     "e2e:v19": "tsx e2e/v19.mts",

@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Cliente Prisma generado
     "src/generated/**",
   ]),
+  // Bloque 8: nada de `console` suelto en el código de la app; se usa `lib/log.ts`.
+  { files: ["src/**/*.{ts,tsx}"], ignores: ["src/lib/log.ts", "**/*.test.ts"], rules: { "no-console": "error" } },
 ]);
 
 export default eslintConfig;

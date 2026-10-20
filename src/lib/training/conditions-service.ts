@@ -5,6 +5,7 @@ import { addDays, today } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { getPrefs } from "@/lib/rules/prefs-service";
 import { conditionsAt } from "@/lib/weather";
+import { log } from "@/lib/log";
 
 const madridHour = (d: Date) => Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hourCycle: "h23" }).format(d));
 
@@ -24,7 +25,7 @@ export async function attachConditions(userId: string, sessionId: string, date: 
     await prisma.technicalSession.updateMany({ where: { sessionId, session: { userId } }, data: { conditions: c as unknown as Prisma.InputJsonValue } });
     return true;
   } catch (err) {
-    console.warn("[condiciones]", (err as Error).message);
+    log.warn("no se guardaron las condiciones", { err });
     return false;
   }
 }

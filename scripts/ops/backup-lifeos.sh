@@ -21,7 +21,17 @@ RECIPIENT="${BACKUP_AGE_RECIPIENT:-}"
 DRY=0
 
 log() { printf '[backup %s] %s\n' "$(date -u +%FT%TZ)" "$*"; }
-die() { log "FALLO: $*" >&2; exit 1; }
+RECORD=0
+# Anota la ejecución en BackupRun (la lee «Estado» y check-backups.sh). Mejor esfuerzo: nunca cambia el resultado de la copia.
+# shellcheck disable=SC2016  # las variables POSTGRES_* se expanden DENTRO del contenedor, a propósito
+record() {
+  [ "$RECORD" = 1 ] || return 0
+  local detail
+  detail="$(printf '%s' "$2" | tr -d "'\\" | cut -c1-200)"
+  printf "insert into \"BackupRun\" (id, ok, detail) values (md5(random()::text || clock_timestamp()::text), %s, '%s');\n" "$1" "$detail" \
+    | docker exec -i "$CONTAINER" sh -c 'exec psql -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"' >/dev/null 2>&1 || log "AVISO: no se pudo anotar la copia en BackupRun"
+}
+die() { log "FALLO: $*" >&2; record false "copia del host fallida: $*"; exit 1; }
 
 for a in "$@"; do
   case "$a" in
@@ -58,6 +68,7 @@ if [ "$DRY" = 1 ]; then
   exit 0
 fi
 
+RECORD=1
 mkdir -p "$DIR"; chmod 700 "$DIR"
 exec 9>"$DIR/.lock"
 flock -n 9 || die "ya hay otra copia en curso"
@@ -82,6 +93,7 @@ mv "$PART" "$OUT"
 chmod 600 "$OUT" "$OUT.sha256"
 SIZE="$(wc -c < "$OUT" | tr -d ' ')"
 log "ok: $OUT ($SIZE bytes) + .sha256"
+record true "copia del host: $SIZE bytes${RECIPIENT:+, cifrada}"
 
 # Rotación: solo tras una copia buena, solo nuestros ficheros y sin tocar la recién creada.
 find "$DIR" -maxdepth 1 -type f -name 'lifeos-db-*' -mtime +"$KEEP" ! -name "$(basename "$OUT")*" -print -delete \
