@@ -40,7 +40,10 @@ export default async function ExamsPage() {
           </CardContent>
         </Card>
       </div>
-      <p className="mt-3 text-xs text-muted-foreground">
+      <Link href="/study/exam" className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-4">
+        ¿Buscas el simulacro con tus tarjetas? Examen simulado →
+      </Link>
+      <p className="text-xs text-muted-foreground">
         Los exámenes salen del{" "}
         <Link href="/study/schedule" className="underline underline-offset-2">
           horario
