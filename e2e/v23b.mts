@@ -87,6 +87,7 @@ for (const scheme of ["light", "dark"] as const) {
   await page.getByRole("navigation", { name: "Accesos de entrenamiento" }).getByRole("link", { name: "Medir salto" }).tap();
   await page.waitForURL("**/training/tests/salto");
   const tabs = page.getByRole("navigation", { name: "Secciones de tests" });
+  await tabs.waitFor();
   if ((await tabs.locator("a[aria-current=page]").count()) !== 1) errors.push("pestañas de tests: debe haber una activa");
   if (!(await tabs.getByRole("link", { name: "Medir salto" }).getAttribute("aria-current"))) errors.push("la pestaña activa no es «Medir salto»");
   await tabs.getByRole("link", { name: "Resultados" }).tap();
