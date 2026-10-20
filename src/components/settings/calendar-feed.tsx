@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
+import { formatDateTime } from "@/lib/format";
 
 /** Enlace .ics para suscribirse desde Google/Apple Calendar (solo títulos y fechas). */
 export function CalendarFeedSettings({ active: initialActive, lastUsedAt, study: initialStudy }: { active: boolean; lastUsedAt: string | null; study: boolean }) {
@@ -92,7 +93,7 @@ export function CalendarFeedSettings({ active: initialActive, lastUsedAt, study:
         </div>
       ) : active ? (
         <p>
-          Enlace activo{lastUsedAt ? ` · último uso ${new Date(lastUsedAt).toLocaleString("es-ES", { timeZone: "Europe/Madrid", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : ""}.
+          Enlace activo{lastUsedAt ? ` · último uso ${formatDateTime(lastUsedAt, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}` : ""}.
         </p>
       ) : null}
       <div className="flex flex-wrap gap-2">

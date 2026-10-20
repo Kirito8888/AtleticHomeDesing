@@ -1,3 +1,4 @@
+import { formatNum } from "@/lib/format";
 /**
  * Informe de solo lectura para la entrenadora: HTML autocontenido, sin
  * JavaScript ni recursos externos. Nunca incluye ciclo menstrual, peso ni
@@ -16,7 +17,7 @@ export type ReportData = {
 };
 
 export const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-const num = (n: number, d = 2) => n.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: d });
+const num = (n: number, d: 1 | 2 = 2) => formatNum(n, d);
 const STATUS: Record<string, string> = { COMPLETED: "hecha", PLANNED: "pendiente", SKIPPED: "saltada" };
 
 export function renderReport(d: ReportData): string {

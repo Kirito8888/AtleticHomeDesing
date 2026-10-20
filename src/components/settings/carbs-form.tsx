@@ -98,8 +98,8 @@ export function TrackForm({ initial }: { initial: Track }) {
     navigator.geolocation.getCurrentPosition(
       (p) => {
         // 3 decimales (~100 m): suficiente para el tiempo y no guarda más precisión de la necesaria
-        setLat(p.coords.latitude.toFixed(3));
-        setLon(p.coords.longitude.toFixed(3));
+        setLat(String(Math.round(p.coords.latitude * 1000) / 1000));
+        setLon(String(Math.round(p.coords.longitude * 1000) / 1000));
       },
       () => toast.error("No se pudo obtener la ubicación"),
       { enableHighAccuracy: false, timeout: 10000 },

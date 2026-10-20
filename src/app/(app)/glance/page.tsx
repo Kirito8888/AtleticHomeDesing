@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { pageUser } from "@/lib/auth/page";
 import { diffDays, today, toIsoDay } from "@/lib/dates";
-import { formatDate, formatEur, SESSION_TYPE_LABEL } from "@/lib/format";
+import { SESSION_TYPE_LABEL, formatDate, formatDec, formatEur } from "@/lib/format";
 import { seasonBudgetView } from "@/lib/finance/season-service";
 import { prisma } from "@/lib/prisma";
 import { assignmentAlert, type AssignmentStatus } from "@/lib/study/coursework";
@@ -58,7 +58,7 @@ export default async function GlancePage() {
           {sessions.length ? sessions.map((s) => `${s.title ?? (SESSION_TYPE_LABEL as Record<string, string>)[s.type] ?? s.type}${s.status === "COMPLETED" ? " ✓" : ""}`).join(" · ") : "descanso"}
         </Row>
         <Row label="Agua" href="/nutrition">
-          <span className="tabular-nums">{String(((water._sum.ml ?? 0) / 1000).toFixed(2)).replace(".", ",")} L</span>
+          <span className="tabular-nums">{formatDec((water._sum.ml ?? 0) / 1000, 2)} L</span>
         </Row>
         <Row label="Hábitos" href="/study">
           {habits.length ? <span className="tabular-nums">{doneHabits} de {habits.length}</span> : "—"}

@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SHARE_TARGETS, shareTargetsFor } from "@/lib/share";
 import { clearSharedFiles, peekSharedFiles } from "@/lib/share-client";
+import { formatBytes } from "@/lib/format";
 
 function kb(n: number) {
-  return n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`;
+  return formatBytes(n);
 }
 
 export function SharedFiles() {

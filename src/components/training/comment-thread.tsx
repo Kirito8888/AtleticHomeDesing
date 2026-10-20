@@ -7,10 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
 import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/format";
 
 export type CommentView = { id: string; body: string; createdAt: string; author: string; mine: boolean; fromCoach: boolean };
 
-const when = (iso: string) => new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(new Date(iso));
+const when = (iso: string) => formatDateTime(iso, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 /** Hilo de comentarios de una sesión entre atleta y entrenador/a. */
 export function CommentThread({ sessionId, athleteId, initial }: { sessionId: string; athleteId?: string; initial: CommentView[] }) {

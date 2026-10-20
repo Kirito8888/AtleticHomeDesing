@@ -92,6 +92,8 @@ export function QuickTransaction({
       const el = f.elements.namedItem(name) as HTMLInputElement | null;
       if (el && v) el.value = v;
     };
+    // Valor de un <input>: coma decimal y sin separador de miles, como lo escribe la persona.
+    // eslint-disable-next-line no-restricted-syntax
     set("amount", r.amount != null ? r.amount.toFixed(2).replace(".", ",") : null);
     set("date", r.date);
     set("description", r.merchant);

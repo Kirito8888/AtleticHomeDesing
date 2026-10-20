@@ -1,7 +1,7 @@
 import { PrintButton } from "@/components/print-button";
 import { pageUser } from "@/lib/auth/page";
 import { today } from "@/lib/dates";
-import { formatDate, formatEur, TECHNICAL_EVENT_LABEL } from "@/lib/format";
+import { TECHNICAL_EVENT_LABEL, formatDate, formatDec, formatEur } from "@/lib/format";
 import { BODY_AREA_LABEL, BODY_SIDE_LABEL } from "@/lib/recovery/injury-rules";
 import { seasonReport } from "@/lib/training/season-report";
 
@@ -39,7 +39,7 @@ export default async function PrintSeason({ searchParams }: PageProps<"/print/se
                 <td className="py-1 pr-2">
                   {m.kind === "TECHNICAL_MARK" ? `${TECHNICAL_EVENT_LABEL[m.technicalEvent ?? ""] ?? m.technicalEvent}${m.implementWeightG ? ` (${m.implementWeightG / 1000} kg)` : ""}` : `${m.trackDistanceM} m`}
                 </td>
-                <td className="py-1 pr-2 font-medium tabular-nums">{m.kind === "TECHNICAL_MARK" ? `${m.value.toFixed(2)} m` : `${m.value.toFixed(2)} s`}</td>
+                <td className="py-1 pr-2 font-medium tabular-nums">{m.kind === "TECHNICAL_MARK" ? `${formatDec(m.value, 2)} m` : `${formatDec(m.value, 2)} s`}</td>
                 <td className="py-1 text-gray-600">
                   {formatDate(m.date, { day: "numeric", month: "short" })}
                   {m.isCompetition ? " · competición" : ""}

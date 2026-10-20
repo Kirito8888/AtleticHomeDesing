@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { formatTime } from "@/lib/format";
 
 /** Al abrir el centro de notificaciones, todo queda como leído (la campana se pone a cero). */
 export function MarkAllRead({ unread }: { unread: number }) {
@@ -17,7 +18,7 @@ export function MarkAllRead({ unread }: { unread: number }) {
 export function SnoozeButton({ id, until }: { id: string; until: string | null }) {
   const router = useRouter();
   if (until) {
-    const hhmm = new Intl.DateTimeFormat("es-ES", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Madrid" }).format(new Date(until));
+    const hhmm = formatTime(until);
     return <span className="text-xs text-muted-foreground">Te lo recuerdo a las {hhmm}</span>;
   }
   return (

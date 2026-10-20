@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { api } from "@/lib/client-api";
+import { formatDateTime } from "@/lib/format";
 
 type Status = { configured: boolean; linked: boolean; enabled: boolean; linkedAt: string | null; bot: string | null };
 
@@ -45,7 +46,7 @@ export function TelegramSettings({ status }: { status: Status }) {
             }
           />
         </div>
-        <p className="text-xs text-muted-foreground">Vinculado{status.linkedAt ? ` el ${new Date(status.linkedAt).toLocaleDateString("es-ES")}` : ""}. Respeta tus horas de silencio; los avisos de salud llegan sin detalles.</p>
+        <p className="text-xs text-muted-foreground">Vinculado{status.linkedAt ? ` el ${formatDateTime(status.linkedAt)}` : ""}. Respeta tus horas de silencio; los avisos de salud llegan sin detalles.</p>
         <Button
           type="button"
           variant="ghost"

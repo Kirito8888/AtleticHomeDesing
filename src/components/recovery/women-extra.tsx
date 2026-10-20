@@ -9,6 +9,7 @@ import { Stepper } from "@/components/form/stepper";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
 import { MENO_SYMPTOMS, type MenoSymptom } from "@/lib/health/women";
+import { formatDateTime } from "@/lib/format";
 
 /** Salud ósea: fracturas de estrés previas y raciones de calcio al día (cifrado). */
 export function BoneForm({ today, initial }: { today: string; initial: { stressFractures: number; calciumServings: number } | null }) {
@@ -121,7 +122,7 @@ export function HealthReportLinks({ kind, active, label }: { kind: "MEDICAL" | "
         <ul className="grid gap-1 text-xs" aria-label={`Enlaces activos para ${label.toLowerCase()}`}>
           {active.map((a) => (
             <li key={a.id} className="flex items-center justify-between gap-2">
-              <span>Activo hasta el {new Date(a.expiresAt).toLocaleDateString("es-ES")}</span>
+              <span>Activo hasta el {formatDateTime(a.expiresAt)}</span>
               <button
                 type="button"
                 className="text-destructive underline-offset-2 hover:underline"

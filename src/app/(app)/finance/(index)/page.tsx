@@ -13,7 +13,7 @@ import { pageUser } from "@/lib/auth/page";
 import { addDays, today, toIsoDay } from "@/lib/dates";
 import { periodWindow } from "@/lib/finance/ledger";
 import { budgetsStatus, cashflow, listAccounts, spendingByCategory, sportExpenses, sportSeasonBalance, subscriptionsOverview } from "@/lib/finance/service";
-import { formatDate, formatEur } from "@/lib/format";
+import { formatDate, formatEur, formatNum } from "@/lib/format";
 import { Wallet } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
@@ -175,7 +175,7 @@ export default async function FinancePage() {
             {fund ? (
               <>
                 <p>
-                  <span className="text-2xl font-semibold tabular-nums">{fund.coveredMonths != null ? fund.coveredMonths.toLocaleString("es-ES") : "—"}</span> meses cubiertos{" "}
+                  <span className="text-2xl font-semibold tabular-nums">{fund.coveredMonths != null ? formatNum(fund.coveredMonths) : "—"}</span> meses cubiertos{" "}
                   <span className="text-muted-foreground">(objetivo: {prefs.emergencyMonths})</span>
                 </p>
                 <Progress value={Math.min(100, ((fund.coveredMonths ?? 0) / prefs.emergencyMonths) * 100)} aria-label="Fondo de emergencia" />

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
+import { formatDateTime } from "@/lib/format";
 
 interface Status {
   enabled: boolean;
@@ -150,7 +151,7 @@ export function TwoFactorSettings({ initial }: { initial: Status }) {
   return (
     <div className="grid gap-4">
       <p className="text-sm">
-        ✅ Activada{initial.enabledAt ? ` desde el ${new Date(initial.enabledAt).toLocaleDateString("es-ES")}` : ""}. Te quedan{" "}
+        ✅ Activada{initial.enabledAt ? ` desde el ${formatDateTime(initial.enabledAt)}` : ""}. Te quedan{" "}
         <strong>{initial.recoveryCodesLeft}</strong> códigos de recuperación.
       </p>
       <form

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
+import { formatDate } from "@/lib/format";
 
 /** Mover o duplicar una sesión planificada a otro día. */
 export function MoveSession({ id, date }: { id: string; date: string }) {
@@ -66,14 +67,14 @@ export function RescheduleCard({ id, date, options }: { id: string; date: string
   return (
     <section aria-label="Recolocar la sesión" className="mb-4 grid gap-2 rounded-md border border-amber-500/50 bg-amber-500/5 p-3 text-sm">
       <p>
-        Estaba planificada para el {new Date(`${date}T00:00:00Z`).toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })} y no está registrada. ¿La recolocas?
+        Estaba planificada para el {formatDate(date, { weekday: "long", day: "numeric", month: "long" })} y no está registrada. ¿La recolocas?
       </p>
       {options.length ? (
         <ul className="grid gap-1.5">
           {options.map((o) => (
             <li key={o.date} className="flex flex-wrap items-center justify-between gap-2">
               <span>
-                {new Date(`${o.date}T00:00:00Z`).toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" })}
+                {formatDate(o.date, { weekday: "short", day: "numeric", month: "short" })}
                 {o.notes.length ? <span className="text-xs text-muted-foreground"> · {o.notes.join(", ")}</span> : null}
               </span>
               <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => move(o.date)}>
