@@ -92,6 +92,8 @@ log("P2-5 · el asistente de plan parte de Velocidad / vallas");
 
 // P3-6 · la tira semanal de /training: cada día es un objetivo táctil de al menos 44 × 44 px
 await go(page, "/training");
+// Se mide cuando los 7 días ya tienen caja: en CI se llegó a leer antes de que la tira se maquetara (0 × 0)
+await page.waitForFunction(() => { const l = document.querySelectorAll('section[aria-label="Esta semana"] a'); return l.length === 7 && [...l].every((e) => e.getBoundingClientRect().width > 0); }, null, { timeout: 10_000 }).catch(() => undefined);
 const strip = await page.locator('section[aria-label="Esta semana"] a').evaluateAll((els) => els.map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }));
 if (strip.length !== 7 || strip.some(([w, h]) => w < 44 || h < 44)) errors.push(`P3-6: tira semanal con objetivos < 44 px: ${JSON.stringify(strip)}`);
 await noHScroll(page, "tira semanal 390 px");
