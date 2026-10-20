@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { verifyCurrentPassword } from "@/lib/account/service";
-import { ApiError, parseBody, route } from "@/lib/api";
+import { ApiError, enforceRateLimit, parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 import { auditContext, recordEvent } from "@/lib/security/audit";
@@ -27,6 +27,7 @@ export const POST = route(async (req) => {
 /** Paso 2: confirma con un código de la app → activa y devuelve los códigos de recuperación (solo esta vez). */
 export const PUT = route(async (req) => {
   const user = await requireUser();
+  await enforceRateLimit("totpConfirm", user.id);
   const { code } = await parseBody(req, z.object({ code: z.string().trim().min(6).max(10) }));
   const recoveryCodes = await confirmTotpSetup(user.id, code);
   await recordEvent(user.id, "TOTP_ENABLED", auditContext(req.headers));
@@ -36,6 +37,7 @@ export const PUT = route(async (req) => {
 /** Desactivar exige contraseña y un código válido (TOTP o de recuperación). */
 export const DELETE = route(async (req) => {
   const user = await requireUser();
+  await enforceRateLimit("totpConfirm", user.id);
   const body = await parseBody(req, z.object({ password, code: z.string().trim().min(6).max(20) }));
   await verifyCurrentPassword(user.id, body.password);
   const u = await prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { id: true, totpSecret: true, totpLastStep: true, totpEnabledAt: true } });

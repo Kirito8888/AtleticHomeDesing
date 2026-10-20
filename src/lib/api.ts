@@ -5,6 +5,8 @@ import { ZodError, type z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { recordRequest } from "@/lib/admin/metrics";
 import { LIMITS } from "@/lib/rate-limit";
+import { isMutation, requestContext } from "@/lib/request-context";
+import { expectedOrigin, originAllowed } from "@/lib/security/origin";
 import { rateLimitPersistent } from "@/lib/rate-limit-db";
 
 export class ApiError extends Error {
@@ -29,7 +31,10 @@ export function route<C = unknown>(fn: Handler<C>) {
     const t0 = performance.now();
     let res: Response;
     try {
-      const result = await fn(req, ctx);
+      if (isMutation(req.method) && !originAllowed(req.headers, expectedOrigin(process.env.AUTH_URL, req.url))) {
+        throw new ApiError(403, "Origen no permitido");
+      }
+      const result = await requestContext.run({ method: req.method, path: req.nextUrl.pathname }, () => fn(req, ctx));
       res = result instanceof Response ? result : NextResponse.json(result ?? { ok: true });
     } catch (err) {
       res = errorResponse(err);

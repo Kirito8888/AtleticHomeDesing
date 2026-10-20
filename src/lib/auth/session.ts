@@ -3,7 +3,9 @@ import "server-only";
 import { currentSession } from "@/lib/auth/current";
 import type { CoachScope, UserRole } from "@/generated/prisma/enums";
 import { ApiError } from "@/lib/api";
+import { TERMS_VERSION } from "@/lib/auth/constants";
 import { prisma } from "@/lib/prisma";
+import { isMutation, requestContext, termsExempt } from "@/lib/request-context";
 
 export interface CurrentUser {
   id: string;
@@ -13,7 +15,18 @@ export interface CurrentUser {
 export async function requireUser(): Promise<CurrentUser> {
   const session = await currentSession();
   if (!session?.user?.id) throw new ApiError(401, "No autenticado");
+  // Las escrituras exigen las condiciones vigentes aceptadas, no solo el layout (que no cubre /api)
+  const rc = requestContext.getStore();
+  if (rc && isMutation(rc.method) && !termsExempt(rc.path)) {
+    rc.termsOk ??= await termsAccepted(session.user.id);
+    if (!rc.termsOk) throw new ApiError(403, "Acepta las condiciones de uso para continuar", { code: "terms_required" });
+  }
   return { id: session.user.id, role: session.user.role };
+}
+
+async function termsAccepted(userId: string) {
+  const last = await prisma.consent.findFirst({ where: { userId, purpose: "TERMS" }, orderBy: { createdAt: "desc" }, select: { version: true, granted: true } });
+  return Boolean(last?.granted && last.version === TERMS_VERSION);
 }
 
 export interface Grant {

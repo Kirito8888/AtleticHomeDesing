@@ -68,7 +68,7 @@ const alertText = (page) => page.locator("p[role=alert]").first().textContent({ 
   await go(page, "/login");
   if (await page.getByRole("link", { name: "Regístrate" }).count()) fail("el login enlaza a un registro cerrado");
   const res = await page.request.post(B + "/api/auth/register", {
-    data: { name: "X", email: `x${run}@test.dev`, password: "contraseña-larga-1" },
+    data: { name: "X", email: `x${run}@test.dev`, password: "contraseña-larga-1", terms: true },
   });
   if (res.status() !== 403) fail(`registro por API debería dar 403, dio ${res.status()}`);
   const csp = (await page.request.get(B + "/login")).headers()["content-security-policy"] ?? "";
@@ -114,24 +114,57 @@ const alertText = (page) => page.locator("p[role=alert]").first().textContent({ 
   log("límite por IP tras 10 intentos");
 }
 
-// 3. Bloqueo de cuenta tras 5 fallos (desde otra IP) y desbloqueo por CLI
+// 3. Sin bloqueo de cuentas ajenas (bloque 6): fallar desde varias IP no cierra la cuenta; una sola IP que falla, sí se frena
 const lockEmail = `lock${run}@test.dev`;
 {
   const pw = createUser(lockEmail);
-  const page = await newPage();
-  for (let i = 0; i < 4; i++) {
-    await login(page, lockEmail, "mala-contraseña");
-    if (!/incorrectos/.test(await alertText(page))) fail(`fallo ${i + 1}: mensaje inesperado`);
+  // 5 fallos, cada uno desde una IP distinta (un contexto de navegador = una IP)
+  for (let i = 0; i < 5; i++) {
+    const p = await newPage();
+    await login(p, lockEmail, "mala-contraseña");
+    if (!/incorrectos/.test(await alertText(p))) fail(`fallo ${i + 1} desde otra IP: mensaje inesperado`);
   }
-  await login(page, lockEmail, "mala-contraseña");
-  if (!/Demasiados intentos/.test(await alertText(page))) fail("el 5.º fallo no bloqueó la cuenta");
-  await login(page, lockEmail, pw);
-  if (!/Demasiados intentos/.test(await alertText(page))) fail("cuenta bloqueada aceptó la contraseña correcta");
+  // La dueña entra desde una IP nueva (con el retraso progresivo, pero sin bloqueo)
+  const owner = await newPage();
+  await login(owner, lockEmail, pw);
+  await owner.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 20000 });
+  // Una sola IP que falla 5 veces queda frenada, aunque acierte después; otra IP no lo nota
+  const noisy = await newPage();
+  for (let i = 0; i < 5; i++) {
+    await login(noisy, lockEmail, "mala-contraseña");
+    await alertText(noisy);
+  }
+  await login(noisy, lockEmail, pw);
+  if (!/Demasiados intentos/.test(await alertText(noisy))) fail("la IP con 5 fallos no se frenó");
+  // Un email inexistente se comporta igual (no revela si hay cuenta)
+  const ghost = `fantasma${run}@test.dev`;
+  const g = await newPage();
+  for (let i = 0; i < 5; i++) {
+    await login(g, ghost, "x");
+    if (!/incorrectos/.test(await alertText(g))) fail("email inexistente: mensaje distinto");
+  }
+  await login(g, ghost, "x");
+  if (!/Demasiados intentos/.test(await alertText(g))) fail("el email inexistente no se frenó igual que el real");
   adminCli("unlock", lockEmail);
   const other = await newPage();
   await login(other, lockEmail, pw);
-  await other.waitForURL((u) => !u.pathname.startsWith("/login"));
-  log("bloqueo tras 5 fallos y desbloqueo con npm run user -- unlock");
+  await other.waitForURL((u) => !u.pathname.startsWith("/login"), { timeout: 20000 });
+  log("5 fallos desde 5 IP no bloquean la cuenta; una IP ruidosa se frena; el email inexistente es indistinguible; unlock sigue operativo");
+}
+
+// 3b. Registro por API (bloque 6): el rol no se elige, hacen falta las condiciones y un Origin ajeno se rechaza
+{
+  const page = await newPage();
+  const cross = await page.request.post(B + "/api/auth/register", {
+    headers: { origin: "http://otro.invalid" },
+    data: { name: "X", email: `y${run}@test.dev`, password: "contraseña-larga-1", terms: true, role: "COACH" },
+  });
+  if (cross.status() !== 403) fail(`POST con Origin ajeno debería dar 403, dio ${cross.status()}`);
+  const noTerms = await page.request.post(B + "/api/auth/register", {
+    data: { name: "X", email: `z${run}@test.dev`, password: "contraseña-larga-1" },
+  });
+  if (noTerms.status() === 201 || noTerms.status() === 202) fail("registro por API sin aceptar condiciones");
+  log("registro por API: sin condiciones no entra y un Origin ajeno se rechaza");
 }
 
 // 4. Cambio de contraseña: expulsa la otra sesión abierta

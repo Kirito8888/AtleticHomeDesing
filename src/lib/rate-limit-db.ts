@@ -32,5 +32,19 @@ export async function rateLimitPersistent(key: string, limit: number, windowMs: 
   }
 }
 
+/** Recuento de la ventana actual sin sumar (0 si la BD no responde: el límite en memoria no se consulta aquí). */
+export async function countPersistent(key: string, windowMs: number, now = Date.now()): Promise<number> {
+  const windowStart = new Date(Math.floor(now / windowMs) * windowMs);
+  try {
+    const row = await prisma.rateLimitHit.findUnique({ where: { key_windowStart: { key: hashKey(key), windowStart } }, select: { count: true } });
+    return row?.count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Borra los contadores de una clave (inicio de sesión correcto, desbloqueo por la administración). */
+export const resetPersistent = (key: string) => prisma.rateLimitHit.deleteMany({ where: { key: hashKey(key) } });
+
 /** Ventanas viejas (lo llama el job de conservación). */
 export const pruneRateLimits = (now = new Date()) => prisma.rateLimitHit.deleteMany({ where: { windowStart: { lt: new Date(now.getTime() - 24 * 3600_000) } } });

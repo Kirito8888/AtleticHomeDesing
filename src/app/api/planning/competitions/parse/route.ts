@@ -3,7 +3,7 @@ import { extractText } from "unpdf";
 import { ApiError, enforceRateLimit, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
 import { sniffFile } from "@/lib/files/sealed-files";
-import { eventsFromPdfText, eventsFromRows, readXlsxRows } from "@/lib/planning/calendar-import";
+import { eventsFromPdfText, eventsFromRows, readXlsxRows, XlsxError } from "@/lib/planning/calendar-import";
 
 const MAX = 5 * 1024 * 1024;
 
@@ -23,7 +23,9 @@ export const POST = route(async (req) => {
     try {
       return { events: eventsFromRows(readXlsxRows(new Uint8Array(buf))).slice(0, 300) };
     } catch (e) {
-      throw new ApiError(422, (e as Error).message);
+      if (e instanceof XlsxError) throw new ApiError(422, e.message);
+      console.warn("[excel]", e instanceof Error ? e.message : e);
+      throw new ApiError(422, "No se pudo leer el Excel. Comprueba que es un .xlsx válido.");
     }
   }
   throw new ApiError(415, "Formato no soportado: Excel (.xlsx) o PDF; .ics y CSV se leen directamente");

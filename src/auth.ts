@@ -5,7 +5,10 @@ import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 
 import type { UserRole } from "@/generated/prisma/enums";
+import { clearIpFailures, deviceCookieName, deviceToken, isKnownDevice, loginGate, recordLoginFailure } from "@/lib/auth/login-guard";
 import { verifyLogin } from "@/lib/auth/passkey";
+import { cookies } from "next/headers";
+
 import { hashPassword, needsRehash, verifyAgainstDummy, verifyPassword } from "@/lib/auth/password";
 import { prisma } from "@/lib/prisma";
 import { sendToUser } from "@/lib/push/service";
@@ -33,10 +36,6 @@ const passkeySchema = z.object({
   }),
 });
 
-/** Intentos fallidos seguidos antes de bloquear la cuenta. */
-export const MAX_FAILED_LOGINS = 5;
-export const LOCK_MINUTES = 15;
-
 /** Demasiados intentos (por IP o cuenta bloqueada). Mismo mensaje en ambos casos para no revelar cuentas. */
 class TooManyAttempts extends CredentialsSignin {
   code = "rate_limited";
@@ -52,17 +51,6 @@ class TotpInvalid extends CredentialsSignin {
 /** v1.9 · Cuenta suspendida por la administración (solo se dice a quien ya tiene la contraseña o la llave). */
 class AccountSuspended extends CredentialsSignin {
   code = "suspended";
-}
-
-/** Suma un fallo a la cuenta; al llegar a MAX_FAILED_LOGINS la bloquea. Devuelve si quedó bloqueada. */
-async function registerFailure(user: { id: string; failedLogins: number }): Promise<boolean> {
-  const failed = user.failedLogins + 1;
-  const lock = failed >= MAX_FAILED_LOGINS;
-  await prisma.user.update({
-    where: { id: user.id },
-    data: lock ? { failedLogins: 0, lockedUntil: new Date(Date.now() + LOCK_MINUTES * 60_000) } : { failedLogins: failed },
-  });
-  return lock;
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -93,18 +81,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         const parsed = credentialsSchema.safeParse(raw);
         if (!parsed.success) throw fail("credentials");
+        const { email } = parsed.data;
 
-        const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+        const user = await prisma.user.findUnique({ where: { email } });
+        // Dispositivo ya usado por esta cuenta: no se frena por los fallos de otras IP (ver login-guard.ts)
+        const cookieValue = await cookies().then((c) => c.get(deviceCookieName(email))?.value).catch(() => undefined);
+        const known = Boolean(user) && isKnownDevice(email, user!.sessionVersion, cookieValue);
+        const gate = await loginGate(email, ip, known);
+        if (gate.blocked) throw fail("locked", new TooManyAttempts());
+        if (gate.delayMs) await new Promise((r) => setTimeout(r, gate.delayMs));
+
         if (!user?.passwordHash) {
           await verifyAgainstDummy(parsed.data.password); // mismo tiempo exista o no el email
+          await recordLoginFailure(email, ip);
           throw fail("credentials");
         }
-        if (user.lockedUntil && user.lockedUntil > new Date()) throw fail("locked", new TooManyAttempts());
 
         if (!(await verifyPassword(parsed.data.password, user.passwordHash))) {
-          const locked = await registerFailure(user);
-          await recordEvent(user.id, locked ? "ACCOUNT_LOCKED" : "LOGIN_FAILED", ctx, "contraseña incorrecta");
-          throw locked ? fail("locked", new TooManyAttempts()) : fail("credentials");
+          await recordLoginFailure(email, ip);
+          await recordEvent(user.id, "LOGIN_FAILED", ctx, "contraseña incorrecta");
+          throw fail("credentials");
         }
         if (user.suspendedAt) throw fail("suspended", new AccountSuspended());
 
@@ -114,16 +110,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           if (!parsed.data.code) throw new TotpRequired();
           const used = await verifySecondFactor(user, parsed.data.code);
           if (!used) {
-            const locked = await registerFailure(user);
-            await recordEvent(user.id, locked ? "ACCOUNT_LOCKED" : "LOGIN_FAILED", ctx, "código de verificación incorrecto");
-            throw locked ? fail("locked", new TooManyAttempts()) : fail("totp", new TotpInvalid());
+            await recordLoginFailure(email, ip);
+            await recordEvent(user.id, "LOGIN_FAILED", ctx, "código de verificación incorrecto");
+            throw fail("totp", new TotpInvalid());
           }
           if (used === "recovery") await recordEvent(user.id, "RECOVERY_CODE_USED", ctx);
         }
 
-        if (user.failedLogins || user.lockedUntil) {
-          await prisma.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null } });
-        }
+        await clearIpFailures(email, ip);
+        // Recuerda este navegador para esta cuenta (la cookie no lleva el email ni datos: es una firma)
+        await cookies()
+          .then((c) =>
+            c.set(deviceCookieName(email), deviceToken(email, user.sessionVersion), {
+              httpOnly: true,
+              sameSite: "lax",
+              secure: process.env.AUTH_URL?.startsWith("https://") ?? false,
+              path: "/",
+              maxAge: 180 * 24 * 3600,
+            }),
+          )
+          .catch(() => undefined);
         // v1.7: hash antiguo (scrypt) → Argon2id, aprovechando que tenemos la contraseña en claro ahora
         if (needsRehash(user.passwordHash)) {
           await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(parsed.data.password) } }).catch(() => undefined);
@@ -166,7 +172,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         const user = await prisma.user.findUnique({ where: { id: userId } });
         if (!user) throw new CredentialsSignin();
-        if (user.lockedUntil && user.lockedUntil > new Date()) throw new TooManyAttempts();
         if (user.suspendedAt) throw new AccountSuspended();
         await recordEvent(user.id, "PASSKEY_LOGIN", ctx);
         void sendToUser(user.id, { title: "Nuevo inicio de sesión en Atlenza", body: "Con una llave de acceso. Si no has sido tú, revisa Ajustes → Seguridad.", url: "/settings", tag: "login" });

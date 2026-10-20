@@ -13,6 +13,8 @@
 //
 // Las contraseñas se generan aleatoriamente y se muestran UNA vez: nunca se pasan
 // como argumento (quedarían en el historial de la shell y en `ps`).
+import { createHash, createHmac } from "node:crypto";
+
 import { config } from "dotenv";
 
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -143,6 +145,11 @@ async function main() {
       case "unlock": {
         if (!email) usage();
         await prisma.user.update({ where: { email }, data: { failedLogins: 0, lockedUntil: null } });
+        // Contador global de fallos del email (misma clave que `lib/auth/login-guard.ts`; los de IP caducan en 15 min)
+        const secret = process.env.AUTH_SECRET;
+        const key = `loginfail:${email}`;
+        const hashed = secret ? createHmac("sha256", secret).update(key).digest("hex") : createHash("sha256").update(key).digest("hex");
+        await prisma.rateLimitHit.deleteMany({ where: { key: hashed } });
         console.log(`Cuenta ${email} desbloqueada.`);
         break;
       }

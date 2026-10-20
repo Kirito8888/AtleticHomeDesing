@@ -91,14 +91,15 @@ describe.skipIf(!HAS_DB)("ingesta de apuntes en segundo plano (BD real)", () => 
     expect(s.maxPage).toBe(100);
   }, 60_000);
 
-  it("si los embeddings fallan queda FAILED con el motivo; el reintento no duplica fragmentos", async () => {
+  it("si los embeddings fallan queda FAILED con un texto genérico; el reintento no duplica fragmentos", async () => {
     const doc = await newDoc("fallo.txt", Buffer.from("Apuntes de bioquimica. ".repeat(400)), "text/plain");
     await expect(
       rag.processDocument(doc.id, { ...deps, embed: async () => Promise.reject(new Error("Gemini no responde")) }),
     ).rejects.toThrow("Gemini no responde");
     const failed = await prisma.studyDocument.findUniqueOrThrow({ where: { id: doc.id } });
     expect(failed.status).toBe("FAILED");
-    expect(failed.error).toContain("Gemini no responde");
+    expect(failed.error).toBe((await import("@/lib/ai/doc-error")).DOC_ERROR); // texto fijo: el detalle va al log
+    expect(failed.error).not.toContain("Gemini");
 
     await rag.processDocument(doc.id, deps);
     const first = await chunkStats(doc.id);
