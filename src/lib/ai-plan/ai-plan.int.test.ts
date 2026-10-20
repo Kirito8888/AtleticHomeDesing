@@ -96,10 +96,31 @@ describe.skipIf(!HAS_DB)("plan con IA (BD real, Gemini simulado)", () => {
     expect(sw.pending).toBe(0);
     expect(rows.every((r) => r.equipment!.every((e) => e === "peso_corporal"))).toBe(true);
 
+    // Enviar la valoración la guarda y propone, pero NO toca el plan.
+    const snap = async () => JSON.stringify(await prisma.planDay.findMany({ where: { userId, week: 2 }, orderBy: { key: "asc" }, select: { id: true, content: true, mode: true, updatedAt: true, sessionId: true } }));
+    const sessions = async () => JSON.stringify(await prisma.trainingSession.findMany({ where: { userId }, orderBy: { id: "asc" } }));
+    const [d0, s0] = [await snap(), await sessions()];
     const fb = await svc.submitWeekFeedback(userId, "IA1", 1, "HARD", 5);
-    expect(fb.adjusted).toBe(3);
+    expect(fb.saved).toBe(true);
+    expect(fb.proposal!.days).toHaveLength(3);
+    expect(fb.proposal!.days.every((d) => d.toLight)).toBe(true);
+    expect(await snap()).toBe(d0);
+    expect(await sessions()).toBe(s0);
+    expect(await prisma.planFeedback.count({ where: { userId, week: 1 } })).toBe(1);
+
+    // Versión caducada: rechaza sin escribir.
+    await expect(svc.applyWeekFeedback(userId, "IA1", 1, "caducada")).rejects.toMatchObject({ status: 409 });
+    expect(await snap()).toBe(d0);
+
+    // Aplicar escribe una sola vez.
+    const ap = await svc.applyWeekFeedback(userId, "IA1", 1, fb.proposal!.version);
+    expect(ap.adjusted).toBe(3);
     const wk2 = await prisma.planDay.findMany({ where: { userId, week: 2 } });
     expect(wk2.every((d) => d.mode === "LIGHT")).toBe(true);
+    const d1 = await snap();
+    await expect(svc.applyWeekFeedback(userId, "IA1", 1, fb.proposal!.version)).rejects.toMatchObject({ status: 409 });
+    expect(await snap()).toBe(d1);
+    expect(await svc.previewWeekFeedback(userId, "IA1", 1)).toBeNull();
   });
 
   it("los datos del ciclo: fase de hoy, versión suave por síntomas y borrado", async () => {
