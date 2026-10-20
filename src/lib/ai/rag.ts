@@ -6,6 +6,7 @@ import { extractText } from "unpdf";
 
 import { Prisma } from "@/generated/prisma/client";
 import { chunkDocument } from "@/lib/ai/chunking";
+import { DOC_ERROR } from "@/lib/ai/doc-error";
 import { ocrAvailable, ocrPdf } from "@/lib/files/ocr";
 import { embedTexts, generateText, toVectorLiteral } from "@/lib/ai/llm";
 import type { EmbedTask } from "@/lib/ai/provider";
@@ -159,8 +160,9 @@ export async function processDocument(documentId: string, deps: ProcessDeps = de
       include: { _count: { select: { chunks: true } } },
     });
   } catch (err) {
+    console.warn("[documentos]", doc.id, err instanceof Error ? err.message : err);
     await prisma.studyDocument
-      .update({ where: { id: doc.id }, data: { status: "FAILED", error: err instanceof Error ? err.message.slice(0, 500) : "Error desconocido" } })
+      .update({ where: { id: doc.id }, data: { status: "FAILED", error: DOC_ERROR } })
       .catch(() => {}); // el documento pudo borrarse mientras tanto
     throw err;
   }

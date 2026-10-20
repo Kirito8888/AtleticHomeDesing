@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import { ApiError } from "@/lib/api";
+import { clearGlobalFailures } from "@/lib/auth/login-guard";
 import { hashPassword } from "@/lib/auth/password";
 import { passwordSchema } from "@/lib/auth/users";
 import { env } from "@/lib/env";
@@ -137,6 +138,7 @@ export async function suspendUser(adminId: string, userId: string, ctx: AuditCon
 export async function reactivateUser(adminId: string, userId: string, ctx: AuditContext = {}) {
   const u = await otherUser(adminId, userId);
   await prisma.user.update({ where: { id: u.id }, data: { suspendedAt: null, failedLogins: 0, lockedUntil: null } });
+  await clearGlobalFailures(u.email);
   await recordEvent(u.id, "ACCOUNT_REACTIVATED", ctx, "por la administración");
 }
 
@@ -171,6 +173,7 @@ export async function resetPassword(token: string, password: string, ctx: AuditC
     where: { id: r.userId },
     data: { passwordHash: await hashPassword(password), sessionVersion: { increment: 1 }, failedLogins: 0, lockedUntil: null },
   });
+  await clearGlobalFailures(r.user.email);
   await recordEvent(r.userId, "PASSWORD_RESET_USED", ctx);
   return { email: r.user.email };
 }
