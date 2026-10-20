@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/page-header";
 import { WelcomeWizard } from "@/components/settings/welcome-wizard";
 import { Card, CardContent } from "@/components/ui/card";
-import type { ModuleKey } from "@/components/layout/nav-items";
+import { welcomeModules } from "@/components/layout/nav-items";
 import { pageUser } from "@/lib/auth/page";
 import { toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
@@ -12,7 +12,7 @@ export const metadata = { title: "Bienvenida · Atlenza" };
 /** v1.8 · Primer uso guiado (3 pasos, todo opcional y modificable en Ajustes). */
 export default async function WelcomePage() {
   const user = await pageUser();
-  const [u, prefs] = await Promise.all([prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { name: true, athleteProfile: { select: { sex: true, birthDate: true, disciplines: true, primaryEvent: true } } } }), getPrefs(user.id)]);
+  const [u, prefs] = await Promise.all([prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { name: true, onboardedAt: true, athleteProfile: { select: { sex: true, birthDate: true, disciplines: true, primaryEvent: true } } } }), getPrefs(user.id)]);
   return (
     <>
       <PageHeader title="Bienvenida" description="Tres pasos para que Atlenza se adapte a ti. Todo se puede cambiar después." />
@@ -25,7 +25,7 @@ export default async function WelcomePage() {
               birthDate: u.athleteProfile?.birthDate ? toIsoDay(u.athleteProfile.birthDate) : "",
               disciplines: (u.athleteProfile?.disciplines ?? []) as never,
               primaryEvent: u.athleteProfile?.primaryEvent ?? "",
-              hidden: prefs.hiddenModules as ModuleKey[],
+              modules: welcomeModules({ onboarded: !!u.onboardedAt, hidden: prefs.hiddenModules }),
             }}
           />
         </CardContent>

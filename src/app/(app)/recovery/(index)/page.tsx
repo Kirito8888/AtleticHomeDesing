@@ -79,6 +79,9 @@ export default async function RecoveryPage() {
             Salud de la mujer
           </Link>
         ) : null}
+        <Link href="/glance" className="inline-flex min-h-11 items-center underline underline-offset-4">
+          Hoy de un vistazo
+        </Link>
         <Link href="/recovery/fisio" className="inline-flex min-h-11 items-center underline underline-offset-4">
           Fisio y readaptación
         </Link>
