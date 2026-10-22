@@ -13,7 +13,7 @@ Pensada para el móvil y autoalojada en tu propio servidor.
 > [`LICENSE`](LICENSE); componentes de terceros en [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 > No es «open source»: es código visible con todos los derechos reservados.
 
-**Versión actual: v2.4**: perfil fuerza-velocidad con saltos SJ cargados, «Sugerir fotogramas» en el medidor de salto (experimental, sin calibrar), reglas para combinadas y auditoría del cambio de rol del staff. Una migración aditiva (`FvSeries`). (v2.3: navegación agrupada y objetivos táctiles de 44 px a 390 px. v2.2: privacidad de Strava en las vistas de la entrenadora, vigilancia en base de datos, pista y móvil.) Ver [`CHANGELOG.md`](CHANGELOG.md).
+**Versión actual: v2.4**: perfil fuerza-velocidad con saltos SJ cargados, «Sugerir fotogramas» en el medidor de salto (experimental, sin calibrar), reglas para combinadas y auditoría del cambio de rol del staff. Una migración aditiva (`FvSeries`). **En desarrollo: v2.5** (sin publicar; ver el CHANGELOG). (v2.3: navegación agrupada y objetivos táctiles de 44 px a 390 px. v2.2: privacidad de Strava en las vistas de la entrenadora, vigilancia en base de datos, pista y móvil.) Ver [`CHANGELOG.md`](CHANGELOG.md).
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · PostgreSQL 17 + pgvector · Prisma 7 · pg-boss · Docker Compose · IA de cada usuario (Gemini, compatible con OpenAI o Anthropic; opcional).
 
@@ -21,13 +21,14 @@ Pensada para el móvil y autoalojada en tu propio servidor.
 
 | Módulo | Lo principal |
 |---|---|
-| **Inicio** | Readiness, forma (CTL/ATL/TSB, ACWR), «Hoy toca», **avisos de «Mis reglas»**, próxima competición, nutrición, finanzas y tareas |
-| **Entreno** | Fuerza con temporizador y plantillas, técnica intento a intento (con vídeo contado), pista, **sesiones mixtas**, importar del reloj, **tabla de RM, serie de test y APRE**, semana L–D con tope de lanzamientos, 3 mejores por implemento, marcas personales |
+| **Inicio** | Readiness, forma (CTL/ATL/TSB, ACWR), «Hoy toca», **avisos de «Mis reglas»** (también para combinadas), próxima competición, nutrición, finanzas y tareas |
+| **Entreno** | Fuerza con temporizador y plantillas, técnica intento a intento (con vídeo contado), pista, **medidor de salto con vídeo, perfil F-V (Samozino) y «Sugerir fotogramas» (experimental)**, **sesiones mixtas**, importar del reloj, **tabla de RM, serie de test y APRE**, semana L–D con tope de lanzamientos, 3 mejores por implemento, marcas personales |
 | **Planificación** | Calendario con ciclos, eventos y tareas; **importar el plan en PDF** con versiones; plan del día con **kg desde tu RM** y registrar desde el plan; **modo competición** (checklist y hoja de intentos); calendario .ics |
 | **Recuperación** | Sueño, VFC y FC en reposo → readiness; **control rápido** (squeeze, talón, salto); molestias y lesiones; **Mi ciclo** (opcional, cifrado) |
 | **Nutrición** | OpenFoodFacts y escáner de códigos de barras, comidas favoritas, **hidratos según el día del plan** |
 | **Finanzas** | Partida doble, presupuestos, suscripciones, importar extractos sin duplicados, **gastos deportivos por temporada** |
 | **Atlenza IA** | **Crear tu planificación** con un cuestionario sin escribir; chat sobre tus apuntes (RAG), flashcards, coach semanal. Solo con tu consentimiento |
+| **Clubes** | Cuotas y staff con roles (el cambio de rol queda en la Actividad); pertenecer no da acceso: la atleta elige qué comparte |
 | **Ajustes** | Mis reglas, 2FA, notificaciones y recordatorios, informe para la entrenadora, permisos del entrenador, exportar y borrar tus datos |
 
 ## Documentación

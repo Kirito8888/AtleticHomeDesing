@@ -55,6 +55,23 @@ Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servid
 - **Tests físicos** (botón del cronómetro): 30 m, saltos, balón medicinal… o los tuyos, con mejor marca y gráfica.
 - **Material** (botón de la caja): jabalinas, clavos y zapatillas con vida útil (usos o meses). Las jabalinas cuentan solas los lanzamientos registrados con su peso desde la compra; «+usos» para los que no apuntaste. Al 80 % te avisa y al 100 % pide reponer.
 
+### Tests de salto: perfil F-V y sugerir fotogramas
+
+**Perfil fuerza-velocidad** (**Entreno → Tests → Perfil F-V**)
+1. Indica tu **peso corporal** (kg), la **fecha** y tu **hPO** (cm): el recorrido del impulso, es decir, la altura del trocánter de pie menos la que tiene en la posición de salida (rodillas a 90°). Se mide a mano.
+2. Añade de **2 a 4 saltos SJ con cargas distintas** (kg añadidos y altura en cm). Si no tienes la altura, pulsa «Medir con vídeo» en esa carga: el medidor de salto rellena la altura y no guarda nada por su cuenta.
+3. Con todo rellenado verás **F0, V0, potencia máxima (Pmax), pendiente, perfil óptimo y desequilibrio (FVimb)**. Pulsa guardar para añadirlo al **Histórico** de la página.
+- Si el ajuste de las cargas es pobre (r² < 0,95) no da resultado: repite los saltos o cambia las cargas.
+- El óptimo sigue el modelo de Samozino y no se ha contrastado con la tabla del artículo.
+- Es un dato tuyo: **no se envía a la IA ni a tu entrenadora**.
+
+**Sugerir fotogramas** (**Tests → Medir salto**, *experimental*)
+- Es el interruptor «Sugerir fotogramas», **apagado por defecto**. Graba de lado, con los pies en el tercio inferior del encuadre.
+- Al activarlo, la app analiza el vídeo **en tu navegador** (no sale de él) y muestra «Analizando la parte baja del vídeo…».
+- Si encuentra un salto, enseña una **propuesta (borrador)** de despegue y aterrizaje. «Aceptar» solo rellena las marcas; **nada se guarda hasta «Añadir intento»**.
+- Si no está segura dice «No propongo fotogramas» y las marcas se ponen a mano. Si el vídeo es muy largo, solo analiza el principio (2400 fotogramas): recórtalo.
+- Los umbrales son estimaciones sin calibrar: **revisa siempre las marcas a mano**.
+
 ## Planificación
 
 - **Calendario del mes:** ✓ sesión hecha · ○ planificada · □ tarea que vence. Las barras de color son los ciclos (macro, meso, micro). Toca un día para ver su detalle.
@@ -190,10 +207,19 @@ Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Pri
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
 - **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
 
+## Novedades de la v2.5 (borrador, versión sin publicar)
+
+- **Rutinas:** marca varios espacios a la vez, mira «Por qué estas series» (con referencias) y edita el borrador día a día antes de «Activar».
+- **«¿Cómo fue la semana?»:** ahora propone cambios y solo se aplican al pulsar «Aplicar cambios».
+- **Menú:** una cuenta nueva empieza con Entreno y Recuperación y puedes añadir el resto en Ajustes.
+- **Confirmaciones y fechas:** diálogos propios en vez de los del navegador, fechas como «20 oct 2026» y decimales con coma.
+- **Sin conexión:** solo se guarda lo imprescindible; las páginas de salud y finanzas ya no quedan en la caché.
+- Detalle en [`CHANGELOG.md`](../CHANGELOG.md).
+
 ## Novedades de la v2.4 (dónde está cada cosa)
 
 **Perfil fuerza-velocidad** (**Entreno → Tests → Perfil F-V**)
-- Mide saltos SJ con 2 a 4 cargas distintas; la app calcula tu fuerza y velocidad máximas, tu potencia y si tu perfil está desequilibrado. Es solo para ti: no se envía a la IA ni a tu entrenadora.
+- Mide saltos SJ con 2 a 4 cargas distintas; la app calcula tu fuerza y velocidad máximas, tu potencia y si tu perfil está desequilibrado. Es solo para ti: no se envía a la IA ni a tu entrenadora. Paso a paso en [Tests de salto](#tests-de-salto-perfil-f-v-y-sugerir-fotogramas).
 
 **Sugerir fotogramas** (**Tests → Medir salto**, *experimental*)
 - Actívalo con el interruptor «Sugerir fotogramas». Graba de lado, con los pies en el tercio inferior del encuadre. La app propone el despegue y el aterrizaje; pulsa «Aceptar» para rellenar las marcas y **revísalas siempre a mano**: aún no está calibrado con vídeos reales.

@@ -299,6 +299,24 @@ dc up -d --build web
 docker image prune -f
 ```
 
+#### De v2.4 a v2.5 (borrador, versión sin publicar)
+
+> Se cerrará al publicar v2.5; hoy refleja lo fusionado en la rama principal.
+
+**Lo que cambia para quien usa la app:** rutinas con varios espacios y prescripción citada, «¿Cómo fue la semana?» con confirmación, menú de bienvenida más corto y diálogos y formatos nuevos. Detalle en [`CHANGELOG.md`](CHANGELOG.md).
+
+**Antes de actualizar:** en producción la app **no arranca** con `AUTH_SECRET` corto o de ejemplo, `AUTH_URL` público sin https o la contraseña de BD de ejemplo. Revisa tu `.env.production`.
+
+**Base de datos:**
+- Una migración: `v2_5_features`. Solo **añade** índices por usuario en siete tablas. No toca datos existentes.
+
+```bash
+cd /opt/lifeos
+./scripts/update.sh
+```
+
+**Variables nuevas:** ninguna.
+
 #### De v2.3 a v2.4 (perfil F-V, sugerir fotogramas y auditoría)
 
 **Lo que cambia para quien usa la app:**
