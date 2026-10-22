@@ -1,7 +1,4 @@
 {
-  "permissions": {
-    "allow": ["Bash(git push --force*)"]
-  },
   "hooks": {
     "SessionStart": [
       {
