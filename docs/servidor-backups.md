@@ -1,18 +1,20 @@
 # Copias de seguridad en el servidor físico
 
-Tres scripts en `scripts/ops/` para proteger los datos de la atleta. No paran contenedores, no tocan la app, Docker, SSH ni el cortafuegos.
+Scripts en `scripts/ops/` para proteger los datos de la atleta. No paran contenedores, no tocan la app, Docker, SSH ni el cortafuegos.
+En el servidor no hace falta el repo: copia `scripts/ops` a una carpeta aparte (ver [servidor-llaves-ssh.md](servidor-llaves-ssh.md), Parte 4, paso 2) y ajusta las rutas; abajo se escriben como en el repo, desde `<RUTA_DEL_DESPLIEGUE>`.
 
 | Script | Para qué |
 |---|---|
-| `backup-lifeos.sh` | `pg_dump` desde el contenedor `lifeos-db-1` → gzip → (age) → `.sha256` → rotación a 14 días |
+| `backup-lifeos.sh` | `pg_dump` desde el contenedor `lifeos-db-1` → gzip → (age) → `.sha256` → rotación a 14 días; anota la ejecución en `BackupRun` (mejor esfuerzo: nunca cambia el resultado de la copia) |
 | `verify-backup.sh` | Comprueba una copia sin tocar la BD activa; con `--restore-test` la restaura en una BD temporal |
 | `secure-env-permissions.sh` | Deja los `.env*` en modo 600 (solo informa hasta que se pasa `--apply`) |
-| `selftest.sh` | Prueba los tres con un Docker simulado (no necesita servidor) |
+| `check-backups.sh` | Solo lectura: avisa si el servicio `backup` no está activo ni hay cron con `backup-lifeos`, o si la última copia buena (tabla `BackupRun`) es más vieja que `BACKUP_MAX_AGE_H` (36 h) o fue fallida. Salida 0 = al día, 1 = aviso. Lo llama `scripts/update.sh` al final, sin fallar ni revertir por su culpa |
+| `selftest.sh` | Prueba los anteriores (más `harden-server.sh` y `audit-server.sh`) con programas simulados (no necesita servidor) |
 
-Todos aceptan `--help` y `--dry-run`. Ninguno lleva contraseñas: `pg_dump` usa las variables `POSTGRES_*` del propio contenedor.
+Todos aceptan `--help`; `backup-lifeos.sh`, `verify-backup.sh` y `secure-env-permissions.sh` también `--dry-run` (`check-backups.sh` no escribe nada, no lo necesita). Ninguno lleva contraseñas: `pg_dump` usa las variables `POSTGRES_*` del propio contenedor.
 
 ## Relación con el servicio `backup` del compose
-`deploy/backup` (perfil `backup`, ver manual § 8) ya hace copia cifrada diaria con **restauración de prueba**, mensuales y copia remota.
+`deploy/backup` (perfil `backup`, ver [manual_docker_debian.md § 8](../manual_docker_debian.md#8-operación-diaria)) ya hace copia cifrada diaria con **restauración de prueba**, mensuales y copia remota.
 **Sigue siendo la opción recomendada.** Estos scripts son la vía «cron del host»: sirven si el servicio no está levantado o como segunda copia independiente.
 Pueden convivir (el servicio corre a las 03:30 de Madrid; el cron de abajo a las 04:00 UTC).
 
@@ -31,16 +33,18 @@ El usuario que lo ejecute debe poder usar `docker` (grupo `docker` o root). Vari
 `crontab -e` del usuario con acceso a Docker:
 ```cron
 CRON_TZ=UTC
-0 4 * * * cd /opt/lifeos && BACKUP_AGE_RECIPIENT=age1…tuClavePública… bash scripts/ops/backup-lifeos.sh >> /var/backups/lifeos/backup.log 2>&1
-30 4 * * 0 cd /opt/lifeos && bash scripts/ops/verify-backup.sh --restore-test >> /var/backups/lifeos/verify.log 2>&1
+0 4 * * * cd <RUTA_DEL_DESPLIEGUE> && BACKUP_AGE_RECIPIENT=age1…tuClavePública… bash scripts/ops/backup-lifeos.sh >> /var/backups/lifeos/backup.log 2>&1
+30 4 * * 0 cd <RUTA_DEL_DESPLIEGUE> && bash scripts/ops/verify-backup.sh --restore-test >> /var/backups/lifeos/verify.log 2>&1
 ```
-(La segunda línea verifica cada domingo la copia más reciente; si es `.age` añade `BACKUP_AGE_IDENTITY=/ruta/clave-privada`, que debe estar accesible solo para esa tarea.)
+(La segunda línea verifica cada domingo la copia más reciente; si es `.age` añade `BACKUP_AGE_IDENTITY=<RUTA>/clave-privada.txt`, que debe estar accesible solo para esa tarea.)
+`check-backups.sh` reconoce el cron si la línea contiene `backup-lifeos` (crontab del usuario o `/etc/cron.d`). Variables: `BACKUP_CONTAINER`, `ENV_FILE` (`.env.production`), `BACKUP_MAX_AGE_H` (36).
 `flock` interno evita solapes. Si una copia falla, el script sale con código ≠ 0 y **no rota** nada: revisa el log.
 
 ## Copia manual
 ```sh
 bash scripts/ops/backup-lifeos.sh
 ls -lh /var/backups/lifeos/
+bash scripts/ops/check-backups.sh                 # ¿están funcionando las copias? (solo lee)
 bash scripts/ops/verify-backup.sh                 # la más reciente: sha256, gzip y contenido
 bash scripts/ops/verify-backup.sh --restore-test  # además la restaura en una BD temporal que se borra sola
 ```
@@ -67,16 +71,18 @@ Una copia que nunca se ha restaurado no es una copia. Ensáyalo con `--restore-t
 8. **Arranca y comprueba:** `docker compose --env-file .env.production start web`; entra como administradora → *Ajustes → Estado del servidor* (BD OK, última migración correcta) y revisa que están sus últimas sesiones.
 9. **Apunta** qué pasó y la hora de la copia usada (se pierde lo posterior a ella).
 
-Los apuntes subidos (volumen `uploads`) **no** van en estos scripts: los cubre el servicio `backup` (manual § 8).
+Los apuntes subidos (volumen `uploads`) **no** van en estos scripts: los cubre el servicio `backup` ([manual § 8](../manual_docker_debian.md#8-operación-diaria)).
 
 ## Permisos de `.env*`
 ```sh
 bash scripts/ops/secure-env-permissions.sh                 # informe (no cambia nada)
 bash scripts/ops/secure-env-permissions.sh --apply         # deja 600
-bash scripts/ops/secure-env-permissions.sh --apply /opt/lifeos   # solo una ruta
+bash scripts/ops/secure-env-permissions.sh --apply <RUTA_DEL_DESPLIEGUE>   # solo una ruta
 ```
-Recorre `/opt/lifeos`, `/srv`, `/etc/lifeos` y `$HOME` (o las rutas que indiques), sin seguir enlaces, sin entrar en `node_modules`/`.git`, y salta `.env.example`.
+Recorre `/opt/lifeos`, `/srv`, `/etc/lifeos` y `$HOME` (las que existan, o las rutas que indiques), sin seguir enlaces ni salir del sistema de ficheros de cada ruta, sin entrar en `node_modules`, `.git` ni `/var/lib/docker`, y salta `.env.example`. Sale con 1 si algún `chmod` falla.
 No lee ni cambia el contenido ni el dueño. **Mira la columna del dueño:** con 600 solo ese usuario podrá leerlo; quien lance `docker compose --env-file` o `scripts/update.sh` debe ser él.
 
 ## Límites de lo probado
-Probado en el contenedor de desarrollo con un `docker` simulado (`bash scripts/ops/selftest.sh`): sintaxis, `--help`/`--dry-run`, copia, rotación, sha256, detección de corrupción y permisos. **No probado contra el Postgres real ni con cron**: la primera ejecución en el servidor debe hacerse a mano, con `--dry-run` y luego `verify-backup.sh --restore-test`.
+Probado en el contenedor de desarrollo con un `docker` simulado (`bash scripts/ops/selftest.sh </dev/null`; sin esa redirección se cuelga si hereda un stdin interactivo): sintaxis, `--help`/`--dry-run`, copia, rotación, sha256, detección de corrupción y permisos. **No probado contra el Postgres real ni con cron**: la primera ejecución en el servidor debe hacerse a mano, con `--dry-run` y luego `verify-backup.sh --restore-test`. Tampoco se ha probado en el servidor real `check-backups.sh` ni el registro en `BackupRun`: primera vez, `bash scripts/ops/check-backups.sh` a mano.
+
+Ver también: [servidor-hardening.md](servidor-hardening.md), [servidor-auditoria.md](servidor-auditoria.md), [servidor-llaves-ssh.md](servidor-llaves-ssh.md).
