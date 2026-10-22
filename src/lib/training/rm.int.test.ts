@@ -66,7 +66,9 @@ describe.skipIf(!HAS_DB)("tabla de RM (BD real)", () => {
   });
 
   it("una RM nueva manda sobre la anterior y queda el historial", async () => {
-    await svc.addRm(userId, { name: "Sentadilla frontal", kg: 105, source: "TEST", effectiveFrom: "2026-10-20" });
+    const { addDays, today, toIsoDay } = await import("@/lib/dates");
+    // la importada del plan vale desde hoy: la nueva debe ser posterior para mandar
+    await svc.addRm(userId, { name: "Sentadilla frontal", kg: 105, source: "TEST", effectiveFrom: toIsoDay(addDays(today(), 1)) });
     expect((await svc.currentRms(userId)).find((r) => r.key === "sentadilla frontal")?.kg).toBe(105);
     expect((await svc.rmHistory(userId)).filter((r) => r.nameKey === "sentadilla frontal")).toHaveLength(2);
   });
