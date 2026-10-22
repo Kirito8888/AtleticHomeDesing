@@ -317,6 +317,8 @@ cd /opt/lifeos
 
 **Variables nuevas:** ninguna.
 
+Guía técnica paso a paso: [`docs/migracion-v2-4-a-v2-5.md`](docs/migracion-v2-4-a-v2-5.md).
+
 #### De v2.3 a v2.4 (perfil F-V, sugerir fotogramas y auditoría)
 
 **Lo que cambia para quien usa la app:**
@@ -331,6 +333,8 @@ cd /opt/lifeos
 ```
 
 **Variables nuevas:** ninguna.
+
+Guía técnica paso a paso: [`docs/migracion-v2-3-a-v2-4.md`](docs/migracion-v2-3-a-v2-4.md).
 
 **Comprobar tras actualizar:**
 1. *Estado del servidor* (Ajustes, administración) muestra la versión 2.4.0 y ninguna migración pendiente.
