@@ -2,25 +2,70 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
-## v2.4 — perfil fuerza-velocidad, sugerir fotogramas y auditoría (17/10/2026)
+## v2.5 — en desarrollo, sin publicar
 
-**Tests y salto**
-- **Perfil F-V** (Tests → Perfil F-V): con 2–4 cargas de salto SJ calcula F0, V0, potencia máxima, pendiente, perfil óptimo y desequilibrio. Exige un ajuste mínimo (r² ≥ 0,95). El óptimo sigue el modelo de Samozino y no se ha contrastado con la tabla del artículo. Es una entrada manual: no va a la IA ni a la entrenadora.
-- **Sugerir fotogramas** (en «Medir salto», **experimental y apagado por defecto**): propone el despegue y el aterrizaje analizando el vídeo en tu navegador (el vídeo no sale de él). «Aceptar» solo rellena las marcas; nada se guarda sin «Añadir intento». **Sus umbrales son estimaciones sin calibrar y no se ha comprobado con vídeos reales**: revisa siempre las marcas a mano.
+> Borrador: recoge lo ya fusionado tras v2.4.0 (19–20/10/2026). La versión, la guía y el manual «De v2.4 a v2.5» se cierran al publicar.
 
-**Entrenamiento**
-- Las **combinadas** (decatlón, heptatlón) reciben las reglas `fast-cap` y `jump-cap`, con tus umbrales de preferencias y sin datos de Strava.
+**Rutinas y planificación**
+- **Varios espacios a la vez** (pista + gimnasio…) en «Crear mi rutina» y «Crear mi planificación», con ajuste opcional por día. El material de cada día es la unión de lo de sus espacios más tu lista global. Cambiar el sitio de un día también admite varios espacios.
+- **Prescripción con ciencia citada:** series semanales, repeticiones, RIR y descanso según objetivo (fuerza, hipertrofia-salud, resistencia muscular) y nivel. Cada fila lleva «Por qué estas series» y el plan lista sus referencias (con DOI verificados). El borrador de rutina se puede **editar día a día**; al cambiar las series se recalcula el porqué. Sigue sin escribirse nada en el plan hasta «Activar».
+- **«¿Cómo fue la semana?»** ya no cambia el plan al enviarla: propone cambios y solo se aplican al pulsar «Aplicar cambios» (si el plan cambió entretanto, avisa en vez de pisarlo).
+- `/coach/multi` propone como inicio hoy si es lunes y, si no, el próximo lunes, y avisa de los días que quedan fuera.
 
-**Clubes y seguridad**
-- El **cambio de rol del staff** de un club queda en la Actividad de la persona afectada (rol anterior → nuevo y quién lo cambió).
-- Una cuenta de atleta ya no se promueve a staff por PATCH (como al invitar).
+**Privacidad**
+- Quien administra la plataforma ya no se salta vínculo, ámbito ni art. 18 al ver datos de una atleta.
+- El informe semanal omite la recuperación si quien lo mira no tiene ese permiso.
+- Strava queda fuera de los avisos del club, del calendario `.ics` y de las marcas que van a la IA. **Cambio visible:** el aviso de carga de la propia atleta ya no cuenta sesiones de Strava.
+- El almacenamiento sin conexión del navegador ya no guarda páginas de salud o finanzas visitadas: solo `/offline` y las de la sesión del día.
+- Recalcular desde una cuenta de entrenadora ya no cuenta las sesiones de Strava, y la administración ya no deja su IP ni navegador en la Actividad de la persona afectada.
 
-**Rendimiento y móvil**
-- Medido el TTFB a 390 px: ninguna ruta pasa de ~95 ms de mediana en el contenedor. Sin cambios de producto (detalle en `docs/ttfb-v2-4.md`).
-- Revisadas tablas y rejillas con datos largos en claro y oscuro: sin recortes ni scroll horizontal.
+**Seguridad**
+- **Login:** cuenta fallos por correo+IP y por correo. Tras 5 fallos (15 min) se cierra esa IP; tras 20 solo se cierra a dispositivos no reconocidos. Retraso progresivo (1–8 s) en navegadores nuevos tras 4 fallos.
+- 2FA con límite de intentos al confirmar o desactivar. El registro por API exige aceptar las condiciones y responde igual exista o no el correo. Las peticiones que modifican datos comprueban el origen.
+- En producción, la app **no arranca** con un secreto corto o de ejemplo, `http://` público o la contraseña de BD de ejemplo: revisa tu `.env` antes de actualizar.
+- Los errores internos ya no muestran detalles al usuario.
+
+**Experiencia**
+- Esqueletos de carga en las páginas índice, páginas de error y 404 en español, aviso «Sin conexión» y aviso «Nueva versión, recargar».
+- Diálogos de confirmación propios (accesibles, botones ≥ 44 px) en lugar de los del navegador; «Saltar al contenido»; estados vacíos en Inicio, finanzas, recuperación y prehab.
+- **Formatos:** fechas como «20 oct 2026» en zona Europe/Madrid y cifras con coma decimal («7,8 h»).
+- **Menú más corto:** la bienvenida de una cuenta nueva marca solo Entreno y Recuperación y ofrece el resto. Las cuentas actuales no cambian. Enlaces nuevos entre Planificación, Recuperación, «De un vistazo» y «Revisión».
+
+**Rendimiento**
+- Sesión memoizada por petición y panel del club en lote: con 20 atletas, de ~410 a 15 consultas.
+
+**Operación**
+- Registro JSON con lista blanca de campos y sin datos personales; errores 5xx por ruta anónima y aviso de copias antiguas (> 36 h) en «Estado»; `/api/health` incluye la cola de trabajos.
+- La CI ejecuta las 32 suites E2E.
 
 **Datos**
-- **Una migración aditiva** (`v2_4_features`): solo añade la tabla `FvSeries`. Sin variables nuevas. Exportar y restaurar incluyen las series F-V.
+- **Una migración aditiva** (`v2_5_features`): solo añade índices por usuario en siete tablas. Sin variables nuevas.
+
+## v2.4.0 — perfil fuerza-velocidad, sugerir fotogramas y auditoría (17/10/2026)
+
+**B1 · Medición del TTFB a 390 px**
+- Medido por ruta: ninguna pasa de ~95 ms de mediana en el contenedor. Es **solo medición, sin cambios de producto** (detalle en `docs/ttfb-v2-4.md`; las mejoras de rendimiento llegan en v2.5).
+
+**B2 · Tablas y rejillas a 390 px**
+- Revisadas con datos largos en claro y oscuro: sin recortes ni scroll horizontal, y una suite E2E las vigila.
+
+**B3 · Roles del staff de un club**
+- El cambio de rol queda en la Actividad de la persona afectada (rol anterior → nuevo y quién lo cambió).
+- Una cuenta de atleta ya no se promueve a staff por PATCH (como al invitar).
+
+**B4 · Reglas para combinadas**
+- Decatlón y heptatlón reciben `fast-cap` y `jump-cap`, con tus umbrales de preferencias y sin datos de Strava.
+
+**B5 · Perfil F-V**
+- **Entreno → Tests → Perfil F-V:** con 2–4 cargas de salto SJ calcula F0, V0, potencia máxima, pendiente, perfil óptimo y desequilibrio. Exige un ajuste mínimo (r² ≥ 0,95). El óptimo sigue el modelo de Samozino y no se ha contrastado con la tabla del artículo.
+- Entrada manual: no va a la IA ni a la entrenadora. Exportar y restaurar incluyen las series.
+
+**B6 · Sugerir fotogramas** (en «Medir salto», **experimental y apagado por defecto**)
+- Propone el despegue y el aterrizaje analizando el vídeo en tu navegador (el vídeo no sale de él). «Aceptar» solo rellena las marcas; nada se guarda sin «Añadir intento».
+- **Los umbrales son estimaciones sin calibrar y no se ha comprobado con vídeos reales:** revisa siempre las marcas a mano.
+
+**Datos**
+- **Una migración aditiva** (`v2_4_features`): solo añade la tabla `FvSeries`. Sin variables nuevas.
 
 **Pruebas**
 - Nuevas suites E2E: v24a (TTFB), v24b (tablas a 390 px) y v24c (perfil F-V); `salto` ampliada para sugerir fotogramas.
