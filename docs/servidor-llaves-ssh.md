@@ -50,15 +50,15 @@ Usa **dos ventanas**: la **1** se queda conectada al servidor y no se cierra has
    - En el servidor, `grep -c $'\r' ~/atlenza-ops/ops/harden-server.sh` debe dar `0`. Si da otro número (saltos de línea de Windows): `sed -i 's/\r$//' ~/atlenza-ops/ops/*.sh ~/atlenza-ops/ops/templates/*.yml`.
 3. **Entra en esa carpeta:** `cd ~/atlenza-ops`. Desde aquí, todos los comandos usan `ops/harden-server.sh`.
 4. **Foto de puertos antes:** `sudo ss -tulpn > ~/puertos-antes.txt`.
-5. **Simulación (no cambia nada):** `sudo bash ops/harden-server.sh --user servidor`. Esperado: `bloqueos detectados: 0` y, en SSH, tantas claves como equipos. Los puertos 81, 9000 y 9443 saldrán «escucha en TODAS las interfaces» (se cierran en otra sesión). Con cualquier `BLOQUEO`, para.
+5. **Simulación (no cambia nada):** `sudo bash ops/harden-server.sh --user USUARIO`. Esperado: `bloqueos detectados: 0` y, en SSH, tantas claves como equipos. Los puertos 81, 9000 y 9443 saldrán «escucha en TODAS las interfaces» (se cierran en otra sesión). Con cualquier `BLOQUEO`, para.
 6. **Parches:** `sudo bash ops/harden-server.sh --apply --only updates` (escribe `SI`). Comprueba `systemctl list-timers 'apt-daily*'` y `sudo unattended-upgrade --dry-run`.
-7. **Desactivar la contraseña** (solo con todas las llaves probadas): `sudo bash ops/harden-server.sh --apply --only ssh --user servidor` (escribe `SI`). Esperado: `sshd -t y sshd -T: contraseña desactivada` y `sshd recargado`.
+7. **Desactivar la contraseña** (solo con todas las llaves probadas): `sudo bash ops/harden-server.sh --apply --only ssh --user USUARIO` (escribe `SI`). Esperado: `sshd -t y sshd -T: contraseña desactivada` y `sshd recargado`.
 8. **Verifica desde la ventana 2**, sin cerrar la 1:
    - Con llave entra: `ssh USUARIO@IP_DEL_SERVIDOR`.
    - Con contraseña falla: `ssh -o PubkeyAuthentication=no -o PreferredAuthentications=password USUARIO@IP_DEL_SERVIDOR` → `Permission denied (publickey)`.
    - Repite la prueba con llave desde **cada uno de los demás equipos**. Solo cuando todos entren, cierra la ventana 1.
 
-Los paneles (81, 9000, 9443) se cierran en otra sesión; ver [servidor-hardening.md](servidor-hardening.md).
+Los paneles (81, 9000, 9443) se cierran en otra sesión; ver [servidor-hardening.md](servidor-hardening.md). Auditoría previa o posterior: [servidor-auditoria.md](servidor-auditoria.md). Copias: [servidor-backups.md](servidor-backups.md).
 
 ## Si falla
 - **La llave no entra** (`Permission denied (publickey,password)`): entra con contraseña (aún vale) y mira `ls -ld ~ ~/.ssh ~/.ssh/authorized_keys`. Esperado: `~/.ssh` en `drwx------`, `authorized_keys` en `-rw-------` y `~` sin escritura para grupo ni otros (`chmod go-w ~`); sshd ignora las llaves si no se cumple. Más detalle: `ssh -v -o PasswordAuthentication=no USUARIO@IP_DEL_SERVIDOR` (últimas 20 líneas).
