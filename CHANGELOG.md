@@ -6,6 +6,9 @@ Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el 
 
 > Borrador: recoge lo ya fusionado tras v2.4.0 (19–20/10/2026). La versión, la guía y el manual «De v2.4 a v2.5» se cierran al publicar.
 
+**Finanzas**
+- **Historial** (`/finance/history`): todos los movimientos, más recientes primero, con filtros por tipo, cuenta, mes o rango de fechas. Cada movimiento se puede **editar** (importe, cuenta, categoría, fecha, tipo) o borrar con confirmación; los saldos y el balance se recalculan al instante.
+
 **Rutinas y planificación**
 - **Varios espacios a la vez** (pista + gimnasio…) en «Crear mi rutina» y «Crear mi planificación», con ajuste opcional por día. El material de cada día es la unión de lo de sus espacios más tu lista global. Cambiar el sitio de un día también admite varios espacios.
 - **Prescripción con ciencia citada:** series semanales, repeticiones, RIR y descanso según objetivo (fuerza, hipertrofia-salud, resistencia muscular) y nivel. Cada fila lleva «Por qué estas series» y el plan lista sus referencias (con DOI verificados). El borrador de rutina se puede **editar día a día**; al cambiar las series se recalcula el porqué. Sigue sin escribirse nada en el plan hasta «Activar».

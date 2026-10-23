@@ -3,17 +3,16 @@ import { Wallet } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { BankImport, type ImportProfile } from "@/components/finance/bank-import";
-import { CategorizeTx } from "@/components/finance/categorize";
-import { DeleteTransaction, ManageFinance, NewAccount, QuickTransaction, SportToggle } from "@/components/finance/finance-forms";
+import { ManageFinance, NewAccount, QuickTransaction } from "@/components/finance/finance-forms";
 import { PageHeader } from "@/components/page-header";
-import { Receipts } from "@/components/finance/season";
+import { TransactionRow } from "@/components/finance/transaction-row";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, today, toIsoDay } from "@/lib/dates";
 import { moneySummary } from "@/lib/finance/balances";
 import { cashflow, ensureBasicCategories, listAccounts } from "@/lib/finance/service";
-import { formatDate, formatEur } from "@/lib/format";
+import { formatEur } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Finanzas · Atlenza" };
@@ -86,39 +85,16 @@ export default async function FinancePage() {
       <section id="movimientos" aria-label="Últimos movimientos" className="mb-6">
         <h2 className="mb-2 text-sm font-medium">Últimos movimientos</h2>
         {recent.length ? (
-          <ul className="grid gap-3">
-            {recent.map((t) => {
-              const moneyLeg = t.postings.find((p) => p.account.type === "ASSET" || p.account.type === "LIABILITY");
-              const cat = t.postings.find((p) => p.category)?.category?.name;
-              const amount = t.kind === "TRANSFER" ? Math.abs(moneyLeg?.amountCents ?? 0) : (moneyLeg?.amountCents ?? 0);
-              const simple = t.kind === "EXPENSE" || t.kind === "INCOME";
-              const label = t.kind === "TRANSFER" ? "Transferencia" : t.kind === "OPENING_BALANCE" ? "Saldo de apertura" : t.kind === "ADJUSTMENT" ? "Ajuste" : cat;
-              return (
-                <li key={t.id} className="grid gap-1 border-b pb-3 text-sm last:border-b-0">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="min-w-0 truncate">{t.description}</span>
-                    <span className="shrink-0 font-medium tabular-nums">
-                      {t.kind === "TRANSFER" ? "⇄ " : amount > 0 ? "+" : ""}
-                      {formatEur(amount)}
-                    </span>
-                  </div>
-                  <div className="truncate text-xs text-muted-foreground">{[formatDate(t.date), label, moneyLeg?.account.name].filter(Boolean).join(" · ")}</div>
-                  {simple ? (
-                    <div className="flex flex-wrap items-center gap-1">
-                      {!cat ? <CategorizeTx id={t.id} description={t.description} categories={categories.filter((c) => c.kind === t.kind)} /> : null}
-                      {t.kind === "EXPENSE" ? <Receipts transactionId={t.id} receipts={t.receipts} /> : null}
-                      <SportToggle id={t.id} sport={t.sport} income={t.kind === "INCOME"} />
-                      <DeleteTransaction id={t.id} />
-                    </div>
-                  ) : (
-                    <div className="flex">
-                      <DeleteTransaction id={t.id} />
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+          <>
+            <ul className="grid gap-3">
+              {recent.map((t) => (
+                <TransactionRow key={t.id} t={t} accounts={accounts} categories={categories} />
+              ))}
+            </ul>
+            <Button asChild variant="outline" className="mt-3 h-11">
+              <Link href="/finance/history">Ver historial y filtros</Link>
+            </Button>
+          </>
         ) : (
           <EmptyState
             icon={Wallet}

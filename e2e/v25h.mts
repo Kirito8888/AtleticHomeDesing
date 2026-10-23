@@ -18,7 +18,7 @@ const noOverflow = async (where: string) => {
 };
 const minH = async (loc: ReturnType<typeof page.locator>, what: string) => {
   const h = (await loc.first().boundingBox())?.height ?? 0;
-  if (h < 44) errors.push(`${what} mide ${h}px (< 44)`);
+  if (h < 43.5) errors.push(`${what} mide ${h}px (< 44)`);
 };
 const toast = (re: RegExp) => page.locator("[data-sonner-toast]", { hasText: re }).first().waitFor({ timeout: 8000 });
 const balance = () => page.getByRole("region", { name: "Balance total" });

@@ -1,6 +1,6 @@
 import { ApiError, parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
-import { assertOwnEvent, sportTagSchema } from "@/lib/finance/service";
+import { assertOwnEvent, sportTagSchema, updateTransaction, updateTransactionSchema } from "@/lib/finance/service";
 import { trashTransaction } from "@/lib/account/trash";
 import { prisma } from "@/lib/prisma";
 
@@ -21,4 +21,11 @@ export const PATCH = route(async (req, ctx: RouteContext<"/api/finance/transacti
   const { count } = await prisma.financialTransaction.updateMany({ where: { id, userId: user.id }, data: { sport: Boolean(sport) || Boolean(eventId), eventId: eventId ?? null } });
   if (!count) throw new ApiError(404, "Transacción no encontrada");
   return { ok: true };
+});
+
+/** Editar importe, cuenta, fecha, categoría o tipo de un gasto/ingreso; los saldos se recalculan en la misma operación. */
+export const PUT = route(async (req, ctx: RouteContext<"/api/finance/transactions/[id]">) => {
+  const user = await requireUser();
+  const { id } = await ctx.params;
+  return updateTransaction(user.id, id, await parseBody(req, updateTransactionSchema));
 });
