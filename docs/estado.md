@@ -35,7 +35,7 @@
 ## Cierre v2.4 (17/10/2026)
 - `typecheck`/`lint` OK · 158 ficheros, 931 tests · 28 suites E2E · Semgrep 0 · licencias 347 OK · `npm audit --omit=dev` 0. `test-migration.sh` OK (`v2_4_features`, solo añade `FvSeries`).
 - v2.4: TTFB medido (`docs/ttfb-v2-4.md`, sin rutas > ~95 ms de mediana); P3-1…P3-3 sin cambios de producto; reglas `fast-cap`/`jump-cap` para la familia `combined`; perfil F-V (Samozino; no va a la IA; la entrenadora no lo ve; óptimo no contrastado con la tabla del artículo); auditoría de cambios de rol del staff (`COACH_SCOPES_CHANGED`); sugerir fotogramas (`jump-detect.ts`, apagado por defecto).
-- **Medidor de salto:** HEVC/.mov probado en iPhone por la usuaria (16/10/2026) sin problemas; si falla con otro vídeo, reabrir. Los umbrales de «Sugerir fotogramas» (`MIN_CONFIDENCE` 0,5, `MIN_PEAK` 1 %, vuelo 0,15–1,0 s) **siguen sin calibrar**.
+- **Medidor de salto:** la parte de cámara y medida está hecha, comprobada por la usuaria y funciona bien (HEVC/.mov en iPhone, 16/10/2026). **Lo único que no funciona es el análisis de imagen de «Sugerir fotogramas»** (propuesta de despegue y aterrizaje; `jump-detect.ts`/`jump-scan.ts`, apagado por defecto): sigue experimental y hay que rehacerlo o recalibrarlo (umbrales `MIN_CONFIDENCE` 0,5, `MIN_PEAK` 1 %, vuelo 0,15–1,0 s sin calibrar). Las marcas a mano funcionan.
 
 ## Histórico de cierres
 - **v2.3 (16/10):** sin migración; navegación agrupada (`layout/nav-items.ts`), Ajustes por grupos, 44 px táctiles, `route-error.tsx`.
@@ -49,5 +49,5 @@
 
 ## Pendientes de la usuaria (no de código)
 - Inscribir Atlenza en el Registro de la Propiedad Intelectual. Revisión de `LICENSE` por un abogado.
-- Comprobación manual de «Sugerir fotogramas» en iPhone: 5 CMJ a 240 fps y 5 a 60, de lado; comparar propuesta vs. marca a mano (criterio: |error| ≤ 2 fotogramas a 240 / ≤ 1 a 60 en ≥ 8 de 10) y anotar los segundos del análisis.
+- Decidir qué hacer con «Sugerir fotogramas» (no funciona): rehacer el análisis de imagen, o dejarlo apagado/retirarlo. Las marcas a mano y la cámara no se tocan.
 - Probar en el servidor real lo listado en «Sin probar en el servidor real».
