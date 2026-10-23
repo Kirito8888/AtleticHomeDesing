@@ -56,7 +56,12 @@ export default async function FinanceMorePage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="gap-3 py-4">
           <CardHeader className="px-4">
-            <CardTitle className="text-sm">Presupuestos</CardTitle>
+            <CardTitle className="flex items-center justify-between gap-2 text-sm">
+              Presupuestos
+              <Link href="/finance/budgets" className="inline-flex min-h-11 items-center text-xs font-normal text-muted-foreground hover:underline">
+                Ver por mes
+              </Link>
+            </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 px-4">
             {budgets.length ? (

@@ -107,6 +107,9 @@ export default async function FinancePage() {
 
       <nav aria-label="Más finanzas" className="flex flex-wrap gap-2">
         <Button asChild variant="outline" size="sm">
+          <Link href="/finance/budgets">Presupuestos del mes</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
           <Link href="/finance/more">Presupuestos y temporada</Link>
         </Button>
         <Button asChild variant="outline" size="sm">
