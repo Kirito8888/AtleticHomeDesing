@@ -520,7 +520,7 @@ export function DeleteTransaction({ id }: { id: string }) {
   return (
     <button
       type="button"
-      className="text-xs text-muted-foreground hover:underline"
+      className="min-h-11 px-3 text-xs text-muted-foreground hover:underline"
       onClick={async () => {
         if (!(await confirmDialog({ title: "¿Borrar el movimiento?", confirmLabel: "Borrar", destructive: true }))) return;
         try {
@@ -564,5 +564,125 @@ export function SportToggle({ id, sport, income = false }: { id: string; sport: 
     >
       🏅
     </Button>
+  );
+}
+
+export interface EditableTx {
+  id: string;
+  kind: "EXPENSE" | "INCOME";
+  date: string;
+  description: string;
+  amountCents: number;
+  accountId: string;
+  categoryId: string | null;
+  sport: boolean;
+  eventId: string | null;
+}
+
+/** Edita importe, cuenta, categoría, fecha, concepto y tipo; al guardar se refrescan listado y saldos. */
+export function EditTransaction({ tx, accounts, categories }: { tx: EditableTx; accounts: AccountOpt[]; categories: CategoryOpt[] }) {
+  const [open, setOpen] = useState(false);
+  const [kind, setKind] = useState<"EXPENSE" | "INCOME">(tx.kind);
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const money = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
+  const cats = categories.filter((c) => c.kind === kind);
+  // Valor de un <input>: coma decimal y sin separador de miles, como lo escribe la persona.
+  // eslint-disable-next-line no-restricted-syntax
+  const amountText = (tx.amountCents / 100).toFixed(2).replace(".", ",");
+  return (
+    <Sheet
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) setKind(tx.kind);
+      }}
+    >
+      <SheetTrigger asChild>
+        <button type="button" className="min-h-11 px-3 text-xs text-muted-foreground hover:underline">
+          Editar
+        </button>
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>Editar movimiento</SheetTitle>
+          <SheetDescription>Los saldos se recalculan al guardar.</SheetDescription>
+        </SheetHeader>
+        <form
+          className="grid gap-3"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const f = new FormData(e.currentTarget);
+            const amountCents = cents(f, "amount");
+            if (!amountCents || amountCents <= 0) return toast.error("Importe no válido");
+            setBusy(true);
+            try {
+              await api(`/api/finance/transactions/${tx.id}`, {
+                method: "PUT",
+                body: {
+                  kind,
+                  date: str(f, "date"),
+                  description: str(f, "description"),
+                  amountCents,
+                  moneyAccountId: str(f, "account"),
+                  categoryId: str(f, "category"),
+                  sport: tx.sport,
+                  eventId: tx.eventId,
+                },
+              });
+              toast.success("Movimiento actualizado");
+              setOpen(false);
+              router.refresh();
+            } catch (err) {
+              toast.error((err as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <Chips
+            label="Tipo de movimiento"
+            value={kind}
+            onChange={(v) => v && setKind(v)}
+            className="grid grid-cols-2 [&_button]:h-11 [&_button]:rounded-md"
+            options={[
+              { value: "EXPENSE", label: "Gasto" },
+              { value: "INCOME", label: "Ingreso" },
+            ]}
+          />
+          <Field label="Importe (€)" htmlFor={`e-amount-${tx.id}`}>
+            <Input id={`e-amount-${tx.id}`} name="amount" inputMode="decimal" defaultValue={amountText} className="h-12 text-xl font-semibold" required />
+          </Field>
+          <Field label={kind === "INCOME" ? "Cuenta de cobro" : "Desde"} htmlFor={`e-acc-${tx.id}`}>
+            <Select id={`e-acc-${tx.id}`} name="account" defaultValue={tx.accountId}>
+              {money.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Categoría" htmlFor={`e-cat-${tx.id}`}>
+            <Select key={kind} id={`e-cat-${tx.id}`} name="category" defaultValue={kind === tx.kind ? (tx.categoryId ?? "") : ""}>
+              <option value="">Sin categoría</option>
+              {cats.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Concepto" htmlFor={`e-desc-${tx.id}`}>
+            <Input id={`e-desc-${tx.id}`} name="description" defaultValue={tx.description} required />
+          </Field>
+          <Field label="Fecha" htmlFor={`e-date-${tx.id}`}>
+            <Input id={`e-date-${tx.id}`} name="date" type="date" defaultValue={tx.date} required />
+          </Field>
+          <Button type="submit" size="lg" disabled={busy}>
+            Guardar cambios
+          </Button>
+        </form>
+      </SheetContent>
+    </Sheet>
   );
 }

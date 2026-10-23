@@ -44,3 +44,38 @@ describe("saldos", () => {
     expect(moneySummary([]).netCents).toBe(0);
   });
 });
+
+describe("recálculo al editar y borrar (apuntes reescritos)", () => {
+  const exp = (acc: string, amountCents: number) => buildSimplePostings({ kind: "EXPENSE", amountCents, moneyAccountId: acc, counterAccountId: "gastos" });
+  const bal = (ps: ReturnType<typeof exp>, acc: string) => balancesFromPostings(ps).get(acc) ?? 0;
+  const opening = [
+    { accountId: BANK, amountCents: 10000 },
+    { accountId: "saldo", amountCents: -10000 },
+  ];
+
+  it("borrar un gasto de 30 € devuelve 30 € a la cuenta", () => {
+    const gasto = exp(BANK, 3000);
+    expect(bal([...opening, ...gasto], BANK)).toBe(7000);
+    expect(bal(opening, BANK)).toBe(10000);
+  });
+
+  it("editar un gasto de 20 € a 50 € descuenta 30 € más", () => {
+    expect(bal([...opening, ...exp(BANK, 2000)], BANK)).toBe(8000);
+    expect(bal([...opening, ...exp(BANK, 5000)], BANK)).toBe(5000);
+  });
+
+  it("cambiar de cuenta devuelve el importe a la anterior y lo quita de la nueva; el consolidado no cambia", () => {
+    const before = balancesFromPostings([...opening, { accountId: "cash", amountCents: 0 }, ...exp(BANK, 2000)]);
+    const after = balancesFromPostings([...opening, { accountId: "cash", amountCents: 0 }, ...exp(BANK, 0 + 2000).map((p) => (p.accountId === BANK ? { ...p, accountId: "cash" } : p))]);
+    expect(before.get(BANK)).toBe(8000);
+    expect(after.get(BANK)).toBe(10000);
+    expect(after.get("cash")).toBe(-2000);
+    const net = (m: Map<string, number>) => moneySummary([...m].map(([id, balanceCents]) => ({ type: id === BANK || id === "cash" ? "ASSET" : "EXPENSE", balanceCents }))).netCents;
+    expect(net(after)).toBe(net(before));
+  });
+
+  it("pasar de gasto a ingreso invierte el efecto en el saldo", () => {
+    const ingreso = buildSimplePostings({ kind: "INCOME", amountCents: 2000, moneyAccountId: BANK, counterAccountId: "ingresos" });
+    expect(bal([...opening, ...ingreso], BANK)).toBe(12000);
+  });
+});

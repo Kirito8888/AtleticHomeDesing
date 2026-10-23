@@ -203,6 +203,87 @@ export async function createTransaction(
   });
 }
 
+export const updateTransactionSchema = z.object({
+  kind: z.enum(["EXPENSE", "INCOME"]),
+  date: isoDate,
+  description: z.string().trim().min(1).max(300),
+  payee: z.string().max(200).nullish(),
+  amountCents: cents,
+  moneyAccountId: z.string(),
+  categoryId: z.string().nullish(),
+  ...sportFields,
+});
+
+const isMoney = (type: string) => type === "ASSET" || type === "LIABILITY";
+
+/**
+ * Edita un gasto o ingreso simple. Las líneas del asiento se reescriben en una sola transacción de BD:
+ * los saldos se suman al leer, así que cuentas y consolidado quedan al día en el mismo instante.
+ */
+export async function updateTransaction(userId: string, id: string, input: z.infer<typeof updateTransactionSchema>) {
+  const current = await prisma.financialTransaction.findFirst({ where: { id, userId }, include: { postings: { include: { account: { select: { type: true } } } } } });
+  if (!current) throw new ApiError(404, "Transacción no encontrada");
+  const counterLeg = current.postings.find((p) => !isMoney(p.account.type));
+  if ((current.kind !== "EXPENSE" && current.kind !== "INCOME") || current.postings.length !== 2 || !counterLeg || current.postings.every((p) => !isMoney(p.account.type))) {
+    throw new ApiError(409, "Este movimiento no se edita aquí");
+  }
+  let counterAccountId = counterLeg.accountId;
+  if (input.kind !== current.kind) {
+    const defaults = await ensureDefaultAccounts(userId);
+    counterAccountId = input.kind === "EXPENSE" ? defaults.expense.id : defaults.income.id;
+  }
+  let postings: PostingInput[];
+  try {
+    postings = buildSimplePostings({ kind: input.kind, amountCents: input.amountCents, moneyAccountId: input.moneyAccountId, counterAccountId, categoryId: input.categoryId });
+    assertBalanced(postings);
+  } catch (err) {
+    if (err instanceof LedgerError) throw new ApiError(400, err.message);
+    throw err;
+  }
+  await assertOwnership(userId, postings);
+  await assertOwnEvent(userId, input.eventId);
+  const [, updated] = await prisma.$transaction([
+    prisma.posting.deleteMany({ where: { transactionId: id } }),
+    prisma.financialTransaction.update({
+      where: { id },
+      data: {
+        kind: input.kind,
+        date: dateOnly(input.date),
+        description: input.description,
+        payee: input.payee ?? null,
+        sport: Boolean(input.sport) || Boolean(input.eventId),
+        eventId: input.eventId ?? null,
+        postings: { create: postings.map((p) => ({ accountId: p.accountId, amountCents: p.amountCents, categoryId: p.categoryId ?? null, memo: p.memo ?? null })) },
+      },
+      include: { postings: true },
+    }),
+  ]);
+  return updated;
+}
+
+export interface TransactionFilter {
+  accountId?: string;
+  kind?: "EXPENSE" | "INCOME";
+  from?: string;
+  to?: string;
+  limit?: number;
+}
+
+/** Historial: más recientes primero, siempre acotado al usuario. */
+export async function listTransactions(userId: string, f: TransactionFilter = {}) {
+  return prisma.financialTransaction.findMany({
+    where: {
+      userId,
+      kind: f.kind,
+      date: { gte: f.from ? dateOnly(f.from) : undefined, lte: f.to ? dateOnly(f.to) : undefined },
+      postings: f.accountId ? { some: { accountId: f.accountId } } : undefined,
+    },
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    take: f.limit ?? 100,
+    include: { postings: { include: { account: { select: { name: true, type: true } }, category: { select: { name: true } } } }, receipts: { select: { id: true, mime: true } } },
+  });
+}
+
 /** Estado de cada presupuesto en su periodo actual, incluyendo subcategorías. */
 export async function budgetsStatus(userId: string, ref = today()) {
   const [budgets, categories] = await Promise.all([
