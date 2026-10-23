@@ -3,9 +3,7 @@ import { z } from "zod";
 
 import { parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
-import { createTransaction, ensureDefaultAccounts, listAccounts } from "@/lib/finance/service";
-import { toIsoDay, today } from "@/lib/dates";
-import { prisma } from "@/lib/prisma";
+import { createAccount, listAccounts } from "@/lib/finance/service";
 
 export const GET = route(async () => {
   const user = await requireUser();
@@ -22,20 +20,5 @@ const schema = z.object({
 
 export const POST = route(async (req) => {
   const user = await requireUser();
-  const { openingBalanceCents, ...data } = await parseBody(req, schema);
-  const account = await prisma.financialAccount.create({ data: { ...data, userId: user.id } });
-  if (openingBalanceCents) {
-    const { equity } = await ensureDefaultAccounts(user.id);
-    await createTransaction(user.id, {
-      mode: "split",
-      kind: "OPENING_BALANCE",
-      date: toIsoDay(today()),
-      description: `Saldo inicial ${account.name}`,
-      postings: [
-        { accountId: account.id, amountCents: openingBalanceCents },
-        { accountId: equity.id, amountCents: -openingBalanceCents },
-      ],
-    });
-  }
-  return NextResponse.json(account, { status: 201 });
+  return NextResponse.json(await createAccount(user.id, await parseBody(req, schema)), { status: 201 });
 });

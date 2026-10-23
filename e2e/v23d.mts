@@ -137,6 +137,7 @@ const STATIC = [
   "/about",
   "/welcome",
   "/finance",
+  "/finance/more",
   "/finance/trips",
   "/nutrition",
   "/nutrition/micros",

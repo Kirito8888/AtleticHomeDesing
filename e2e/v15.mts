@@ -284,7 +284,7 @@ log("hábito marcado de un toque, con racha");
 // 7. Bloque L: becas, material, comentarios de la entrenadora y estado del servidor
 const acc = (await api("post", "/api/finance/accounts", { name: "Banco", type: "ASSET" })) as { id?: string };
 await api("post", "/api/finance/transactions", { mode: "simple", kind: "INCOME", date: madrid, description: "Beca federación", amountCents: 120000, moneyAccountId: acc.id, sport: true });
-await go(B + "/finance");
+await go(B + "/finance/more");
 await page.getByLabel("Saldo deportivo por temporada").getByText(/Becas, premios y patrocinios 1200,00/).waitFor();
 log("beca deportiva en el saldo de la temporada");
 

@@ -1,0 +1,293 @@
+import Link from "next/link";
+
+import { CashflowChart } from "@/components/charts/lazy";
+import { RunSubscriptionsButton } from "@/components/finance/finance-forms";
+import { PageHeader } from "@/components/page-header";
+import { StatusLabel } from "@/components/status";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { pageUser } from "@/lib/auth/page";
+import { today, toIsoDay } from "@/lib/dates";
+import { moneySummary } from "@/lib/finance/balances";
+import { periodWindow } from "@/lib/finance/ledger";
+import { budgetsStatus, cashflow, listAccounts, spendingByCategory, sportExpenses, sportSeasonBalance, subscriptionsOverview } from "@/lib/finance/service";
+import { formatDate, formatEur, formatNum } from "@/lib/format";
+
+import { CategoryRules } from "@/components/finance/categorize";
+import { emergencyFund } from "@/lib/finance/emergency";
+import { listRules } from "@/lib/finance/category-rules-service";
+import { getPrefs } from "@/lib/rules/prefs-service";
+import { EmergencyMonthsSelect } from "@/components/settings/app-preferences";
+import { PriceAlerts, SeasonBudgetForm, SubscriptionAmount } from "@/components/finance/season";
+import { SEASON_LINES, type SeasonLine } from "@/lib/finance/season";
+import { seasonBudgetView, subscriptionAlerts } from "@/lib/finance/season-service";
+
+export const metadata = { title: "Presupuestos y temporada · Atlenza" };
+
+const INTERVAL_LABEL = { WEEKLY: "semana", MONTHLY: "mes", QUARTERLY: "trimestre", YEARLY: "año" } as const;
+
+export default async function FinanceMorePage() {
+  const user = await pageUser();
+  const now = today();
+  const month = periodWindow("MONTHLY", now);
+  const [budgets, flow, spending, subs, sportSeasons, sportBal, rules, prefs, accounts] = await Promise.all([
+    budgetsStatus(user.id, now),
+    cashflow(user.id, 7),
+    spendingByCategory(user.id, month.start, month.end),
+    subscriptionsOverview(user.id),
+    sportExpenses(user.id),
+    sportSeasonBalance(user.id, toIsoDay(now)),
+    listRules(user.id),
+    getPrefs(user.id),
+    listAccounts(user.id),
+  ]);
+  const season = Number(toIsoDay(now).slice(0, 4));
+  const [sb, priceAl] = await Promise.all([seasonBudgetView(user.id, season, toIsoDay(now)), subscriptionAlerts(user.id, toIsoDay(now))]);
+  const { netCents: netWorth } = moneySummary(accounts);
+  // v1.8 · fondo de emergencia con los 6 meses cerrados
+  const fund = emergencyFund(flow.slice(0, -1), netWorth, prefs.emergencyMonths);
+  const maxSpend = Math.max(1, ...spending.map((s) => s.totalCents));
+
+  return (
+    <>
+      <PageHeader title="Presupuestos y temporada" action={<Button asChild variant="outline" size="sm"><Link href="/finance">← Finanzas</Link></Button>} />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="gap-3 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-sm">Presupuestos</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 px-4">
+            {budgets.length ? (
+              budgets.map((b) => {
+                const status = b.state === "EXCEEDED" ? "critical" : b.state === "WARNING" ? "warning" : "good";
+                return (
+                  <div key={b.id} className="grid gap-1">
+                    <div className="flex items-center justify-between gap-2 text-sm">
+                      <StatusLabel status={status}>{b.category.name}</StatusLabel>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {formatEur(b.spentCents)} / {formatEur(b.budgetCents)} · {b.pct} %
+                      </span>
+                    </div>
+                    <Progress
+                      value={b.pct}
+                      aria-label={`${b.category.name}: ${b.pct} %`}
+                      indicatorClassName={status === "critical" ? "bg-status-critical" : status === "warning" ? "bg-status-warning" : "bg-status-good"}
+                    />
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-sm text-muted-foreground">Sin presupuestos.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="gap-3 py-4 lg:col-span-2">
+          <CardHeader className="px-4">
+            <CardTitle className="text-sm">Flujo de caja (6 meses)</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <CashflowChart data={flow.slice(1)} />
+          </CardContent>
+        </Card>
+
+        <Card className="gap-3 py-4" id="emergencia">
+          <CardHeader className="px-4">
+            <CardTitle className="flex items-center justify-between gap-2 text-sm">
+              Fondo de emergencia <EmergencyMonthsSelect value={prefs.emergencyMonths} />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2 px-4 text-sm">
+            {fund ? (
+              <>
+                <p>
+                  <span className="text-2xl font-semibold tabular-nums">{fund.coveredMonths != null ? formatNum(fund.coveredMonths) : "—"}</span> meses cubiertos{" "}
+                  <span className="text-muted-foreground">(objetivo: {prefs.emergencyMonths})</span>
+                </p>
+                <Progress value={Math.min(100, ((fund.coveredMonths ?? 0) / prefs.emergencyMonths) * 100)} aria-label="Fondo de emergencia" />
+                <p className="text-muted-foreground">
+                  Gasto medio: {formatEur(fund.avgExpenseCents)}/mes ({fund.months} {fund.months === 1 ? "mes" : "meses"}).{" "}
+                  {fund.missingCents > 0
+                    ? `Faltan ${formatEur(fund.missingCents)}${fund.monthsToTarget != null ? `: unos ${fund.monthsToTarget} meses al ritmo actual.` : "; ahora mismo no ahorras."}`
+                    : "¡Completo!"}
+                </p>
+                <p className="text-muted-foreground">
+                  En 12 meses, al ahorro medio de {formatEur(fund.avgNetCents)}/mes: {formatEur(fund.in12mCents)}.
+                </p>
+              </>
+            ) : (
+              <p className="text-muted-foreground">Con un mes completo de movimientos verás cuántos meses de gastos cubre tu dinero.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="gap-3 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-sm">Gasto por categoría (este mes)</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            {spending.length ? (
+              <ul className="grid gap-2">
+                {spending.map((s) => (
+                  <li key={s.categoryId ?? "none"} className="grid gap-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="truncate">{s.name}</span>
+                      <span className="tabular-nums">{formatEur(s.totalCents)}</span>
+                    </div>
+                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                      <div className="h-full rounded-full bg-series-1" style={{ width: `${(s.totalCents / maxSpend) * 100}%` }} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">Sin gastos este mes.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="gap-3 py-4">
+          <CardHeader className="flex flex-row items-center justify-between px-4">
+            <CardTitle className="text-sm">Suscripciones</CardTitle>
+            <RunSubscriptionsButton />
+          </CardHeader>
+          <CardContent className="px-4">
+            <PriceAlerts charged={priceAl.charged} edited={priceAl.edited} />
+            {subs.subscriptions.length ? (
+              <ul className="grid gap-2">
+                {subs.subscriptions.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between gap-2 text-sm">
+                    <div className="min-w-0">
+                      <div className="truncate">
+                        {s.name}
+                        {!s.isActive ? <span className="text-xs text-muted-foreground"> · pausada</span> : null}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Próximo: {formatDate(s.nextChargeDate)} {s.autoPost ? "· automático" : ""}
+                      </div>
+                      <SubscriptionAmount id={s.id} name={s.name} amountCents={s.amountCents} />
+                    </div>
+                    <span className="shrink-0 tabular-nums">
+                      {formatEur(s.amountCents)}
+                      <span className="text-xs text-muted-foreground"> /{INTERVAL_LABEL[s.interval]}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">Sin suscripciones.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="gap-3 py-4 lg:col-span-2">
+          <CardHeader className="px-4">
+            <CardTitle className="text-sm">Presupuesto de la temporada {season}</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 px-4 lg:grid-cols-2">
+            <div className="grid content-start gap-2 text-sm" aria-label="Previsión de la temporada">
+              {sb.hasBudget ? (
+                <>
+                  <p>
+                    Previsto <span className="font-medium tabular-nums">{formatEur(sb.plannedCents)}</span> · gastado <span className="font-medium tabular-nums">{formatEur(sb.spentCents)}</span>
+                    {sb.usedPct != null ? ` (${sb.usedPct} %)` : ""}
+                  </p>
+                  <Progress value={Math.min(100, sb.usedPct ?? 0)} aria-label="Presupuesto usado" />
+                  <p className={sb.overBudgetCents ? "font-medium text-destructive" : undefined}>
+                    Previsión a 31 de diciembre: {formatEur(sb.forecastCents)}
+                    {sb.overBudgetCents ? ` · te pasarías en ${formatEur(sb.overBudgetCents)}` : " · dentro del presupuesto"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {sb.linearCents != null ? `Al ritmo actual: ${formatEur(sb.linearCents)}. ` : ""}Por calendario: {formatEur(sb.calendarCents)} ({sb.upcomingCompetitions} competiciones pendientes × {formatEur(sb.perCompetitionCents)}). Se usa la mayor.
+                    {sb.incomeCents ? ` Con lo ingresado (${formatEur(sb.incomeCents)}) el saldo previsto es ${formatEur(sb.balanceCents)}.` : ""}
+                  </p>
+                  <ul className="grid gap-0.5 text-xs text-muted-foreground">
+                    {(Object.keys(SEASON_LINES) as SeasonLine[])
+                      .filter((k) => sb.lines[k])
+                      .map((k) => (
+                        <li key={k} className="flex justify-between gap-2">
+                          <span>{SEASON_LINES[k]}</span>
+                          <span className="tabular-nums">{formatEur(sb.lines[k]!)}</span>
+                        </li>
+                      ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="text-muted-foreground">Pon lo que prevés gastar este año en el deporte y el coste medio de cada competición: verás si llegas con la previsión al ritmo actual y con las competiciones que te quedan.</p>
+              )}
+              <p className="text-xs text-muted-foreground">Cuenta los movimientos marcados con 🏅.</p>
+            </div>
+            <SeasonBudgetForm season={season} lines={sb.lines} perCompetitionCents={sb.perCompetitionCents} />
+          </CardContent>
+        </Card>
+
+        <Card className="gap-3 py-4 lg:col-span-2">
+          <CardHeader className="px-4">
+            <CardTitle className="text-sm">Temporada deportiva: becas y gastos</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4 px-4">
+            {sportBal.some((b) => b.incomeCents > 0) ? (
+              <ul className="grid gap-2 text-sm" aria-label="Saldo deportivo por temporada">
+                {sportBal.slice(0, 3).map((b) => (
+                  <li key={b.season} className="grid gap-0.5">
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                      <span className="font-medium">Temporada {b.season}</span>
+                      <span className={b.balanceCents < 0 ? "font-medium text-destructive tabular-nums" : "font-medium tabular-nums"}>Saldo {formatEur(b.balanceCents)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      Becas, premios y patrocinios {formatEur(b.incomeCents)} · gastos {formatEur(-b.expenseCents)}
+                    </p>
+                    {b.forecast ? (
+                      <p className={b.forecast.balanceCents < 0 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
+                        Previsión a fin de año al ritmo actual: gastos {formatEur(-b.forecast.expenseCents)} · saldo {formatEur(b.forecast.balanceCents)}
+                        {b.forecast.balanceCents < 0 ? ". Con lo cobrado no llega: busca otra ayuda o recorta." : ""}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-xs text-muted-foreground">Marca con 🏅 tus ingresos deportivos (becas, premios, patrocinios) para ver el saldo de la temporada y la previsión.</p>
+            )}
+            {sportSeasons.length ? (
+              <div className="grid gap-4 sm:grid-cols-2" aria-label="Gastos deportivos">
+                {sportSeasons.slice(0, 4).map((s) => (
+                  <section key={s.season} className="grid gap-1 text-sm">
+                    <div className="flex items-baseline justify-between font-medium">
+                      <span>Temporada {s.season}</span>
+                      <span className="tabular-nums">{formatEur(-s.totalCents)}</span>
+                    </div>
+                    <ul className="grid gap-0.5 text-xs text-muted-foreground">
+                      {s.byEvent.map((e) => (
+                        <li key={e.eventId ?? "none"} className="flex justify-between gap-2">
+                          <span className="truncate">{e.title}</span>
+                          <span className="shrink-0 tabular-nums">{formatEur(-e.totalCents)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Marca un gasto con 🏅 (o al crearlo) para verlo aquí por temporada y competición.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {rules.length ? (
+          <Card className="gap-3 py-4">
+            <CardHeader className="px-4">
+              <CardTitle className="text-sm">Reglas de categoría</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4">
+              <p className="mb-2 text-xs text-muted-foreground">Se aplican al importar extractos. Se crean al categorizar con «Aplicar a los parecidos».</p>
+              <CategoryRules rules={rules.map((r) => ({ id: r.id, pattern: r.pattern, category: r.category.name }))} />
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+    </>
+  );
+}

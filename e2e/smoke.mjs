@@ -179,7 +179,7 @@ log("comida favorita y «repetir desayuno de ayer»");
 
 // 7. Finanzas
 await go(B + "/finance");
-await page.getByRole("button", { name: /Gestionar/ }).click();
+await page.getByRole("button", { name: "Cuenta", exact: true }).click();
 await page.fill("#a-name", "Cuenta nómina"); await page.fill("#a-open", "1500,00");
 await page.getByRole("button", { name: "Crear cuenta" }).click();
 await toast("Cuenta creada");

@@ -105,7 +105,7 @@ type Who = "at" | "co" | "anon";
 type Route = { url: string; who: Who; skip?: string; label?: string };
 const STATIC = [
   "/", "/glance", "/goals", "/notifications", "/review", "/safety", "/search", "/share", "/about", "/welcome",
-  "/finance", "/finance/trips", "/nutrition", "/nutrition/micros", "/nutrition/plan", "/nutrition/recipes", "/nutrition/shopping", "/nutrition/sweat",
+  "/finance", "/finance/more", "/finance/trips", "/nutrition", "/nutrition/micros", "/nutrition/plan", "/nutrition/recipes", "/nutrition/shopping", "/nutrition/sweat",
   "/planning", "/planning/plan/new", "/planning/week-all",
   "/recovery", "/recovery/body", "/recovery/fisio", "/recovery/health", "/recovery/trends", "/recovery/wellbeing", "/recovery/women",
   "/study", "/study/ask", "/study/assignments", "/study/exam", "/study/exams", "/study/focus", "/study/plan", "/study/schedule",

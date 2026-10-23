@@ -338,7 +338,7 @@ bank ??= (await api("post", "/api/finance/accounts", { name: "Banco E2E", type: 
 await api("post", "/api/finance/transactions", { mode: "simple", kind: "EXPENSE", date: madrid, description: "Clavos de jabalina", amountCents: 4500, moneyAccountId: bank.id, sport: true });
 await api("post", "/api/finance/subscriptions", { name: "Música E2E", amountCents: 999, nextChargeDate: plusDays(madrid, 20), accountId: bank.id });
 await api("post", "/api/finance/transactions", { mode: "simple", kind: "EXPENSE", date: madrid, description: "PAGO MUSICA E2E", amountCents: 1199, moneyAccountId: bank.id });
-await go(B + "/finance");
+await go(B + "/finance/more");
 await page.getByLabel("Material (€)").fill("300");
 await page.getByLabel("Coste medio por competición (€)").fill("50");
 await page.getByRole("button", { name: /^Guardar presupuesto \d{4}$/ }).click();
@@ -348,6 +348,8 @@ await page.getByLabel("Subidas de precio").getByText(/Música E2E/).waitFor();
 await page.getByRole("button", { name: /Actualizar a 11,99/ }).click();
 await toast(/Importe actualizado/);
 await page.getByRole("button", { name: "Entendido" }).waitFor();
+await noOverflow("/finance/more");
+await go(B + "/finance");
 await page.getByLabel("Adjuntar justificante").first().setInputFiles({ name: "ticket.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.4\n% sintético\n") });
 await toast(/Justificante guardado/);
 await page.getByRole("link", { name: "Justificante 1" }).first().waitFor();
