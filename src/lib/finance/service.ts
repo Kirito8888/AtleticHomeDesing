@@ -47,6 +47,47 @@ export async function listAccounts(userId: string) {
   return accounts.map((a) => ({ ...a, balanceCents: balance.get(a.id) ?? 0 }));
 }
 
+const BASIC_CATEGORIES: Array<{ name: string; kind: "EXPENSE" | "INCOME" }> = [
+  { name: "Comida", kind: "EXPENSE" },
+  { name: "Transporte", kind: "EXPENSE" },
+  { name: "Deporte", kind: "EXPENSE" },
+  { name: "Casa", kind: "EXPENSE" },
+  { name: "Ocio", kind: "EXPENSE" },
+  { name: "Otros", kind: "EXPENSE" },
+  { name: "Nómina", kind: "INCOME" },
+  { name: "Becas y premios", kind: "INCOME" },
+  { name: "Otros ingresos", kind: "INCOME" },
+];
+
+/** Categorías básicas, solo si la persona aún no tiene ninguna. */
+export async function ensureBasicCategories(userId: string) {
+  if (await prisma.financialCategory.count({ where: { userId } })) return;
+  await prisma.financialCategory.createMany({ data: BASIC_CATEGORIES.map((c) => ({ ...c, userId })), skipDuplicates: true });
+}
+
+/** Cuenta nueva; con saldo inicial distinto de 0 registra el asiento contra «Saldo inicial». */
+export async function createAccount(
+  userId: string,
+  input: { name: string; type: FinancialAccountType; institution?: string | null; openingBalanceCents?: number },
+) {
+  const { openingBalanceCents, ...data } = input;
+  const account = await prisma.financialAccount.create({ data: { ...data, userId } });
+  if (openingBalanceCents) {
+    const { equity } = await ensureDefaultAccounts(userId);
+    await createTransaction(userId, {
+      mode: "split",
+      kind: "OPENING_BALANCE",
+      date: toIsoDay(today()),
+      description: `Saldo inicial ${account.name}`,
+      postings: [
+        { accountId: account.id, amountCents: openingBalanceCents },
+        { accountId: equity.id, amountCents: -openingBalanceCents },
+      ],
+    });
+  }
+  return account;
+}
+
 const cents = z.number().int().positive().max(1_000_000_000);
 
 /** Gasto deportivo (material, viajes de competición, licencias) y competición asociada. */

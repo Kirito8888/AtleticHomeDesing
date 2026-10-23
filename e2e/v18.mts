@@ -265,9 +265,11 @@ await page.getByRole("button", { name: "Categorizar COMPRA TARJ. 1234 MERCADONA 
 await page.getByLabel("Categoría de COMPRA TARJ. 1234 MERCADONA VALENCIA").selectOption({ label: "Súper V18" });
 await page.getByRole("button", { name: "Guardar", exact: true }).click();
 await toast(/Regla «mercadona valencia» guardada · 2 movimientos/);
+await checkA11y("/finance");
+await go(B + "/finance/more");
 await page.getByRole("list", { name: "Reglas de categoría" }).getByText(/mercadona valencia/).waitFor();
 await page.getByText("Fondo de emergencia").first().waitFor();
-await checkA11y("/finance");
+await checkA11y("/finance/more");
 
 // Viaje de competición: lugar del estadio
 const trip = (await api("post", "/api/planning/events", { type: "COMPETITION", title: "Autonómico V18", startAt: plusDays(madrid, 6) })) as { id: string };

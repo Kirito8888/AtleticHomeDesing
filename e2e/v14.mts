@@ -283,6 +283,7 @@ await page.getByRole("switch", { name: "Gasto deportivo" }).click();
 await page.locator("#t-event").selectOption((await page.locator("#t-event option", { hasText: "Control de otoño" }).getAttribute("value"))!);
 await page.getByRole("button", { name: "Guardar", exact: true }).click();
 await toast(/Movimiento guardado/);
+await go(B + "/finance/more");
 await page.getByLabel("Gastos deportivos").getByText("Control de otoño").waitFor();
 await noOverflow("finanzas con gastos deportivos");
 log("gasto deportivo por temporada y competición");

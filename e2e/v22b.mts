@@ -124,7 +124,7 @@ const ROUTES = [
   "/recovery", "/recovery/body", "/recovery/fisio", "/recovery/health", "/recovery/trends", "/recovery/wellbeing", "/recovery/women",
   "/planning", "/planning/plan/new", "/planning/week-all",
   "/nutrition", "/nutrition/micros", "/nutrition/plan", "/nutrition/recipes", "/nutrition/shopping", "/nutrition/sweat",
-  "/finance", "/finance/trips", "/study", "/study/ask", "/study/assignments", "/study/exam", "/study/exams", "/study/focus", "/study/plan", "/study/schedule",
+  "/finance", "/finance/more", "/finance/trips", "/study", "/study/ask", "/study/assignments", "/study/exam", "/study/exams", "/study/focus", "/study/plan", "/study/schedule",
   "/clubs", "/coach", // /coach/multi es solo para entrenadoras: v20b la recorre
 ];
 const small = new Map<string, number>();

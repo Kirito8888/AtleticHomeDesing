@@ -111,7 +111,7 @@ export function QuickTransaction({
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Nuevo movimiento</SheetTitle>
-          <SheetDescription>Se registra en partida doble automáticamente.</SheetDescription>
+          <SheetDescription>Los saldos se actualizan al guardar.</SheetDescription>
         </SheetHeader>
         {money.length ? (
           <form
@@ -140,24 +140,30 @@ export function QuickTransaction({
               );
             }}
           >
-            <Chips
-              label="Tipo de movimiento"
-              value={kind}
-              onChange={(v) => v && setKind(v)}
-              options={[
-                { value: "EXPENSE", label: "Gasto" },
-                { value: "INCOME", label: "Ingreso" },
-                { value: "TRANSFER", label: "Transferencia" },
-              ]}
-            />
+            {kind === "TRANSFER" ? (
+              <div className="flex items-center justify-between gap-2 text-sm">
+                <span className="font-medium">Transferencia entre cuentas</span>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setKind("EXPENSE")}>
+                  Volver a gasto o ingreso
+                </Button>
+              </div>
+            ) : (
+              <Chips
+                label="Tipo de movimiento"
+                value={kind}
+                onChange={(v) => v && setKind(v)}
+                className="grid grid-cols-2 [&_button]:h-11 [&_button]:rounded-md"
+                options={[
+                  { value: "EXPENSE", label: "Gasto" },
+                  { value: "INCOME", label: "Ingreso" },
+                ]}
+              />
+            )}
             {kind === "EXPENSE" ? <OcrFill endpoint="/api/ocr/receipt" label="Rellenar desde un ticket" onResult={fillFromReceipt} /> : null}
             <Field label="Importe (€)" htmlFor="t-amount">
               <Input id="t-amount" name="amount" inputMode="decimal" placeholder="12,50" className="h-12 text-xl font-semibold" required autoFocus />
             </Field>
-            <Field label="Concepto" htmlFor="t-desc">
-              <Input id="t-desc" name="description" required placeholder={kind === "EXPENSE" ? "Mercadona" : kind === "INCOME" ? "Nómina" : "Ahorro"} />
-            </Field>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3">
               <Field label={kind === "INCOME" ? "Cuenta de cobro" : "Desde"} htmlFor="t-acc">
                 <Select id="t-acc" name="account">
                   {money.map((a) => (
@@ -190,6 +196,9 @@ export function QuickTransaction({
                 </Field>
               )}
             </div>
+            <Field label="Concepto" htmlFor="t-desc">
+              <Input id="t-desc" name="description" required placeholder={kind === "EXPENSE" ? "Mercadona" : kind === "INCOME" ? "Nómina" : "Ahorro"} />
+            </Field>
             <Field label="Fecha" htmlFor="t-date">
               <Input id="t-date" name="date" type="date" defaultValue={today} required />
             </Field>
@@ -222,10 +231,72 @@ export function QuickTransaction({
             <Button type="submit" size="lg" disabled={busy}>
               Guardar
             </Button>
+            {kind !== "TRANSFER" && money.length > 1 ? (
+              <Button type="button" variant="ghost" size="sm" onClick={() => setKind("TRANSFER")}>
+                Transferir entre mis cuentas
+              </Button>
+            ) : null}
           </form>
         ) : (
-          <p className="text-sm text-muted-foreground">Crea primero una cuenta (banco, efectivo o tarjeta) en «Gestionar».</p>
+          <p className="text-sm text-muted-foreground">Crea primero una cuenta (banco, efectivo o tarjeta) con «Cuenta».</p>
         )}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
+const ACCOUNT_PRESETS = [
+  { value: "checking", label: "Cuenta corriente", type: "ASSET" },
+  { value: "savings", label: "Ahorro", type: "ASSET" },
+  { value: "cash", label: "Efectivo", type: "ASSET" },
+  { value: "card", label: "Tarjeta de crédito", type: "LIABILITY" },
+] as const;
+
+/** Cuenta en un solo paso: nombre, tipo y saldo inicial opcional. */
+export function NewAccount({ first = false }: { first?: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [preset, setPreset] = useState<(typeof ACCOUNT_PRESETS)[number]["value"]>("checking");
+  const { busy, run } = useSubmit(() => setOpen(false));
+  const current = ACCOUNT_PRESETS.find((p) => p.value === preset)!;
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button size="sm" variant={first ? "default" : "outline"}>
+          <Plus /> Cuenta
+        </Button>
+      </SheetTrigger>
+      <SheetContent>
+        <SheetHeader>
+          <SheetTitle>Nueva cuenta</SheetTitle>
+          <SheetDescription>Pon el saldo que tiene hoy; si lo dejas vacío, empieza en 0.</SheetDescription>
+        </SheetHeader>
+        <form
+          className="grid gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const f = new FormData(e.currentTarget);
+            const name = str(f, "name") ?? current.label;
+            void run("/api/finance/accounts", { name, type: current.type, openingBalanceCents: cents(f, "opening") ?? undefined }, "Cuenta creada");
+          }}
+        >
+          <Chips
+            label="Tipo de cuenta"
+            value={preset}
+            onChange={(v) => v && setPreset(v)}
+            className="grid grid-cols-2 [&_button]:h-11 [&_button]:rounded-md"
+            options={ACCOUNT_PRESETS.map((p) => ({ value: p.value, label: p.label }))}
+          />
+          <Field label="Nombre" htmlFor="a-name">
+            <Input id="a-name" name="name" placeholder={current.label} />
+          </Field>
+          <Field label="Saldo inicial (€, opcional)" htmlFor="a-open" hint={current.type === "LIABILITY" ? "La deuda en negativo (p. ej. -350)." : undefined}>
+            <Input id="a-open" name="opening" inputMode="decimal" placeholder="0,00" />
+          </Field>
+          <Button type="submit" size="lg" disabled={busy}>
+            Crear cuenta
+          </Button>
+        </form>
       </SheetContent>
     </Sheet>
   );
@@ -242,54 +313,19 @@ export function ManageFinance({ accounts, categories, today }: { accounts: Accou
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button size="sm" variant="outline" aria-label="Gestionar">
-          <Settings2 /> <span className="hidden sm:inline">Gestionar</span>
+          <Settings2 /> Gestionar
         </Button>
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Gestionar</SheetTitle>
         </SheetHeader>
-        <Tabs defaultValue="account">
+        <Tabs defaultValue="category">
           <TabsList>
-            <TabsTrigger value="account">Cuenta</TabsTrigger>
             <TabsTrigger value="category">Categoría</TabsTrigger>
             <TabsTrigger value="budget">Presup.</TabsTrigger>
             <TabsTrigger value="sub">Suscr.</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="account">
-            <form
-              className="grid gap-3"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const f = new FormData(e.currentTarget);
-                void run(
-                  "/api/finance/accounts",
-                  { name: str(f, "name"), type: str(f, "type"), institution: str(f, "institution"), openingBalanceCents: cents(f, "opening") ?? undefined },
-                  "Cuenta creada",
-                );
-              }}
-            >
-              <Field label="Nombre" htmlFor="a-name">
-                <Input id="a-name" name="name" required placeholder="Cuenta corriente" />
-              </Field>
-              <Field label="Tipo" htmlFor="a-type">
-                <Select id="a-type" name="type" defaultValue="ASSET">
-                  <option value="ASSET">Activo (banco, efectivo, inversión)</option>
-                  <option value="LIABILITY">Pasivo (tarjeta de crédito, préstamo)</option>
-                </Select>
-              </Field>
-              <Field label="Entidad" htmlFor="a-inst">
-                <Input id="a-inst" name="institution" />
-              </Field>
-              <Field label="Saldo actual (€)" htmlFor="a-open" hint="En pasivos, la deuda en negativo (p.ej. -350).">
-                <Input id="a-open" name="opening" inputMode="decimal" />
-              </Field>
-              <Button type="submit" disabled={busy}>
-                Crear cuenta
-              </Button>
-            </form>
-          </TabsContent>
 
           <TabsContent value="category">
             <form
