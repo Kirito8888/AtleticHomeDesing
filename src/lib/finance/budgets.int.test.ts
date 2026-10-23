@@ -7,6 +7,7 @@ describe.skipIf(!HAS_DB)("presupuestos mensuales (BD real)", () => {
   let prisma: typeof import("@/lib/prisma").prisma;
   let fin: typeof import("./service");
   let bud: typeof import("./budgets-service");
+  // Emails sin el patrón «-<ms>@test.dev»: otros tests limpian por ese patrón y podrían borrar estos usuarios en paralelo.
   let userId: string;
   let otherId: string;
   let bank: string;
@@ -22,8 +23,8 @@ describe.skipIf(!HAS_DB)("presupuestos mensuales (BD real)", () => {
     prisma = (await import("@/lib/prisma")).prisma;
     fin = await import("./service");
     bud = await import("./budgets-service");
-    userId = (await prisma.user.create({ data: { email: `bud-${Date.now()}@test.dev` } })).id;
-    otherId = (await prisma.user.create({ data: { email: `bud2-${Date.now()}@test.dev` } })).id;
+    userId = (await prisma.user.create({ data: { email: `bud-${crypto.randomUUID()}@test.dev` } })).id;
+    otherId = (await prisma.user.create({ data: { email: `bud2-${crypto.randomUUID()}@test.dev` } })).id;
     bank = (await fin.createAccount(userId, { name: "Banco", type: "ASSET", openingBalanceCents: 100000 })).id;
     food = (await prisma.financialCategory.create({ data: { userId, name: "Comida", kind: "EXPENSE" } })).id;
     veg = (await prisma.financialCategory.create({ data: { userId, name: "Verdura", kind: "EXPENSE", parentId: food } })).id;
