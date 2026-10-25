@@ -8,13 +8,10 @@ import { toast } from "sonner";
 import { Chips, Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
-import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
+import { SourcePicker, useSource } from "@/components/study/source-picker";
 import { api } from "@/lib/client-api";
 import { type AdaptDoc, type AdaptMode, MODE_LABEL, type OutlineNode, parseBold } from "@/lib/study/adhd-format";
 
-type SourceKind = "document" | "topic" | "text";
 interface Result {
   content: AdaptDoc;
   markdown: string;
@@ -92,21 +89,16 @@ function Reading({ content }: { content: AdaptDoc }) {
 export function AdaptPanel({ docs, aiEnabled }: { docs: Array<{ id: string; title: string }>; aiEnabled: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<AdaptMode>("summary");
-  const [kind, setKind] = useState<SourceKind>(docs.length ? "document" : "text");
-  const [documentId, setDocumentId] = useState(docs[0]?.id ?? "");
-  const [topic, setTopic] = useState("");
-  const [text, setText] = useState("");
+  const src = useSource(docs);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
 
-  const ready = kind === "document" ? Boolean(documentId) : kind === "topic" ? topic.trim().length >= 2 : text.trim().length >= 40;
 
   async function generate(e: React.FormEvent) {
     e.preventDefault();
-    const source = kind === "document" ? { kind, documentId } : kind === "topic" ? { kind, topic: topic.trim() } : { kind, text: text.trim() };
     setBusy(true);
     try {
-      setResult(await api<Result>("/api/ai/study/adapt", { body: { mode, source } }));
+      setResult(await api<Result>("/api/ai/study/adapt", { body: { mode, source: src.source } }));
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -160,40 +152,8 @@ export function AdaptPanel({ docs, aiEnabled }: { docs: Array<{ id: string; titl
         <p className="text-sm text-muted-foreground">
           {mode === "summary" ? "Párrafos de 2–3 líneas con las ideas fuerza en negrita." : "Árbol de ideas con la jerarquía clara, de 3 niveles como máximo."}
         </p>
-        <Field label="A partir de">
-          <Chips
-            label="Origen"
-            value={kind}
-            onChange={(v) => v && setKind(v)}
-            options={[
-              { value: "document", label: "Un apunte" },
-              { value: "topic", label: "Un tema" },
-              { value: "text", label: "Texto" },
-            ]}
-          />
-        </Field>
-        {kind === "document" ? (
-          docs.length ? (
-            <Field label="Apunte" htmlFor="adapt-doc">
-              <Select id="adapt-doc" value={documentId} onChange={(e) => setDocumentId(e.target.value)}>
-                {docs.map((d) => (
-                  <option key={d.id} value={d.id}>{d.title}</option>
-                ))}
-              </Select>
-            </Field>
-          ) : (
-            <p className="text-sm text-muted-foreground">Aún no tienes apuntes listos: sube uno en Apuntes o pega un texto.</p>
-          )
-        ) : kind === "topic" ? (
-          <Field label="Tema (se busca en tus apuntes)" htmlFor="adapt-topic">
-            <Input id="adapt-topic" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Glucólisis" />
-          </Field>
-        ) : (
-          <Field label="Pega tus apuntes (mín. 40 caracteres)" htmlFor="adapt-text">
-            <Textarea id="adapt-text" value={text} onChange={(e) => setText(e.target.value)} className="min-h-32" />
-          </Field>
-        )}
-        <Button type="submit" className="min-h-11" disabled={!aiEnabled || !ready || busy}>
+        <SourcePicker docs={docs} idPrefix="adapt" s={src} />
+        <Button type="submit" className="min-h-11" disabled={!aiEnabled || !src.ready || busy}>
           <Sparkles /> {busy ? "Generando…" : "Generar"}
         </Button>
         {!aiEnabled ? <p className="text-xs text-muted-foreground">Necesitas la IA activada en Ajustes para generar.</p> : null}

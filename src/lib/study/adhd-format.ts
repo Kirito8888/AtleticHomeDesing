@@ -73,7 +73,7 @@ function balanceBold(s: string): string {
 }
 
 /** Corta por palabra con «…» solo cuando una frase suelta no cabe. */
-function clip(s: string, max: number): string {
+export function clip(s: string, max: number): string {
   s = balanceBold(clean(s));
   if (s.length <= max) return s;
   const cut = s.slice(0, max - 1);
@@ -82,7 +82,7 @@ function clip(s: string, max: number): string {
 }
 
 /** Frases respetando la negrita: no corta dentro de `** … **`. */
-function sentences(s: string): string[] {
+export function sentences(s: string): string[] {
   const out: string[] = [];
   let cur = "";
   let bold = false;
