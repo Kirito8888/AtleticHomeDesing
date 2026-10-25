@@ -13,7 +13,7 @@ Pensada para el móvil y autoalojada en tu propio servidor.
 > [`LICENSE`](LICENSE); componentes de terceros en [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 > No es «open source»: es código visible con todos los derechos reservados.
 
-**Versión actual: v2.4**: perfil fuerza-velocidad con saltos SJ cargados, «Sugerir fotogramas» en el medidor de salto (experimental, sin calibrar), reglas para combinadas y auditoría del cambio de rol del staff. Una migración aditiva (`FvSeries`). **En desarrollo: v2.5** (sin publicar; ver el CHANGELOG). (v2.3: navegación agrupada y objetivos táctiles de 44 px a 390 px. v2.2: privacidad de Strava en las vistas de la entrenadora, vigilancia en base de datos, pista y móvil.) Ver [`CHANGELOG.md`](CHANGELOG.md).
+**Versión actual: v2.5**: Finanzas en el móvil (historial editable, presupuestos mensuales, selector de cuenta), Estudio con resumen/informe TDAH, micro-pasos, asignaturas con ruta priorizada, «Evaluar nivel» y manual en PDF, rutinas con varios espacios y prescripción citada, y refuerzo de seguridad y privacidad. Una migración aditiva (`v2_5_features`). (v2.4: perfil fuerza-velocidad y auditoría del staff. v2.3: navegación agrupada y objetivos táctiles de 44 px. v2.2: privacidad de Strava en las vistas de la entrenadora.) Ver [`CHANGELOG.md`](CHANGELOG.md).
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · PostgreSQL 17 + pgvector · Prisma 7 · pg-boss · Docker Compose · IA de cada usuario (Gemini, compatible con OpenAI o Anthropic; opcional).
 

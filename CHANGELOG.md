@@ -2,33 +2,35 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
-## v2.5 — en desarrollo, sin publicar
+## v2.5.0 — finanzas en el móvil, estudio con TDAH y Modo Juego, rutinas con ciencia y seguridad (25/10/2026)
 
-> Borrador: recoge lo ya fusionado tras v2.4.0 (19–20/10/2026). La versión, la guía y el manual «De v2.4 a v2.5» se cierran al publicar.
+**Finanzas** (todo pensado para 390 px)
+- **Inicio de Finanzas más corto** (`/finance`): balance neto, tarjetas de cuenta y últimos movimientos. Presupuestos, flujo, emergencia, suscripciones, temporada y reglas pasan a `/finance/more`; no se quita ninguna función. Crear una cuenta es un solo paso (tipo + saldo inicial opcional) y, si no hay categorías, se crean 9 básicas.
+- **Registro rápido:** Gasto | Ingreso arriba (la transferencia queda como enlace secundario) y **selector de cuenta o tarjeta de un toque**, con saldo, que recuerda la última cuenta usada en ese dispositivo.
+- **Historial** (`/finance/history`): todos los movimientos, más recientes primero y agrupados por mes, con filtros por tipo, cuenta, mes o rango de fechas. Cada movimiento se puede **editar** (importe, cuenta, categoría, fecha, tipo) o borrar con confirmación; saldos y balance se recalculan al instante. Las transferencias y aperturas no se editan.
+- **Presupuestos mensuales** (`/finance/budgets`): selector de mes, barra con el reparto del gasto por categoría, aviso al llegar al umbral (80 % por defecto) y «Excedido en X» al pasarse, y «Fijar límite» para categorías sin presupuesto. Cambiar un límite **no reescribe los meses pasados**. Los presupuestos semanales/anuales siguen en `/finance/more`.
 
-**Finanzas**
-- **Historial** (`/finance/history`): todos los movimientos, más recientes primero, con filtros por tipo, cuenta, mes o rango de fechas. Cada movimiento se puede **editar** (importe, cuenta, categoría, fecha, tipo) o borrar con confirmación; los saldos y el balance se recalculan al instante.
-
-**Estudio**
-- **Resumir** (`/study`, pestaña nueva): «Resumen TDAH» (idea en una frase, secciones cortas, bloques de ≤ 120 caracteres con las ideas fuerza en negrita y «Recuerda») y «Esquema visual» (árbol de 3 niveles como máximo, plegable por ramas) a partir de un apunte, un tema de tus apuntes o un texto pegado. Solo usa tu texto; no inventa. **No guarda nada** hasta que pulsas «Guardar» y confirmas: crea un apunte nuevo (el original y las flashcards no cambian). También se puede «Copiar». Los límites de formato se aplican en el servidor aunque la IA devuelva párrafos largos. Se apoya en principios generales de carga cognitiva, segmentación y legibilidad (no hay ensayos que validen un formato concreto para TDAH). Sin migración.
-- **Pasos** (`/study`, pestaña nueva): divide un apunte, un tema o un texto en 4–6 micro-pasos de 5–15 min, sin guardar nada en apuntes ni flashcards. Se elige un paso y un intervalo corto (10/2, 15/3 o 20/5 min) y la vista enfocada muestra solo la tarea actual, el tiempo y una barra lisa; pausar, «Paso hecho» y salir. Sin puntos ni rachas. Los pasos viven en el navegador (sobreviven a recargar).
-- **Cuota de 5 GB y medidor** (`/study` → Apuntes): tope de 5 GB (5.368.709.120 bytes) de apuntes por atleta; pasarse da 413 con mensaje claro (subida y «Guardar» de resúmenes). Una barra muestra el espacio usado. `UPLOAD_QUOTA_MB` puede bajar el tope, nunca subirlo; por defecto pasa de 200 a 5120. Sin migración (suma `StudyDocument.sizeBytes` en SQL con bigint).
-- **Informe TDAH** (`/study` → Resumir → «Informe TDAH»): mapa por temas (🔴 cae seguro / 🟡 probable / ⚪ secundario, con minutos), plan de ataque por nota/minuto (calculado, no lo decide la IA), desglose por tema, chuleta, autoevaluación solo de temas 🔴 con soluciones al final y repaso de los últimos 10 minutos. Solo con las fuentes («NO ESTÁ EN LAS FUENTES» si falta); viñetas de ≤ 15 palabras impuestas tras la IA. No guarda hasta confirmar, y siempre como apunte nuevo.
-- **Asignaturas** (`/study`, pestaña nueva): agrupan apuntes y temas, con fecha de examen. Cada tema lleva prioridad (🔴 cae seguro / 🟡 probable / ⚪ secundario) y minutos. Con el «Modo preparación» la lista se reordena según los días que quedan: si todo cabe, por prioridad; si no, por más nota por minuto, y lo que no llega queda al final, marcado, sin quitar temario. Al subir un apunte se puede elegir la asignatura.
-- **Manual práctico en PDF** (`/study`, pestaña «Manual PDF»): a partir de un apunte, un tema o un texto genera un manual A4 de «recetas» (pasos, comandos, comprobar en verde, fallos en rojo, datos clave en amarillo) con código `[A1]`, pestañas de color por sección en el borde derecho, índice por tareas en la pág. 2 e índice alfabético al final, con la página exacta de cada receta (se maqueta dos veces para medirla). Se descarga directamente: no se guarda en el servidor. Necesita Chromium en el servidor (ya va en la imagen).
+**Estudio** (`/study`)
+- **Resumir:** «Resumen TDAH» (idea en una frase, secciones cortas, bloques de ≤ 120 caracteres con ideas fuerza en negrita y «Recuerda») y «Esquema visual» (árbol de 3 niveles, plegable) a partir de un apunte, un tema o un texto. Solo usa tu texto. **No guarda nada** hasta que confirmas; entonces crea un apunte nuevo (el original no cambia). Los límites de formato se aplican en el servidor aunque la IA devuelva párrafos largos. Se apoya en principios generales de carga cognitiva y legibilidad; no hay ensayos que validen un formato concreto para TDAH.
+- **Informe TDAH:** mapa por temas (🔴 cae seguro / 🟡 probable / ⚪ secundario, con minutos), plan de ataque por nota/minuto (calculado, no lo decide la IA), desglose, chuleta, autoevaluación de los 🔴 y repaso de los últimos 10 minutos. Solo con las fuentes («NO ESTÁ EN LAS FUENTES» si falta); viñetas de ≤ 15 palabras.
+- **Pasos:** divide un apunte, tema o texto en 4–6 micro-pasos de 5–15 min con temporizador (10/2, 15/3, 20/5), vista enfocada y sin puntos ni rachas. Vive en el navegador y no anota horas de estudio.
+- **Asignaturas (Modo Juego):** agrupan apuntes y temas, con fecha de examen y prioridad por tema. El «Modo preparación» reordena según los días que quedan: si cabe, por prioridad; si no, por más nota por minuto, y lo que no llega queda al final, marcado, sin quitar temario.
+- **Evaluar nivel (Modo Juego):** test de autoevaluación sobre los apuntes de la asignatura (6, 8 o 12 preguntas, paso a paso), con soluciones citadas de tus apuntes y una nota estimada /10 que dice qué falta para el 10 (prioriza 🔴). No guarda nada en el plan; el último intento se queda en este navegador.
+- **Manual práctico en PDF:** genera un manual A4 de «recetas» (pasos, comandos, comprobar en verde, fallos en rojo, datos clave en amarillo) con código `[A1]`, pestañas de color por sección, índice por tareas e índice alfabético con la página exacta (se maqueta dos veces para medirla). Se descarga directamente; no se guarda en el servidor. **Necesita Chromium en el servidor: ya va en la imagen, que pesa más.** Sin él responde 503.
+- **Cuota de 5 GB y medidor:** tope de 5 GB de apuntes por atleta (413 con mensaje claro al pasarse) y barra de uso. `UPLOAD_QUOTA_MB` solo puede bajar el tope; por defecto pasa de 200 a 5120. Un `.env` que conserve `UPLOAD_QUOTA_MB=200` sigue limitando a 200 MB.
 
 **Rutinas y planificación**
-- **Varios espacios a la vez** (pista + gimnasio…) en «Crear mi rutina» y «Crear mi planificación», con ajuste opcional por día. El material de cada día es la unión de lo de sus espacios más tu lista global. Cambiar el sitio de un día también admite varios espacios.
-- **Prescripción con ciencia citada:** series semanales, repeticiones, RIR y descanso según objetivo (fuerza, hipertrofia-salud, resistencia muscular) y nivel. Cada fila lleva «Por qué estas series» y el plan lista sus referencias (con DOI verificados). El borrador de rutina se puede **editar día a día**; al cambiar las series se recalcula el porqué. Sigue sin escribirse nada en el plan hasta «Activar».
-- **«¿Cómo fue la semana?»** ya no cambia el plan al enviarla: propone cambios y solo se aplican al pulsar «Aplicar cambios» (si el plan cambió entretanto, avisa en vez de pisarlo).
+- **Varios espacios a la vez** (pista + gimnasio…) en «Crear mi rutina» y «Crear mi planificación», con ajuste opcional por día. El material de cada día es la unión de sus espacios más tu lista global. Cambiar el sitio de un día también admite varios espacios.
+- **Prescripción con ciencia citada:** series semanales, repeticiones, RIR y descanso según objetivo (fuerza, hipertrofia-salud, resistencia muscular) y nivel. Cada fila lleva «Por qué estas series» y el plan lista sus referencias (DOI verificados). El borrador de rutina se **edita día a día**; sigue sin escribirse nada en el plan hasta «Activar».
+- **«¿Cómo fue la semana?»** ya no cambia el plan al enviarla: propone cambios y solo se aplican con «Aplicar cambios» (si el plan cambió entretanto, avisa en vez de pisarlo).
 - `/coach/multi` propone como inicio hoy si es lunes y, si no, el próximo lunes, y avisa de los días que quedan fuera.
 
 **Privacidad**
 - Quien administra la plataforma ya no se salta vínculo, ámbito ni art. 18 al ver datos de una atleta.
 - El informe semanal omite la recuperación si quien lo mira no tiene ese permiso.
 - Strava queda fuera de los avisos del club, del calendario `.ics` y de las marcas que van a la IA. **Cambio visible:** el aviso de carga de la propia atleta ya no cuenta sesiones de Strava.
-- El almacenamiento sin conexión del navegador ya no guarda páginas de salud o finanzas visitadas: solo `/offline` y las de la sesión del día.
-- Recalcular desde una cuenta de entrenadora ya no cuenta las sesiones de Strava, y la administración ya no deja su IP ni navegador en la Actividad de la persona afectada.
+- El almacenamiento sin conexión del navegador ya no guarda páginas de salud o finanzas: solo `/offline` y las de la sesión del día.
+- Recalcular desde una cuenta de entrenadora ya no cuenta sesiones de Strava, y la administración ya no deja su IP ni navegador en la Actividad de la persona afectada.
 
 **Seguridad**
 - **Login:** cuenta fallos por correo+IP y por correo. Tras 5 fallos (15 min) se cierra esa IP; tras 20 solo se cierra a dispositivos no reconocidos. Retraso progresivo (1–8 s) en navegadores nuevos tras 4 fallos.
@@ -42,18 +44,17 @@ Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el 
 - **Formatos:** fechas como «20 oct 2026» en zona Europe/Madrid y cifras con coma decimal («7,8 h»).
 - **Menú más corto:** la bienvenida de una cuenta nueva marca solo Entreno y Recuperación y ofrece el resto. Las cuentas actuales no cambian. Enlaces nuevos entre Planificación, Recuperación, «De un vistazo» y «Revisión».
 
-**Estudio**
-- **Evaluar nivel:** test de autoevaluación sobre los apuntes de la asignatura, paso a paso a 390 px, con soluciones citadas de los apuntes y una nota estimada /10 que dice qué falta para el 10 (prioriza 🔴). No guarda nada en el plan.
-
 **Rendimiento**
 - Sesión memoizada por petición y panel del club en lote: con 20 atletas, de ~410 a 15 consultas.
 
 **Operación**
 - Registro JSON con lista blanca de campos y sin datos personales; errores 5xx por ruta anónima y aviso de copias antiguas (> 36 h) en «Estado»; `/api/health` incluye la cola de trabajos.
-- La CI ejecuta las 32 suites E2E.
+- La imagen Docker incluye Chromium (`CHROMIUM_PATH`) para el PDF del estudio.
+- La CI ejecuta las 43 suites E2E (10 base y 33 en `e2e-extra`, que incluye las de v2.5).
 
 **Datos**
-- **Una migración aditiva** (`v2_5_features`): añade índices por usuario en siete tablas y las tablas `StudyModule` y `StudyTopic` (más `StudyDocument.moduleId`). Sin variables nuevas.
+- **Una migración aditiva** (`v2_5_features`): siete índices por usuario (`PlanFeedback`, `CalendarFeed`, `SharedReport`, `ReturnProtocol`, `HabitLog`, `PrehabLog`, `RoutineTest`) y las tablas nuevas `StudyModule` y `StudyTopic` con la columna `StudyDocument.moduleId`. No toca filas existentes.
+- **Dependencia de ejecución nueva:** `playwright-core` (maquetación del PDF).
 
 ## v2.4.0 — perfil fuerza-velocidad, sugerir fotogramas y auditoría (17/10/2026)
 
