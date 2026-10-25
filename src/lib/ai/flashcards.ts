@@ -8,7 +8,7 @@ import { ApiError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 
 /** Límite de texto enviado al modelo por generación (~10k tokens). */
-const MAX_SOURCE_CHARS = 40_000;
+export const MAX_SOURCE_CHARS = 40_000;
 
 const cardsSchema = z.object({
   cards: z
@@ -30,7 +30,7 @@ Creas flashcards en español a partir de apuntes:
 - Evita preguntas de sí/no y tarjetas duplicadas.`;
 
 /** Muestra fragmentos repartidos por todo el documento hasta el límite de caracteres. */
-function sampleChunks<T extends { content: string }>(chunks: T[]): T[] {
+export function sampleChunks<T extends { content: string }>(chunks: T[]): T[] {
   const total = chunks.reduce((a, c) => a + c.content.length, 0);
   if (total <= MAX_SOURCE_CHARS) return chunks;
   const keep = Math.max(1, Math.floor((chunks.length * MAX_SOURCE_CHARS) / total));

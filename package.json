@@ -36,6 +36,7 @@
     "e2e:v25h": "tsx e2e/v25h.mts",
     "e2e:v25i": "tsx e2e/v25i.mts",
     "e2e:v25j": "tsx e2e/v25j.mts",
+    "e2e:v25k": "tsx e2e/v25k.mts",
     "budget": "node scripts/bundle-budget.mjs",
     "e2e:v18": "tsx e2e/v18.mts",
     "e2e:v19": "tsx e2e/v19.mts",
@@ -89,7 +90,7 @@
     "tailwind-merge": "^3.7.0",
     "unpdf": "1.8.1",
     "web-push": "3.6.7",
-    "zod": "4.6.5"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

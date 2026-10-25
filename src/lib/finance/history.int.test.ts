@@ -82,7 +82,8 @@ describe.skipIf(!HAS_DB)("historial: edición, borrado y filtros (BD real)", () 
     expect(await ids({ kind: "INCOME" })).toEqual([c.id]);
     expect(await ids({ accountId: cash })).toEqual([b.id]);
     expect(await ids({ from: "2026-10-01", to: "2026-10-31", accountId: bank })).not.toContain(a.id);
-    expect(await ids({ from: "2026-10-24", to: "2026-10-31" })).toEqual([c.id]);
+    // el asiento de apertura de la cuenta lleva la fecha de hoy: el rango se acota por tipo para no depender del día
+    expect(await ids({ from: "2026-10-24", to: "2026-10-31", kind: "INCOME" })).toEqual([c.id]);
     expect(await fin.listTransactions(otherId, {})).toEqual([]);
   });
 });
