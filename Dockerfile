@@ -37,12 +37,15 @@ WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    CHROMIUM_PATH=/usr/bin/chromium
 # v1.7: parches de seguridad del sistema base y fuera npm/corepack/yarn (la imagen final solo ejecuta
 # `node server.js`): menos tamaño y menos componentes con fallos conocidos.
+# v2.5: Chromium para el manual práctico en PDF (Playwright, sin descargas en ejecución).
 # v1.10: OCR en el propio servidor (Tesseract en español e inglés y pdftoppm para PDF escaneados).
 RUN apt-get update && apt-get upgrade -y --no-install-recommends && apt-get install -y --no-install-recommends openssl ca-certificates \
     tesseract-ocr tesseract-ocr-spa tesseract-ocr-eng poppler-utils \
+    chromium fonts-dejavu-core \
   && rm -rf /var/lib/apt/lists/* \
   && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack /opt/yarn* /usr/local/bin/yarn /usr/local/bin/yarnpkg \
   && groupadd --system --gid 1001 nodejs \
