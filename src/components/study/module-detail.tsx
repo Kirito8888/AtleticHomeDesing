@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Check, FileText, Plus, Trash2 } from "lucide-react";
+import { Check, ClipboardCheck, FileText, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Field } from "@/components/form/chips";
@@ -81,6 +82,12 @@ export function ModuleDetail({ data }: { data: ModuleDetailData }) {
           <Switch checked={data.prepMode} disabled={busy} onCheckedChange={(v) => run(() => patch({ prepMode: v }))} />
         </label>
       </div>
+
+      <Button asChild className="min-h-11">
+        <Link href={`/study/modules/${data.id}/test`}>
+          <ClipboardCheck /> Evaluar nivel
+        </Link>
+      </Button>
 
       <section aria-label="Temas" className="grid gap-2">
         <h2 className="text-lg font-semibold">{data.prepMode ? "Ruta de estudio" : "Temas"}</h2>

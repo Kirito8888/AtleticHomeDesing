@@ -41,6 +41,9 @@ Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el 
 - **Formatos:** fechas como «20 oct 2026» en zona Europe/Madrid y cifras con coma decimal («7,8 h»).
 - **Menú más corto:** la bienvenida de una cuenta nueva marca solo Entreno y Recuperación y ofrece el resto. Las cuentas actuales no cambian. Enlaces nuevos entre Planificación, Recuperación, «De un vistazo» y «Revisión».
 
+**Estudio**
+- **Evaluar nivel:** test de autoevaluación sobre los apuntes de la asignatura, paso a paso a 390 px, con soluciones citadas de los apuntes y una nota estimada /10 que dice qué falta para el 10 (prioriza 🔴). No guarda nada en el plan.
+
 **Rendimiento**
 - Sesión memoizada por petición y panel del club en lote: con 20 atletas, de ~410 a 15 consultas.
 
