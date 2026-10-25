@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Bundle autocontenido para la imagen Docker (ver Dockerfile).
   output: "standalone",
+  serverExternalPackages: ["playwright-core"],
+  // El trazado no copia browsers.json de playwright-core (se lee en ejecución): sin esto el PDF falla en la imagen.
+  outputFileTracingIncludes: { "/api/study/manual": ["./node_modules/playwright-core/**/*"] },
   // v1.7: la escritura de apuntes en UPLOAD_DIR (ruta dinámica) hacía que el trazado metiera TODO el
   // proyecto en la imagen (código fuente, docs, tests, ~13 MB). En ejecución solo hacen falta .next y
   // node_modules; public/ lo copia el Dockerfile aparte.

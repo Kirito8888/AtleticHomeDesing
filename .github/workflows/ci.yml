@@ -197,7 +197,7 @@ jobs:
           SERVER=$!
           for i in $(seq 60); do curl -sf -o /dev/null http://localhost:3000/login && break; sleep 1; done
           fail=""
-          for s in salto v20a v20b v20c v20d v20e v21a v21b v21c v22a v22b v23a v23b v23c v23d v24a v24b v24c v25a v25b v25c v25d v25e v25f v25g v25h v25i v25j v25k v25l v25m v25n; do
+          for s in salto v20a v20b v20c v20d v20e v21a v21b v21c v22a v22b v23a v23b v23c v23d v24a v24b v24c v25a v25b v25c v25d v25e v25f v25g v25h v25i v25j v25k v25l v25m v25n v25o; do
             echo "::group::e2e:$s"
             if npm run -s "e2e:$s" > "e2e-$s.log" 2>&1; then echo "OK e2e:$s"; else echo "FALLA e2e:$s"; fail="$fail $s"; fi
             tail -20 "e2e-$s.log"
