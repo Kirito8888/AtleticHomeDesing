@@ -27,7 +27,7 @@ export const REPORT_LIMITS = {
 export type Tag = "red" | "yellow" | "grey";
 export const TAG_EMOJI: Record<Tag, string> = { red: "🔴", yellow: "🟡", grey: "⚪" };
 export const TAG_LABEL: Record<Tag, string> = { red: "cae seguro", yellow: "probable", grey: "secundario" };
-const WEIGHT: Record<Tag, number> = { red: 3, yellow: 2, grey: 1 };
+export const WEIGHT: Record<Tag, number> = { red: 3, yellow: 2, grey: 1 };
 
 // ---------------------------------------------------------------- esquema (lo que devuelve la IA)
 

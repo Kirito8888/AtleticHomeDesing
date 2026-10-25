@@ -9,6 +9,7 @@ import { Field } from "@/components/form/chips";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
 import { useSharedFiles } from "@/lib/share-client";
 import { formatDate } from "@/lib/format";
@@ -18,6 +19,7 @@ export interface DocItem {
   id: string;
   title: string;
   subject: string | null;
+  moduleId: string | null;
   status: "PENDING" | "PROCESSING" | "EMBEDDED" | "FAILED";
   error: string | null;
   createdAt: string;
@@ -27,7 +29,7 @@ export interface DocItem {
 
 const STATUS = { PENDING: "Pendiente", PROCESSING: "Procesando", EMBEDDED: "Listo", FAILED: "Error" } as const;
 
-export function DocumentsPanel({ docs, aiEnabled }: { docs: DocItem[]; aiEnabled: boolean }) {
+export function DocumentsPanel({ docs, aiEnabled, modules }: { docs: DocItem[]; aiEnabled: boolean; modules: { id: string; name: string }[] }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   // v1.8 · llegado desde «Compartir»: queda elegido, falta pulsar «Subir»
@@ -40,6 +42,7 @@ export function DocumentsPanel({ docs, aiEnabled }: { docs: DocItem[]; aiEnabled
     toast.info(`«${shared[0].name}» listo: pulsa Subir`);
   });
   const [subject, setSubject] = useState("");
+  const [moduleId, setModuleId] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
   // El proceso va en segundo plano: mientras haya documentos en cola o en curso,
@@ -58,6 +61,7 @@ export function DocumentsPanel({ docs, aiEnabled }: { docs: DocItem[]; aiEnabled
     const form = new FormData();
     form.set("file", file);
     if (subject) form.set("subject", subject);
+    if (moduleId) form.set("moduleId", moduleId);
     setBusy("upload");
     try {
       await api("/api/ai/documents", { form });
@@ -86,13 +90,25 @@ export function DocumentsPanel({ docs, aiEnabled }: { docs: DocItem[]; aiEnabled
 
   return (
     <div className="grid gap-4">
-      <form onSubmit={upload} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_12rem_auto] sm:items-end">
+      <form onSubmit={upload} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_12rem_12rem_auto] sm:items-end">
         <Field label="Apuntes (PDF, TXT o Markdown, máx. 15 MB)" htmlFor="doc-file">
           <Input id="doc-file" ref={fileRef} type="file" accept=".pdf,.txt,.md,.markdown,application/pdf,text/plain,text/markdown" />
         </Field>
         <Field label="Asignatura" htmlFor="doc-subject">
           <Input id="doc-subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Bioquímica" />
         </Field>
+        {modules.length ? (
+          <Field label="Asignatura (módulo)" htmlFor="doc-module">
+            <Select id="doc-module" value={moduleId} onChange={(e) => setModuleId(e.target.value)}>
+              <option value="">Ninguna</option>
+              {modules.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : null}
         <Button type="submit" disabled={!aiEnabled || busy === "upload"}>
           <Upload /> {busy === "upload" ? "Subiendo…" : "Subir"}
         </Button>

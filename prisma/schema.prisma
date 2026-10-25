@@ -87,6 +87,8 @@ model User {
   macros                 Macros[]
   nutritionGoals         NutritionGoal[]
   studyDocuments         StudyDocument[]
+  studyModules           StudyModule[]
+  studyTopics            StudyTopic[]
   chatThreads            ChatThread[]
   flashcardDecks         FlashcardDeck[]
   flashcardShares        FlashcardDeckShare[]
@@ -1274,6 +1276,7 @@ model StudyDocument {
   userId      String
   title       String
   subject     String? // asignatura
+  moduleId    String? // v2.5 · módulo (asignatura) al que pertenece
   mimeType    String
   storagePath String // ruta en volumen /uploads (no en BD)
   sizeBytes   Int
@@ -1284,10 +1287,52 @@ model StudyDocument {
   updatedAt   DateTime       @updatedAt
 
   user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module     StudyModule?    @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   chunks     DocumentChunk[]
   flashcards Flashcard[]
+  topics     StudyTopic[]
 
   @@index([userId, subject])
+  @@index([moduleId])
+}
+
+/// v2.5 · Módulo/asignatura de estudio con fecha de examen y modo preparación.
+model StudyModule {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  examDate  DateTime? @db.Date
+  prepMode  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents StudyDocument[]
+  topics    StudyTopic[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+/// v2.5 · Tema de un módulo con etiqueta de prioridad (red | yellow | grey) y minutos estimados.
+model StudyTopic {
+  id         String   @id @default(cuid())
+  userId     String
+  moduleId   String
+  name       String
+  tag        String   @default("yellow")
+  minutes    Int      @default(30)
+  done       Boolean  @default(false)
+  position   Int      @default(0)
+  documentId String?
+  createdAt  DateTime @default(now())
+
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module   StudyModule    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  document StudyDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@index([moduleId])
+  @@index([userId])
 }
 
 /// Fragmento vectorizado. `embedding` se escribe/lee con SQL crudo

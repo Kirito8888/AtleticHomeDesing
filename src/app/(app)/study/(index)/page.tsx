@@ -7,6 +7,9 @@ import { AdaptPanel } from "@/components/study/adapt-panel";
 import { MicroStepsPanel } from "@/components/study/micro-steps-panel";
 import { StorageMeter } from "@/components/study/storage-meter";
 import { studyStorageUsage } from "@/lib/ai/rag";
+import { ModulesPanel } from "@/components/study/modules-panel";
+import { listModules } from "@/lib/study/modules-service";
+import { today } from "@/lib/dates";
 import { DocumentsPanel } from "@/components/study/documents-panel";
 import { publicDocError } from "@/lib/ai/doc-error";
 import { listDecks } from "@/lib/ai/flashcards";
@@ -26,7 +29,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   const user = await pageUser();
   const { tab } = await searchParams;
   const aiConfigured = await aiAvailable(user.id);
-  const [me, docs, threads, decks, reports, storage] = await Promise.all([
+  const [me, docs, threads, decks, reports, storage, modules] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { aiConsentAt: true } }),
     prisma.studyDocument.findMany({
       where: { userId: user.id },
@@ -37,10 +40,11 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
     listDecks(user.id),
     prisma.coachReport.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 8 }),
     studyStorageUsage(user.id),
+    listModules(user.id, toIsoDay(today())),
   ]);
   const aiConsent = me.aiConsentAt != null;
   const aiEnabled = aiConfigured && aiConsent;
-  const defaultTab = ["docs", "adapt", "steps", "chat", "cards", "coach"].includes(String(tab)) ? String(tab) : "docs";
+  const defaultTab = ["docs", "modules", "adapt", "steps", "chat", "cards", "coach"].includes(String(tab)) ? String(tab) : "docs";
 
   return (
     <>
@@ -94,6 +98,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
       <Tabs defaultValue={defaultTab}>
         <TabsList className="justify-start overflow-x-auto">
           <TabsTrigger value="docs">Apuntes</TabsTrigger>
+          <TabsTrigger value="modules">Asignaturas</TabsTrigger>
           <TabsTrigger value="adapt">Resumir</TabsTrigger>
           <TabsTrigger value="steps">Pasos</TabsTrigger>
           <TabsTrigger value="chat">Chat</TabsTrigger>
@@ -104,10 +109,12 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
           <StorageMeter used={storage.used} limit={storage.limit} />
           <DocumentsPanel
             aiEnabled={aiEnabled}
+            modules={modules.map((m) => ({ id: m.id, name: m.name }))}
             docs={docs.map((d) => ({
               id: d.id,
               title: d.title,
               subject: d.subject,
+              moduleId: d.moduleId,
               status: d.status,
               error: publicDocError(d.error),
               createdAt: toIsoDay(d.createdAt),
@@ -115,6 +122,9 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
               flashcards: d._count.flashcards,
             }))}
           />
+        </TabsContent>
+        <TabsContent value="modules">
+          <ModulesPanel modules={modules} />
         </TabsContent>
         <TabsContent value="adapt">
           <AdaptPanel aiEnabled={aiEnabled || process.env.LIFEOS_FAKE_AI === "1"} docs={docs.filter((d) => d.status === "EMBEDDED").map((d) => ({ id: d.id, title: d.title }))} />

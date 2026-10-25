@@ -14,6 +14,7 @@ Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el 
 - **Pasos** (`/study`, pestaña nueva): divide un apunte, un tema o un texto en 4–6 micro-pasos de 5–15 min, sin guardar nada en apuntes ni flashcards. Se elige un paso y un intervalo corto (10/2, 15/3 o 20/5 min) y la vista enfocada muestra solo la tarea actual, el tiempo y una barra lisa; pausar, «Paso hecho» y salir. Sin puntos ni rachas. Los pasos viven en el navegador (sobreviven a recargar).
 - **Cuota de 5 GB y medidor** (`/study` → Apuntes): tope de 5 GB (5.368.709.120 bytes) de apuntes por atleta; pasarse da 413 con mensaje claro (subida y «Guardar» de resúmenes). Una barra muestra el espacio usado. `UPLOAD_QUOTA_MB` puede bajar el tope, nunca subirlo; por defecto pasa de 200 a 5120. Sin migración (suma `StudyDocument.sizeBytes` en SQL con bigint).
 - **Informe TDAH** (`/study` → Resumir → «Informe TDAH»): mapa por temas (🔴 cae seguro / 🟡 probable / ⚪ secundario, con minutos), plan de ataque por nota/minuto (calculado, no lo decide la IA), desglose por tema, chuleta, autoevaluación solo de temas 🔴 con soluciones al final y repaso de los últimos 10 minutos. Solo con las fuentes («NO ESTÁ EN LAS FUENTES» si falta); viñetas de ≤ 15 palabras impuestas tras la IA. No guarda hasta confirmar, y siempre como apunte nuevo.
+- **Asignaturas** (`/study`, pestaña nueva): agrupan apuntes y temas, con fecha de examen. Cada tema lleva prioridad (🔴 cae seguro / 🟡 probable / ⚪ secundario) y minutos. Con el «Modo preparación» la lista se reordena según los días que quedan: si todo cabe, por prioridad; si no, por más nota por minuto, y lo que no llega queda al final, marcado, sin quitar temario. Al subir un apunte se puede elegir la asignatura.
 
 **Rutinas y planificación**
 - **Varios espacios a la vez** (pista + gimnasio…) en «Crear mi rutina» y «Crear mi planificación», con ajuste opcional por día. El material de cada día es la unión de lo de sus espacios más tu lista global. Cambiar el sitio de un día también admite varios espacios.
@@ -48,7 +49,7 @@ Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el 
 - La CI ejecuta las 32 suites E2E.
 
 **Datos**
-- **Una migración aditiva** (`v2_5_features`): solo añade índices por usuario en siete tablas. Sin variables nuevas.
+- **Una migración aditiva** (`v2_5_features`): añade índices por usuario en siete tablas y las tablas `StudyModule` y `StudyTopic` (más `StudyDocument.moduleId`). Sin variables nuevas.
 
 ## v2.4.0 — perfil fuerza-velocidad, sugerir fotogramas y auditoría (17/10/2026)
 
