@@ -207,10 +207,27 @@ Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Pri
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
 - **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
 
-## Novedades de la v2.5 (borrador, versión sin publicar)
+## Novedades de la v2.5 (dónde está cada cosa)
 
+**Finanzas**
+- **Inicio de Finanzas** (`/finance`): balance neto, tus cuentas y los últimos movimientos. Presupuestos, flujo, emergencia, suscripciones, temporada y reglas están en **Más** (`/finance/more`).
+- **Registro rápido:** elige Gasto o Ingreso y toca la cuenta o tarjeta (recuerda la última que usaste en este dispositivo). La transferencia es el enlace de abajo.
+- **Historial** (`/finance/history`): filtra por tipo, cuenta, mes o fechas; toca un movimiento para **editarlo** o bórralo (confirmación). Las transferencias no se editan.
+- **Presupuestos** (`/finance/budgets`): elige el mes, mira el reparto del gasto y los avisos («Excedido en X»). «Fijar límite» crea un presupuesto para una categoría que gastas sin límite. Cambiar un límite no altera los meses pasados.
+
+**Estudio** (`/study`)
+- **Resumir:** elige un apunte, un tema o pega un texto, y pide «Resumen TDAH», «Esquema visual» o «Informe TDAH». No se guarda nada hasta que pulsas «Guardar» y confirmas (siempre como apunte nuevo). Si algo no está en tus apuntes, lo dice en vez de inventarlo.
+- **Pasos:** divide un tema en 4–6 micro-pasos de 5–15 min con un temporizador (10/2, 15/3, 20/5). Verás solo el paso actual. No suma horas de estudio.
+- **Asignaturas:** agrupa apuntes y temas, pon la fecha del examen y la prioridad de cada tema (🔴 🟡 ⚪). Con el «Modo preparación» la lista se ordena según los días que quedan y marca lo que no llega.
+- **Evaluar nivel** (dentro de una asignatura): test de 6, 8 o 12 preguntas sobre tus apuntes, con soluciones citadas y una nota estimada /10 que te dice qué falta para el 10.
+- **Manual PDF:** genera un manual A4 de recetas con índice y pestañas de color; se descarga, no se guarda.
+- **Espacio:** hasta 5 GB de apuntes; una barra en «Apuntes» muestra cuánto llevas.
+
+**Entreno y planificación**
 - **Rutinas:** marca varios espacios a la vez, mira «Por qué estas series» (con referencias) y edita el borrador día a día antes de «Activar».
-- **«¿Cómo fue la semana?»:** ahora propone cambios y solo se aplican al pulsar «Aplicar cambios».
+- **«¿Cómo fue la semana?»:** propone cambios y solo se aplican al pulsar «Aplicar cambios».
+
+**General**
 - **Menú:** una cuenta nueva empieza con Entreno y Recuperación y puedes añadir el resto en Ajustes.
 - **Confirmaciones y fechas:** diálogos propios en vez de los del navegador, fechas como «20 oct 2026» y decimales con coma.
 - **Sin conexión:** solo se guarda lo imprescindible; las páginas de salud y finanzas ya no quedan en la caché.

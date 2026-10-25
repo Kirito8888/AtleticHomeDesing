@@ -3,7 +3,7 @@
 # test-migration.sh añade datos sintéticos (scripts/dev/synthetic-data.sql) a la copia, así que no hace falta sembrar la foto.
 # Para que tenga datos reales de desarrollo: npx prisma migrate deploy && npx prisma db seed && scripts/dev/e2e.sh e2e:v110
 # Con --before <MIGRACIÓN>: la foto se deja como estaba ANTES de esa migración (aditiva): se borran las tablas y tipos
-# que crea y su fila de _prisma_migrations. Sirve en bloques posteriores al A de una versión, cuyo fichero se regenera entero.
+# (y los índices) que crea y su fila de _prisma_migrations. Sirve en bloques posteriores al A de una versión, cuyo fichero se regenera entero.
 set -e
 cd "$(dirname "$0")/../.."
 set -a; . ./.env.local; set +a
@@ -18,6 +18,8 @@ if [ "$1" = "--before" ] && [ -n "$2" ]; then
   # Columnas añadidas a tablas previas (ALTER TABLE "T" ADD COLUMN "c", también en líneas de continuación)
   awk '/^ALTER TABLE "/ { split($0, a, "\""); t = a[2] } /ADD COLUMN/ && t != "" { n = split($0, s, "ADD COLUMN"); for (i = 2; i <= n; i++) { split(s[i], c, "\""); print t, c[2] } } /;[[:space:]]*$/ { t = "" }' $F |
     while read -r t c; do psql "$ROOT/atlenza_snap" -qc "alter table if exists \"$t\" drop column if exists \"$c\" cascade"; done
+  # Índices creados sobre tablas previas (los de tablas nuevas caen con su tabla)
+  grep -oE '^CREATE (UNIQUE )?INDEX "[A-Za-z0-9_]*"' $F | cut -d'"' -f2 | while read -r i; do psql "$ROOT/atlenza_snap" -qc "drop index if exists \"$i\""; done
   psql "$ROOT/atlenza_snap" -qc "delete from \"_prisma_migrations\" where migration_name='$2'"
   pg_dump -Fc "$ROOT/atlenza_snap" > $OUT
   psql "$ROOT/postgres" -qc "drop database atlenza_snap"

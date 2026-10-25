@@ -299,23 +299,26 @@ dc up -d --build web
 docker image prune -f
 ```
 
-#### De v2.4 a v2.5 (borrador, versión sin publicar)
+#### De v2.4 a v2.5 (finanzas, estudio TDAH y seguridad)
 
-> Se cerrará al publicar v2.5; hoy refleja lo fusionado en la rama principal.
+**Lo que cambia para quien usa la app:** Finanzas más corta en el móvil (historial editable, presupuestos mensuales), Estudio con resúmenes, micro-pasos, asignaturas, test de nivel y manual en PDF, rutinas con varios espacios y prescripción citada, diálogos y formatos nuevos. Detalle en [`CHANGELOG.md`](CHANGELOG.md).
 
-**Lo que cambia para quien usa la app:** rutinas con varios espacios y prescripción citada, «¿Cómo fue la semana?» con confirmación, menú de bienvenida más corto y diálogos y formatos nuevos. Detalle en [`CHANGELOG.md`](CHANGELOG.md).
+**Antes de actualizar:**
+- En producción la app **no arranca** con `AUTH_SECRET` corto o de ejemplo, `AUTH_URL` público sin https o la contraseña de BD de ejemplo. Revisa tu `.env.production`.
+- Si copiaste `UPLOAD_QUOTA_MB=200` de `.env.example`, ponlo a `5120` o bórralo (el tope de apuntes pasa a 5 GB).
 
-**Antes de actualizar:** en producción la app **no arranca** con `AUTH_SECRET` corto o de ejemplo, `AUTH_URL` público sin https o la contraseña de BD de ejemplo. Revisa tu `.env.production`.
+**Base de datos:** una migración, `v2_5_features`, solo **aditiva**: siete índices por usuario y las tablas `StudyModule` y `StudyTopic` (más la columna `StudyDocument.moduleId`). No toca datos existentes.
 
-**Base de datos:**
-- Una migración: `v2_5_features`. Solo **añade** índices por usuario en siete tablas. No toca datos existentes.
+**Imagen:** la imagen de `web` incluye Chromium para el «Manual PDF»: el *build* tarda más y la imagen pesa más. Sin él esa función responde 503; el resto funciona.
 
 ```bash
-cd /opt/lifeos
+cd <RUTA_DE_LA_APP>
 ./scripts/update.sh
 ```
 
-**Variables nuevas:** ninguna.
+**Variables nuevas:** ninguna obligatoria (`CHROMIUM_PATH` ya viene fijada en la imagen).
+
+**Comprobar:** *Estado del servidor* (Ajustes, administración) muestra la versión 2.5.0 y ninguna migración pendiente; en Estudio → «Manual PDF» se descarga un PDF.
 
 Guía técnica paso a paso: [`docs/migracion-v2-4-a-v2-5.md`](docs/migracion-v2-4-a-v2-5.md).
 
