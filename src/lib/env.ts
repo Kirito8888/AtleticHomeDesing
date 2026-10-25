@@ -55,8 +55,9 @@ const schema = z.object({
   VAPID_PRIVATE_KEY: z.string().optional(),
   // Contacto para el servicio de push: mailto:tu@email o https://tu-dominio
   VAPID_SUBJECT: z.string().regex(/^(mailto:|https:\/\/)/, "VAPID_SUBJECT debe empezar por mailto: o https://").optional(),
-  // Cuota de almacenamiento de apuntes por usuario.
-  UPLOAD_QUOTA_MB: z.coerce.number().int().positive().default(200),
+  // Cuota de almacenamiento de apuntes por usuario. Tope de 5 GB (5120): un valor mayor se recorta
+  // (lib/study/quota.ts); uno menor lo baja si el disco es pequeño.
+  UPLOAD_QUOTA_MB: z.coerce.number().int().positive().default(5120),
   // v1.9 · Opcional: clave de Gemini del servidor, de respaldo para quien no tenga su propia IA (Ajustes → IA).
   GEMINI_API_KEY: z.string().optional(),
   // v1.9 · URL de modelos locales que los usuarios pueden elegir (Ollama, LM Studio, vLLM…), separadas por comas.

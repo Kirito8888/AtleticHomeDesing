@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { SourcePicker, useSource } from "@/components/study/source-picker";
 import { api } from "@/lib/client-api";
+import { TAG_EMOJI, TAG_LABEL, attackPlan, type ReportDoc } from "@/lib/study/adhd-report";
 import { type AdaptDoc, type AdaptMode, MODE_LABEL, type OutlineNode, parseBold } from "@/lib/study/adhd-format";
 
 interface Result {
@@ -48,7 +49,66 @@ function Tree({ node, depth = 0 }: { node: OutlineNode; depth?: number }) {
   );
 }
 
+function ReportReading({ doc }: { doc: ReportDoc }) {
+  const sec = (title: string, children: React.ReactNode, open = false) => (
+    <details open={open} className="rounded-md border">
+      <summary className="min-h-11 cursor-pointer px-3 py-3 font-semibold">{title}</summary>
+      <div className="grid gap-3 border-t p-3">{children}</div>
+    </details>
+  );
+  const list = (items: string[]) => (
+    <ul className="grid gap-2">
+      {items.map((x, i) => (
+        <li key={i} className="ml-4 list-disc"><Rich text={x} /></li>
+      ))}
+    </ul>
+  );
+  return (
+    <div data-testid="adapt-report" className="grid max-w-prose gap-3 break-words text-base leading-relaxed">
+      <h3 className="text-lg font-semibold">{doc.title}</h3>
+      {sec("0. Mapa general", <ul className="grid gap-2">{doc.map.map((m, i) => <li key={i}>{TAG_EMOJI[m.tag]} {m.topic} <span className="text-sm text-muted-foreground">· {TAG_LABEL[m.tag]} · {m.minutes} min</span></li>)}</ul>, true)}
+      {sec("1. Plan de ataque", <ol className="grid gap-2">{attackPlan(doc.map).map((m, i) => <li key={i} className="ml-5 list-decimal">{TAG_EMOJI[m.tag]} {m.topic} · {m.minutes} min</li>)}</ol>)}
+      {sec(
+        "2. Desglose por tema",
+        doc.topics.map((t, i) => (
+          <section key={i} className="grid gap-2 border-b pb-3 last:border-0">
+            <h4 className="border-l-4 border-primary pl-2 font-semibold">{TAG_EMOJI[t.tag]} {t.name}</h4>
+            <p className="text-sm font-medium text-muted-foreground">En 30 segundos</p>
+            {list(t.inThirty)}
+            <p className="text-sm font-medium text-muted-foreground">Conceptos clave</p>
+            {list(t.concepts)}
+            {t.commands.length ? <pre className="overflow-x-auto rounded-md bg-muted p-3 text-sm">{t.commands.map((c) => [c.syntax, c.error ? `# Error: ${c.error}` : "", c.paths ? `# Ruta: ${c.paths}` : ""].filter(Boolean).join("\n")).join("\n\n")}</pre> : null}
+            {t.tables.map((tb, k) => (
+              <div key={k} className="overflow-x-auto">
+                <p className="text-sm font-medium">{tb.title}</p>
+                <table className="w-full min-w-max text-sm">
+                  <thead><tr>{tb.headers.map((h, c) => <th key={c} className="border-b p-1.5 text-left">{h}</th>)}</tr></thead>
+                  <tbody>{tb.rows.map((r, a) => <tr key={a}>{tb.headers.map((_, c) => <td key={c} className="border-b p-1.5">{r[c]}</td>)}</tr>)}</tbody>
+                </table>
+              </div>
+            ))}
+            {t.traps.length ? <><p className="text-sm font-medium text-muted-foreground">Trampas de examen</p>{list(t.traps)}</> : null}
+            {t.mnemonic ? <p className="rounded-md bg-muted p-2 text-sm">Mnemotecnia: {t.mnemonic}</p> : null}
+          </section>
+        )),
+      )}
+      {sec("3. Chuleta final", doc.cheatSheet.map((g, i) => <p key={i}><span className="font-semibold">{g.group}:</span> {g.terms.map((x, k) => <span key={k}><Rich text={x} />{k < g.terms.length - 1 ? " · " : ""}</span>)}</p>))}
+      {sec(
+        "4. Autoevaluación",
+        <>
+          {doc.selfTest.map((s, i) => (
+            <div key={i} className="grid gap-1"><p className="font-medium">{i + 1}. {s.topic}</p>{list(s.recall)}{s.exercise ? <p className="text-sm">Ejercicio: {s.exercise}</p> : null}</div>
+          ))}
+          {doc.selfTest.length ? <><p className="font-medium">Soluciones</p>{doc.selfTest.map((s, i) => <div key={i}><p className="text-sm font-medium text-muted-foreground">{i + 1}. {s.topic}</p>{list(s.solutions)}</div>)}</> : <p className="text-sm text-muted-foreground">Sin temas 🔴 que evaluar.</p>}
+        </>,
+      )}
+      {sec("5. Últimos 10 minutos", <ol className="grid gap-2">{doc.lastTen.map((x, i) => <li key={i} className="ml-5 list-decimal"><Rich text={x} /></li>)}</ol>)}
+    </div>
+  );
+}
+
 function Reading({ content }: { content: AdaptDoc }) {
+  if (content.mode === "report") return <ReportReading doc={content.doc} />;
   if (content.mode === "outline") {
     return (
       <div data-testid="adapt-outline" className="break-words text-base leading-relaxed">
@@ -146,11 +206,16 @@ export function AdaptPanel({ docs, aiEnabled }: { docs: Array<{ id: string; titl
             options={[
               { value: "summary", label: MODE_LABEL.summary },
               { value: "outline", label: MODE_LABEL.outline },
+              { value: "report", label: MODE_LABEL.report },
             ]}
           />
         </Field>
         <p className="text-sm text-muted-foreground">
-          {mode === "summary" ? "Párrafos de 2–3 líneas con las ideas fuerza en negrita." : "Árbol de ideas con la jerarquía clara, de 3 niveles como máximo."}
+          {mode === "summary"
+            ? "Párrafos de 2–3 líneas con las ideas fuerza en negrita."
+            : mode === "outline"
+              ? "Árbol de ideas con la jerarquía clara, de 3 niveles como máximo."
+              : "Mapa, plan de ataque, desglose, chuleta, autoevaluación y repaso final; viñetas de 15 palabras como máximo, solo con tus fuentes."}
         </p>
         <SourcePicker docs={docs} idPrefix="adapt" s={src} />
         <Button type="submit" className="min-h-11" disabled={!aiEnabled || !src.ready || busy}>

@@ -15,6 +15,8 @@ import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { log } from "@/lib/log";
+import { formatBytes } from "@/lib/format";
+import { checkQuota, quotaLimit } from "@/lib/study/quota";
 
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 const ALLOWED: Record<string, string> = {
@@ -47,11 +49,17 @@ export function contentMatches(buf: Buffer, mime: string): boolean {
   }
 }
 
+/** Bytes de apuntes de la atleta. En SQL con bigint: la suma de varios `Int` puede pasar de 2³¹. */
+export async function studyStorageUsage(userId: string): Promise<{ used: number; limit: number }> {
+  const [row] = await prisma.$queryRaw<{ used: bigint }[]>`
+    SELECT COALESCE(SUM("sizeBytes"), 0)::bigint AS used FROM "StudyDocument" WHERE "userId" = ${userId}`;
+  return { used: Number(row?.used ?? 0), limit: quotaLimit(env().UPLOAD_QUOTA_MB) };
+}
+
 async function assertQuota(userId: string, incoming: number) {
-  const { _sum } = await prisma.studyDocument.aggregate({ where: { userId }, _sum: { sizeBytes: true } });
-  const quota = env().UPLOAD_QUOTA_MB * 1024 * 1024;
-  if ((_sum.sizeBytes ?? 0) + incoming > quota) {
-    throw new ApiError(413, `Superarías tu cuota de ${env().UPLOAD_QUOTA_MB} MB de apuntes. Borra documentos antiguos.`);
+  const { used, limit } = await studyStorageUsage(userId);
+  if (!checkQuota(used, incoming, limit).ok) {
+    throw new ApiError(413, `Superarías tu límite de ${formatBytes(limit)} de apuntes (usas ${formatBytes(used)}). Borra apuntes antiguos.`);
   }
 }
 

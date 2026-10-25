@@ -7,6 +7,7 @@ import { generateJson } from "@/lib/ai/llm";
 import { createDocumentFromText, MIN_SCORE, searchChunks } from "@/lib/ai/rag";
 import { ApiError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { buildReportPrompt, reportSchema } from "@/lib/study/adhd-report";
 import {
   type AdaptDoc,
   type AdaptMode,
@@ -28,7 +29,7 @@ export const sourceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("text"), text: z.string().trim().min(40).max(MAX_SOURCE_CHARS) }),
 ]);
 export const adaptRequestSchema = z.object({
-  mode: z.enum(["summary", "outline"]),
+  mode: z.enum(["summary", "outline", "report"]),
   source: sourceSchema,
 });
 export type AdaptRequest = z.infer<typeof adaptRequestSchema>;
@@ -45,7 +46,7 @@ const COMMON = `Eres un tutor que prepara material de estudio de baja carga cogn
 - Destaca con **negrita** solo los conceptos clave (1–2 por bloque). Nada de cursiva ni otro formato.
 - No hagas comentarios clínicos ni sobre diagnósticos.`;
 
-const SYSTEM: Record<AdaptMode, string> = {
+const SYSTEM: Record<Exclude<AdaptMode, "report">, string> = {
   summary: `${COMMON}
 Formato RESUMEN: "title"; "oneLiner" = la idea central en una frase (máx. ${LIMITS.oneLiner} caracteres);
 2–${LIMITS.sections} secciones con "heading" de máx. 6 palabras; cada sección con 1–${LIMITS.blocksPerSection} bloques.
@@ -82,7 +83,12 @@ export async function adaptStudyContent(userId: string, req: AdaptRequest): Prom
   else {
     await assertAiAllowed(userId);
     const prompt = `Tema/origen: ${src.label}\n\nTEXTO:\n${src.text}`;
-    if (req.mode === "summary") {
+    if (req.mode === "report") {
+      const p = buildReportPrompt(src.label, src.text);
+      const r = await generateJson(reportSchema, { userId, system: p.system, prompt: p.prompt, temperature: 0.2 });
+      content = normalizeDoc({ mode: "report", doc: r.data });
+      model = r.model;
+    } else if (req.mode === "summary") {
       const r = await generateJson(summarySchema, { userId, system: SYSTEM.summary, prompt, temperature: 0.3 });
       content = normalizeDoc({ mode: "summary", doc: r.data });
       model = r.model;

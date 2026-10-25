@@ -1,4 +1,4 @@
-// E2E del bloque «Estudio: resumen TDAH y esquema visual» en un móvil de 390 px (necesita build de producción, DATABASE_URL y LIFEOS_FAKE_AI=1).
+// E2E de «Estudio»: resumen TDAH, esquema visual (B12), medidor de 5 GB e informe TDAH (B14) en un móvil de 390 px (necesita build de producción, DATABASE_URL y LIFEOS_FAKE_AI=1).
 //   BASE_URL=http://localhost:3000 npm run e2e:v25k
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
@@ -131,6 +131,42 @@ await page.getByRole("button", { name: "Generar" }).click();
 await page.getByTestId("adapt-summary").waitFor();
 await noOverflow("resumen desde apunte");
 log("generar desde un apunte guardado");
+
+// 4 · B14: medidor de espacio (5 GB) en Apuntes
+await page.goto(B + "/study");
+const meter = page.getByTestId("storage-meter");
+await meter.waitFor();
+const mt = (await meter.textContent()) ?? "";
+if (!/de 5[,.]?\d* GB/.test(mt)) errors.push(`el medidor no muestra «de 5 GB»: ${mt}`);
+const bar = await meter.getByRole("progressbar").getAttribute("aria-valuenow");
+if (bar === null) errors.push("el medidor no es un progressbar");
+const mb = await meter.boundingBox();
+if (!mb || mb.x < -0.5 || mb.x + mb.width > 391) errors.push("el medidor se sale de los 390 px");
+await noOverflow("medidor de espacio");
+await page.screenshot({ path: `${out}/v25k-meter.png`, fullPage: true });
+log(`medidor de espacio: «${mt.replace(/\s+/g, " ").trim()}»`);
+
+// 5 · B14: Informe de Estudio TDAH
+await page.getByRole("tab", { name: "Resumir" }).click();
+await page.getByRole("radiogroup", { name: "Formato" }).getByRole("radio", { name: "Informe TDAH" }).click();
+await page.getByRole("radio", { name: "Texto", exact: true }).click();
+await page.fill("#adapt-text", NOTES);
+await page.getByRole("button", { name: "Generar" }).click();
+const report = page.getByTestId("adapt-report");
+await report.waitFor();
+const heads = await report.locator("details > summary").allTextContents();
+const want = ["0. Mapa general", "1. Plan de ataque", "2. Desglose por tema", "3. Chuleta final", "4. Autoevaluación", "5. Últimos 10 minutos"];
+if (JSON.stringify(heads.map((h) => h.trim())) !== JSON.stringify(want)) errors.push(`secciones del informe: ${heads.join(" | ")}`);
+const long = await report.locator("li").evaluateAll((els) => els.map((e) => (e.textContent ?? "").trim().split(/\s+/).length).filter((n) => n > 15).length);
+if (long) errors.push(`${long} viñetas del informe pasan de 15 palabras`);
+await noOverflow("informe TDAH");
+await page.screenshot({ path: `${out}/v25k-report.png`, fullPage: true });
+const before = docCount();
+await page.getByRole("button", { name: "Guardar" }).click();
+await page.getByRole("alertdialog").getByRole("button", { name: "Cancelar" }).click();
+await page.waitForTimeout(500);
+if (docCount() !== before) errors.push("cancelar el guardado del informe creó un apunte");
+log("informe TDAH: 6 secciones, viñetas ≤ 15 palabras, sin desborde, nada se guarda sin confirmar");
 
 await browser.close();
 if (errors.length) {
