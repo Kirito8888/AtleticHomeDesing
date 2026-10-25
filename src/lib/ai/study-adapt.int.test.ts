@@ -20,6 +20,11 @@ vi.mock("@/lib/ai/llm", async (orig) => ({
       sections: [{ heading: "Vía", blocks: [WALL] }],
       remember: ["Citoplasma"],
       root: { label: "Glucólisis", children: [{ label: "Fase", detail: WALL }] },
+      map: [{ topic: "Glucólisis", tag: "red", minutes: 20 }],
+      topics: [{ name: "Glucólisis", tag: "red", inThirty: [WALL], concepts: [WALL, "**ATP**"] }],
+      cheatSheet: [{ group: "Cifras", terms: ["**2 ATP**"] }],
+      selfTest: [{ topic: "Glucólisis", recall: ["¿Dónde ocurre?", "¿Cuántos ATP?", "¿Y sin oxígeno?"], exercise: WALL, solutions: ["Citoplasma", "2", "Lactato"] }],
+      lastTen: ["**Citoplasma**"],
     }),
   }),
 }));
@@ -79,6 +84,31 @@ describe.skipIf(!HAS_DB)("adaptar apuntes (BD real)", () => {
     expect(body.content.mode).toBe("outline");
     expect(body.content.doc.root.children[0].detail.length).toBeLessThanOrEqual(120);
     expect(body.markdown).toMatch(/^- Glucólisis\n {2}- Fase/m);
+  });
+
+  it("informe TDAH: 6 secciones, viñetas de ≤ 15 palabras y no escribe nada", async () => {
+    const before = await counts();
+    const res = await adapt.POST(post("/api/ai/study/adapt", { mode: "report", source: { kind: "document", documentId: docId } }), undefined as never);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.content.mode).toBe("report");
+    for (const h of ["## 0. Mapa general", "## 1. Plan de ataque", "## 2. Desglose por tema", "## 3. Chuleta final", "## 4. Autoevaluación", "### Soluciones", "## 5. Últimos 10 minutos"]) expect(body.markdown).toContain(h);
+    const words = (s: string) => s.replace(/\*\*/g, "").split(/\s+/).filter(Boolean).length;
+    for (const c of body.content.doc.topics[0].concepts) expect(words(c)).toBeLessThanOrEqual(15);
+    for (const l of body.content.doc.topics[0].inThirty) expect(words(l)).toBeLessThanOrEqual(15);
+    expect(body.content.doc.selfTest[0].recall).toHaveLength(3);
+    expect(await counts()).toEqual(before);
+  });
+
+  it("guardar el informe crea un apunte nuevo y no toca el original", async () => {
+    const gen = await (await adapt.POST(post("/api/ai/study/adapt", { mode: "report", source: { kind: "text", text: WALL } }), undefined as never)).json();
+    const original = await prisma.documentChunk.findMany({ where: { documentId: docId } });
+    const before = await counts();
+    const res = await save.POST(post("/api/ai/study/adapt/save", { content: gen.content }), undefined as never);
+    expect(res.status).toBe(201);
+    expect((await res.json()).title).toMatch(/^Informe TDAH · /);
+    expect((await counts()).docs).toBe(before.docs + 1);
+    expect(await prisma.documentChunk.findMany({ where: { documentId: docId } })).toEqual(original);
   });
 
   it("un apunte ajeno es 404; un cuerpo inválido, 400; un tema sin coincidencias, 422", async () => {

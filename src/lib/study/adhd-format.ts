@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import { fakeReport, normalizeReport, reportSchema, reportToMarkdown, type ReportDoc } from "@/lib/study/adhd-report";
+import { clip, parseBold, sentences, stripBold } from "@/lib/study/bold-text";
+
+export { clip, parseBold, sentences, stripBold };
+export type { Seg } from "@/lib/study/bold-text";
+
 /**
  * Formatos de estudio de baja carga cognitiva (v2.5 · Estudio B12).
  *
@@ -13,7 +19,7 @@ import { z } from "zod";
  * Los límites se imponen aquí, no solo en el prompt: si el modelo devuelve muros de texto, el
  * resultado normalizado sigue cumpliéndolos.
  */
-export type AdaptMode = "summary" | "outline";
+export type AdaptMode = "summary" | "outline" | "report";
 
 export const LIMITS = {
   /** ≈ 3 líneas a 390 px con 16 px (~45 caracteres por línea). */
@@ -54,56 +60,16 @@ const nodeSchema: z.ZodType<OutlineNode> = z.lazy(() =>
 export const outlineSchema = z.object({ title: text, root: nodeSchema });
 export type OutlineDoc = z.infer<typeof outlineSchema>;
 
-export type AdaptDoc = { mode: "summary"; doc: SummaryDoc } | { mode: "outline"; doc: OutlineDoc };
+export type AdaptDoc = { mode: "summary"; doc: SummaryDoc } | { mode: "outline"; doc: OutlineDoc } | { mode: "report"; doc: ReportDoc };
 
 /** Lo que recibe el guardado: el cliente manda el documento y el servidor lo vuelve a validar. */
 export const adaptDocSchema = z.discriminatedUnion("mode", [
   z.object({ mode: z.literal("summary"), doc: summarySchema }),
   z.object({ mode: z.literal("outline"), doc: outlineSchema }),
+  z.object({ mode: z.literal("report"), doc: reportSchema }),
 ]);
 
 // ---------------------------------------------------------------- normalización
-
-const clean = (s: string) => s.replace(/\s+/g, " ").trim();
-const stars = (s: string) => (s.match(/\*\*/g) ?? []).length;
-
-/** Quita la negrita si quedó sin cerrar (par impar de `**`). */
-function balanceBold(s: string): string {
-  return stars(s) % 2 === 0 ? s : s.replace(/\*\*/g, "");
-}
-
-/** Corta por palabra con «…» solo cuando una frase suelta no cabe. */
-export function clip(s: string, max: number): string {
-  s = balanceBold(clean(s));
-  if (s.length <= max) return s;
-  const cut = s.slice(0, max - 1);
-  const sp = cut.lastIndexOf(" ");
-  return balanceBold(`${(sp > max * 0.5 ? cut.slice(0, sp) : cut).replace(/[\s,;:.]+$/, "")}…`);
-}
-
-/** Frases respetando la negrita: no corta dentro de `** … **`. */
-export function sentences(s: string): string[] {
-  const out: string[] = [];
-  let cur = "";
-  let bold = false;
-  const t = clean(s);
-  for (let i = 0; i < t.length; i++) {
-    if (t.startsWith("**", i)) {
-      bold = !bold;
-      cur += "**";
-      i++;
-      continue;
-    }
-    cur += t[i];
-    if (!bold && /[.!?]/.test(t[i]) && (i + 1 === t.length || t[i + 1] === " ")) {
-      out.push(cur.trim());
-      cur = "";
-    }
-  }
-  if (cur.trim()) out.push(cur.trim());
-  return out;
-}
-
 /** Parte un párrafo en bloques ≤ `max`, agrupando frases enteras. */
 export function splitBlock(s: string, max: number = LIMITS.block): string[] {
   const out: string[] = [];
@@ -170,23 +136,11 @@ export function normalizeOutline(raw: OutlineDoc): OutlineDoc {
 }
 
 export function normalizeDoc(d: AdaptDoc): AdaptDoc {
+  if (d.mode === "report") return { mode: "report", doc: normalizeReport(d.doc) };
   return d.mode === "summary" ? { mode: "summary", doc: normalizeSummary(d.doc) } : { mode: "outline", doc: normalizeOutline(d.doc) };
 }
 
 // ---------------------------------------------------------------- negrita y exportación
-
-export interface Seg {
-  text: string;
-  bold: boolean;
-}
-
-/** `**negrita**` → segmentos. No interpreta nada más (se pinta como texto, sin HTML). */
-export function parseBold(s: string): Seg[] {
-  const parts = balanceBold(s).split("**");
-  return parts.map((t, i) => ({ text: t, bold: i % 2 === 1 })).filter((p) => p.text);
-}
-
-export const stripBold = (s: string) => s.replace(/\*\*/g, "");
 
 function outlineLines(n: OutlineNode, depth: number, out: string[]) {
   out.push(`${"  ".repeat(depth)}- ${n.label}${n.detail ? ` — ${n.detail}` : ""}`);
@@ -194,6 +148,7 @@ function outlineLines(n: OutlineNode, depth: number, out: string[]) {
 }
 
 export function toMarkdown(d: AdaptDoc): string {
+  if (d.mode === "report") return reportToMarkdown(d.doc);
   if (d.mode === "summary") {
     const { title, oneLiner, sections, remember } = d.doc;
     const parts = [`# ${title}`, `**En una frase:** ${oneLiner}`];
@@ -206,12 +161,13 @@ export function toMarkdown(d: AdaptDoc): string {
   return `# ${d.doc.title}\n\n${lines.join("\n")}\n`;
 }
 
-export const MODE_LABEL: Record<AdaptMode, string> = { summary: "Resumen TDAH", outline: "Esquema visual" };
+export const MODE_LABEL: Record<AdaptMode, string> = { summary: "Resumen TDAH", outline: "Esquema visual", report: "Informe TDAH" };
 
 // ---------------------------------------------------------------- IA simulada (LIFEOS_FAKE_AI=1)
 
 /** Determinista y sin red: usa las frases del propio texto. */
 export function fakeAdapt(source: string, mode: AdaptMode): AdaptDoc {
+  if (mode === "report") return { mode: "report", doc: fakeReport(source) };
   const sens = sentences(source).filter((s) => s.length > 3);
   const first = sens[0] ?? "Apuntes";
   const pick = (from: number, n: number) => sens.slice(from, from + n);

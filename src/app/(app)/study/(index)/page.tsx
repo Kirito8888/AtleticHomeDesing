@@ -5,6 +5,8 @@ import { PageHeader } from "@/components/page-header";
 import { CoachPanel, type CoachReportView } from "@/components/study/coach-panel";
 import { AdaptPanel } from "@/components/study/adapt-panel";
 import { MicroStepsPanel } from "@/components/study/micro-steps-panel";
+import { StorageMeter } from "@/components/study/storage-meter";
+import { studyStorageUsage } from "@/lib/ai/rag";
 import { DocumentsPanel } from "@/components/study/documents-panel";
 import { publicDocError } from "@/lib/ai/doc-error";
 import { listDecks } from "@/lib/ai/flashcards";
@@ -24,7 +26,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   const user = await pageUser();
   const { tab } = await searchParams;
   const aiConfigured = await aiAvailable(user.id);
-  const [me, docs, threads, decks, reports] = await Promise.all([
+  const [me, docs, threads, decks, reports, storage] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { aiConsentAt: true } }),
     prisma.studyDocument.findMany({
       where: { userId: user.id },
@@ -34,6 +36,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
     prisma.chatThread.findMany({ where: { userId: user.id, kind: "STUDY" }, orderBy: { updatedAt: "desc" }, take: 30, select: { id: true, title: true } }),
     listDecks(user.id),
     prisma.coachReport.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 8 }),
+    studyStorageUsage(user.id),
   ]);
   const aiConsent = me.aiConsentAt != null;
   const aiEnabled = aiConfigured && aiConsent;
@@ -98,6 +101,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
           <TabsTrigger value="coach">Coach</TabsTrigger>
         </TabsList>
         <TabsContent value="docs">
+          <StorageMeter used={storage.used} limit={storage.limit} />
           <DocumentsPanel
             aiEnabled={aiEnabled}
             docs={docs.map((d) => ({

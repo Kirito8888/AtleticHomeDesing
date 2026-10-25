@@ -94,7 +94,7 @@ docker image prune -f
 
 ## 8. Variables de entorno y dependencias
 
-- **Variables:** ninguna nueva; solo la revisión del § 3.
+- **Variables:** ninguna nueva; solo la revisión del § 3. **`UPLOAD_QUOTA_MB`:** el valor por defecto pasa de 200 a 5120 (5 GB, máximo posible). Si tu `.env.production` copió `UPLOAD_QUOTA_MB=200` de `.env.example`, el límite real seguirá en 200 MB: ponlo a `5120` o bórralo.
 - **Dependencias de ejecución:** ninguna. Las nuevas (`@testing-library/dom`, `@testing-library/react`, `jsdom`) son de desarrollo y pruebas.
 - **Licencias:** `node scripts/third-party-notices.mjs --check` al cerrar.
 
