@@ -6,6 +6,7 @@ import { Plus, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Chips, Field } from "@/components/form/chips";
+import { AccountPicker, pickAccount } from "@/components/finance/account-picker";
 import { OcrFill } from "@/components/ocr-fill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,8 @@ export interface AccountOpt {
   id: string;
   name: string;
   type: string;
+  balanceCents?: number;
+  isArchived?: boolean;
 }
 export interface CategoryOpt {
   id: string;
@@ -30,6 +33,23 @@ export interface CategoryOpt {
 }
 
 type Kind = "EXPENSE" | "INCOME" | "TRANSFER";
+
+const LAST_ACCOUNT_KEY = "atlenza.finance.lastAccount";
+// Comodidad por dispositivo: si el almacenamiento no está disponible, se usa la primera cuenta.
+const readLastAccount = () => {
+  try {
+    return localStorage.getItem(LAST_ACCOUNT_KEY);
+  } catch {
+    return null;
+  }
+};
+const saveLastAccount = (id: string) => {
+  try {
+    localStorage.setItem(LAST_ACCOUNT_KEY, id);
+  } catch {
+    /* sin almacenamiento */
+  }
+};
 
 function useSubmit(onDone: () => void) {
   const router = useRouter();
@@ -81,7 +101,10 @@ export function QuickTransaction({
   const [kind, setKind] = useState<Kind>("EXPENSE");
   const [sport, setSport] = useState(false);
   const { busy, run } = useSubmit(() => setOpen(false));
-  const money = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
+  const money = accounts.filter((a) => (a.type === "ASSET" || a.type === "LIABILITY") && !a.isArchived);
+  const [chosen, setChosen] = useState<string | null>(null);
+  // La elegida en esta sesión, si no la última guardada en el dispositivo, si no la primera.
+  const accountId = pickAccount(money, chosen && money.some((a) => a.id === chosen) ? chosen : readLastAccount());
   const cats = categories.filter((c) => c.kind === (kind === "INCOME" ? "INCOME" : "EXPENSE"));
   const formRef = useRef<HTMLFormElement>(null);
   // v1.10 · Rellenar desde la foto de un ticket (OCR del servidor): solo propone, se revisa antes de guardar
@@ -138,6 +161,8 @@ export function QuickTransaction({
                 },
                 "Movimiento guardado",
               );
+              const used = str(f, "account");
+              if (used) saveLastAccount(used);
             }}
           >
             {kind === "TRANSFER" ? (
@@ -164,15 +189,19 @@ export function QuickTransaction({
               <Input id="t-amount" name="amount" inputMode="decimal" placeholder="12,50" className="h-12 text-xl font-semibold" required autoFocus />
             </Field>
             <div className="grid gap-3">
-              <Field label={kind === "INCOME" ? "Cuenta de cobro" : "Desde"} htmlFor="t-acc">
-                <Select id="t-acc" name="account">
-                  {money.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+              {kind === "TRANSFER" ? (
+                <Field label="Desde" htmlFor="t-acc">
+                  <Select id="t-acc" name="account" defaultValue={accountId ?? undefined}>
+                    {money.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </Select>
+                </Field>
+              ) : (
+                <AccountPicker accounts={money} value={accountId} onChange={setChosen} label={kind === "INCOME" ? "Cuenta de cobro" : "Desde"} />
+              )}
               {kind === "TRANSFER" ? (
                 <Field label="Hacia" htmlFor="t-to">
                   <Select id="t-to" name="to" defaultValue={money[1]?.id}>

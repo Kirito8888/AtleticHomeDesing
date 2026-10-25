@@ -43,7 +43,7 @@ const addTx = async (kind: "Gasto" | "Ingreso", amount: string, desc: string, ac
   await page.getByRole("radio", { name: kind }).click();
   await page.fill("#t-amount", amount);
   await page.fill("#t-desc", desc);
-  if (account) await page.selectOption("#t-acc", { label: account });
+  if (account) await page.getByRole("radiogroup", { name: kind === "Ingreso" ? "Cuenta de cobro" : "Desde" }).getByRole("radio", { name: new RegExp(account) }).click();
   if (category) await page.selectOption("#t-cat", { label: category });
   await page.getByRole("button", { name: "Guardar", exact: true }).click();
   await toast(/Movimiento guardado/);

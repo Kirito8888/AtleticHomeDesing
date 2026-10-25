@@ -76,6 +76,34 @@ await page.getByRole("region", { name: "Últimos movimientos" }).getByText("Súp
 await noOverflow("/finance con movimientos");
 log("100 + 50 − 30 = 120 € en balance y tarjeta");
 
+// 4b · Segunda cuenta (tarjeta) y selector de un toque
+await page.getByRole("button", { name: "Cuenta", exact: true }).click();
+await page.fill("#a-name", "Visa");
+await page.getByRole("radio", { name: "Tarjeta de crédito" }).click();
+await page.getByRole("button", { name: "Crear cuenta" }).click();
+await toast(/Cuenta creada/);
+await page.getByRole("button", { name: "Movimiento", exact: true }).click();
+await page.getByRole("radio", { name: "Ingreso" }).click();
+const picker = page.getByRole("radiogroup", { name: "Cuenta de cobro" });
+await picker.waitFor();
+for (const r of await picker.getByRole("radio").all()) await minH(r, "opción de cuenta");
+await picker.getByRole("radio", { name: /Visa/ }).click();
+await page.fill("#t-amount", "20");
+await page.fill("#t-desc", "Premio");
+await noOverflow("hoja de movimiento con dos cuentas");
+await page.getByRole("button", { name: "Guardar", exact: true }).click();
+await toast(/Movimiento guardado/);
+const cards = page.getByRole("list", { name: "Cuentas" });
+await cards.getByText(/120,00\s€/).waitFor();
+await cards.locator("li", { hasText: "Visa" }).getByText(/20,00\s€/).waitFor();
+// Recuerda la última elegida al apuntar de nuevo
+await page.getByRole("button", { name: "Movimiento", exact: true }).click();
+const again = page.getByRole("radiogroup", { name: "Cuenta de cobro" });
+await again.getByRole("radio", { name: /Visa/ }).waitFor();
+if ((await again.getByRole("radio", { name: /Visa/ }).getAttribute("aria-checked")) !== "true") errors.push("no recuerda la última cuenta");
+await page.keyboard.press("Escape");
+log("ingreso en la tarjeta elegida, saldos por cuenta y última cuenta recordada");
+
 // 5 · Resto de secciones movidas, sin desborde
 await page.goto(B + "/finance/more");
 await page.getByText("Fondo de emergencia").first().waitFor();

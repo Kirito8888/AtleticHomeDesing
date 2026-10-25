@@ -29,6 +29,17 @@ describe.skipIf(!HAS_DB)("cuentas y movimientos (BD real)", () => {
     expect(mine?.balanceCents).toBe(12000);
   });
 
+  it("con dos cuentas, ingreso y gasto afectan solo a la elegida (corriente y tarjeta)", async () => {
+    const bank = await fin.createAccount(userId, { name: "Banco B", type: "ASSET", openingBalanceCents: 20000 });
+    const card = await fin.createAccount(userId, { name: "Tarjeta B", type: "LIABILITY" });
+    const tx = await fin.createTransaction(userId, { mode: "simple", kind: "INCOME", date: "2026-10-03", description: "Premio", amountCents: 5000, moneyAccountId: card.id });
+    expect(tx.postings.some((p) => p.accountId === card.id)).toBe(true);
+    await fin.createTransaction(userId, { mode: "simple", kind: "EXPENSE", date: "2026-10-04", description: "Material", amountCents: 1200, moneyAccountId: bank.id });
+    const list = await fin.listAccounts(userId);
+    expect(list.find((a) => a.id === bank.id)?.balanceCents).toBe(18800);
+    expect(list.find((a) => a.id === card.id)?.balanceCents).toBe(5000);
+  });
+
   it("sin saldo inicial la cuenta empieza en 0", async () => {
     const acc = await fin.createAccount(userId, { name: "Efectivo", type: "ASSET" });
     expect((await fin.listAccounts(userId)).find((a) => a.id === acc.id)?.balanceCents).toBe(0);
