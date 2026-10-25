@@ -106,9 +106,15 @@ docker image prune -f
 - **Dependencias de ejecución:** `playwright-core` (ahora en `dependencies`; maqueta el PDF del estudio, listado en `serverExternalPackages`) y el paquete `chromium` del sistema en la imagen. **La imagen es más grande y el *build* más lento.** Las de desarrollo (`@testing-library/dom`, `@testing-library/react`, `jsdom`) no afectan a producción.
 - **Licencias:** `node scripts/third-party-notices.mjs --check` al cerrar.
 
-## 9. Pendiente al cerrar v2.5
+## 9. Cierre de v2.5.0 (25/10/2026)
 
-- [ ] Subir `version` en `package.json` a 2.5.0 y cerrar la entrada de `CHANGELOG.md`.
-- [ ] Confirmar que sigue habiendo **una sola** migración de v2.5 y repetir § 4 con el esquema final.
-- [ ] `e2e.sh all`, Semgrep y licencias (ver `CLAUDE.md`).
-- [ ] Completar la lista de cambios de esquema si se añade alguno, y quitar la marca de borrador de este documento y de `manual_docker_debian.md`.
+Verificación hecha antes de abrir el PR:
+
+- `typecheck` y `lint` sin errores · 197 ficheros y 1196 tests (con BD) en verde.
+- 43 suites E2E en verde (incluidas `v25l` y `v25o`, que `scripts/dev/e2e.sh all` no lanza: se ejecutaron por nombre). Semgrep: 0 hallazgos. Licencias: 348 dependencias de producción admitidas. `npm audit --omit=dev`: 0 vulnerabilidades.
+- `test-migration.sh`: OK (`v2_5_features`, recuentos y huella de series idénticos, diff de esquema vacío). Sigue habiendo **una sola** migración de v2.5.
+- `package.json` y `package-lock.json` en 2.5.0; CHANGELOG, guía, README y este manual sin marca de borrador.
+
+**Sin probar** (no reproducible en el entorno de desarrollo): la imagen Docker real con Chromium, el «Manual PDF» y los resúmenes/tests de estudio con un modelo de IA real, y el aviso «Nueva versión, recargar».
+
+**Nota para quien repita la verificación:** `snapshot.sh --before` ahora también borra los índices que la migración crea sobre tablas ya existentes; sin eso, `test-migration.sh` fallaba con «relation … already exists». En un entorno sin Chromium completo, la suite base `e2e` necesita `CHROMIUM_PATH=/opt/pw-browsers/chromium` (el *headless shell* bloquea las notificaciones).
