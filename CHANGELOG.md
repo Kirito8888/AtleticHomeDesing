@@ -9,6 +9,9 @@ Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el 
 **Finanzas**
 - **Historial** (`/finance/history`): todos los movimientos, más recientes primero, con filtros por tipo, cuenta, mes o rango de fechas. Cada movimiento se puede **editar** (importe, cuenta, categoría, fecha, tipo) o borrar con confirmación; los saldos y el balance se recalculan al instante.
 
+**Estudio**
+- **Resumir** (`/study`, pestaña nueva): «Resumen TDAH» (idea en una frase, secciones cortas, bloques de ≤ 120 caracteres con las ideas fuerza en negrita y «Recuerda») y «Esquema visual» (árbol de 3 niveles como máximo, plegable por ramas) a partir de un apunte, un tema de tus apuntes o un texto pegado. Solo usa tu texto; no inventa. **No guarda nada** hasta que pulsas «Guardar» y confirmas: crea un apunte nuevo (el original y las flashcards no cambian). También se puede «Copiar». Los límites de formato se aplican en el servidor aunque la IA devuelva párrafos largos. Se apoya en principios generales de carga cognitiva, segmentación y legibilidad (no hay ensayos que validen un formato concreto para TDAH). Sin migración.
+
 **Rutinas y planificación**
 - **Varios espacios a la vez** (pista + gimnasio…) en «Crear mi rutina» y «Crear mi planificación», con ajuste opcional por día. El material de cada día es la unión de lo de sus espacios más tu lista global. Cambiar el sitio de un día también admite varios espacios.
 - **Prescripción con ciencia citada:** series semanales, repeticiones, RIR y descanso según objetivo (fuerza, hipertrofia-salud, resistencia muscular) y nivel. Cada fila lleva «Por qué estas series» y el plan lista sus referencias (con DOI verificados). El borrador de rutina se puede **editar día a día**; al cambiar las series se recalcula el porqué. Sigue sin escribirse nada en el plan hasta «Activar».

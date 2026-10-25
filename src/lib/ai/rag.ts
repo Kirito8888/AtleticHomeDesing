@@ -105,6 +105,37 @@ export async function createDocumentFromUpload(userId: string, file: File, meta:
   }
 }
 
+/**
+ * v2.5 · Guarda un resumen/esquema que la atleta ha confirmado como apunte NUEVO (.md). Ya viene en texto,
+ * así que se trocea y queda listo para buscar por texto sin llamar a la IA (si cambia de IA se reindexa).
+ * Nunca toca el apunte de origen ni sus flashcards.
+ */
+export async function createDocumentFromText(userId: string, meta: { title: string; subject?: string | null; markdown: string }) {
+  const buf = Buffer.from(meta.markdown, "utf8");
+  await assertQuota(userId, buf.length);
+  const chunks = chunkDocument([meta.markdown]);
+  if (!chunks.length) throw new ApiError(422, "No hay contenido que guardar");
+  const doc = await prisma.studyDocument.create({
+    data: { userId, title: meta.title.slice(0, 200), subject: meta.subject?.trim() || null, mimeType: "text/markdown", storagePath: "", sizeBytes: buf.length, status: "PROCESSING" },
+  });
+  try {
+    const dir = path.resolve(/* turbopackIgnore: true */ env().UPLOAD_DIR, userId);
+    await mkdir(dir, { recursive: true });
+    const storagePath = path.join(/* turbopackIgnore: true */ dir, `${doc.id}.md`);
+    await writeFile(storagePath, buf);
+    await prisma.$transaction([
+      prisma.documentChunk.createMany({
+        data: chunks.map((c) => ({ documentId: doc.id, userId, chunkIndex: c.index, content: c.content, page: c.page, tokenCount: Math.ceil(c.content.length / 4) })),
+      }),
+      prisma.studyDocument.update({ where: { id: doc.id }, data: { storagePath, status: "EMBEDDED", embedModel: TEXT_ONLY, error: null } }),
+    ]);
+    return prisma.studyDocument.findUniqueOrThrow({ where: { id: doc.id }, include: { _count: { select: { chunks: true } } } });
+  } catch (err) {
+    await prisma.studyDocument.delete({ where: { id: doc.id } }).catch(() => {});
+    throw err;
+  }
+}
+
 export interface ProcessDeps {
   /** Vectores y etiqueta del modelo con la IA del usuario; null si su IA no tiene embeddings (búsqueda por texto). */
   embed: (userId: string, texts: string[], task: EmbedTask) => Promise<{ vectors: number[][]; tag: string } | null>;
@@ -211,7 +242,7 @@ export async function searchChunks(userId: string, query: string, k = 6, documen
 }
 
 /** Por debajo de esta similitud el fragmento se considera irrelevante. */
-const MIN_SCORE = 0.35;
+export const MIN_SCORE = 0.35;
 
 /**
  * Documentos indexados con otro modelo (o solo por texto) cuando el usuario cambia de IA: se vuelven
