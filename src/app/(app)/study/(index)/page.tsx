@@ -4,6 +4,7 @@ import { Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { CoachPanel, type CoachReportView } from "@/components/study/coach-panel";
 import { AdaptPanel } from "@/components/study/adapt-panel";
+import { MicroStepsPanel } from "@/components/study/micro-steps-panel";
 import { DocumentsPanel } from "@/components/study/documents-panel";
 import { publicDocError } from "@/lib/ai/doc-error";
 import { listDecks } from "@/lib/ai/flashcards";
@@ -36,7 +37,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   ]);
   const aiConsent = me.aiConsentAt != null;
   const aiEnabled = aiConfigured && aiConsent;
-  const defaultTab = ["docs", "adapt", "chat", "cards", "coach"].includes(String(tab)) ? String(tab) : "docs";
+  const defaultTab = ["docs", "adapt", "steps", "chat", "cards", "coach"].includes(String(tab)) ? String(tab) : "docs";
 
   return (
     <>
@@ -88,9 +89,10 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
         </p>
       ) : null}
       <Tabs defaultValue={defaultTab}>
-        <TabsList>
+        <TabsList className="justify-start overflow-x-auto">
           <TabsTrigger value="docs">Apuntes</TabsTrigger>
           <TabsTrigger value="adapt">Resumir</TabsTrigger>
+          <TabsTrigger value="steps">Pasos</TabsTrigger>
           <TabsTrigger value="chat">Chat</TabsTrigger>
           <TabsTrigger value="cards">Flashcards</TabsTrigger>
           <TabsTrigger value="coach">Coach</TabsTrigger>
@@ -112,6 +114,9 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
         </TabsContent>
         <TabsContent value="adapt">
           <AdaptPanel aiEnabled={aiEnabled || process.env.LIFEOS_FAKE_AI === "1"} docs={docs.filter((d) => d.status === "EMBEDDED").map((d) => ({ id: d.id, title: d.title }))} />
+        </TabsContent>
+        <TabsContent value="steps">
+          <MicroStepsPanel aiEnabled={aiEnabled || process.env.LIFEOS_FAKE_AI === "1"} docs={docs.filter((d) => d.status === "EMBEDDED").map((d) => ({ id: d.id, title: d.title }))} />
         </TabsContent>
         <TabsContent value="chat">
           <StudyChat threads={threads} aiEnabled={aiEnabled && docs.some((d) => d.status === "EMBEDDED")} />

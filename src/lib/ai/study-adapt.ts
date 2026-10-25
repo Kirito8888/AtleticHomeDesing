@@ -22,13 +22,14 @@ import {
 
 const fakeAi = () => process.env.LIFEOS_FAKE_AI === "1";
 
+export const sourceSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("document"), documentId: z.string() }),
+  z.object({ kind: z.literal("topic"), topic: z.string().trim().min(2).max(200) }),
+  z.object({ kind: z.literal("text"), text: z.string().trim().min(40).max(MAX_SOURCE_CHARS) }),
+]);
 export const adaptRequestSchema = z.object({
   mode: z.enum(["summary", "outline"]),
-  source: z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("document"), documentId: z.string() }),
-    z.object({ kind: z.literal("topic"), topic: z.string().trim().min(2).max(200) }),
-    z.object({ kind: z.literal("text"), text: z.string().trim().min(40).max(MAX_SOURCE_CHARS) }),
-  ]),
+  source: sourceSchema,
 });
 export type AdaptRequest = z.infer<typeof adaptRequestSchema>;
 
@@ -56,7 +57,7 @@ ${LIMITS.depth} niveles bajo la raíz. "label" de máx. 8 palabras (con el térm
 "detail" opcional de máx. ${LIMITS.detail} caracteres. Sin frases largas en las etiquetas.`,
 };
 
-async function loadSource(userId: string, source: AdaptRequest["source"]): Promise<{ label: string; text: string }> {
+export async function loadSource(userId: string, source: AdaptRequest["source"]): Promise<{ label: string; text: string }> {
   if (source.kind === "text") return { label: "Apuntes pegados", text: source.text };
   if (source.kind === "document") {
     const doc = await prisma.studyDocument.findFirst({

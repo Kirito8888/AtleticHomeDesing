@@ -11,6 +11,7 @@ Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el 
 
 **Estudio**
 - **Resumir** (`/study`, pestaña nueva): «Resumen TDAH» (idea en una frase, secciones cortas, bloques de ≤ 120 caracteres con las ideas fuerza en negrita y «Recuerda») y «Esquema visual» (árbol de 3 niveles como máximo, plegable por ramas) a partir de un apunte, un tema de tus apuntes o un texto pegado. Solo usa tu texto; no inventa. **No guarda nada** hasta que pulsas «Guardar» y confirmas: crea un apunte nuevo (el original y las flashcards no cambian). También se puede «Copiar». Los límites de formato se aplican en el servidor aunque la IA devuelva párrafos largos. Se apoya en principios generales de carga cognitiva, segmentación y legibilidad (no hay ensayos que validen un formato concreto para TDAH). Sin migración.
+- **Pasos** (`/study`, pestaña nueva): divide un apunte, un tema o un texto en 4–6 micro-pasos de 5–15 min, sin guardar nada en apuntes ni flashcards. Se elige un paso y un intervalo corto (10/2, 15/3 o 20/5 min) y la vista enfocada muestra solo la tarea actual, el tiempo y una barra lisa; pausar, «Paso hecho» y salir. Sin puntos ni rachas. Los pasos viven en el navegador (sobreviven a recargar).
 
 **Rutinas y planificación**
 - **Varios espacios a la vez** (pista + gimnasio…) en «Crear mi rutina» y «Crear mi planificación», con ajuste opcional por día. El material de cada día es la unión de lo de sus espacios más tu lista global. Cambiar el sitio de un día también admite varios espacios.
