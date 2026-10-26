@@ -49,11 +49,6 @@ psql(`insert into "StudyModule"(id,"userId",name,"updatedAt") values ('${mid}','
 psql(`insert into "StudyTopic"(id,"userId","moduleId",name,tag) values ('t1${stamp}','${uid}','${mid}','Ciclo de Krebs','red'),('t2${stamp}','${uid}','${mid}','Glucólisis','yellow'),('t3${stamp}','${uid}','${mid}','Lípidos','grey')`);
 
 
-const dialogs: string[] = [];
-page.on("dialog", (d) => {
-  dialogs.push(d.message());
-  void d.accept();
-});
 const nodes = page.locator("[data-node]");
 
 // 1 · desde la asignatura → «Modo Juego»
@@ -72,27 +67,100 @@ log("«Modo Juego» desde la asignatura");
 if ((await nodes.count()) !== 4) errors.push(`nodos: ${await nodes.count()} ≠ 4`);
 const names = await nodes.evaluateAll((els) => els.map((e) => e.textContent ?? ""));
 if (!names[0].includes("Ciclo de Krebs") || !names[1].includes("Glucólisis") || !names[2].includes("Lípidos") || !names[3].includes("Jefe Final")) errors.push(`orden de nodos: ${names.join(" | ")}`);
-const disabled = await nodes.evaluateAll((els) => els.map((e) => (e as HTMLButtonElement).disabled));
+const disabled = await nodes.evaluateAll((els) => els.map((e) => !!(e as HTMLButtonElement).disabled));
 if (disabled.join() !== "false,true,true,true") errors.push(`bloqueo inicial: ${disabled.join()}`);
 if ((await page.getByTestId("quest-lock").count()) !== 3) errors.push("deben verse 3 candados");
 if ((await page.getByTestId("quest-xp").innerText()).trim() !== "0") errors.push("XP inicial ≠ 0");
 if (!(await page.getByTestId("quest-rank").innerText()).includes("Novata")) errors.push("rango inicial ≠ Novata");
 await minH(nodes, "nodos del mapa");
 await minH(page.getByRole("button", { name: /Modo libre/ }), "«Modo libre»");
-await minH(page.getByRole("button", { name: /Mazmorra/ }), "«Mazmorra»");
-if (!(await page.getByRole("button", { name: /Mazmorra/ }).isDisabled())) errors.push("la mazmorra sin fallos debe estar deshabilitada");
+await minH(page.getByTestId("quest-dungeon"), "«Mazmorra»");
+if (!(await page.getByTestId("quest-dungeon").isDisabled())) errors.push("la mazmorra sin fallos debe estar deshabilitada");
 await page.screenshot({ path: `${out}/quest-390.png`, fullPage: true });
 log("mapa: 3 temas + jefe, candados, 0 XP");
 
-// 3 · pulsar un nivel abierto → solo un aviso
+// 3 · pulsar el nivel 1 abre la partida (390 px): fallar una práctica quita un corazón con shake, hasta el Game Over
 await nodes.first().click();
-if (dialogs.length !== 1) errors.push(`aviso al pulsar nivel: ${dialogs.length}`);
+await page.waitForURL(/\/quest\/play\?level=/);
+await page.getByTestId("quest-start").waitFor();
+await page.waitForTimeout(500); // termina la animación pop (escala 0,9 → 1)
+await minH(page.getByTestId("quest-start"), "«Empezar»");
+await noOverflow("partida (intro)");
+await page.getByTestId("quest-start").click();
+await page.getByTestId("quest-card").waitFor();
+await noOverflow("partida");
+const lives = async () => Number(await page.getByTestId("quest-hearts").getAttribute("data-lives"));
+if ((await lives()) !== 3) errors.push("deben empezar 3 corazones");
+let sawShake = false;
+let sawPracticeFail = false;
+let sawDead = false;
+for (let k = 0; k < 40 && !sawDead; k++) {
+  const done = page.getByTestId("quest-result");
+  if (await done.count()) {
+    sawDead = true;
+    break;
+  }
+  const cmd = page.locator("input[name=cmd]");
+  if (await cmd.count()) {
+    const before = await lives();
+    await page.waitForTimeout(500);
+    await minH(cmd, "terminal");
+    await minH(page.getByRole("button", { name: /Comprobar/ }), "«Comprobar»");
+    await cmd.fill("zzz no existe");
+    await cmd.press("Enter");
+    await page.getByTestId("quest-feedback").waitFor();
+    if (!sawPracticeFail) {
+      sawPracticeFail = true;
+      if ((await lives()) !== before - 1) errors.push(`fallar una práctica debe quitar un corazón (${before} → ${await lives()})`);
+      sawShake = await page.locator(".quest-shake").count().then((n) => n > 0);
+      const card = await page.getByTestId("quest-card").getAttribute("data-fail");
+      if (card !== "1") errors.push("la tarjeta fallada no se marca");
+      await minH(page.getByTestId("quest-next"), "«Siguiente»");
+    }
+  } else {
+    await minH(page.locator("[data-opt]"), "opciones de teoría");
+    await page.locator("[data-opt]").first().click();
+    await page.getByTestId("quest-feedback").waitFor();
+  }
+  await page.getByTestId("quest-next").click();
+  await page.getByTestId("quest-card").or(page.getByTestId("quest-result")).waitFor();
+}
+if (!sawPracticeFail) errors.push("no apareció ninguna práctica");
+if (!sawShake) errors.push("falta la animación shake al fallar");
+const res3 = page.getByTestId("quest-result");
+await res3.waitFor();
+if (!(await res3.innerText()).includes("GAME OVER")) errors.push("al quedarse sin vidas debe verse GAME OVER");
+await noOverflow("resultado");
+await page.screenshot({ path: `${out}/quest-play-390.png`, fullPage: true });
+if (!(await page.getByTestId("quest-review").innerText()).includes("✔")) errors.push("el repaso no muestra las soluciones");
+const stored = await page.evaluate(() => JSON.parse(localStorage.getItem(Object.keys(localStorage).find((q) => q.startsWith("atlenza.study.quest.")) ?? "") ?? "{}"));
+if (!Array.isArray(stored.fails) || stored.fails.length < 3) errors.push(`fallos guardados: ${JSON.stringify(stored.fails)}`);
+if (stored.lv?.[`t1${stamp}`]?.stars !== 0) errors.push("el Game Over no debe dar estrellas");
+log("partida: corazón perdido con shake y Game Over");
+
+// 3b · la mazmorra muestra los fallos, con vidas infinitas
+await page.getByRole("link", { name: /Mazmorra/ }).click();
+await page.waitForURL(/mode=dungeon/);
+await page.getByTestId("quest-start").click();
+await page.getByTestId("quest-card").waitFor();
+await page.getByLabel("Vidas infinitas").waitFor();
+await noOverflow("mazmorra");
+const dq = await page.getByTestId("quest-card").innerText();
+if (!/TEORÍA|PRÁCTICA/.test(dq)) errors.push("la mazmorra no muestra una pregunta");
+log("mazmorra con los fallos y vidas infinitas");
+
+// 3c · un nivel bloqueado no se juega por URL
+await page.goto(`${B}/study/modules/${mid}/quest/play?level=t2${stamp}`);
+await page.getByTestId("quest-locked").waitFor();
+log("nivel bloqueado");
+await page.goto(`${B}/study/modules/${mid}/quest`);
+await page.getByTestId("quest").waitFor();
 
 // 4 · modo libre desbloquea todo y se recuerda
 const libre = page.getByRole("button", { name: /Modo libre/ });
 await libre.click();
 await page.getByRole("button", { name: "🔓 Modo libre: ON" }).waitFor();
-if ((await nodes.evaluateAll((els) => els.filter((e) => (e as HTMLButtonElement).disabled).length)) !== 0) errors.push("el modo libre no abrió todos los nodos");
+if ((await nodes.evaluateAll((els) => els.filter((e) => !!(e as HTMLButtonElement).disabled).length)) !== 0) errors.push("el modo libre no abrió todos los nodos");
 if ((await page.getByTestId("quest-lock").count()) !== 0) errors.push("quedan candados con el modo libre");
 await page.reload();
 await page.getByRole("button", { name: "🔓 Modo libre: ON" }).waitFor();
@@ -102,15 +170,16 @@ await libre.click();
 // 5 · ★★ en el nivel 1 abre el 2; fallos habilitan la mazmorra
 const key = await page.evaluate(() => Object.keys(localStorage).find((k) => k.startsWith("atlenza.study.quest.")) ?? "");
 if (key !== `atlenza.study.quest.${mid}`) errors.push(`clave de almacenamiento: ${key}`);
-await page.evaluate(([k, t1]) => localStorage.setItem(k, JSON.stringify({ xp: 150, lv: { [t1]: { stars: 2, best: 85 } }, fails: ["a:t1", "a:t2"], free: false })), [key, `t1${stamp}`]);
+await page.evaluate(([k, t1]) => localStorage.setItem(k, JSON.stringify({ xp: 150, lv: { [t1]: { stars: 2, best: 85 } }, fails: ["L1:t0", "L1:p1"], free: false })), [key, `t1${stamp}`]);
 await page.reload();
 await page.getByTestId("quest").waitFor();
-const d2 = await nodes.evaluateAll((els) => els.map((e) => (e as HTMLButtonElement).disabled));
+const d2 = await nodes.evaluateAll((els) => els.map((e) => !!(e as HTMLButtonElement).disabled));
 if (d2.join() !== "false,false,true,true") errors.push(`desbloqueo con ★★: ${d2.join()}`);
 if ((await page.getByTestId("quest-xp").innerText()).trim() !== "150") errors.push("XP guardada no se muestra");
-const dung = page.getByRole("button", { name: /Mazmorra de fallos \(2\)/ });
+const dung = page.getByRole("link", { name: /Mazmorra de fallos \(2\)/ });
 await dung.click();
-if (dialogs.length !== 2) errors.push("la mazmorra no avisa");
+await page.waitForURL(/mode=dungeon/);
+await page.getByTestId("quest-start").waitFor();
 log("estrellas, XP y mazmorra desde localStorage");
 
 // 6 · el estado no se comparte con otra asignatura

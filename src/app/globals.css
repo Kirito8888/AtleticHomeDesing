@@ -147,3 +147,37 @@ html [data-sonner-toaster][data-sonner-theme="light"] {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Modo Juego: animaciones de ASO_Quest.html (pop al entrar una tarjeta, shake al fallar). */
+@keyframes quest-pop {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes quest-shake {
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+.quest-pop {
+  animation: quest-pop 0.25s ease-out;
+}
+.quest-shake {
+  animation: quest-shake 0.35s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .quest-pop,
+  .quest-shake {
+    animation: none;
+  }
+}
