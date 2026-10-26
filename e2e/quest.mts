@@ -79,10 +79,33 @@ if (!(await page.getByTestId("quest-dungeon").isDisabled())) errors.push("la maz
 await page.screenshot({ path: `${out}/quest-390.png`, fullPage: true });
 log("mapa: 3 temas + jefe, candados, 0 XP");
 
-// 3 · pulsar el nivel 1 abre la partida (390 px): fallar una práctica quita un corazón con shake, hasta el Game Over
+// 3 · pulsar el nivel 1 abre la partida (390 px): la IA se simula (mock de red). La 1.ª llamada falla (409) para probar el reintento
+const th = (i: number) => ({ id: `ai:t1:mock${i}:t${i}`, lid: "t1", type: "t", t: [`Pregunta IA ${i}: ¿qué dicen los apuntes?`, ["Respuesta correcta", "Distractor A", "Distractor B", "Distractor C"], "Explicación de los apuntes."] });
+const pr = (i: number) => ({ id: `ai:t1:mock${i}:p${i}`, lid: "t1", type: "p", p: { q: `Práctica IA ${i}: lista el archivo`, sol: `tar -tvf copia${i}.tar`, ok: [], sh: "b" } });
+const mockItems = [th(0), th(1), th(2), th(3), pr(0), pr(1), pr(2), pr(3), pr(4)];
+let aiCalls = 0;
+let aiBody = "";
+await page.route("**/api/ai/study/quest", async (rt) => {
+  aiCalls++;
+  aiBody = rt.request().postData() ?? "";
+  await new Promise((r) => setTimeout(r, 700));
+  if (aiCalls === 1) return rt.fulfill({ status: 409, contentType: "application/json", body: JSON.stringify({ error: "Esta asignatura no tiene apuntes procesados. Sube alguno para jugar." }) });
+  return rt.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ items: mockItems, model: "simulado" }) });
+});
 await nodes.first().click();
 await page.waitForURL(/\/quest\/play\?level=/);
+await page.getByTestId("quest-loading").waitFor();
+if (!(await page.getByTestId("quest-loading").innerText()).includes("Generando mazmorra")) errors.push("falta el texto «Generando mazmorra…»");
+await noOverflow("carga");
+await page.screenshot({ path: `${out}/quest-loading-390.png` });
+await page.getByTestId("quest-error").waitFor();
+if (!(await page.getByTestId("quest-error").innerText()).includes("apuntes procesados")) errors.push("el error 409 no se muestra");
+await minH(page.getByTestId("quest-retry"), "«Reintentar»");
+if (JSON.parse(aiBody).nodeId !== `t1${stamp}` || JSON.parse(aiBody).moduleId !== mid) errors.push(`cuerpo de la petición: ${aiBody}`);
+await page.getByTestId("quest-retry").click();
+log("carga «Generando mazmorra…», error 409 y reintento");
 await page.getByTestId("quest-start").waitFor();
+await page.waitForTimeout(500); // termina la animación pop (escala 0,9 → 1)
 await page.waitForTimeout(500); // termina la animación pop (escala 0,9 → 1)
 await minH(page.getByTestId("quest-start"), "«Empezar»");
 await noOverflow("partida (intro)");
@@ -147,6 +170,8 @@ await page.getByLabel("Vidas infinitas").waitFor();
 await noOverflow("mazmorra");
 const dq = await page.getByTestId("quest-card").innerText();
 if (!/TEORÍA|PRÁCTICA/.test(dq)) errors.push("la mazmorra no muestra una pregunta");
+if (!/IA \d/.test(dq)) errors.push("la mazmorra debe resolver los fallos con las preguntas generadas guardadas");
+if (aiCalls !== 2) errors.push(`la mazmorra no debe llamar a la IA (llamadas: ${aiCalls})`);
 log("mazmorra con los fallos y vidas infinitas");
 
 // 3c · un nivel bloqueado no se juega por URL
