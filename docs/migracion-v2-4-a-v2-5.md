@@ -88,11 +88,33 @@ docker image prune -f
    ```bash
    dc exec db psql -U lifeos -d lifeos -c "select to_regclass('\"StudyModule\"'), to_regclass('\"StudyTopic\"')"
    ```
-   Ambas deben devolver el nombre de la tabla (no vacío).
+   Ambas deben devolver el nombre de la tabla (no vacío). **Es obligatoria:** `migrate status` no la detecta si la migración se aplicó con un esquema anterior (ver «Si Estudio falla…», más abajo).
 3. `dc ps` y `dc logs --tail=100 web`: *healthy* y sin «Configuración insegura para producción».
 4. En la app: *Estado del servidor* con la versión publicada y sin migraciones pendientes; los registros de `web` salen en JSON; la bienvenida de una cuenta nueva marca solo Entreno y Recuperación; las cuentas existentes conservan su menú.
 5. Estudio → «Manual PDF»: genera y descarga un PDF. Un 503 significa que falta Chromium en la imagen (revisar `CHROMIUM_PATH` y que se reconstruyó con `--build`).
 6. Ctrl+F5 si una pantalla pide recargar.
+
+### Si Estudio falla con «Esta página no se ha podido mostrar» (se desplegó `main` antes del 25/10/2026)
+
+`20270501080000_v2_5_features` se creó el 20/10 solo con los siete índices y se **regeneró con el mismo nombre** el 25/10 para añadir `StudyModule`, `StudyTopic` y `StudyDocument.moduleId`. Si el servidor actualizó entre ambas fechas, `_prisma_migrations` la da por aplicada y Prisma no la repite: `migrate status` dice «up to date» pero **faltan las tablas** y `/study` falla en cada carga. La comprobación 2 de arriba lo detecta (`to_regclass` vacío).
+
+Reparación (solo añade, no toca datos):
+
+```bash
+cd <RUTA_DE_LA_APP>
+dc exec -T db pg_dump -U lifeos -d lifeos -Fc > backups-pre-update/pre-fix-estudio.dump
+dc --profile tools run --rm -T migrate npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script > /tmp/fix-estudio.sql
+cat /tmp/fix-estudio.sql
+```
+
+Revisa el SQL: solo debe haber `CREATE TABLE "StudyModule"`/`"StudyTopic"`, `ALTER TABLE "StudyDocument" ADD COLUMN "moduleId"`, `CREATE INDEX` y `ADD CONSTRAINT`. **Si aparece `DROP` o `ALTER COLUMN`, no lo apliques.** Después:
+
+```bash
+dc --profile tools run --rm -T migrate npx prisma db execute --stdin < /tmp/fix-estudio.sql
+dc --profile tools run --rm -T migrate npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --script   # debe decir «empty migration»
+```
+
+Ctrl+F5 en `/study`. No hace falta tocar `_prisma_migrations`.
 
 ## 7. Vuelta atrás
 

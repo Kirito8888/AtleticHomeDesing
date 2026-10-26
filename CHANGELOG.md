@@ -55,6 +55,7 @@ Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el 
 **Datos**
 - **Una migración aditiva** (`v2_5_features`): siete índices por usuario (`PlanFeedback`, `CalendarFeed`, `SharedReport`, `ReturnProtocol`, `HabitLog`, `PrehabLog`, `RoutineTest`) y las tablas nuevas `StudyModule` y `StudyTopic` con la columna `StudyDocument.moduleId`. No toca filas existentes.
 - **Dependencia de ejecución nueva:** `playwright-core` (maquetación del PDF).
+- **Aviso:** si actualizaste el servidor con `main` antes del 25/10/2026, la migración `v2_5_features` ya constaba como aplicada sin las tablas de Estudio y `/study` falla. Reparación en `docs/migracion-v2-4-a-v2-5.md` («Si Estudio falla…»).
 
 ## v2.4.0 — perfil fuerza-velocidad, sugerir fotogramas y auditoría (17/10/2026)
 

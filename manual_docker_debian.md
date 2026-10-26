@@ -318,7 +318,7 @@ cd <RUTA_DE_LA_APP>
 
 **Variables nuevas:** ninguna obligatoria (`CHROMIUM_PATH` ya viene fijada en la imagen).
 
-**Comprobar:** *Estado del servidor* (Ajustes, administración) muestra la versión 2.5.0 y ninguna migración pendiente; en Estudio → «Manual PDF» se descarga un PDF.
+**Comprobar:** *Estado del servidor* (Ajustes, administración) muestra la versión 2.5.0 y ninguna migración pendiente; en Estudio → «Manual PDF» se descarga un PDF. Si Estudio da «Esta página no se ha podido mostrar» y habías actualizado con `main` antes del 25/10/2026, faltan tablas: sigue [«Si Estudio falla…»](docs/migracion-v2-4-a-v2-5.md#si-estudio-falla-con-esta-página-no-se-ha-podido-mostrar-se-desplegó-main-antes-del-25102026).
 
 Guía técnica paso a paso: [`docs/migracion-v2-4-a-v2-5.md`](docs/migracion-v2-4-a-v2-5.md).
 

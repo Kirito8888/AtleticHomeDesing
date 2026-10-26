@@ -37,7 +37,9 @@ await page.fill("#password", pw);
 await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/login")), page.click("button[type=submit]")]);
 
 // Plan de 4 semanas que empieza el lunes pasado: la semana 1 ya terminó y la 2 está en curso.
-const mon = new Date();
+// «Hoy» en Europe/Madrid, como la app (en UTC fallaba el domingo por la noche: ya es lunes en Madrid).
+const madridToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
+const mon = new Date(`${madridToday}T00:00:00Z`);
 mon.setUTCDate(mon.getUTCDate() - ((mon.getUTCDay() + 6) % 7) - 7);
 const startDate = mon.toISOString().slice(0, 10);
 const post = async (url: string, body: unknown) => {
