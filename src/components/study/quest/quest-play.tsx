@@ -7,13 +7,15 @@ import { PALETTE } from "@/components/study/quest/palette";
 import { PracticeCard } from "@/components/study/quest/practice-card";
 import { QuestHud } from "@/components/study/quest/quest-hud";
 import { TheoryCard } from "@/components/study/quest/theory-card";
+import { useQuestBank } from "@/components/study/quest/use-quest-bank";
 import { useQuestStore } from "@/components/study/quest/use-quest-store";
 import type { Tag } from "@/lib/study/adhd-report";
 import { formatInt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { buildQuestMap, isUnlocked } from "@/lib/study/quest";
 import { check, whyWrong } from "@/lib/study/quest-engine";
-import { BOSS_COUNTS, bossPool, itemById, levelItems, type QuestItem } from "@/lib/study/quest-mock";
+import { bankItem } from "@/lib/study/quest-ai";
+import { itemById, type QuestItem } from "@/lib/study/quest-mock";
 import { answerRun, currentItem, finishRun, isDead, next, shuffle, startRun, type Run, type RunMode, type Summary } from "@/lib/study/quest-play";
 
 interface Feedback {
@@ -27,7 +29,10 @@ interface Feedback {
 const btn = "inline-flex min-h-11 items-center justify-center rounded-[10px] border-2 px-3.5 text-sm font-semibold shadow-[0_4px_0_#0008] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40";
 const panel = "rounded-2xl border-2 border-[var(--q-line)] bg-[var(--q-panel)] p-4";
 
-/** v2.5 · Modo Juego, parte 4: la partida (teoría, terminal de práctica, vidas, combos y mazmorra). Preguntas mock; todo en cliente. */
+type Gen = { status: "loading" } | { status: "ready"; items: QuestItem[] } | { status: "error"; message: string; code: number };
+
+/** v2.5 · Modo Juego, partes 4 y 5: la partida (teoría, terminal de práctica, vidas, combos y mazmorra). Las preguntas las genera la IA desde los apuntes
+ *  (`POST /api/ai/study/quest`); la corrección y todo el estado son locales. */
 export function QuestPlay({
   moduleId,
   mode,
@@ -43,6 +48,9 @@ export function QuestPlay({
   const nodes = useMemo(() => buildQuestMap(topics), [topics]);
   const mapHref = `/study/modules/${moduleId}/quest`;
   const playBase = `${mapHref}/play`;
+  const [bank, mergeBank] = useQuestBank(moduleId);
+  const [gen, setGen] = useState<Gen>({ status: "loading" });
+  const [attempt, setAttempt] = useState(0);
   const [run, setRun] = useState<Run | null>(null);
   const [fb, setFb] = useState<Feedback | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
@@ -56,21 +64,46 @@ export function QuestPlay({
   const title = mode === "dungeon" ? "Mazmorra de fallos" : mode === "boss" ? "Jefe Final" : (node?.title ?? "");
   const icon = mode === "dungeon" ? "💀" : mode === "boss" ? "🐉" : "📘";
 
-  // Ids guardados que ya no existen en el banco se ignoran.
-  const dungeonItems = useMemo(() => s.fails.map(itemById).filter((x): x is QuestItem => !!x), [s.fails]);
+  // Fallos guardados: primero la caché de preguntas generadas, luego el banco de ejemplo (partidas antiguas); los que ya no existen se ignoran.
+  const dungeonItems = useMemo(() => s.fails.map((id) => bankItem(bank, id) ?? itemById(id)).filter((x): x is QuestItem => !!x), [s.fails, bank]);
+
+  // Genera las preguntas del nivel/Jefe al entrar (y al pedir «Nuevas preguntas» o reintentar).
+  const playable = mode !== "dungeon" && !!node && isUnlocked(nodes, idx, s);
+  const keepFails = useRef(s.fails);
+  useEffect(() => {
+    keepFails.current = s.fails;
+  }, [s.fails]);
+  useEffect(() => {
+    if (!playable) return;
+    const ctl = new AbortController();
+    fetch("/api/ai/study/quest", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ moduleId, nodeId }), signal: ctl.signal })
+      .then(async (r) => {
+        const j = (await r.json().catch(() => null)) as { items?: QuestItem[]; error?: string } | null;
+        if (!r.ok || !j?.items?.length) throw Object.assign(new Error(j?.error ?? "No se pudieron generar las preguntas."), { code: r.status });
+        mergeBank(j.items, keepFails.current);
+        setGen({ status: "ready", items: j.items });
+      })
+      .catch((e: Error & { code?: number }) => {
+        if (ctl.signal.aborted) return;
+        setGen({ status: "error", message: e.message || "No se pudieron generar las preguntas.", code: e.code ?? 0 });
+      });
+    return () => ctl.abort();
+  }, [playable, moduleId, nodeId, attempt, mergeBank]);
 
   const begin = useCallback(() => {
-    let items: QuestItem[] = [];
-    if (mode === "dungeon") items = dungeonItems;
-    else if (mode === "boss") {
-      const pool = bossPool();
-      items = shuffle([...shuffle(pool.filter((x) => x.type === "t")).slice(0, BOSS_COUNTS.t), ...shuffle(pool.filter((x) => x.type === "p")).slice(0, BOSS_COUNTS.p)]);
-    } else if (node) items = shuffle(levelItems(node.n));
+    const items = mode === "dungeon" ? dungeonItems : gen.status === "ready" ? shuffle(gen.items) : [];
     if (!items.length) return;
     setRun(startRun(mode === "dungeon" ? "dungeon" : nodeId, mode, items));
     setFb(null);
     setSummary(null);
-  }, [mode, node, nodeId, dungeonItems]);
+  }, [mode, nodeId, dungeonItems, gen]);
+
+  const regenerate = () => {
+    setGen({ status: "loading" });
+    setRun(null);
+    setSummary(null);
+    setAttempt((n) => n + 1);
+  };
 
   const answer = (ok: boolean, pts: number, ans: string | null, picked: number | null, hinted: boolean) => {
     if (!run || fb) return;
@@ -131,6 +164,34 @@ export function QuestPlay({
       </div>,
     );
 
+  if (!run && mode !== "dungeon" && gen.status === "loading")
+    return wrap(
+      <div role="status" aria-live="polite" className={cn(panel, "text-center")} data-testid="quest-loading">
+        <div aria-hidden className="quest-pop text-5xl">
+          {icon}
+        </div>
+        <h2 className="my-2 text-xl font-bold break-words">{title}</h2>
+        <p className="text-sm text-[var(--q-mute)]">Generando mazmorra…</p>
+      </div>,
+    );
+  if (!run && mode !== "dungeon" && gen.status === "error")
+    return wrap(
+      <div role="alert" className={panel} data-testid="quest-error">
+        <p className="mb-3">{gen.message}</p>
+        <div className="flex flex-wrap gap-2">
+          {gen.code === 409 ? (
+            <Link href="/study" className={cn(btn, "border-[var(--q-gold)] bg-[var(--q-panel2)]")}>
+              📚 Subir apuntes
+            </Link>
+          ) : null}
+          <button type="button" onClick={regenerate} data-testid="quest-retry" className={cn(btn, "border-[var(--q-lin)] bg-[#12452e]")}>
+            ↻ Reintentar
+          </button>
+          {toMap}
+        </div>
+      </div>,
+    );
+
   if (!run)
     return wrap(
       <div className={cn(panel, "quest-pop text-center")}>
@@ -141,7 +202,7 @@ export function QuestPlay({
         <p className="mb-4 text-sm text-[var(--q-mute)]">
           {mode === "dungeon"
             ? `Vidas infinitas. Cada acierto saca la pregunta de la mazmorra (${formatInt(dungeonItems.length)} pendientes, hasta 15 por partida).`
-            : `${mode === "boss" ? "Sin pistas. " : ""}Tienes 3 ❤️: cada fallo te quita una. Con 80 % consigues ★★. Preguntas de ejemplo (mock) hasta que lleguen las de tus apuntes.`}
+            : `${mode === "boss" ? "Sin pistas. " : ""}Tienes 3 ❤️: cada fallo te quita una. Con 80 % consigues ★★. Preguntas generadas desde tus apuntes.`}
         </p>
         <div className="flex flex-wrap justify-center gap-2">
           <button type="button" onClick={begin} data-testid="quest-start" className={cn(btn, "border-[var(--q-lin)] bg-[#12452e]")}>
@@ -189,6 +250,11 @@ export function QuestPlay({
             <button type="button" onClick={begin} className={cn(btn, "border-[var(--q-lin)] bg-[#12452e]")}>
               ↻ Repetir
             </button>
+            {mode !== "dungeon" ? (
+              <button type="button" onClick={regenerate} data-testid="quest-regen" className={cn(btn, "border-[var(--q-line)] bg-transparent")}>
+                ✨ Nuevas preguntas
+              </button>
+            ) : null}
             {toMap}
             {mode !== "dungeon" && s.fails.length ? (
               <Link href={`${playBase}?mode=dungeon`} className={cn(btn, "border-[var(--q-bad)] bg-[#6b1a2a]")}>
