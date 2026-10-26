@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Check, ClipboardCheck, FileText, Plus, Trash2 } from "lucide-react";
+import { Check, ClipboardCheck, FileText, Gamepad2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Field } from "@/components/form/chips";
@@ -83,11 +83,18 @@ export function ModuleDetail({ data }: { data: ModuleDetailData }) {
         </label>
       </div>
 
-      <Button asChild className="min-h-11">
-        <Link href={`/study/modules/${data.id}/test`}>
-          <ClipboardCheck /> Evaluar nivel
-        </Link>
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button asChild className="min-h-11">
+          <Link href={`/study/modules/${data.id}/test`}>
+            <ClipboardCheck /> Evaluar nivel
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="min-h-11">
+          <Link href={`/study/modules/${data.id}/quest`}>
+            <Gamepad2 /> Modo Juego
+          </Link>
+        </Button>
+      </div>
 
       <section aria-label="Temas" className="grid gap-2">
         <h2 className="text-lg font-semibold">{data.prepMode ? "Ruta de estudio" : "Temas"}</h2>

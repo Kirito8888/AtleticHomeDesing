@@ -46,6 +46,7 @@
     "e2e:v19": "tsx e2e/v19.mts",
     "e2e:v110": "tsx e2e/v110.mts",
     "e2e:salto": "tsx e2e/salto.mts",
+    "e2e:quest": "tsx e2e/quest.mts",
     "e2e:v20a": "tsx e2e/v20a.mts",
     "e2e:v20b": "tsx e2e/v20b.mts",
     "e2e:v20c": "tsx e2e/v20c.mts",
