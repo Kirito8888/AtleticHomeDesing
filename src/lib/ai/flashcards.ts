@@ -131,13 +131,13 @@ export async function dueCards(userId: string, opts: { deckId?: string; limit: n
 /** Cuántas tarjetas tocan hoy por mazo (propios y compartidos). */
 export async function dueCounts(userId: string): Promise<Map<string, number>> {
   const now = new Date();
-  const cards = await prisma.flashcard.findMany({
-    where: visibleCards(userId),
-    select: { deckId: true, reviews: { where: { userId }, select: { dueAt: true } } },
+  // Sin repaso o con repaso vencido (mismo criterio que `isDue`), contado en SQL por mazo.
+  const rows = await prisma.flashcard.groupBy({
+    by: ["deckId"],
+    where: { ...visibleCards(userId), OR: [{ reviews: { none: { userId } } }, { reviews: { some: { userId, dueAt: { lte: now } } } }] },
+    _count: { _all: true },
   });
-  const out = new Map<string, number>();
-  for (const c of cards) if (isDue(c.reviews[0], now)) out.set(c.deckId, (out.get(c.deckId) ?? 0) + 1);
-  return out;
+  return new Map(rows.map((r) => [r.deckId, r._count._all]));
 }
 
 export interface DeckSummary {

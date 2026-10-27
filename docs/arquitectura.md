@@ -192,13 +192,13 @@ Escala (27/10/2026): 125 modelos Prisma, 252 rutas `route.ts` y 88 páginas.
 
 ## Auditoría de rendimiento (27/10/2026)
 
-Auditoría **estática** (lectura del código, sin medir): los impactos son estimaciones por forma de la consulta, no tiempos. Nada de esto se ha corregido; el plan de ataque resumido está en [`estado.md`](estado.md) § Plan de Optimización. Los IDs `O1…` son los mismos en ambos documentos. Antes de arreglar cada uno hay que **medir** (contar consultas como en el B5 de la v2.5; TTFB en `ttfb-v2-4.md`).
+Auditoría **estática** (lectura del código, sin medir): los impactos son estimaciones por forma de la consulta, no tiempos. **Resueltos en Optimización B1 (marcados ✅):** O1, O2, O6, O7, O8 (objetivos/material), O12; el resto sigue sin corregir; el plan de ataque resumido está en [`estado.md`](estado.md) § Plan de Optimización. Los IDs `O1…` son los mismos en ambos documentos. Antes de arreglar cada uno hay que **medir** (contar consultas como en el B5 de la v2.5; TTFB en `ttfb-v2-4.md`).
 
 ### Fase 1 · Backend de alto impacto
 | ID | Dónde | Problema | Arreglo propuesto |
 |---|---|---|---|
-| O1 | `lib/ai/rag.ts:190-194` | Un `UPDATE` por chunk (en serie, dentro de una transacción de 120 s). Un libro de 15 MB son ~13 000 chunks: miles de idas y vueltas y riesgo de caducar. | Una sola sentencia `UPDATE … FROM unnest(ids, vectores)`; igual para el `createMany` previo. |
-| O2 | `lib/ai/rag.ts:229-236` | La búsqueda filtra por `userId` y `embedModel` **después** del índice HNSW global; sin `hnsw.iterative_scan` (no figura en el repo) con muchas usuarias puede devolver menos de *k* resultados o ninguno. | En transacción: `SET LOCAL hnsw.iterative_scan = relaxed_order` (y `ef_search`); o copiar `embedModel` a `DocumentChunk` para quitar el `JOIN`. |
+| O1 ✅ | `lib/ai/rag.ts:190-194` | Un `UPDATE` por chunk (en serie, dentro de una transacción de 120 s). Un libro de 15 MB son ~13 000 chunks: miles de idas y vueltas y riesgo de caducar. | Una sola sentencia `UPDATE … FROM unnest(ids, vectores)`; igual para el `createMany` previo. |
+| O2 ✅ | `lib/ai/rag.ts:229-236` | La búsqueda filtra por `userId` y `embedModel` **después** del índice HNSW global; sin `hnsw.iterative_scan` (no figura en el repo) con muchas usuarias puede devolver menos de *k* resultados o ninguno. | En transacción: `SET LOCAL hnsw.iterative_scan = relaxed_order` (y `ef_search`); o copiar `embedModel` a `DocumentChunk` para quitar el `JOIN`. |
 | O3 | `lib/ai/provider.ts:175-211` | El SDK de Gemini (`generateContent`, `embedContent`) no tiene tiempo límite; `postJson` sí (90 s). Una llamada colgada bloquea la petición o el único trabajador de ingesta hasta 15 min. | `httpOptions.timeout` / señal de aborto en el SDK. |
 | O4 | `account/restore.ts:96-103`, `strava/service.ts:128-140`, `recovery/hrv-import-service.ts:24-32`, `training/service.ts:446-527` | Cada sesión creada rehace la serie de carga desde su fecha hasta hoy y luego `refreshReadiness` **día a día** (3 lecturas + 1 escritura por día, releyendo 60 días de base). Restaurar, importar Strava o un CSV de VFC multiplica sesiones × días. | Parámetro «sin recalcular» en el bucle y **un solo** recálculo desde la fecha más antigua; `refreshReadiness` en lote (leer todo una vez, calcular en memoria, escribir en bloque); upsert masivo en la VFC. |
 | O5 | `finance/bank-import-service.ts:79-97` | `createTransaction` por cada línea del extracto: ~6 consultas por línea (cuentas por defecto, recuentos, creación anidada); los duplicados se detectan capturando P2002. | Resolver cuentas y propiedad una vez, prefiltrar hashes (como ya hace `previewStatement`) y crear en lote en una `$transaction`. |
@@ -206,9 +206,9 @@ Auditoría **estática** (lectura del código, sin medir): los impactos son esti
 ### Fase 2 · Portada y vistas de uso diario
 | ID | Dónde | Problema | Arreglo propuesto |
 |---|---|---|---|
-| O6 | `ai/flashcards.ts:132-140` (`dueCounts`, portada) | Carga **todas** las tarjetas visibles con su repaso solo para contar las pendientes. | `COUNT` en SQL con `LEFT JOIN` a `FlashcardReview`, agrupado por mazo (existe el índice `(userId, dueAt)`). |
-| O7 | `finance/service.ts:303-311` (`budgetsStatus`, portada) | Un `posting.aggregate` con 3 tablas por cada presupuesto activo. | Un `groupBy` por ventana de periodo, como ya hace `monthlyBudgetView` (`budgets-service.ts:26`). |
-| O8 | `goals/service.ts:43-48`, `training/equipment-service.ts:17-47`, `scheduler.ts:154-158` | Una consulta por objetivo (hasta 50, también los terminados) y por material (incluido el retirado); el resumen diario reexplora cada hora a quien no tiene nada que avisar. | Calcular solo lo abierto, agrupar por tipo y guardar la clave `digest:` aunque no haya aviso. |
+| O6 ✅ | `ai/flashcards.ts:132-140` (`dueCounts`, portada) | Carga **todas** las tarjetas visibles con su repaso solo para contar las pendientes. | `COUNT` en SQL con `LEFT JOIN` a `FlashcardReview`, agrupado por mazo (existe el índice `(userId, dueAt)`). |
+| O7 ✅ | `finance/service.ts:303-311` (`budgetsStatus`, portada) | Un `posting.aggregate` con 3 tablas por cada presupuesto activo. | Un `groupBy` por ventana de periodo, como ya hace `monthlyBudgetView` (`budgets-service.ts:26`). |
+| O8 ✅ (parcial: objetivos y material) | `goals/service.ts:43-48`, `training/equipment-service.ts:17-47`, `scheduler.ts:154-158` | Una consulta por objetivo (hasta 50, también los terminados) y por material (incluido el retirado); el resumen diario reexplora cada hora a quien no tiene nada que avisar. | Calcular solo lo abierto, agrupar por tipo y guardar la clave `digest:` aunque no haya aviso. |
 | O9 | `components/study/documents-panel.tsx:51-55` + `app/(app)/study/(index)/page.tsx:32-45` | Mientras un apunte está PENDING/PROCESSING se hace `router.refresh()` **cada 3 s**: cada vez se ejecutan `aiAvailable` + 7 consultas (incluida la suma de cuota) de las 8 pestañas. | Sondear un endpoint pequeño de estado y refrescar solo si cambia; cargar los datos por pestaña (`?tab=` ya se lee). |
 
 ### Fase 3 · Índices (irían en la migración de la versión siguiente; solo aditivos)
@@ -218,7 +218,7 @@ La migración `v2_5_features` ya añadió `@@index([userId])` en nueve modelos (
 |---|---|---|
 | O10 | `SessionComment`: `athleteId IN` (`coach/overview.ts:26`), `athleteId OR authorId` (`account/service.ts:169`) | `@@index([athleteId])`, `@@index([authorId])` |
 | O11 | `SecurityEvent` / `NotificationLog`: limpieza horaria por fecha (`scheduler.ts:95-96`) hoy recorre la tabla entera | `@@index([createdAt])`, `@@index([sentAt])` |
-| O12 | `DocumentChunk`: `to_tsvector('spanish', content)` calculado por fila en cada consulta (`rag.ts:240-248`), sin GIN | Columna generada `tsv` + índice GIN |
+| O12 ✅ | `DocumentChunk`: `to_tsvector('spanish', content)` calculado por fila en cada consulta (`rag.ts:240-248`), sin GIN | Columna generada `tsv` + índice GIN |
 | O13 | `FoodProduct`: `contains` insensible (`ILIKE '%w%'`, `nutrition/service.ts:44-49`) que los btree no sirven | `pg_trgm` GIN en `name` y `brand` (requiere la extensión) |
 | O14 | `PersonalRecord` (`training/service.ts:345,366`), `TrashItem(deletedAt)`, `TrainingCycle(parentId)`, `FinancialTransaction(tripId/subscriptionId)`, `Subscription(accountId)`, `TrainingSession(userId, startedAt)` | Uno por consulta; prioridad baja |
 

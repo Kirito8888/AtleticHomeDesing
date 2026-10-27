@@ -299,31 +299,40 @@ export async function budgetsStatus(userId: string, ref = today()) {
     ...categories.filter((c) => c.parentId === id).flatMap((c) => descendants(c.id)),
   ];
 
-  return Promise.all(
-    budgets.map(async (b) => {
-      const { start, end } = periodWindow(b.period, ref);
-      const spent = await prisma.posting.aggregate({
+  // Un `groupBy` por ventana distinta (no por presupuesto): los presupuestos del mismo periodo la comparten.
+  const windows = new Map<string, { start: Date; end: Date }>();
+  for (const b of budgets) {
+    const w = periodWindow(b.period, ref);
+    windows.set(`${w.start.getTime()}|${w.end.getTime()}`, w);
+  }
+  const spentByWindow = new Map<string, Map<string | null, number>>();
+  await Promise.all(
+    [...windows].map(async ([key, { start, end }]) => {
+      const rows = await prisma.posting.groupBy({
+        by: ["categoryId"],
         _sum: { amountCents: true },
-        where: {
-          categoryId: { in: descendants(b.categoryId) },
-          account: { userId, type: "EXPENSE" },
-          transaction: { date: { gte: start, lte: end } },
-        },
+        where: { account: { userId, type: "EXPENSE" }, transaction: { date: { gte: start, lte: end } } },
       });
-      const spentCents = spent._sum.amountCents ?? 0;
-      return {
-        id: b.id,
-        category: { id: b.category.id, name: b.category.name, color: b.category.color, icon: b.category.icon },
-        period: b.period,
-        window: { start: toIsoDay(start), end: toIsoDay(end) },
-        budgetCents: b.amountCents,
-        spentCents,
-        remainingCents: b.amountCents - spentCents,
-        alertThresholdPct: b.alertThresholdPct,
-        ...budgetState(spentCents, b.amountCents, b.alertThresholdPct),
-      };
+      spentByWindow.set(key, new Map(rows.map((r) => [r.categoryId, r._sum.amountCents ?? 0])));
     }),
   );
+
+  return budgets.map((b) => {
+    const { start, end } = periodWindow(b.period, ref);
+    const spentOf = spentByWindow.get(`${start.getTime()}|${end.getTime()}`)!;
+    const spentCents = descendants(b.categoryId).reduce((sum, id) => sum + (spentOf.get(id) ?? 0), 0);
+    return {
+      id: b.id,
+      category: { id: b.category.id, name: b.category.name, color: b.category.color, icon: b.category.icon },
+      period: b.period,
+      window: { start: toIsoDay(start), end: toIsoDay(end) },
+      budgetCents: b.amountCents,
+      spentCents,
+      remainingCents: b.amountCents - spentCents,
+      alertThresholdPct: b.alertThresholdPct,
+      ...budgetState(spentCents, b.amountCents, b.alertThresholdPct),
+    };
+  });
 }
 
 /** Flujo de caja mensual: ingresos, gastos y neto de los últimos N meses. */

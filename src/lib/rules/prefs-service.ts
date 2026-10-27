@@ -1,14 +1,17 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 import { pickPatch, type Prefs, prefsUpdateSchema, readPrefs } from "./prefs";
 
-export async function getPrefs(userId: string): Promise<Prefs> {
+/** `cache`: layout, página y `getDashboard` la piden en el mismo render; una sola consulta por petición. */
+export const getPrefs = cache(async (userId: string): Promise<Prefs> => {
   const p = await prisma.athleteProfile.findUnique({ where: { userId }, select: { prefs: true } });
   return readPrefs(p?.prefs);
-}
+});
 
 /** Preferencias de varias personas en una consulta (las que no tienen perfil, las de por defecto). */
 export async function getPrefsMany(userIds: string[]): Promise<Map<string, Prefs>> {
