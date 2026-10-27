@@ -2,21 +2,16 @@ import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
-import { CoachPanel, type CoachReportView } from "@/components/study/coach-panel";
-import { AdaptPanel } from "@/components/study/adapt-panel";
-import { ManualPanel } from "@/components/study/manual-panel";
-import { MicroStepsPanel } from "@/components/study/micro-steps-panel";
+import type { CoachReportView } from "@/components/study/coach-panel";
+import { AdaptPanel, CoachPanel, FlashcardReview, ManualCards, ManualPanel, MicroStepsPanel, PreloadStudyTabs, StudyChat } from "@/components/study/lazy";
+import { ModulesPanel } from "@/components/study/modules-panel";
 import { StorageMeter } from "@/components/study/storage-meter";
 import { studyStorageUsage } from "@/lib/ai/rag";
-import { ModulesPanel } from "@/components/study/modules-panel";
 import { listModules } from "@/lib/study/modules-service";
 import { today } from "@/lib/dates";
 import { DocumentsPanel } from "@/components/study/documents-panel";
 import { publicDocError } from "@/lib/ai/doc-error";
 import { listDecks } from "@/lib/ai/flashcards";
-import { FlashcardReview } from "@/components/study/flashcard-review";
-import { ManualCards } from "@/components/study/coursework";
-import { StudyChat } from "@/components/study/study-chat";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { aiAvailable } from "@/lib/ai/provider";
@@ -96,6 +91,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
           . Puedes seguir repasando flashcards existentes.
         </p>
       ) : null}
+      <PreloadStudyTabs />
       <Tabs defaultValue={defaultTab}>
         <TabsList className="justify-start overflow-x-auto">
           <TabsTrigger value="docs">Apuntes</TabsTrigger>
