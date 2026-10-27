@@ -57,6 +57,37 @@ function store(v: Saved | null) {
 }
 
 /**
+ * Cuenta atrás y barra: el reloj de 1 s vive aquí para que solo se repinten estos dos nodos y no
+ * todo el panel (el padre solo avanza de fase con `tick`, que no cambia la referencia si no hace falta).
+ * La `key` lo reinicia con la hora actual cada vez que el tramo cambia (pausa, reanudar, fase, paso).
+ */
+function MicroCountdown({ run }: { run: MicroRun }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const t = now;
+  return (
+    <>
+      <p role="timer" className="text-center text-5xl font-semibold tabular-nums">
+        {mmss(remainingMs(run, t))}
+      </p>
+      <div
+        role="progressbar"
+        aria-label="Avance del intervalo"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(intervalProgress(run, t) * 100)}
+        className="h-3 overflow-hidden rounded-full bg-muted"
+      >
+        <div className="h-full bg-primary transition-[width] duration-1000 ease-linear" style={{ width: `${intervalProgress(run, t) * 100}%` }} />
+      </div>
+    </>
+  );
+}
+
+/**
  * Fraccionador + temporizador de micro-intervalos. Los pasos viven en el cliente (y en localStorage
  * para sobrevivir a una recarga): no se guarda nada en apuntes ni flashcards.
  */
@@ -68,7 +99,6 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
   const [preset, setPreset] = useState(presetKey(PRESETS[1]));
   const [done, setDone] = useState<number[]>([]);
   const [run, setRun] = useState<MicroRun | null>(null);
-  const [now, setNow] = useState(0);
 
   // Recupera el estado tras recargar (fuera del render para no romper la hidratación)
   useEffect(() => {
@@ -81,7 +111,6 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
         setDone(v.done ?? []);
         setRun(v.run);
       }
-      setNow(Date.now());
     }, 0);
     return () => clearTimeout(id);
   }, []);
@@ -94,7 +123,6 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
     if (!run) return;
     const id = setInterval(() => {
       const t = Date.now();
-      setNow(t);
       setRun((r) => {
         if (!r) return r;
         const next = tick(r, t);
@@ -126,7 +154,6 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
   const go = (fn: (r: MicroRun) => MicroRun) => {
     if (!run) return;
     const n = fn(run);
-    setNow(Date.now());
     setDone(n.done);
     setRun(n);
   };
@@ -169,19 +196,7 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
           </Button>
         ) : (
           <>
-            <p role="timer" className="text-center text-5xl font-semibold tabular-nums">
-              {mmss(remainingMs(run, now))}
-            </p>
-            <div
-              role="progressbar"
-              aria-label="Avance del intervalo"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(intervalProgress(run, now) * 100)}
-              className="h-3 overflow-hidden rounded-full bg-muted"
-            >
-              <div className="h-full bg-primary transition-[width] duration-1000 ease-linear" style={{ width: `${intervalProgress(run, now) * 100}%` }} />
-            </div>
+            <MicroCountdown key={`${run.stepIndex}:${run.phase}:${run.endAt}:${run.pausedLeftMs}`} run={run} />
             {run.phase === "focus" ? (
               <Button type="button" variant="outline" className="min-h-11" onClick={() => go((r) => (paused ? resume(r, Date.now()) : pause(r, Date.now())))}>
                 {paused ? <Play /> : <Pause />} {paused ? "Reanudar" : "Pausar"}
@@ -235,10 +250,7 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
             })}
           </div>
           <Chips label="Intervalo" value={preset} onChange={(v) => v && setPreset(v)} options={PRESETS.map((x) => ({ value: presetKey(x), label: `${x.focus}/${x.rest} min` }))} />
-          <Button type="button" size="lg" className="min-h-11" onClick={() => {
-              setNow(Date.now());
-              setRun(startStep(selected, p, Date.now(), done));
-            }}>
+          <Button type="button" size="lg" className="min-h-11" onClick={() => setRun(startStep(selected, p, Date.now(), done))}>
             <Play /> Empezar este paso
           </Button>
           <Button type="button" variant="ghost" className="min-h-11" onClick={discard}>
