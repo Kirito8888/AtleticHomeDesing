@@ -24,6 +24,9 @@ async function queueCounts(): Promise<QueueCounts | null> {
  * Healthcheck de Docker, de scripts/update.sh y del vigilante. Sin sesión solo dice «ok» o «degradado»
  * (o «caído» con 503 si no hay BD). «Degradado» responde 200: un atasco de la cola no debe tumbar el despliegue.
  * Con sesión añade el detalle de las comprobaciones, sin datos personales.
+ *
+ * - Salida: 200 `{ status: "ok" | "degradado", checks? }` · 503 `{ status: "caído" }` sin BD. Siempre `cache-control: no-store`.
+ * - Sin autenticación obligatoria: no expone nada sensible; `checks` solo con cookie de sesión válida.
  */
 export async function GET() {
   let db = false;

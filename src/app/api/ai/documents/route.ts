@@ -8,6 +8,10 @@ import { assignDocument, requireModule } from "@/lib/study/modules-service";
 import { enqueueIngest } from "@/lib/jobs/queue";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * `GET /api/ai/documents` · Apuntes de la usuaria (más recientes primero) con estado y recuento de fragmentos/flashcards.
+ * El motivo de un fallo se traduce a un texto público (`publicDocError`). Errores: 401. Aislamiento: filtrado por `userId`.
+ */
 export const GET = route(async () => {
   const user = await requireUser();
   const docs = await prisma.studyDocument.findMany({
@@ -29,9 +33,14 @@ export const GET = route(async () => {
 });
 
 /**
- * multipart/form-data: file (PDF/TXT/MD), title?, subject?, moduleId?
+ * `POST /api/ai/documents` · Sube un apunte. multipart/form-data: file (PDF/TXT/MD, ≤ 15 MB), title?, subject?, moduleId?
  * Responde 202 con el documento en PENDING; el proceso sigue en segundo plano
  * (consultar GET hasta EMBEDDED o FAILED).
+ *
+ * - Errores: 400 no es multipart o falta `file` · 401 · 403 origen/condiciones o sin consentimiento de IA · 404 `moduleId` no suyo
+ *   (se comprueba antes de guardar nada) · 413 más de 15 MB o cuota de 5 GB · 415 formato o contenido no válido ·
+ *   429 `aiUpload` (10/h) · 503 IA sin configurar.
+ * - Aislamiento: el fichero se guarda bajo el `userId` de la sesión y solo se puede asignar a sus asignaturas.
  */
 export const POST = route(async (req) => {
   const user = await requireUser();

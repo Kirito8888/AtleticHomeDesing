@@ -26,7 +26,12 @@ export type RouteItem = RouteTopic & {
   overflow: boolean;
 };
 
-/** Días naturales hasta el examen (0 = hoy, negativo = ya pasó); null sin fecha. */
+/**
+ * Días naturales hasta el examen (0 = hoy, negativo = ya pasó); null sin fecha.
+ *
+ * @param today Hoy como «AAAA-MM-DD».
+ * @param examDate Fecha del examen «AAAA-MM-DD» (o vacía).
+ */
 export function daysLeft(today: string, examDate: string | null | undefined): number | null {
   if (!examDate) return null;
   return diffDays(dateOnly(examDate), dateOnly(today));
@@ -39,6 +44,11 @@ export function daysLeft(today: string, examDate: string | null | undefined): nu
  * - Si no cabe: voraz por nota/minuto (peso ÷ minutos; a igualdad, el nivel más alto) y lo que
  *   rebasa la capacidad se marca `overflow`.
  * Sin fecha no hay límite de tiempo. El orden original desempata (estable).
+ *
+ * @param o.topics Temario completo, en su orden original.
+ * @param o.daysLeft Resultado de `daysLeft` (null = sin fecha). Con 0 o negativo se cuenta 1 día.
+ * @param o.dailyMin Minutos de estudio al día; mínimo 1.
+ * @returns Todos los temas con `order` (1…n), `day` sugerido (null si hecho) y `overflow`. No muta la entrada.
  */
 export function prioritize(o: { topics: RouteTopic[]; daysLeft: number | null; dailyMin: number }): RouteItem[] {
   const daily = Math.max(1, o.dailyMin);

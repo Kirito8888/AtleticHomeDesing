@@ -36,6 +36,11 @@ export interface Run {
   log: LogEntry[];
 }
 
+/**
+ * Barajado Fisher–Yates sin mutar la entrada.
+ *
+ * @param rng Fuente de azar en [0, 1) (inyectable para pruebas deterministas).
+ */
 export function shuffle<T>(a: readonly T[], rng: Rng = Math.random): T[] {
   const r = a.slice();
   for (let i = r.length - 1; i > 0; i--) {
@@ -45,6 +50,10 @@ export function shuffle<T>(a: readonly T[], rng: Rng = Math.random): T[] {
   return r;
 }
 
+/**
+ * Prepara una partida. En la mazmorra mezcla y toma hasta `DUNGEON_MAX` preguntas con vidas infinitas;
+ * en nivel o Jefe usa el orden dado y `HEARTS` vidas. Las de teoría llevan sus opciones barajadas (la correcta es la primera de `t[1]`).
+ */
 export function startRun(nodeId: string, mode: RunMode, items: QuestItem[], rng: Rng = Math.random): Run {
   const picked = mode === "dungeon" ? shuffle(items, rng).slice(0, DUNGEON_MAX) : items;
   const play: PlayItem[] = picked.map((it) =>
@@ -54,12 +63,24 @@ export function startRun(nodeId: string, mode: RunMode, items: QuestItem[], rng:
   return { nodeId, mode, items: play, i: 0, lives, maxLives: lives, score: 0, combo: 0, xp: 0, log: [] };
 }
 
+/** Sin vidas antes de contestar todas (Game Over). */
 export const isDead = (r: Run) => r.lives <= 0 && r.i < r.items.length;
+/** Fin de partida: sin preguntas por contestar o sin vidas. */
 export const isOver = (r: Run) => r.i >= r.items.length || r.lives <= 0;
+/** Pregunta en curso, o null si la partida terminó. */
 export const currentItem = (r: Run): PlayItem | null => (isOver(r) ? null : r.items[r.i]);
+/** Puntos conseguidos sobre el total de preguntas, en % entero (0 sin preguntas). */
 export const runPct = (r: Run) => (r.items.length ? Math.round((r.score / r.items.length) * 100) : 0);
 
-/** Registra una respuesta (`pts` 1, ½ con pista, 0 si falla). No avanza: eso lo hace `next`. */
+/**
+ * Registra una respuesta (`pts` 1, ½ con pista, 0 si falla). No avanza: eso lo hace `next`.
+ * Acierto: suma puntos, combo y XP (10 teoría / 20 práctica × `pts`, +5 desde combo ×3) y saca el fallo pendiente
+ * (en nivel/Jefe solo con `pts` 1; en mazmorra siempre). Fallo: rompe el combo, resta una vida (la mazmorra no) y apunta el fallo.
+ *
+ * @param fails Ids de fallos pendientes (no se muta; se devuelve la lista nueva).
+ * @param ans Respuesta escrita/elegida, para el registro.
+ * @returns La partida y los fallos actualizados; sin pregunta en curso, ambos sin cambios.
+ */
 export function answerRun(r: Run, fails: string[], ok: boolean, pts: number, ans: string): { run: Run; fails: string[] } {
   const item = r.items[r.i];
   if (!item) return { run: r, fails };
@@ -78,6 +99,7 @@ export function answerRun(r: Run, fails: string[], ok: boolean, pts: number, ans
   return { run, fails: nf };
 }
 
+/** Avanza a la siguiente pregunta. */
 export const next = (r: Run): Run => ({ ...r, i: r.i + 1 });
 
 export interface Summary {
@@ -86,7 +108,10 @@ export interface Summary {
   dead: boolean;
 }
 
-/** Cierra la partida: suma XP y guarda estrellas/mejor % (nunca bajan). La mazmorra no puntúa niveles. */
+/**
+ * Cierra la partida: suma XP y guarda estrellas/mejor % (nunca bajan). La mazmorra no puntúa niveles.
+ * Con Game Over las estrellas son 0 y el mejor % no sube. No muta `state`.
+ */
 export function finishRun(state: QuestState, r: Run): { state: QuestState; summary: Summary } {
   const pct = runPct(r);
   const dead = isDead(r);

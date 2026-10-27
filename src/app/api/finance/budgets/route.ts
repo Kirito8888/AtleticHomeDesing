@@ -9,7 +9,12 @@ import { monthlyBudgetView, setMonthlyBudget } from "@/lib/finance/budgets-servi
 import { budgetsStatus } from "@/lib/finance/service";
 import { prisma } from "@/lib/prisma";
 
-/** Presupuestos activos con gasto del periodo actual y estado OK/WARNING/EXCEEDED; con `?month=AAAA-MM`, la vista de ese mes. */
+/**
+ * `GET /api/finance/budgets` · Presupuestos activos con gasto del periodo actual y estado OK/WARNING/EXCEEDED;
+ * con `?month=AAAA-MM`, la vista de ese mes.
+ *
+ * - Errores: 400 mes no válido · 401 sin sesión. Aislamiento: solo presupuestos y categorías de la usuaria (finanzas es privado, sin ámbito de entrenadora).
+ */
 export const GET = route(async (req) => {
   const user = await requireUser();
   const month = req.nextUrl.searchParams.get("month");
@@ -27,7 +32,13 @@ const monthlySchema = z.object({
   month: z.string().refine(isMonth, "Mes no válido (AAAA-MM)"),
 });
 
-/** Fija el presupuesto mensual de una categoría desde ese mes; los anteriores no cambian. */
+/**
+ * `PUT /api/finance/budgets` · Fija el presupuesto mensual de una categoría desde ese mes; los anteriores no cambian
+ * (versiona cerrando el vigente con `endDate`).
+ *
+ * - Entrada: JSON `{ categoryId, amountCents > 0, alertThresholdPct 1–100 (80), month AAAA-MM }`. Salida: 200 vista del presupuesto.
+ * - Errores: 400 datos no válidos o categoría que no es de gasto · 401 · 403 origen/condiciones · 404 categoría no suya.
+ */
 export const PUT = route(async (req) => {
   const user = await requireUser();
   return NextResponse.json(await setMonthlyBudget(user.id, await parseBody(req, monthlySchema)));
@@ -43,6 +54,12 @@ const schema = z.object({
   endDate: isoDate.nullish(),
 });
 
+/**
+ * `POST /api/finance/budgets` · Crea un presupuesto de cualquier periodo (semanal, mensual, trimestral, anual).
+ *
+ * - Entrada: JSON `{ categoryId, period, amountCents > 0, alertThresholdPct, rollover, startDate, endDate? }`. Salida: 201 el presupuesto.
+ * - Errores: 400 datos no válidos · 401 · 403 origen/condiciones · 404 la categoría no existe o no es suya (se comprueba con `userId`).
+ */
 export const POST = route(async (req) => {
   const user = await requireUser();
   const data = await parseBody(req, schema);

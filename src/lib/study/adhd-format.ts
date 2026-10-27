@@ -70,7 +70,12 @@ export const adaptDocSchema = z.discriminatedUnion("mode", [
 ]);
 
 // ---------------------------------------------------------------- normalización
-/** Parte un párrafo en bloques ≤ `max`, agrupando frases enteras. */
+/**
+ * Parte un párrafo en bloques ≤ `max`, agrupando frases enteras.
+ *
+ * @param max Longitud máxima de bloque (`LIMITS.block`). Una frase más larga se recorta con «…».
+ * @returns Bloques no vacíos, en orden.
+ */
 export function splitBlock(s: string, max: number = LIMITS.block): string[] {
   const out: string[] = [];
   let cur = "";
@@ -96,6 +101,10 @@ function dedupe(items: string[]): string[] {
   });
 }
 
+/**
+ * Impone los `LIMITS` a un resumen de la IA: títulos sin negrita, bloques partidos y sin repetidos,
+ * secciones vacías fuera, y máximos de secciones, bloques y «Recuerda». No muta la entrada.
+ */
 export function normalizeSummary(raw: SummaryDoc): SummaryDoc {
   const sections = raw.sections
     .map((s) => ({
@@ -130,11 +139,15 @@ function dedupeNodes(nodes: OutlineNode[]): OutlineNode[] {
   });
 }
 
-/** La raíz es el nivel 0; con `depth` 3 hay raíz → rama → hijo → nieto. */
+/**
+ * Impone los `LIMITS` a un esquema: etiquetas y detalles recortados, hijos repetidos fuera y máximos de ramas/hijos.
+ * La raíz es el nivel 0; con `depth` 3 hay raíz → rama → hijo → nieto (lo más profundo se descarta).
+ */
 export function normalizeOutline(raw: OutlineDoc): OutlineDoc {
   return { title: clip(raw.title, 80).replace(/\*\*/g, ""), root: normalizeNode(raw.root, 0) };
 }
 
+/** Normaliza según el `mode` del documento (resumen, esquema o informe). */
 export function normalizeDoc(d: AdaptDoc): AdaptDoc {
   if (d.mode === "report") return { mode: "report", doc: normalizeReport(d.doc) };
   return d.mode === "summary" ? { mode: "summary", doc: normalizeSummary(d.doc) } : { mode: "outline", doc: normalizeOutline(d.doc) };
@@ -147,6 +160,11 @@ function outlineLines(n: OutlineNode, depth: number, out: string[]) {
   for (const c of n.children ?? []) outlineLines(c, depth + 1, out);
 }
 
+/**
+ * Exporta el documento a Markdown para guardarlo como apunte `.md` (resumen con `##`, esquema como lista anidada, informe aparte).
+ *
+ * @returns Texto terminado en salto de línea.
+ */
 export function toMarkdown(d: AdaptDoc): string {
   if (d.mode === "report") return reportToMarkdown(d.doc);
   if (d.mode === "summary") {

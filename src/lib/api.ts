@@ -10,6 +10,10 @@ import { isMutation, makeRequestId, requestContext } from "@/lib/request-context
 import { expectedOrigin, originAllowed } from "@/lib/security/origin";
 import { rateLimitPersistent } from "@/lib/rate-limit-db";
 
+/**
+ * Error de API con código HTTP. Lo traduce `errorResponse` a `{ error, details }` con ese `status`.
+ * Los mensajes son para la usuaria: no incluir datos internos.
+ */
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -26,6 +30,14 @@ type Handler<C> = (req: NextRequest, ctx: C) => Promise<unknown>;
 /**
  * Envuelve un Route Handler: serializa el resultado a JSON y traduce errores
  * conocidos (validación, ApiError, Prisma) a códigos HTTP coherentes.
+ *
+ * - Mutaciones (POST/PUT/PATCH/DELETE): comprueba `Origin` contra `AUTH_URL`; si no coincide, 403.
+ * - Si `fn` devuelve un `Response` se entrega tal cual; si no, se serializa (`undefined` → `{ ok: true }`).
+ * - Añade `x-request-id`, registra métricas internas y anota los 5xx para «Estado del servidor».
+ * No lanza: cualquier excepción acaba en `errorResponse`.
+ *
+ * @param fn Lógica del endpoint; puede lanzar `ApiError`, `ZodError` o errores de Prisma.
+ * @returns Handler con la firma que espera Next.js (`(req, ctx) => Response`).
  */
 export function route<C = unknown>(fn: Handler<C>) {
   return async (req: NextRequest, ctx: C): Promise<Response> => {
@@ -54,6 +66,13 @@ export function route<C = unknown>(fn: Handler<C>) {
   };
 }
 
+/**
+ * Traduce una excepción a respuesta JSON `{ error, details? }`.
+ * - `ApiError` → su `status` y cabeceras.
+ * - `ZodError` → 400 «Datos no válidos» con `path`/`message` de cada fallo.
+ * - Prisma `P2002` → 409 · `P2025` → 404 · `P2003` → 400.
+ * - Cualquier otra → 500 «Error interno» (el detalle solo va al registro, nunca a la respuesta).
+ */
 export function errorResponse(err: unknown): Response {
   if (err instanceof ApiError) {
     return NextResponse.json({ error: err.message, details: err.details }, { status: err.status, headers: err.headers });
@@ -90,6 +109,12 @@ export async function parsePatchBody<T extends z.ZodType>(req: Request, schema: 
   return Object.fromEntries(Object.entries(parsed).filter(([k]) => keys.includes(k))) as Partial<z.infer<T>>;
 }
 
+/**
+ * Lee el cuerpo JSON y lo valida con `schema` (aplica sus `default`).
+ *
+ * @throws {ApiError} 400 si el cuerpo no es JSON válido.
+ * @throws {ZodError} si no cumple el esquema (`route` lo convierte en 400).
+ */
 export async function parseBody<T extends z.ZodType>(req: Request, schema: T): Promise<z.infer<T>> {
   let data: unknown;
   try {
@@ -100,11 +125,22 @@ export async function parseBody<T extends z.ZodType>(req: Request, schema: T): P
   return schema.parse(data);
 }
 
+/**
+ * Valida la query string (`?a=1&b=2`) con `schema`; los valores llegan como texto (usar `z.coerce`).
+ *
+ * @throws {ZodError} si no cumple el esquema (`route` lo convierte en 400).
+ */
 export function parseQuery<T extends z.ZodType>(req: NextRequest, schema: T): z.infer<T> {
   return schema.parse(Object.fromEntries(req.nextUrl.searchParams));
 }
 
-/** Aplica un límite de `LIMITS` a `key` (usuario o IP); si se supera, 429 con Retry-After. */
+/**
+ * Aplica un límite de `LIMITS` a `key` (usuario o IP), con contador persistente en BD.
+ *
+ * @param bucket Nombre del límite en `LIMITS` (define máximo y ventana).
+ * @param key Identificador a limitar (id de usuaria o IP).
+ * @throws {ApiError} 429 con cabecera `Retry-After` y `details.retryAfterSec` si se supera.
+ */
 export async function enforceRateLimit(bucket: keyof typeof LIMITS, key: string): Promise<void> {
   const { limit, windowMs } = LIMITS[bucket];
   const r = await rateLimitPersistent(`${bucket}:${key}`, limit, windowMs);

@@ -9,7 +9,14 @@ const schema = z.object({
   version: z.string().min(1).max(64),
 });
 
-/** Aplica al plan los cambios propuestos tras «¿Cómo fue la semana?» (una sola vez). */
+/**
+ * `POST /api/ai-plan/[code]/feedback/apply` · Aplica al plan los cambios propuestos tras «¿Cómo fue la semana?» (una sola vez).
+ * Es la confirmación explícita: nada escribe en el plan sin pasar por aquí.
+ *
+ * - Entrada: JSON `{ week 1–52, version }` (`version` identifica el plan que se vio al proponer).
+ * - Errores: 400 · 401 · 403 origen/condiciones · 404 plan no suyo · 409 el plan cambió desde la propuesta, no hay propuesta
+ *   para esa semana o ya se aplicó.
+ */
 export const POST = route(async (req, ctx: RouteContext<"/api/ai-plan/[code]/feedback/apply">) => {
   const user = await requireUser();
   const { code } = await ctx.params;

@@ -13,6 +13,7 @@ export const PRESETS: readonly Preset[] = [
   { focus: 20, rest: 5 },
 ];
 
+/** Acota el preset: foco 5–30 min y descanso 1–10 (valores no numéricos → 15 y 3). */
 export const clampPreset = (p: Preset): Preset => ({
   focus: Math.min(30, Math.max(5, Math.round(p.focus) || 15)),
   rest: Math.min(10, Math.max(1, Math.round(p.rest) || 3)),
@@ -33,11 +34,18 @@ export interface MicroRun {
 const MIN = 60_000;
 const total = (r: MicroRun) => (r.phase === "rest" ? r.preset.rest : r.preset.focus) * MIN;
 
+/**
+ * Arranca el foco de un paso.
+ *
+ * @param now Hora actual en ms epoch (inyectada para poder probarlo).
+ * @param done Pasos ya hechos (índices).
+ */
 export function startStep(stepIndex: number, preset: Preset, now: number, done: number[] = []): MicroRun {
   const p = clampPreset(preset);
   return { phase: "focus", stepIndex, endAt: now + p.focus * MIN, pausedLeftMs: null, preset: p, done };
 }
 
+/** Milisegundos que quedan del tramo: 0 en espera, lo guardado en pausa, o `endAt − now` sin bajar de 0. */
 export function remainingMs(r: MicroRun, now: number): number {
   if (r.phase === "idle") return 0;
   if (r.pausedLeftMs != null) return r.pausedLeftMs;
@@ -50,13 +58,16 @@ export function intervalProgress(r: MicroRun, now: number): number {
   return Math.min(1, Math.max(0, 1 - remainingMs(r, now) / total(r)));
 }
 
+/** Está en pausa si guarda el tiempo restante. */
 export const isPaused = (r: MicroRun) => r.pausedLeftMs != null;
 
+/** Congela el tramo guardando lo que queda. Sin efecto (mismo objeto) en espera o si ya está en pausa. */
 export function pause(r: MicroRun, now: number): MicroRun {
   if (r.phase === "idle" || isPaused(r)) return r;
   return { ...r, endAt: null, pausedLeftMs: remainingMs(r, now) };
 }
 
+/** Reanuda desde lo guardado. Sin efecto (mismo objeto) si no estaba en pausa. */
 export function resume(r: MicroRun, now: number): MicroRun {
   if (r.pausedLeftMs == null) return r;
   return { ...r, endAt: now + r.pausedLeftMs, pausedLeftMs: null };
@@ -82,5 +93,7 @@ export function beginFocus(r: MicroRun, now: number): MicroRun {
   return startStep(r.stepIndex, r.preset, now, r.done);
 }
 
+/** Fracción 0–1 de pasos hechos (0 si no hay pasos). */
 export const stepsProgress = (r: MicroRun, totalSteps: number) => (totalSteps ? r.done.length / totalSteps : 0);
+/** Todos los pasos hechos (falso si no hay pasos). */
 export const isFinished = (r: MicroRun, totalSteps: number) => totalSteps > 0 && r.done.length >= totalSteps;

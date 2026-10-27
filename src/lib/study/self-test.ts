@@ -59,7 +59,14 @@ export interface MixSlot {
 
 const WEIGHT: Record<Tag, number> = { red: 3, yellow: 2, grey: 1 };
 
-/** Reparte `count` preguntas entre los temas por peso (🔴 > 🟡 > ⚪; flojos y no hechos suben). ≈ 60 % teoría, 40 % casos. */
+/**
+ * Reparte `count` preguntas entre los temas por peso (🔴 > 🟡 > ⚪; flojos y no hechos suben). ≈ 60 % teoría, 40 % casos.
+ * Reparto exacto por el método del mayor resto; los casos prácticos van a los huecos de más peso.
+ *
+ * @param p.daysLeft Con ≤ 7 días se excluyen los ⚪ (si quedan al menos 2 temas).
+ * @param p.weak Nombres de temas que salieron flojos (+2 de peso; sin distinguir mayúsculas).
+ * @returns Un hueco por pregunta (`count` en total); `[]` si no hay temas.
+ */
 export function planMix(p: { topics: MixTopic[]; daysLeft: number | null; weak: string[]; count: number }): MixSlot[] {
   let pool = p.topics;
   if (p.daysLeft !== null && p.daysLeft <= 7) {
@@ -104,6 +111,10 @@ Reglas:
 - Nivel de dificultad creciente: empieza por lo básico y acaba con lo que distingue un 10.
 - Responde solo con JSON válido con el formato pedido, sin texto fuera del JSON.`;
 
+/**
+ * Prompt del test: el reparto va numerado y las fuentes entre `<<< >>>` como datos que no se obedecen.
+ * No menciona ningún modelo. `daysLeft` solo adapta el texto del plazo.
+ */
 export function buildSelfTestPrompt(p: { moduleName: string; daysLeft: number | null; mix: MixSlot[]; sources: string }): { system: string; prompt: string } {
   const slots = p.mix.map((s, i) => `${i + 1}. [${s.kind === "case" ? "caso práctico" : "teoría"}] ${TAG_EMOJI[s.tag]} ${TAG_LABEL[s.tag]} · tema: ${s.topic}`).join("\n");
   const when = p.daysLeft === null ? "sin fecha de examen" : p.daysLeft < 0 ? "examen ya pasado" : `faltan ${p.daysLeft} días para el examen`;
@@ -115,7 +126,14 @@ export function buildSelfTestPrompt(p: { moduleName: string; daysLeft: number | 
 
 const squash = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
-/** Limpia lo que devuelve la IA: descarta lo mal formado y repetido, marca si la cita está en las fuentes. */
+/**
+ * Limpia lo que devuelve la IA: descarta lo mal formado y repetido, marca si la cita está en las fuentes.
+ * Una de opciones exige 3–4 opciones y un índice válido; un caso exige `solution`. `verified` es verdadero solo si la
+ * cita (≥ 8 caracteres) aparece literal en `sourceText`.
+ *
+ * @param max Tope de preguntas devueltas.
+ * @param topics Para asignar la etiqueta de prioridad por nombre (por defecto 🟡).
+ */
 export function normalizeTest(raw: z.infer<typeof selfTestAiSchema>, sourceText: string, topics: MixTopic[], max: number): TestQuestion[] {
   const src = squash(sourceText);
   const tagOf = (name: string): Tag => topics.find((t) => squash(t.name) === squash(name))?.tag ?? "yellow";
@@ -175,11 +193,18 @@ export interface Answered {
 }
 export type LevelLabel = "Lista para el 10" | "Cerca del 10" | "Aprobado justo" | "Falta base";
 
+/** Etiqueta de la nota /10: ≥ 9 «Lista para el 10», ≥ 7 «Cerca del 10», ≥ 5 «Aprobado justo», si no «Falta base». */
 export function levelLabel(score: number): LevelLabel {
   return score >= 9 ? "Lista para el 10" : score >= 7 ? "Cerca del 10" : score >= 5 ? "Aprobado justo" : "Falta base";
 }
 
-/** Nota /10 ponderada por prioridad, temas con puntos perdidos (🔴 primero) y 🔴 que no salieron. */
+/**
+ * Nota /10 ponderada por prioridad, temas con puntos perdidos (🔴 primero) y 🔴 que no salieron.
+ *
+ * @param items Respuestas con su tema, etiqueta y puntuación (0, ½ o 1).
+ * @param topics Temario, para detectar los 🔴 sin preguntar.
+ * @returns `score` (1 decimal; 0 sin respuestas), `label`, `gaps` (mayor pérdida primero) y `untested` (nombres).
+ */
 export function estimateLevel(items: Answered[], topics: MixTopic[]) {
   const w = items.reduce((a, i) => a + WEIGHT[i.tag], 0);
   const got = items.reduce((a, i) => a + WEIGHT[i.tag] * i.score, 0);
