@@ -11,6 +11,7 @@ import { ocrAvailable, ocrPdf } from "@/lib/files/ocr";
 import { embedTexts, generateText, toVectorLiteral } from "@/lib/ai/llm";
 import type { EmbedTask } from "@/lib/ai/provider";
 import { assertAiAllowed } from "@/lib/ai/guard";
+import { supportsIterativeScan } from "@/lib/ai/pgvector-version";
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
@@ -187,10 +188,14 @@ export async function processDocument(documentId: string, deps: ProcessDeps = de
         })),
       });
       // Prisma no soporta el tipo vector: el embedding se escribe con SQL parametrizado.
-      for (let i = 0; embedded && i < chunks.length; i++) {
+      // Por lotes: una sentencia con `unnest` en vez de un UPDATE por chunk.
+      const BATCH = 500;
+      for (let i = 0; embedded && i < chunks.length; i += BATCH) {
+        const part = chunks.slice(i, i + BATCH);
         await tx.$executeRaw`
-          UPDATE "DocumentChunk" SET embedding = ${toVectorLiteral(embedded.vectors[i])}::vector
-          WHERE "documentId" = ${doc.id} AND "chunkIndex" = ${chunks[i].index}`;
+          UPDATE "DocumentChunk" AS c SET embedding = v.vec::vector
+          FROM unnest(${part.map((c) => c.index)}::int[], ${part.map((_, j) => toVectorLiteral(embedded.vectors[i + j]))}::text[]) AS v(idx, vec)
+          WHERE c."documentId" = ${doc.id} AND c."chunkIndex" = v.idx`;
       }
     }, { timeout: 120_000 });
 
@@ -217,6 +222,24 @@ export interface RetrievedChunk {
   score: number;
 }
 
+let iterativeScan: Promise<boolean> | undefined;
+/** pgvector ≥ 0.8: el filtro por usuaria/modelo se aplica tras el HNSW; el escaneo iterativo sigue hasta reunir *k*. */
+function hasIterativeScan(): Promise<boolean> {
+  iterativeScan ??= prisma
+    .$queryRaw<Array<{ extversion: string }>>`SELECT extversion FROM pg_extension WHERE extname = 'vector'`
+    .then((r) => supportsIterativeScan(r[0]?.extversion))
+    .catch(() => false);
+  return iterativeScan;
+}
+
+async function vectorSearch(query: Prisma.Sql): Promise<RetrievedChunk[]> {
+  if (!(await hasIterativeScan())) return prisma.$queryRaw<RetrievedChunk[]>(query);
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('hnsw.iterative_scan', 'strict_order', true)`;
+    return tx.$queryRaw<RetrievedChunk[]>(query);
+  });
+}
+
 /**
  * Fragmentos más relevantes. Los documentos vectorizados con el modelo actual del usuario se buscan
  * por similitud (KNN coseno con el índice HNSW); el resto (IA sin embeddings, o vectorizados con otro
@@ -226,14 +249,15 @@ export async function searchChunks(userId: string, query: string, k = 6, documen
   const docFilter = documentIds?.length ? Prisma.sql`AND c."documentId" IN (${Prisma.join(documentIds)})` : Prisma.empty;
   const q = await deps.embed(userId, [query], "RETRIEVAL_QUERY");
   const byVector = q
-    ? await prisma.$queryRaw<RetrievedChunk[]>`
-        SELECT c.id, c."documentId", d.title, c.page, c.content,
+    ? await vectorSearch(
+        Prisma.sql`SELECT c.id, c."documentId", d.title, c.page, c.content,
                1 - (c.embedding <=> ${toVectorLiteral(q.vectors[0])}::vector) AS score
         FROM "DocumentChunk" c
         JOIN "StudyDocument" d ON d.id = c."documentId"
         WHERE c."userId" = ${userId} AND c.embedding IS NOT NULL AND d."embedModel" = ${q.tag} ${docFilter}
         ORDER BY c.embedding <=> ${toVectorLiteral(q.vectors[0])}::vector
-        LIMIT ${k}`
+        LIMIT ${k}`,
+      )
     : [];
   const sameModel = q ? Prisma.sql`AND d."embedModel" IS DISTINCT FROM ${q.tag}` : Prisma.empty;
   // ts_rank normalizado (32: rank / (rank + 1)) y escalado para compararlo con la similitud coseno

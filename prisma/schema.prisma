@@ -1339,6 +1339,8 @@ model StudyTopic {
 /// ($executeRaw / $queryRaw) porque Prisma no soporta el tipo vector.
 /// Índice HNSW (vector_cosine_ops) creado en la migración inicial
 /// a partir de prisma/sql/pgvector_setup.sql.
+/// Índice GIN de expresión to_tsvector('spanish', content) (v2.6, búsqueda por texto): en
+/// prisma/data-migrations/20270601080000_v2_6_features.sql (Prisma no lo modela).
 model DocumentChunk {
   id         String                      @id @default(cuid())
   documentId String

@@ -7,48 +7,67 @@ import { prisma } from "@/lib/prisma";
 import { habitStreak } from "@/lib/study/schedule";
 import type { TechnicalEvent } from "@/generated/prisma/client";
 
-/** Valor actual de un objetivo a partir de los datos que ya hay (marcas, tests, hábitos, gastos). */
-async function currentValue(userId: string, g: { kind: GoalKindKey; linkRef: string | null; current: number | null; higherIsBetter: boolean }): Promise<number | null> {
-  switch (g.kind) {
-    case "CUSTOM":
-      return g.current;
-    case "MARK": {
-      const best = await prisma.personalRecord.findFirst({
-        where: { userId, kind: "TECHNICAL_MARK", technicalEvent: g.linkRef as TechnicalEvent, isEstimated: false },
-        orderBy: { value: "desc" },
-        select: { value: true },
-      });
-      return best?.value ?? null;
-    }
-    case "TEST": {
-      const last = await prisma.testResult.findFirst({ where: { userId, testKey: g.linkRef ?? "" }, orderBy: { date: "desc" }, select: { value: true } });
-      return last?.value ?? null;
-    }
-    case "HABIT": {
-      const logs = await prisma.habitLog.findMany({ where: { userId, habitId: g.linkRef ?? "" }, select: { date: true } });
-      return habitStreak(logs.map((l) => toIsoDay(l.date)), toIsoDay(today())).current;
-    }
-    case "BUDGET": {
-      const t = today();
-      const from = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1));
-      const sum = await prisma.posting.aggregate({
-        where: { categoryId: g.linkRef ?? "", account: { userId, type: "EXPENSE" }, transaction: { date: { gte: from, lte: t } } },
-        _sum: { amountCents: true },
-      });
-      return sum._sum.amountCents ?? 0;
-    }
-  }
+type GoalLike = { id: string; kind: GoalKindKey; linkRef: string | null; current: number | null };
+
+/**
+ * Valor actual de cada objetivo a partir de los datos que ya hay (marcas, tests, hábitos, gastos).
+ * Una consulta por tipo de objetivo (no por objetivo); todo acotado a `userId`.
+ */
+async function currentValues(userId: string, goals: GoalLike[]): Promise<Map<string, number | null>> {
+  const refs = (kind: GoalKindKey) => [...new Set(goals.filter((g) => g.kind === kind).map((g) => g.linkRef ?? ""))];
+  const [marks, tests, habitLogs, spent] = await Promise.all([
+    refs("MARK").length
+      ? prisma.personalRecord.groupBy({
+          by: ["technicalEvent"],
+          where: { userId, kind: "TECHNICAL_MARK", technicalEvent: { in: refs("MARK") as TechnicalEvent[] }, isEstimated: false },
+          _max: { value: true },
+        })
+      : [],
+    refs("TEST").length
+      ? prisma.testResult.findMany({ where: { userId, testKey: { in: refs("TEST") } }, orderBy: { date: "desc" }, distinct: ["testKey"], select: { testKey: true, value: true } })
+      : [],
+    refs("HABIT").length ? prisma.habitLog.findMany({ where: { userId, habitId: { in: refs("HABIT") } }, select: { habitId: true, date: true } }) : [],
+    refs("BUDGET").length
+      ? (() => {
+          const t = today();
+          const from = new Date(Date.UTC(t.getUTCFullYear(), t.getUTCMonth(), 1));
+          return prisma.posting.groupBy({
+            by: ["categoryId"],
+            where: { categoryId: { in: refs("BUDGET") }, account: { userId, type: "EXPENSE" }, transaction: { date: { gte: from, lte: t } } },
+            _sum: { amountCents: true },
+          });
+        })()
+      : [],
+  ]);
+  const markBest = new Map(marks.map((m) => [m.technicalEvent as string | null, m._max.value]));
+  const testLast = new Map(tests.map((r) => [r.testKey, r.value]));
+  const logsOf = new Map<string, string[]>();
+  for (const l of habitLogs) logsOf.set(l.habitId, [...(logsOf.get(l.habitId) ?? []), toIsoDay(l.date)]);
+  const spentOf = new Map(spent.map((r) => [r.categoryId, r._sum.amountCents ?? 0]));
+  const todayIso = toIsoDay(today());
+
+  return new Map(
+    goals.map((g) => {
+      const ref = g.linkRef ?? "";
+      const v =
+        g.kind === "CUSTOM" ? g.current
+        : g.kind === "MARK" ? (markBest.get(ref) ?? null)
+        : g.kind === "TEST" ? (testLast.get(ref) ?? null)
+        : g.kind === "HABIT" ? habitStreak(logsOf.get(ref) ?? [], todayIso).current
+        : (spentOf.get(ref) ?? 0);
+      return [g.id, v];
+    }),
+  );
 }
 
 export async function listGoals(userId: string) {
   const goals = await prisma.goal.findMany({ where: { userId }, orderBy: [{ doneAt: { sort: "asc", nulls: "first" } }, { dueOn: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }] });
-  return Promise.all(
-    goals.map(async (g) => ({
-      ...g,
-      dueOn: g.dueOn ? toIsoDay(g.dueOn) : null,
-      progress: goalProgress(g, await currentValue(userId, g)),
-    })),
-  );
+  const values = await currentValues(userId, goals);
+  return goals.map((g) => ({
+    ...g,
+    dueOn: g.dueOn ? toIsoDay(g.dueOn) : null,
+    progress: goalProgress(g, values.get(g.id) ?? null),
+  }));
 }
 
 export async function createGoal(userId: string, input: GoalInput) {
