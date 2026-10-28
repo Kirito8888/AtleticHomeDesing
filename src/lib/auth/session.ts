@@ -12,6 +12,13 @@ export interface CurrentUser {
   role: UserRole;
 }
 
+/**
+ * Usuaria autenticada de la petición (para Route Handlers y acciones de servidor).
+ * En mutaciones exige además las condiciones de uso vigentes aceptadas (salvo rutas exentas).
+ *
+ * @returns `{ id, role }` de la sesión.
+ * @throws {ApiError} 401 sin sesión · 403 `terms_required` si no ha aceptado las condiciones vigentes.
+ */
 export async function requireUser(): Promise<CurrentUser> {
   const session = await currentSession();
   if (!session?.user?.id) throw new ApiError(401, "No autenticado");
@@ -41,6 +48,16 @@ export function mergeGrants(grants: Grant[]): Grant {
 
 /**
  * Resuelve de qué atleta se leen/escriben datos deportivos.
+ *
+ * @param user Quien hace la petición.
+ * @param athleteId Atleta pedida; vacío o la propia → `user.id`.
+ * @param scope Ámbito que se necesita (`LOAD`, `SESSIONS`, `RECOVERY`, `PLANNING`, `REPORTS`).
+ * @param mode `write` exige además `canPlan`.
+ * @returns El id de atleta sobre el que operar.
+ * @throws {ApiError} 403 si no es COACH/ADMIN, no hay vínculo activo, la atleta limitó el tratamiento (art. 18),
+ *   falta el ámbito o, al escribir, el permiso de planificación.
+ *
+ * Reglas:
  * - Sin athleteId (o el propio) → el usuario actual.
  * - Coach/Admin (el ADMIN global no se salta nada) con vínculo ACTIVE (1:1 o por pertenencia a un club, v2.0) → ese atleta, solo para los
  *   ámbitos (`scope`) que el atleta le haya concedido (escritura además exige canPlan).

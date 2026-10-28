@@ -5,14 +5,22 @@ export interface BalanceAccount {
   balanceCents: number;
 }
 
-/** Suma de apuntes por cuenta (+ débito / − crédito). */
+/**
+ * Suma de apuntes por cuenta (+ débito / − crédito).
+ *
+ * @returns Mapa `accountId → saldo` en céntimos; las cuentas sin apuntes no aparecen.
+ */
 export function balancesFromPostings(postings: Array<{ accountId: string; amountCents: number }>): Map<string, number> {
   const out = new Map<string, number>();
   for (const p of postings) out.set(p.accountId, (out.get(p.accountId) ?? 0) + p.amountCents);
   return out;
 }
 
-/** Cuentas de dinero (activo y pasivo) y su balance neto; las de contrapartida no cuentan. */
+/**
+ * Cuentas de dinero (activo y pasivo) y su balance neto; las de contrapartida no cuentan.
+ *
+ * @returns `money` (cuentas ASSET/LIABILITY, mismo orden) y `netCents` = suma de sus saldos.
+ */
 export function moneySummary<T extends BalanceAccount>(accounts: T[]): { money: T[]; netCents: number } {
   const money = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
   return { money, netCents: money.reduce((a, x) => a + x.balanceCents, 0) };

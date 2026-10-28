@@ -43,7 +43,14 @@ export const manualRequestSchema = z.object({
 });
 export type ManualRequest = z.infer<typeof manualRequestSchema>;
 
-/** Prompt estricto y agnóstico al modelo. Las fuentes van como datos entre delimitadores. */
+/**
+ * Prompt estricto y agnóstico al modelo. Las fuentes van como datos entre delimitadores
+ * (`<FUENTES>…</FUENTES>`), así que una orden dentro de los apuntes no se obedece.
+ *
+ * @param params.label Nombre del material (asignatura o apunte).
+ * @param params.sources Texto de los apuntes, sin interpretar.
+ * @returns `system` (reglas, límites `MAX_SECTIONS`/`MAX_RECIPES`) y `prompt` (material + fuentes).
+ */
 export function buildManualPrompt(params: { label: string; sources: string }): { system: string; prompt: string } {
   const system = `Eres un redactor de manuales prácticos para exámenes, en español.
 Reglas estrictas:
@@ -56,7 +63,12 @@ Reglas estrictas:
   return { system, prompt: `Material: ${params.label}\n\n<FUENTES>\n${params.sources}\n</FUENTES>` };
 }
 
-/** Asigna letras y códigos únicos (A1, A2… B1…) en orden; la IA no los decide. */
+/**
+ * Asigna letras y códigos únicos (A1, A2… B1…) en orden; la IA no los decide.
+ *
+ * @param raw JSON ya validado con `manualAiSchema`.
+ * @returns Manual con como mucho `MAX_SECTIONS` secciones y `MAX_RECIPES` recetas por sección (el resto se descarta).
+ */
 export function normalizeManual(raw: ManualAi): Manual {
   return {
     title: raw.title,
@@ -69,6 +81,7 @@ export function normalizeManual(raw: ManualAi): Manual {
   };
 }
 
+/** Manual simulado (LIFEOS_FAKE_AI=1): determinista, a partir de las primeras palabras de las fuentes. */
 export function fakeManual(sources: string): ManualAi {
   const first = sources.replace(/\s+/g, " ").trim().slice(0, 160) || "Contenido";
   return {
@@ -87,7 +100,11 @@ export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
 export const marker = (code: string) => `@@${code}@@`;
 const PLACEHOLDER = "000";
 
-/** Índice alfabético: título y palabras clave de cada receta, ordenados en es-ES. */
+/**
+ * Índice alfabético: título y palabras clave de cada receta, ordenados en es-ES.
+ *
+ * @returns Entradas `{ term, code }`; una receta aparece una vez por cada término.
+ */
 export function alphaEntries(m: Manual): Array<{ term: string; code: string }> {
   const out: Array<{ term: string; code: string }> = [];
   for (const s of m.sections) for (const r of s.recipes) for (const term of [r.title, ...r.keywords]) out.push({ term, code: r.code });
@@ -122,7 +139,12 @@ table.idx { width: 100%; border-collapse: collapse; font-size: 8.5pt } table.idx
 .idx-sec { break-before: page; } .cols { columns: 2; column-gap: 6mm } .cover { page-break-after: always }
 `;
 
-/** HTML completo del manual. Sin `pages`, los números de página llevan un marcador de ancho fijo (1.ª pasada). */
+/**
+ * HTML completo del manual (portada, índice por tareas, secciones y índice alfabético). Todo el texto de la IA va escapado (`esc`).
+ *
+ * @param m Manual normalizado.
+ * @param pages Página de cada código (de `locateCodes`). Sin ella, los números llevan un marcador de ancho fijo (1.ª pasada).
+ */
 export function renderManualHtml(m: Manual, pages?: ReadonlyMap<string, number>): string {
   const pg = (code: string) => String(pages?.get(code) ?? PLACEHOLDER);
   const taskIndex = m.sections
@@ -137,7 +159,12 @@ export function renderManualHtml(m: Manual, pages?: ReadonlyMap<string, number>)
 <div class="task-index"><h2 style="background:#343a40">Índice por tareas</h2>${taskIndex}</div>${sections}${alpha}</body></html>`;
 }
 
-/** Primera página (1-based) donde aparece el marcador de cada receta. Las que no se localizan se omiten. */
+/**
+ * Primera página (1-based) donde aparece el marcador de cada receta. Las que no se localizan se omiten.
+ *
+ * @param pageTexts Texto extraído de cada página del PDF.
+ * @param codes Códigos buscados (ver `allCodes`).
+ */
 export function locateCodes(pageTexts: string[], codes: string[]): Map<string, number> {
   const found = new Map<string, number>();
   for (const code of codes) {

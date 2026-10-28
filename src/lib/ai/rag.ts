@@ -79,6 +79,11 @@ async function extractPages(buf: Buffer, mime: string): Promise<string[]> {
  * PENDING. El trabajo pesado (extraer, trocear, vectorizar) lo hace
  * processDocument() en segundo plano (src/lib/jobs/queue.ts), así que libros
  * enteros no agotan el tiempo de la petición.
+ *
+ * @param meta.title Título; por defecto, el nombre del fichero sin extensión.
+ * @returns El `StudyDocument` en PENDING con su `storagePath`.
+ * @throws {ApiError} 415 formato o contenido no válido · 413 más de 15 MB o cuota superada ·
+ *   (de `assertAiAllowed`) sin IA configurada o sin consentimiento. Si falla al escribir el fichero, borra el registro.
  */
 export async function createDocumentFromUpload(userId: string, file: File, meta: { title?: string; subject?: string }) {
   const mime = mimeOf(file);
@@ -118,6 +123,10 @@ export async function createDocumentFromUpload(userId: string, file: File, meta:
  * v2.5 · Guarda un resumen/esquema que la atleta ha confirmado como apunte NUEVO (.md). Ya viene en texto,
  * así que se trocea y queda listo para buscar por texto sin llamar a la IA (si cambia de IA se reindexa).
  * Nunca toca el apunte de origen ni sus flashcards.
+ *
+ * @param meta.markdown Contenido ya en texto; se trocea con `chunkDocument`.
+ * @returns El documento en EMBEDDED (`embedModel` = `TEXT_ONLY`) con el recuento de fragmentos.
+ * @throws {ApiError} 413 cuota superada · 422 si no queda contenido tras trocear.
  */
 export async function createDocumentFromText(userId: string, meta: { title: string; subject?: string | null; markdown: string }) {
   const buf = Buffer.from(meta.markdown, "utf8");
@@ -161,6 +170,11 @@ export const TEXT_ONLY = "texto";
  * Paso 2 (en segundo plano): extrae texto, trocea, vectoriza y guarda. Idempotente:
  * borra los fragmentos previos, así que un reintento no duplica nada.
  * Si falla deja el documento en FAILED con el motivo y relanza el error (pg-boss reintenta).
+ *
+ * @param documentId Documento a procesar.
+ * @param deps Embeddings y comprobación de IA (inyectables en tests).
+ * @returns El documento en EMBEDDED; si no existe o ya estaba procesado, lo devuelve sin hacer nada (`null` si no existe).
+ * @throws {ApiError} 422 sin texto extraíble · 502 embeddings incompletos; también errores de IA o de disco.
  */
 export async function processDocument(documentId: string, deps: ProcessDeps = defaultDeps) {
   const doc = await prisma.studyDocument.findUnique({ where: { id: documentId } });
@@ -244,6 +258,13 @@ async function vectorSearch(query: Prisma.Sql): Promise<RetrievedChunk[]> {
  * Fragmentos más relevantes. Los documentos vectorizados con el modelo actual del usuario se buscan
  * por similitud (KNN coseno con el índice HNSW); el resto (IA sin embeddings, o vectorizados con otro
  * modelo hasta que se reindexen) por texto completo en español. Siempre filtrado por usuario.
+ *
+ * @param userId Dueña de los apuntes: ningún fragmento de otra usuaria puede salir.
+ * @param query Pregunta o tema.
+ * @param k Máximo de fragmentos (6 por defecto).
+ * @param documentIds Restringe a estos documentos (vacío = todos).
+ * @returns Hasta `k` fragmentos por `score` descendente (similitud coseno, o rango de texto escalado desde 0,35).
+ *   Filtrar con `MIN_SCORE`. Sin embeddings en la IA de la usuaria solo hay búsqueda por texto.
  */
 export async function searchChunks(userId: string, query: string, k = 6, documentIds?: string[], deps: Pick<ProcessDeps, "embed"> = defaultDeps): Promise<RetrievedChunk[]> {
   const docFilter = documentIds?.length ? Prisma.sql`AND c."documentId" IN (${Prisma.join(documentIds)})` : Prisma.empty;
@@ -297,6 +318,15 @@ Reglas:
 - Si los fragmentos no contienen la respuesta, dilo claramente y sugiere qué buscar; no inventes.
 - Sé didáctico: primero la respuesta directa, después la explicación y, si ayuda, un ejemplo.`;
 
+/**
+ * Responde una pregunta de estudio con RAG sobre los apuntes de la usuaria y guarda el intercambio en el hilo.
+ * Solo usa fragmentos con `score` ≥ `MIN_SCORE`; la respuesta cita con [n].
+ *
+ * @param params.threadId Hilo STUDY existente; si falta, se crea uno titulado con la pregunta.
+ * @param params.documentIds Limita la búsqueda a estos apuntes.
+ * @returns `{ threadId, message }` (mensaje del asistente con `citations`, modelo y tokens).
+ * @throws {ApiError} 404 si el hilo no existe o no es suyo; errores de `assertAiAllowed` y del proveedor de IA.
+ */
 export async function askStudyQuestion(
   userId: string,
   params: { question: string; threadId?: string; documentIds?: string[] },

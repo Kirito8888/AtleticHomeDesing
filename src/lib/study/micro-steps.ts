@@ -42,6 +42,10 @@ const plain = (s: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
+/**
+ * Impone `STEP_LIMITS` a los pasos de la IA: texto llano (sin negrita ni viñetas), sin repetidos, 5–15 min por paso
+ * (redondeados; sin número válido → 5) y como mucho 6 pasos, numerados desde 1. Título vacío → «Pasos de estudio».
+ */
 export function normalizeSteps(raw: StepsDoc): MicroSteps {
   const seen = new Set<string>();
   const steps: MicroStep[] = [];

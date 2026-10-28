@@ -3,7 +3,11 @@ import { requireUser } from "@/lib/auth/session";
 import { isMonth } from "@/lib/finance/budgets";
 import { deleteMonthlyBudget } from "@/lib/finance/budgets-service";
 
-/** Quita el presupuesto mensual desde `?month=AAAA-MM` en adelante. */
+/**
+ * `DELETE /api/finance/budgets/[id]?month=AAAA-MM` · Quita el presupuesto mensual desde ese mes en adelante; los meses pasados no cambian.
+ *
+ * - Errores: 400 falta `month` o no es válido · 401 · 403 origen/condiciones · 404 presupuesto no suyo.
+ */
 export const DELETE = route<{ params: Promise<{ id: string }> }>(async (req, ctx) => {
   const user = await requireUser();
   const { id } = await ctx.params;

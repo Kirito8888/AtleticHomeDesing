@@ -36,6 +36,12 @@ Reglas:
 - "evidence": cita LITERAL y corta (≤ 200 caracteres) copiada de las fuentes que respalda la respuesta.
 - Responde solo con JSON válido con el formato pedido, sin texto fuera del JSON.`;
 
+/**
+ * Prompt de las preguntas del Modo Juego: fuentes como datos, sin nombres de modelo y con la regla de no inventar
+ * comandos, opciones ni distractores fuera de los apuntes.
+ *
+ * @param p.counts Cuántas preguntas de teoría (`t`) y de práctica (`p`) se piden.
+ */
 export function buildQuestPrompt(p: { moduleName: string; nodeTitle: string; counts: { t: number; p: number }; sources: string }): { system: string; prompt: string } {
   return {
     system: SYSTEM,
@@ -47,7 +53,7 @@ const squash = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 const unquote = (s: string) => s.replace(/[«»"'`]/g, "");
 const NOT_IN_SOURCES = /no est[aá] en las fuentes/i;
 
-/** Hash corto y estable (djb2) para ids que sobreviven entre sesiones. */
+/** Hash corto y estable (djb2) para ids que sobreviven entre sesiones. Mismo texto → mismo id. */
 export function shortHash(s: string): string {
   let h = 5381;
   for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
@@ -77,7 +83,14 @@ export function commandAnchored(cmd: string, sh: Shell, sourceText: string): boo
   });
 }
 
-/** Limpia lo que devuelve la IA y lo convierte en preguntas del motor: descarta lo mal formado, repetido o no respaldado por las fuentes. */
+/**
+ * Limpia lo que devuelve la IA y lo convierte en preguntas del motor: descarta lo mal formado, repetido o no respaldado por las fuentes.
+ * Teoría: cita literal (≥ 8 car.), sin «NO ESTÁ EN LAS FUENTES» y 4 opciones distintas. Práctica: una línea de ≤ 200 car., con cita
+ * literal y comando y opciones presentes en los apuntes (`commandAnchored`). Ids `ai:<nodo>:<hash>:t<i>|p<i>`.
+ *
+ * @param counts Máximo de cada tipo (6 de teoría y 4 de práctica por defecto).
+ * @returns Preguntas válidas, quizá menos de las pedidas (o ninguna).
+ */
 export function normalizeQuest(raw: QuestAi, sourceText: string, nodeId: string, counts: { t: number; p: number } = QUEST_COUNTS): QuestItem[] {
   const src = squash(unquote(sourceText));
   const cited = (ev: string) => {
@@ -187,6 +200,7 @@ export function parseBank(raw: string | null): QuestBank {
   }
 }
 
+/** Pregunta de la caché por id, lista para el motor, o null si no está. */
 export function bankItem(bank: QuestBank, id: string): QuestItem | null {
   const e = bank[id];
   if (!e) return null;

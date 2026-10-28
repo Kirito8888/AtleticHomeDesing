@@ -34,7 +34,12 @@ export interface QuestNode {
 
 const clampStars = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.min(3, Math.floor(v))) : 0);
 
-/** Lee el estado guardado sin fiarse de él: JSON roto o campos con tipos raros caen al valor vacío. */
+/**
+ * Lee el estado guardado sin fiarse de él: JSON roto o campos con tipos raros caen al valor vacío.
+ * Nunca lanza: estrellas y % se acotan, los fallos se deduplican y solo `free === true` activa el modo libre.
+ *
+ * @param raw Contenido de `localStorage` (o null).
+ */
 export function parseQuest(raw: string | null): QuestState {
   const s = emptyQuest();
   if (!raw) return s;
@@ -61,19 +66,27 @@ export function parseQuest(raw: string | null): QuestState {
   return s;
 }
 
-/** Niveles en el orden del temario + el Jefe Final. Sin temas no hay mapa. */
+/**
+ * Niveles en el orden del temario + el Jefe Final. Sin temas no hay mapa.
+ *
+ * @returns `[]` sin temas; si no, un nodo por tema (`n` desde 1, id = id del tema) y el nodo `BOSS_ID` al final.
+ */
 export function buildQuestMap(topics: { id: string; name: string; tag: Tag; minutes: number }[]): QuestNode[] {
   if (!topics.length) return [];
   const levels: QuestNode[] = topics.map((t, i) => ({ id: t.id, kind: "level", title: t.name, tag: t.tag, minutes: t.minutes, n: i + 1 }));
   return [...levels, { id: BOSS_ID, kind: "boss", title: "Jefe Final", tag: null, minutes: null, n: levels.length + 1 }];
 }
 
-/** ★ 60 % · ★★ 80 % · ★★★ 100 %. */
+/** Estrellas por porcentaje de acierto: ★ 60 % · ★★ 80 % · ★★★ 100 %; por debajo de 60 %, 0. */
 export const starsFor = (pct: number) => (pct >= 100 ? 3 : pct >= 80 ? 2 : pct >= 60 ? 1 : 0);
 export const starsOf = (s: QuestState, id: string) => s.lv[id]?.stars ?? 0;
 export const totalStars = (nodes: QuestNode[], s: QuestState) => nodes.reduce((a, n) => a + starsOf(s, n.id), 0);
 export const maxStars = (nodes: QuestNode[]) => nodes.length * 3;
 
+/**
+ * Un nivel está desbloqueado si es el primero, si el modo libre está activo o si el anterior tiene ≥ `UNLOCK_STARS` estrellas.
+ * Un índice fuera de rango no lo está.
+ */
 export function isUnlocked(nodes: QuestNode[], i: number, s: QuestState): boolean {
   if (i < 0 || i >= nodes.length) return false;
   if (s.free || i === 0) return true;
@@ -93,6 +106,12 @@ const RANKS: { at: number; label: string }[] = [
 ];
 export const RANK_START = "🐣 Novata";
 
+/**
+ * Rango según las estrellas ganadas sobre el máximo de la asignatura (cortes del juego original en fracción).
+ *
+ * @param stars Estrellas ganadas.
+ * @param max Máximo posible (`maxStars`); ≤ 0 o sin estrellas → `RANK_START`.
+ */
 export function rankFor(stars: number, max: number): string {
   if (max <= 0 || stars <= 0) return RANK_START;
   const f = stars / max;
