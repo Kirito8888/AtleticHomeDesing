@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { getPrefs } from "@/lib/rules/prefs-service";
 
 import type { Tag } from "./adhd-report";
+import { parseFormat } from "./exam-format";
 import { daysLeft, moduleSchema, prioritize, type RouteTopic, topicSchema } from "./study-route";
 
 type ModuleInput = z.infer<typeof moduleSchema>;
@@ -88,6 +89,9 @@ export async function moduleView(userId: string, id: string, today: string) {
     examDate,
     daysLeft: left,
     prepMode: m.prepMode,
+    /** Formato de examen elegido (o el de por defecto) y si ya lo ha respondido. */
+    examFormat: parseFormat(m.examFormat),
+    examFormatSet: m.examFormat !== null,
     dailyMin: prefs.studyDailyMin,
     topics: list,
     /** Ruta ordenada: solo se usa con `prepMode`; el temario es el mismo, solo cambia el orden. */

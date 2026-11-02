@@ -4,6 +4,8 @@ import type { Tag } from "./adhd-report";
 
 export const questKey = (moduleId: string) => `atlenza.study.quest.${moduleId}`;
 export const BOSS_ID = "boss";
+/** v2.6 · Examen final cronometrado de la asignatura (nota sobre 10). */
+export const FINAL_ID = "final";
 /** Estrellas del nivel anterior que hacen falta para desbloquear el siguiente. */
 export const UNLOCK_STARS = 2;
 
@@ -19,7 +21,30 @@ export interface QuestState {
   fails: string[];
   /** Modo libre: todos los nodos desbloqueados. */
   free: boolean;
+  /** v2.6 · Ya vio el tutorial «Cómo se juega» (ausente = no). */
+  seen?: boolean;
+  /** v2.6 · Apelaciones «Mi comando también vale» pendientes de comprobar en la máquina virtual (más recientes primero, máx. 100). */
+  appeals?: Appeal[];
+  /** v2.6 · Intentos del examen final (más recientes primero, máx. 20). */
+  exams?: ExamAttempt[];
 }
+export interface Appeal {
+  q: string;
+  sol: string;
+  ans: string;
+}
+export interface ExamAttempt {
+  /** ISO. */
+  at: string;
+  /** Nota sobre 10 (un decimal). */
+  nota: number;
+  /** Subnotas sobre 10 de teoría (test/desarrollo) y de práctica (comando); null si no había de ese tipo. */
+  theory: number | null;
+  practical: number | null;
+  total: number;
+}
+export const MAX_APPEALS = 100;
+export const MAX_EXAMS = 20;
 export const emptyQuest = (): QuestState => ({ xp: 0, lv: {}, fails: [], free: false });
 
 export interface QuestNode {
@@ -63,6 +88,29 @@ export function parseQuest(raw: string | null): QuestState {
   }
   if (Array.isArray(r.fails)) s.fails = [...new Set(r.fails.filter((x): x is string => typeof x === "string"))];
   s.free = r.free === true;
+  if (r.seen === true) s.seen = true;
+  const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : null);
+  if (Array.isArray(r.appeals)) {
+    const a = r.appeals.flatMap((x): Appeal[] => {
+      const o = x as Record<string, unknown> | null;
+      const q = str(o?.q, 400);
+      const sol = str(o?.sol, 300);
+      const ans = str(o?.ans, 300);
+      return q !== null && sol !== null && ans !== null ? [{ q, sol, ans }] : [];
+    });
+    if (a.length) s.appeals = a.slice(0, MAX_APPEALS);
+  }
+  if (Array.isArray(r.exams)) {
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.min(10, v)) : null);
+    const e = r.exams.flatMap((x): ExamAttempt[] => {
+      const o = x as Record<string, unknown> | null;
+      const at = str(o?.at, 40);
+      const nota = num(o?.nota);
+      const total = typeof o?.total === "number" && Number.isFinite(o.total) ? Math.max(0, Math.floor(o.total)) : null;
+      return at && nota !== null && total !== null ? [{ at, nota, theory: num(o?.theory), practical: num(o?.practical), total }] : [];
+    });
+    if (e.length) s.exams = e.slice(0, MAX_EXAMS);
+  }
   return s;
 }
 

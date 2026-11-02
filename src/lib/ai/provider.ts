@@ -38,7 +38,7 @@ export const OPENAI_PRESETS = {
 
 export const ANTHROPIC_URL = "https://api.anthropic.com/v1";
 const ANTHROPIC_VERSION = "2023-06-01";
-const TIMEOUT_MS = 90_000;
+const TIMEOUT_MS = 120_000;
 
 /** v1.10 · `images`: fotos JPEG o PNG en base64 (sin EXIF; las reescala el navegador). */
 export type ChatTurn = { role: "user" | "assistant"; text: string; images?: Array<{ mime: "image/jpeg" | "image/png"; base64: string }> };
@@ -172,7 +172,7 @@ function withSchema(system: string, schema: Record<string, unknown>) {
 function geminiClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
   const key = cfg.apiKey;
   if (!key) throw new ApiError(503, "Falta la clave de Google Gemini");
-  const sdk = new GoogleGenAI({ apiKey: key });
+  const sdk = new GoogleGenAI({ apiKey: key, httpOptions: { timeout: TIMEOUT_MS } });
   const wrap = async <T,>(fn: () => Promise<T>): Promise<T> => {
     try {
       return await fn();
