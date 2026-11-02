@@ -2,7 +2,7 @@
 import { strToU8, zipSync } from "fflate";
 
 /** Arma un .pptx mínimo con estas diapositivas `{ text, notes }` (en este orden). */
-export function buildTestPptx(slides: { text: string[]; notes?: string }[]): Buffer {
+export function buildPptxForTest(slides: { text: string[]; notes?: string }[]): Buffer {
   const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const para = (t: string) => `<a:p><a:r><a:t>${esc(t)}</a:t></a:r></a:p>`;
   const files: Record<string, Uint8Array> = {};

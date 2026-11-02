@@ -1,7 +1,7 @@
 import { zipSync, strToU8 } from "fflate";
 import { describe, expect, it } from "vitest";
 
-import { buildTestPptx } from "./pptx-fixture";
+import { buildPptxForTest } from "./pptx-fixture";
 import { extractPptxPages, looksLikePptx, xmlText } from "./pptx";
 import { contentMatches } from "./rag";
 
@@ -17,7 +17,7 @@ describe("xmlText", () => {
 
 describe("extractPptxPages", () => {
   it("devuelve una página por diapositiva, con sus notas", () => {
-    const buf = buildTestPptx([{ text: ["Usuarios", "useradd -m ana"], notes: "Recordar -m" }, { text: ["Grupos"] }]);
+    const buf = buildPptxForTest([{ text: ["Usuarios", "useradd -m ana"], notes: "Recordar -m" }, { text: ["Grupos"] }]);
     const pages = extractPptxPages(buf);
     expect(pages).toEqual(["Diapositiva 1\nUsuarios\nuseradd -m ana\nNotas: Recordar -m", "Diapositiva 2\nGrupos"]);
   });
@@ -33,9 +33,9 @@ describe("extractPptxPages", () => {
     expect(pages[1]).toContain("PRIMERO-FICHERO");
   });
   it("omite diapositivas sin texto y falla si no queda ninguna", () => {
-    expect(extractPptxPages(buildTestPptx([{ text: [] }, { text: ["Hola"] }]))).toHaveLength(1);
-    expect(() => extractPptxPages(buildTestPptx([{ text: [] }]))).not.toThrow();
-    expect(extractPptxPages(buildTestPptx([{ text: [] }]))).toEqual([]);
+    expect(extractPptxPages(buildPptxForTest([{ text: [] }, { text: ["Hola"] }]))).toHaveLength(1);
+    expect(() => extractPptxPages(buildPptxForTest([{ text: [] }]))).not.toThrow();
+    expect(extractPptxPages(buildPptxForTest([{ text: [] }]))).toEqual([]);
   });
   it("rechaza un ZIP sin diapositivas y datos que no son ZIP", () => {
     expect(() => extractPptxPages(Buffer.from(zipSync({ "ppt/presentation.xml": strToU8("<p/>") })))).toThrow(/no tiene diapositivas/);
@@ -51,7 +51,7 @@ describe("extractPptxPages", () => {
 
 describe("looksLikePptx / contentMatches", () => {
   it("acepta un pptx y rechaza un ZIP cualquiera o un PDF renombrado", () => {
-    const ok = buildTestPptx([{ text: ["x"] }]);
+    const ok = buildPptxForTest([{ text: ["x"] }]);
     expect(looksLikePptx(ok)).toBe(true);
     expect(looksLikePptx(Buffer.from(zipSync({ "otro.txt": strToU8("hola mundo, esto es largo largo largo") })))).toBe(false);
     expect(looksLikePptx(Buffer.from("%PDF-1.4 ......................................."))).toBe(false);

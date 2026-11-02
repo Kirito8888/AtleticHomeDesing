@@ -17,7 +17,9 @@ import { formatInt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { TAG_EMOJI, TAG_LABEL, type Tag } from "@/lib/study/adhd-report";
 
+import { PackSection } from "./pack/pack-section";
 import { daysLabel } from "./modules-panel";
+import type { ExamFormat } from "@/lib/study/exam-format";
 
 export interface DetailTopic {
   id: string;
@@ -35,6 +37,9 @@ export interface ModuleDetailData {
   examDate: string | null;
   daysLeft: number | null;
   prepMode: boolean;
+  examFormat: ExamFormat;
+  examFormatSet: boolean;
+  packs: Record<string, { status: string; hasSummary: boolean }>;
   dailyMin: number;
   topics: DetailTopic[];
   route: DetailTopic[] | null;
@@ -185,6 +190,8 @@ export function ModuleDetail({ data }: { data: ModuleDetailData }) {
           </Button>
         </form>
       </section>
+
+      <PackSection moduleId={data.id} topics={data.topics.map((t) => ({ id: t.id, name: t.name }))} documents={data.documents} initialPacks={data.packs} examFormat={data.examFormat} examFormatSet={data.examFormatSet} />
 
       <section aria-label="Apuntes" className="grid gap-2">
         <h2 className="text-lg font-semibold">Apuntes</h2>

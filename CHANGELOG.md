@@ -2,6 +2,20 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## Sin publicar (v2.6) — paquete de estudio por tema
+
+**Estudio** (`/study/modules/[id]`)
+- **Paquete de estudio por tema (IA):** de los apuntes de un tema (PDF, **PPTX**, TXT o Markdown) salen un **resumen por prioridad** («Cae seguro» · «Probable» · «Si sobra tiempo»: conceptos de ≤ 4 viñetas, comandos con opciones/error típico/rutas, tablas comparativas, trampas, mnemotecnias, «Errata» del temario, «si solo tengo 10 minutos» y autoevaluación de 10 preguntas + 2 prácticos con las soluciones aparte) y el **banco de preguntas del Modo Juego**. La IA devuelve JSON, nunca HTML: se valida con un esquema, cada elemento lleva una cita literal de tus apuntes y los comandos/opciones deben aparecer en ellos (si no, se descartan).
+- **Generación por partes y en segundo plano:** primero el resumen y luego un lote de preguntas por parte del texto; cada lote se valida y, si falla, se reintenta enviándole los fallos. Si un lote no sale, el paquete queda «Parcial» y «Reintentar lo que falta» solo rehace eso. Ante el límite por minuto del nivel gratuito de Gemini espera y repite (`STUDY_PACK_MIN_INTERVAL_MS` opcional).
+- **«¿Cómo es tu examen?»:** antes de generar, por asignatura: teórico y/o práctico × test y/o desarrollo, pesos a mano (opcional), minutos y nº de preguntas. Condiciona qué se genera y cómo se compone el Jefe y el examen final.
+- **Modo Juego:** preguntas de **desarrollo** (te autocorriges con una rúbrica; ≥ 60 % de puntos clave acierta), **«⚖️ Mi comando también vale»** y pantalla de **Apelaciones**, tutorial «Cómo se juega», **Examen final cronometrado** (nota sobre 10, sin vidas ni pistas, subnotas teoría/práctica, historial y mejor nota) y **Reiniciar**. Si el tema tiene paquete, el juego sirve esas preguntas sin llamar a la IA.
+- **Progreso en tu cuenta:** el avance del juego se guarda en el servidor (con control de versión entre dispositivos) además de en el navegador; al abrir en un dispositivo nuevo se recupera, y si ya tenías progreso local se une sin perder nada.
+- **PPTX:** las presentaciones se leen diapositiva a diapositiva, en el orden de la presentación y con las notas del orador.
+
+**Datos y operaciones**
+- Migración `20270601080000_v2_6_features` (aditiva): `StudyTopicPack`, `QuestProgress` y `StudyModule.examFormat`.
+- Gemini: tiempo máximo por petición (120 s) en el SDK. Variable nueva opcional `STUDY_PACK_MIN_INTERVAL_MS`; no hay claves nuevas (usa `GEMINI_API_KEY`/`GEMINI_CHAT_MODEL` o la IA propia de cada usuaria).
+
 ## v2.5.0 — finanzas en el móvil, estudio con TDAH y Modo Juego, rutinas con ciencia y seguridad (25/10/2026)
 
 **Finanzas** (todo pensado para 390 px)
