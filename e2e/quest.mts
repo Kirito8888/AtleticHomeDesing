@@ -196,6 +196,7 @@ await libre.click();
 const key = await page.evaluate(() => Object.keys(localStorage).find((k) => k.startsWith("atlenza.study.quest.")) ?? "");
 if (key !== `atlenza.study.quest.${mid}`) errors.push(`clave de almacenamiento: ${key}`);
 // v2.6 · el progreso también vive en el servidor: para simular una partida distinta se parte de cero en ambos sitios
+await page.waitForTimeout(1500); // deja terminar el envío pendiente del «Modo libre» (retardo de 700 ms) antes de borrar en el servidor
 psql(`delete from "QuestProgress" where "moduleId"='${mid}'`);
 await page.evaluate(([k, t1]) => {
   localStorage.removeItem(`${k}.sync`);
