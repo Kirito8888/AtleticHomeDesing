@@ -7,7 +7,7 @@ import type { Run } from "@/lib/study/quest-play";
 const chip = "inline-flex min-h-9 items-center rounded-[10px] border-2 border-[var(--q-line)] bg-[var(--q-panel)] px-2.5 font-mono text-[13px] whitespace-nowrap";
 
 /** Cabecera de la partida: salir, título, combo, corazones y contador; debajo, la barra de progreso. */
-export function QuestHud({ run, title, icon, mapHref, lostHeart }: { run: Run; title: string; icon: string; mapHref: string; lostHeart: boolean }) {
+export function QuestHud({ run, title, icon, mapHref, lostHeart, timer }: { run: Run; title: string; icon: string; mapHref: string; lostHeart: boolean; /** Examen: `mm:ss` que quedan. */ timer?: string }) {
   const total = run.items.length;
   const pct = Math.round((run.i / total) * 100);
   const infinite = run.maxLives === Infinity;
@@ -25,11 +25,16 @@ export function QuestHud({ run, title, icon, mapHref, lostHeart }: { run: Run; t
             🔥 x{run.combo}
           </span>
         ) : null}
-        {infinite ? (
+        {timer ? (
+          <span className={cn(chip, "font-extrabold text-[var(--q-gold)]")} role="timer" aria-label={`Quedan ${timer}`} data-testid="quest-timer">
+            ⏱ {timer}
+          </span>
+        ) : null}
+        {infinite && !timer ? (
           <span className={chip} aria-label="Vidas infinitas">
             ❤️ ∞
           </span>
-        ) : (
+        ) : infinite ? null : (
           <span className="text-xl tracking-wider" role="img" aria-label={`${run.lives} de ${run.maxLives} vidas`} data-testid="quest-hearts" data-lives={run.lives}>
             {Array.from({ length: run.maxLives }, (_, k) => (
               <span key={k} className={cn("inline-block", lostHeart && k === run.lives && "quest-shake")} data-testid={k < run.lives ? "quest-heart-full" : "quest-heart-empty"}>

@@ -10,10 +10,21 @@ export interface MockLevel {
   theory: Theory[];
   practice: Practice[];
 }
+/** Pregunta de desarrollo: se autocorrige con una rúbrica de puntos clave. */
+export interface Essay {
+  q: string;
+  /** Respuesta modelo. */
+  model: string;
+  /** Puntos clave (3–6) que la usuaria marca como cubiertos. */
+  points: string[];
+  exp?: string;
+}
 export interface QuestItem {
   id: string;
   lid: string;
-  type: "t" | "p";
+  type: "t" | "p" | "e";
+  /** Desarrollo: pregunta abierta con rúbrica. */
+  e?: Essay;
   /** Teoría: la entrada del banco. */
   t?: Theory;
   /** Práctica: la entrada del banco. */

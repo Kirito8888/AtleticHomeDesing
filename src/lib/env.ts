@@ -58,6 +58,8 @@ const schema = z.object({
   // Cuota de almacenamiento de apuntes por usuario. Tope de 5 GB (5120): un valor mayor se recorta
   // (lib/study/quota.ts); uno menor lo baja si el disco es pequeño.
   UPLOAD_QUOTA_MB: z.coerce.number().int().positive().default(5120),
+  /** v2.6 · Pausa (ms) entre llamadas de IA al generar el paquete de un tema: sirve para no pasar el límite por minuto del nivel gratuito. */
+  STUDY_PACK_MIN_INTERVAL_MS: z.coerce.number().int().min(0).max(120_000).default(0),
   // v1.9 · Opcional: clave de Gemini del servidor, de respaldo para quien no tenga su propia IA (Ajustes → IA).
   GEMINI_API_KEY: z.string().optional(),
   // v1.9 · URL de modelos locales que los usuarios pueden elegir (Ollama, LM Studio, vLLM…), separadas por comas.

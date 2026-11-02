@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { getPrefs } from "@/lib/rules/prefs-service";
 
 import type { Tag } from "./adhd-report";
+import { parseFormat } from "./exam-format";
 import { daysLeft, moduleSchema, prioritize, type RouteTopic, topicSchema } from "./study-route";
 
 type ModuleInput = z.infer<typeof moduleSchema>;
@@ -72,11 +73,12 @@ export async function deleteModule(userId: string, id: string) {
 
 export async function moduleView(userId: string, id: string, today: string) {
   const m = await ownModule(userId, id);
-  const [topics, documents, unassigned, prefs] = await Promise.all([
+  const [topics, documents, unassigned, prefs, packRows] = await Promise.all([
     prisma.studyTopic.findMany({ where: { moduleId: id }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] }),
     prisma.studyDocument.findMany({ where: { userId, moduleId: id }, orderBy: { createdAt: "desc" }, select: { id: true, title: true, status: true } }),
     prisma.studyDocument.findMany({ where: { userId, moduleId: null }, orderBy: { createdAt: "desc" }, select: { id: true, title: true } }),
     getPrefs(userId),
+    prisma.studyTopicPack.findMany({ where: { userId, topic: { moduleId: id } }, select: { topicId: true, status: true, summary: true, updatedAt: true } }),
   ]);
   const examDate = m.examDate ? toIsoDay(m.examDate) : null;
   const left = daysLeft(today, examDate);
@@ -88,12 +90,17 @@ export async function moduleView(userId: string, id: string, today: string) {
     examDate,
     daysLeft: left,
     prepMode: m.prepMode,
+    /** Formato de examen elegido (o el de por defecto) y si ya lo ha respondido. */
+    examFormat: parseFormat(m.examFormat),
+    examFormatSet: m.examFormat !== null,
     dailyMin: prefs.studyDailyMin,
     topics: list,
     /** Ruta ordenada: solo se usa con `prepMode`; el temario es el mismo, solo cambia el orden. */
     route: m.prepMode ? ranked : null,
     documents,
     unassigned,
+    /** Paquete de estudio por tema (id de tema → estado), solo de los que ya tienen uno. */
+    packs: Object.fromEntries(packRows.map((p) => [p.topicId, { status: p.status, hasSummary: p.summary !== null }])) as Record<string, { status: string; hasSummary: boolean }>,
   };
 }
 

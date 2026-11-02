@@ -89,6 +89,8 @@ model User {
   studyDocuments         StudyDocument[]
   studyModules           StudyModule[]
   studyTopics            StudyTopic[]
+  studyTopicPacks        StudyTopicPack[]
+  questProgress          QuestProgress[]
   chatThreads            ChatThread[]
   flashcardDecks         FlashcardDeck[]
   flashcardShares        FlashcardDeckShare[]
@@ -732,11 +734,11 @@ model Exercise {
   bodyweightFactor Float            @default(0)
   createdAt        DateTime         @default(now())
   // v2.1 · instrucciones técnicas y clip propio (cifrado en UPLOAD_DIR; solo ejercicios con userId)
-  description String?
-  videoPath   String?
-  videoMime   String?
-  videoBytes  Int?
-  updatedAt   DateTime? @updatedAt
+  description      String?
+  videoPath        String?
+  videoMime        String?
+  videoBytes       Int?
+  updatedAt        DateTime?        @updatedAt
 
   user            User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   sets            StrengthSet[]
@@ -1298,17 +1300,20 @@ model StudyDocument {
 
 /// v2.5 · Módulo/asignatura de estudio con fecha de examen y modo preparación.
 model StudyModule {
-  id        String    @id @default(cuid())
-  userId    String
-  name      String
-  examDate  DateTime? @db.Date
-  prepMode  Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  examDate   DateTime? @db.Date
+  prepMode   Boolean   @default(false)
+  /// v2.6 · Formato de examen (test/desarrollo × teórico/práctico, pesos, minutos). Null = formato por defecto.
+  examFormat Json?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   documents StudyDocument[]
   topics    StudyTopic[]
+  progress  QuestProgress[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -1327,12 +1332,52 @@ model StudyTopic {
   documentId String?
   createdAt  DateTime @default(now())
 
-  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  module   StudyModule    @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  document StudyDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module   StudyModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  document StudyDocument?  @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  pack     StudyTopicPack?
 
   @@index([moduleId])
   @@index([userId])
+}
+
+/// v2.6 · Paquete de estudio de un tema generado con IA: resumen por prioridad y banco del juego, ambos como JSON validado
+/// (la IA nunca genera HTML). `status`: PENDING | RUNNING | READY | PARTIAL | FAILED. `failures` lista los lotes que no pasaron la validación.
+model StudyTopicPack {
+  id           String   @id @default(cuid())
+  userId       String
+  topicId      String   @unique
+  status       String   @default("PENDING")
+  sourceHash   String   @default("")
+  summary      Json?
+  game         Json?
+  failures     Json?
+  model        String?
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  error        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic StudyTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// v2.6 · Progreso del Modo Juego de una asignatura, por usuaria (antes solo en localStorage). `version` evita pisar otro dispositivo.
+model QuestProgress {
+  id        String   @id @default(cuid())
+  userId    String
+  moduleId  String
+  state     Json
+  version   Int      @default(1)
+  updatedAt DateTime @updatedAt
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module StudyModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId])
 }
 
 /// Fragmento vectorizado. `embedding` se escribe/lee con SQL crudo
@@ -1649,8 +1694,8 @@ model PlanFeedback {
   user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   meso PlanMeso @relation(fields: [mesoId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@unique([mesoId, week])
+  @@index([userId])
 }
 
 /// Ciclo menstrual (opcional). Dato de salud de categoría especial: `data` va
@@ -1715,6 +1760,7 @@ model CalendarFeed {
   lastUsedAt DateTime?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
 
@@ -1730,6 +1776,7 @@ model SharedReport {
   createdAt       DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
 
@@ -1887,6 +1934,7 @@ model ReturnProtocol {
 
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   injury Injury @relation(fields: [injuryId], references: [id], onDelete: Cascade)
+
   @@index([userId])
 }
 
@@ -1946,8 +1994,8 @@ model HabitLog {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@unique([habitId, date])
+  @@index([userId])
 }
 
 /// Material (jabalinas, clavos…) con vida útil y aviso de reposición.
@@ -2110,8 +2158,8 @@ model PrehabLog {
   user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   routine PrehabRoutine @relation(fields: [routineId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@unique([routineId, date])
+  @@index([userId])
 }
 
 /// Perímetros (cm) y pliegues (mm). Solo los ve su dueño.

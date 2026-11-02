@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { Practice, Shell, Theory } from "./quest-engine";
-import type { QuestItem } from "./quest-mock";
+import type { Essay, QuestItem } from "./quest-mock";
 
 /** v2.5 · Modo Juego, parte 5: preguntas de la aventura generadas con IA desde los apuntes (prompt, saneamiento y caché local). */
 
@@ -49,8 +49,8 @@ export function buildQuestPrompt(p: { moduleName: string; nodeTitle: string; cou
   };
 }
 
-const squash = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
-const unquote = (s: string) => s.replace(/[«»"'`]/g, "");
+export const squash = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+export const unquote = (s: string) => s.replace(/[«»"'`]/g, "");
 const NOT_IN_SOURCES = /no est[aá] en las fuentes/i;
 
 /** Hash corto y estable (djb2) para ids que sobreviven entre sesiones. Mismo texto → mismo id. */
@@ -158,13 +158,15 @@ export const questBankKey = (moduleId: string) => `atlenza.study.questBank.${mod
 export interface BankEntry {
   id: string;
   lid: string;
-  type: "t" | "p";
+  type: "t" | "p" | "e";
   t?: Theory;
-  p?: { q: string; sol: string; sh: Shell };
+  /** `ok`: variantes válidas (solo cadenas); `exp`: explicación. */
+  p?: { q: string; sol: string; sh: Shell; ok?: string[]; exp?: string };
+  e?: Essay;
 }
 export type QuestBank = Record<string, BankEntry>;
 
-const toEntry = (it: QuestItem): BankEntry => ({ id: it.id, lid: it.lid, type: it.type, ...(it.t ? { t: it.t } : {}), ...(it.p ? { p: { q: it.p.q, sol: it.p.sol, sh: it.p.sh } } : {}) });
+const toEntry = (it: QuestItem): BankEntry => ({ id: it.id, lid: it.lid, type: it.type, ...(it.t ? { t: it.t } : {}), ...(it.p ? { p: { q: it.p.q, sol: it.p.sol, sh: it.p.sh, ...(it.p.ok.some((o) => typeof o === "string") ? { ok: it.p.ok.filter((o): o is string => typeof o === "string") } : {}), ...(it.p.exp ? { exp: it.p.exp } : {}) } } : {}), ...(it.e ? { e: it.e } : {}) });
 
 /** Añade preguntas a la caché; si pasa del tope, se van las más antiguas que no sean de `keep` (los fallos pendientes). */
 export function mergeBank(prev: QuestBank, items: QuestItem[], keep: string[] = [], cap = BANK_CAP): QuestBank {
@@ -189,9 +191,10 @@ export function parseBank(raw: string | null): QuestBank {
     if (!v || typeof v !== "object" || Array.isArray(v)) return {};
     const out: QuestBank = {};
     for (const [id, e] of Object.entries(v as Record<string, BankEntry>)) {
-      if (!e || e.id !== id || (e.type !== "t" && e.type !== "p")) continue;
+      if (!e || e.id !== id || (e.type !== "t" && e.type !== "p" && e.type !== "e")) continue;
       if (e.type === "t" && !(Array.isArray(e.t) && e.t[1]?.length === 4 && e.t.every((x) => typeof x === "string" || Array.isArray(x)))) continue;
       if (e.type === "p" && !(e.p && typeof e.p.q === "string" && typeof e.p.sol === "string" && ["b", "p", "c"].includes(e.p.sh))) continue;
+      if (e.type === "e" && !(e.e && typeof e.e.q === "string" && typeof e.e.model === "string" && Array.isArray(e.e.points))) continue;
       out[id] = e;
     }
     return out;
@@ -204,5 +207,5 @@ export function parseBank(raw: string | null): QuestBank {
 export function bankItem(bank: QuestBank, id: string): QuestItem | null {
   const e = bank[id];
   if (!e) return null;
-  return { id, lid: e.lid, type: e.type, ...(e.t ? { t: e.t } : {}), ...(e.p ? { p: { ...e.p, ok: [] } } : {}) };
+  return { id, lid: e.lid, type: e.type, ...(e.t ? { t: e.t } : {}), ...(e.p ? { p: { ...e.p, ok: e.p.ok ?? [] } } : {}), ...(e.e ? { e: e.e } : {}) };
 }

@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/page-header";
 import { QuestPlay } from "@/components/study/quest/quest-play";
 import { pageUser } from "@/lib/auth/page";
 import { today, toIsoDay } from "@/lib/dates";
-import { BOSS_ID } from "@/lib/study/quest";
+import { BOSS_ID, FINAL_ID } from "@/lib/study/quest";
 import { moduleView } from "@/lib/study/modules-service";
 
 export const metadata = { title: "Partida · Modo Juego · Atlenza" };
@@ -19,7 +19,7 @@ export default async function QuestPlayPage({ params, searchParams }: PageProps<
   const level = typeof sp.level === "string" ? sp.level : "";
   const dungeon = sp.mode === "dungeon";
   if (!dungeon && !level) notFound();
-  const mode = dungeon ? "dungeon" : level === BOSS_ID ? "boss" : "level";
+  const mode = dungeon ? "dungeon" : level === FINAL_ID ? "exam" : level === BOSS_ID ? "boss" : "level";
   return (
     <>
       <PageHeader title={`Modo Juego · ${data.name}`} description={dungeon ? "Mazmorra de fallos" : "Partida"} />

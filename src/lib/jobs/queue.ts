@@ -9,6 +9,8 @@ import { log } from "@/lib/log";
 // ingesta de apuntes; reintenta 2 veces con espera creciente si algo falla.
 
 export const INGEST_QUEUE = "ingest-document";
+/** v2.6 · Generación del paquete de estudio de un tema (varias llamadas a la IA, una tras otra). */
+export const PACK_QUEUE = "study-pack";
 
 const g = globalThis as unknown as { __lifeosBoss?: Promise<PgBoss> };
 
@@ -37,9 +39,9 @@ async function create(): Promise<PgBoss> {
   return boss;
 }
 
-async function ensureQueue(boss: PgBoss, name: string) {
+async function ensureQueue(boss: PgBoss, name: string, options: Partial<typeof queueOptions> = {}) {
   if (created.has(name)) return;
-  await boss.createQueue(name, queueOptions);
+  await boss.createQueue(name, { ...queueOptions, ...options });
   created.add(name);
 }
 
@@ -59,6 +61,28 @@ export async function enqueueIngest(documentId: string, queue = INGEST_QUEUE): P
   const boss = await getBoss();
   await ensureQueue(boss, queue);
   await boss.send(queue, { documentId }, { singletonKey: documentId });
+}
+
+// Un paquete son hasta ~8 llamadas con esperas por límite de cuota: más margen que una ingesta. Sin reintentos automáticos
+// (volver a lanzarlo solo rehace lo que falló y lo decide la usuaria).
+const packOptions = { retryLimit: 0, expireInSeconds: 60 * 60 };
+
+/** Encola la generación del paquete de un tema. `singletonKey` evita duplicarla si se pulsa dos veces. */
+export async function enqueuePack(job: { userId: string; topicId: string; documentIds?: string[] }, queue = PACK_QUEUE): Promise<void> {
+  const boss = await getBoss();
+  await ensureQueue(boss, queue, packOptions);
+  await boss.send(queue, job, { singletonKey: job.topicId });
+}
+
+/** Trabajador del paquete de estudio: uno a la vez (la cuota de la IA es de la usuaria). */
+export async function startPackWorker(queue = PACK_QUEUE): Promise<void> {
+  const boss = await getBoss();
+  await ensureQueue(boss, queue, packOptions);
+  const { runPack } = await import("@/lib/ai/study-pack");
+  await boss.work<{ userId: string; topicId: string; documentIds?: string[] }>(queue, { batchSize: 1 }, async ([job]) => {
+    await runPack(job.data.userId, job.data.topicId, { documentIds: job.data.documentIds });
+  });
+  log.info("trabajador del paquete de estudio activo", { job: "study-pack" });
 }
 
 /** Arranca el trabajador (una ingesta a la vez para no saturar la cuota de Gemini). */

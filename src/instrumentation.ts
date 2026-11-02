@@ -5,7 +5,8 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs" || !process.env.DATABASE_URL) return;
   const { startScheduler } = await import("@/lib/scheduler");
   startScheduler();
-  const { startIngestWorker } = await import("@/lib/jobs/queue");
+  const { startIngestWorker, startPackWorker } = await import("@/lib/jobs/queue");
   const { log } = await import("@/lib/log");
   startIngestWorker().catch((err) => log.error("no se pudo arrancar la cola", { job: "ingest", err }));
+  startPackWorker().catch((err) => log.error("no se pudo arrancar la cola", { job: "study-pack", err }));
 }

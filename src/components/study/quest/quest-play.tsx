@@ -4,19 +4,42 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { PALETTE } from "@/components/study/quest/palette";
+import { EssayCard } from "@/components/study/quest/essay-card";
 import { PracticeCard } from "@/components/study/quest/practice-card";
 import { QuestHud } from "@/components/study/quest/quest-hud";
 import { TheoryCard } from "@/components/study/quest/theory-card";
 import { useQuestBank } from "@/components/study/quest/use-quest-bank";
 import { useQuestStore } from "@/components/study/quest/use-quest-store";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 import type { Tag } from "@/lib/study/adhd-report";
-import { formatInt } from "@/lib/format";
+import { formatDec, formatInt } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { buildQuestMap, isUnlocked } from "@/lib/study/quest";
+import { BOSS_ID, buildQuestMap, FINAL_ID, isUnlocked, starsOf, UNLOCK_STARS } from "@/lib/study/quest";
 import { check, whyWrong } from "@/lib/study/quest-engine";
 import { bankItem } from "@/lib/study/quest-ai";
 import { itemById, type QuestItem } from "@/lib/study/quest-mock";
-import { answerRun, currentItem, finishRun, isDead, next, shuffle, startRun, type Run, type RunMode, type Summary } from "@/lib/study/quest-play";
+import {
+  addAppeal,
+  answerRun,
+  appealInResult,
+  appealLast,
+  clock,
+  currentItem,
+  essayScore,
+  examDeadline,
+  expireRun,
+  finishExam,
+  finishRun,
+  isDead,
+  next,
+  shuffle,
+  startRun,
+  timeLeft,
+  type ExamSummary,
+  type Run,
+  type RunMode,
+  type Summary,
+} from "@/lib/study/quest-play";
 
 interface Feedback {
   ok: boolean;
@@ -24,12 +47,16 @@ interface Feedback {
   ans: string | null;
   picked: number | null;
   hinted: boolean;
+  /** Desarrollo: puntos clave cubiertos / total. */
+  rubric?: { covered: number; total: number };
+  /** Aceptada por apelación. */
+  appealed?: boolean;
 }
 
 const btn = "inline-flex min-h-11 items-center justify-center rounded-[10px] border-2 px-3.5 text-sm font-semibold shadow-[0_4px_0_#0008] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40";
 const panel = "rounded-2xl border-2 border-[var(--q-line)] bg-[var(--q-panel)] p-4";
 
-type Gen = { status: "loading" } | { status: "ready"; items: QuestItem[] } | { status: "error"; message: string; code: number };
+type Gen = { status: "loading" } | { status: "ready"; items: QuestItem[]; source: "pack" | "ai"; minutes?: number } | { status: "error"; message: string; code: number };
 
 /** v2.5 · Modo Juego, partes 4 y 5: la partida (teoría, terminal de práctica, vidas, combos y mazmorra). Las preguntas las genera la IA desde los apuntes
  *  (`POST /api/ai/study/quest`); la corrección y todo el estado son locales. */
@@ -54,21 +81,26 @@ export function QuestPlay({
   const [run, setRun] = useState<Run | null>(null);
   const [fb, setFb] = useState<Feedback | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [exam, setExam] = useState<ExamSummary | null>(null);
+  const [deadline, setDeadline] = useState<number | null>(null);
+  const [left, setLeft] = useState<number | null>(null);
   const nextRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (fb) nextRef.current?.focus();
   }, [fb]);
 
-  const idx = mode === "dungeon" ? -1 : nodes.findIndex((n) => n.id === nodeId);
+  const isExam = mode === "exam";
+  const idx = mode === "dungeon" || isExam ? -1 : nodes.findIndex((n) => n.id === nodeId);
   const node = idx >= 0 ? nodes[idx] : null;
-  const title = mode === "dungeon" ? "Mazmorra de fallos" : mode === "boss" ? "Jefe Final" : (node?.title ?? "");
-  const icon = mode === "dungeon" ? "💀" : mode === "boss" ? "🐉" : "📘";
+  const examUnlocked = s.free || starsOf(s, BOSS_ID) >= UNLOCK_STARS;
+  const title = mode === "dungeon" ? "Mazmorra de fallos" : isExam ? "Examen final" : mode === "boss" ? "Jefe Final" : (node?.title ?? "");
+  const icon = mode === "dungeon" ? "💀" : isExam ? "🏆" : mode === "boss" ? "🐉" : "📘";
 
   // Fallos guardados: primero la caché de preguntas generadas, luego el banco de ejemplo (partidas antiguas); los que ya no existen se ignoran.
   const dungeonItems = useMemo(() => s.fails.map((id) => bankItem(bank, id) ?? itemById(id)).filter((x): x is QuestItem => !!x), [s.fails, bank]);
 
   // Genera las preguntas del nivel/Jefe al entrar (y al pedir «Nuevas preguntas» o reintentar).
-  const playable = mode !== "dungeon" && !!node && isUnlocked(nodes, idx, s);
+  const playable = mode !== "dungeon" && (isExam ? examUnlocked : !!node && isUnlocked(nodes, idx, s));
   const keepFails = useRef(s.fails);
   useEffect(() => {
     keepFails.current = s.fails;
@@ -78,10 +110,10 @@ export function QuestPlay({
     const ctl = new AbortController();
     fetch("/api/ai/study/quest", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ moduleId, nodeId }), signal: ctl.signal })
       .then(async (r) => {
-        const j = (await r.json().catch(() => null)) as { items?: QuestItem[]; error?: string } | null;
+        const j = (await r.json().catch(() => null)) as { items?: QuestItem[]; error?: string; source?: "pack" | "ai"; minutes?: number } | null;
         if (!r.ok || !j?.items?.length) throw Object.assign(new Error(j?.error ?? "No se pudieron generar las preguntas."), { code: r.status });
         mergeBank(j.items, keepFails.current);
-        setGen({ status: "ready", items: j.items });
+        setGen({ status: "ready", items: j.items, source: j.source ?? "ai", minutes: j.minutes });
       })
       .catch((e: Error & { code?: number }) => {
         if (ctl.signal.aborted) return;
@@ -96,21 +128,89 @@ export function QuestPlay({
     setRun(startRun(mode === "dungeon" ? "dungeon" : nodeId, mode, items));
     setFb(null);
     setSummary(null);
+    setExam(null);
+    if (mode === "exam" && gen.status === "ready") {
+      const d = examDeadline(Date.now(), gen.minutes ?? 35);
+      setDeadline(d);
+      setLeft(timeLeft(d, Date.now()));
+    } else setDeadline(null);
   }, [mode, nodeId, dungeonItems, gen]);
 
   const regenerate = () => {
     setGen({ status: "loading" });
     setRun(null);
     setSummary(null);
+    setExam(null);
+    setDeadline(null);
     setAttempt((n) => n + 1);
   };
 
-  const answer = (ok: boolean, pts: number, ans: string | null, picked: number | null, hinted: boolean) => {
+  // Último estado visible para el cronómetro (que corre fuera del ciclo de render).
+  const live = useRef({ s, run });
+  useEffect(() => {
+    live.current = { s, run };
+  });
+
+  /** Cierra el examen: nota /10, estrellas, intento guardado. `state` lleva ya los últimos fallos. */
+  const closeExam = useCallback(
+    (r: Run, state: typeof s) => {
+      const done = finishExam(state, r, FINAL_ID, new Date().toISOString());
+      save(done.state);
+      setRun(r);
+      setExam(done.summary);
+      setDeadline(null);
+    },
+    [save],
+  );
+
+  useEffect(() => {
+    if (deadline === null || exam) return;
+    const tick = () => {
+      const l = timeLeft(deadline, Date.now());
+      setLeft(l);
+      const cur = live.current;
+      if (l <= 0 && cur.run) closeExam(expireRun(cur.run), cur.s);
+    };
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [deadline, exam, closeExam]);
+
+  const answer = (ok: boolean, pts: number, ans: string | null, picked: number | null, hinted: boolean, rubric?: { covered: number; total: number }) => {
     if (!run || fb) return;
     const r = answerRun(run, s.fails, ok, pts, ans ?? "(no lo sé)");
-    save({ ...s, fails: r.fails });
+    const state = { ...s, fails: r.fails };
+    save(state);
+    if (mode === "exam") {
+      // En el examen no hay corrección pregunta a pregunta (como el original): se pasa a la siguiente y se corrige al final.
+      const n = next(r.run);
+      if (n.i >= n.items.length) closeExam(n, state);
+      else setRun(n);
+      return;
+    }
     setRun(r.run);
-    setFb({ ok, pts, ans, picked, hinted });
+    setFb({ ok, pts, ans, picked, hinted, rubric });
+  };
+
+  /** «⚖️ Mi comando también vale» tras un fallo de práctica (puerto del original): cuenta como acierto y queda en Apelaciones. */
+  const appeal = async () => {
+    if (!run || !fb || fb.ok) return;
+    if (!(await confirmDialog({ title: "¿Tu comando hace exactamente lo que se pide?", description: "Contará como acierto y quedará en Apelaciones para que lo compruebes en la máquina virtual.", confirmLabel: "Sí, apelar" }))) return;
+    const a = appealLast(run, s.fails);
+    if (!a.appeal) return;
+    save({ ...addAppeal(s, a.appeal), fails: a.fails });
+    setRun(a.run);
+    setFb({ ...fb, ok: true, pts: 1, appealed: true });
+  };
+
+  /** Apelación desde los resultados del examen. */
+  const appealExam = async (i: number) => {
+    if (!run || !exam) return;
+    if (!(await confirmDialog({ title: "¿Tu comando hace exactamente lo que se pide?", description: "Sumará el punto y quedará en Apelaciones para que lo compruebes en la máquina virtual.", confirmLabel: "Sí, apelar" }))) return;
+    const r = appealInResult(s, run, i, FINAL_ID);
+    if (!r) return;
+    save(r.state);
+    setRun(r.run);
+    setExam(r.summary);
   };
 
   const advance = () => {
@@ -136,16 +236,16 @@ export function QuestPlay({
     </Link>
   );
 
-  if (mode !== "dungeon" && !node)
+  if (mode !== "dungeon" && !isExam && !node)
     return wrap(
       <p role="status" className={panel}>
         Ese nivel no existe en esta asignatura. {toMap}
       </p>,
     );
-  if (mode !== "dungeon" && !isUnlocked(nodes, idx, s))
+  if (mode !== "dungeon" && !(isExam ? examUnlocked : isUnlocked(nodes, idx, s)))
     return wrap(
       <div role="status" className={panel} data-testid="quest-locked">
-        <p className="mb-3">🔒 Este nivel sigue bloqueado: necesitas ★★ (80 %) en el anterior, o activar el modo libre en el mapa.</p>
+        <p className="mb-3">{isExam ? "🔒 El examen final se abre con ★★ (80 %) en el Jefe Final, o activando el modo libre en el mapa." : "🔒 Este nivel sigue bloqueado: necesitas ★★ (80 %) en el anterior, o activar el modo libre en el mapa."}</p>
         {toMap}
       </div>,
     );
@@ -202,7 +302,9 @@ export function QuestPlay({
         <p className="mb-4 text-sm text-[var(--q-mute)]">
           {mode === "dungeon"
             ? `Vidas infinitas. Cada acierto saca la pregunta de la mazmorra (${formatInt(dungeonItems.length)} pendientes, hasta 15 por partida).`
-            : `${mode === "boss" ? "Sin pistas. " : ""}Tienes 3 ❤️: cada fallo te quita una. Con 80 % consigues ★★. Preguntas generadas desde tus apuntes.`}
+            : isExam
+              ? `Simulacro de ${formatInt(gen.status === "ready" ? (gen.minutes ?? 35) : 35)} minutos, ${formatInt(gen.status === "ready" ? gen.items.length : 0)} preguntas, sin vidas ni pistas y sin corrección hasta el final. Nota sobre 10.`
+              : `${mode === "boss" ? "Sin pistas. " : ""}Tienes 3 ❤️: cada fallo te quita una. Con 80 % consigues ★★. ${gen.status === "ready" && gen.source === "pack" ? "Preguntas de tu paquete de estudio." : "Preguntas generadas desde tus apuntes."}`}
         </p>
         <div className="flex flex-wrap justify-center gap-2">
           <button type="button" onClick={begin} data-testid="quest-start" className={cn(btn, "border-[var(--q-lin)] bg-[#12452e]")}>
@@ -212,6 +314,64 @@ export function QuestPlay({
         </div>
       </div>,
     );
+
+  if (exam && run) {
+    const review = run.log.map((l, i) => ({ l, i })).filter(({ l }) => !l.ok || l.pts < 1);
+    const fb10 = (n: number | null) => (n === null ? "—" : formatDec(n, 1));
+    return wrap(
+      <>
+        <div className={cn(panel, "quest-pop text-center")} data-testid="quest-exam-result">
+          <div aria-hidden className="text-5xl">
+            🏆
+          </div>
+          <h2 className="my-1 text-xl font-bold">Examen final</h2>
+          <div aria-label={`${exam.stars} de 3 estrellas`} role="img" className="text-3xl tracking-widest text-[#3a4377]" data-stars={exam.stars}>
+            {[1, 2, 3].map((k) => (
+              <span key={k} className={k <= exam.stars ? "text-[var(--q-gold)]" : ""}>
+                ★
+              </span>
+            ))}
+          </div>
+          <div className="font-mono text-5xl font-black text-[var(--q-gold)]" data-testid="quest-nota">
+            {formatDec(exam.nota, 1)}
+            <span className="text-2xl">/10</span>
+          </div>
+          <p className="mt-2 text-sm text-[var(--q-mute)]">
+            Teoría: <b>{fb10(exam.theory)}</b> · Práctica: <b>{fb10(exam.practical)}</b>
+          </p>
+          <p className="my-2 text-sm text-[var(--q-mute)]">{exam.nota >= 5 ? (exam.stars >= 2 ? "Nota de sobra para aprobar. Repasa lo de abajo para llegar al 10." : "Aprobado justo. Repasa lo de abajo.") : "Aún no llegas al aprobado. Repasa lo de abajo y repite el simulacro."} +{formatInt(run.xp)} XP</p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <button type="button" onClick={regenerate} data-testid="quest-regen" className={cn(btn, "border-[var(--q-lin)] bg-[#12452e]")}>
+              ↻ Otro simulacro
+            </button>
+            {toMap}
+            {s.fails.length ? (
+              <Link href={`${playBase}?mode=dungeon`} className={cn(btn, "border-[var(--q-bad)] bg-[#6b1a2a]")}>
+                💀 Mazmorra ({formatInt(s.fails.length)})
+              </Link>
+            ) : null}
+          </div>
+        </div>
+        {review.length ? (
+          <>
+            <h3 className="mt-5 mb-2 text-base font-bold">Lo que tienes que repasar ({review.length})</h3>
+            <ul className="grid gap-2" data-testid="quest-review">
+              {review.map(({ l, i }) => (
+                <li key={i} className="rounded-xl border-2 border-[var(--q-line)] bg-[var(--q-panel)] p-3 text-sm">
+                  <ReviewItem l={l} />
+                  {l.item.type === "p" && l.ans && l.ans !== "(sin tiempo)" && l.ans !== "(no lo sé)" ? (
+                    <button type="button" onClick={() => appealExam(i)} data-testid="quest-appeal" className={cn(btn, "mt-2 border-[var(--q-line)] bg-transparent")}>
+                      ⚖️ Mi comando también vale
+                    </button>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+      </>,
+    );
+  }
 
   if (summary) {
     const dead = isDead(run);
@@ -269,15 +429,7 @@ export function QuestPlay({
             <ul className="grid gap-2" data-testid="quest-review">
               {review.map((l, k) => (
                 <li key={k} className="rounded-xl border-2 border-[var(--q-line)] bg-[var(--q-panel)] p-3 text-sm">
-                  <b className="break-words">{l.item.type === "t" ? l.item.t?.[0] : l.item.p?.q}</b>
-                  <div className="mt-1 text-[var(--q-lin)]">
-                    ✔ <span className="font-mono break-all">{l.item.type === "t" ? l.item.t?.[1][0] : l.item.p?.sol}</span>
-                  </div>
-                  {l.ans && l.ans !== "(no lo sé)" ? (
-                    <div className="text-[var(--q-mute)]">
-                      Tú: <span className="font-mono break-all">{l.ans}</span>
-                    </div>
-                  ) : null}
+                  <ReviewItem l={l} />
                 </li>
               ))}
             </ul>
@@ -293,17 +445,28 @@ export function QuestPlay({
   const last = run.i + 1 >= run.items.length || run.lives <= 0;
   const p = item.p;
   const t = item.t;
+  const e = item.e;
   return wrap(
     <>
-      <QuestHud run={run} title={title} icon={icon} mapHref={mapHref} lostHeart={lost} />
+      <QuestHud run={run} title={title} icon={icon} mapHref={mapHref} lostHeart={lost} timer={isExam && left !== null ? clock(left) : undefined} />
       <div key={run.i} className={cn(panel, "quest-pop", fb && !fb.ok && "quest-shake")} data-testid="quest-card" data-fail={fb && !fb.ok ? "1" : undefined}>
         {item.type === "t" && t ? (
           <TheoryCard item={item} picked={fb?.picked ?? null} onPick={(k) => answer(!!item.opts?.[k]?.ok, 1, item.opts?.[k]?.t ?? null, k, false)} />
+        ) : item.type === "e" && e ? (
+          <EssayCard
+            key={item.id}
+            item={item}
+            locked={!!fb}
+            onSubmit={(covered, total, text) => {
+              const sc = essayScore(covered, total);
+              answer(sc.ok, sc.pts, text, null, false, { covered, total });
+            }}
+          />
         ) : p ? (
           <PracticeCard
             item={item}
             locked={!!fb}
-            noHelp={mode === "boss"}
+            noHelp={mode === "boss" || isExam}
             onSubmit={(v, hinted) => {
               const ok = v !== null && check(p, v);
               answer(ok, ok ? (hinted ? 0.5 : 1) : 0, v, null, hinted);
@@ -312,8 +475,33 @@ export function QuestPlay({
         ) : null}
         {fb ? (
           <div role="status" className={cn("mt-3 rounded-xl border-2 p-3 text-sm", fb.ok ? "border-[var(--q-lin)] bg-[#12452e]" : "border-[var(--q-bad)] bg-[#5a1a28]")} data-testid="quest-feedback">
-            <h4 className="mb-1 font-bold">{fb.ok ? (fb.hinted ? "✔ Correcto (con pista: ½ punto)" : "✔ ¡Correcto!") : p ? "✘ Respuesta esperada:" : `✘ No. Era: ${t?.[1][0]}`}</h4>
-            {p ? (
+            <h4 className="mb-1 font-bold">
+              {fb.appealed
+                ? "⚖️ Aceptado por apelación"
+                : e
+                  ? fb.ok
+                    ? `✔ Bien: cubres ${fb.rubric?.covered}/${fb.rubric?.total} puntos clave`
+                    : `✘ Te faltan puntos clave (${fb.rubric?.covered ?? 0}/${fb.rubric?.total ?? e.points.length})`
+                  : fb.ok
+                    ? fb.hinted
+                      ? "✔ Correcto (con pista: ½ punto)"
+                      : "✔ ¡Correcto!"
+                    : p
+                      ? "✘ Respuesta esperada:"
+                      : `✘ No. Era: ${t?.[1][0]}`}
+            </h4>
+            {e ? (
+              <>
+                <p className="whitespace-pre-line break-words">{e.model}</p>
+                {e.exp ? <p className="mt-1">{e.exp}</p> : null}
+              </>
+            ) : null}
+            {fb.appealed && p ? (
+              <p className="mt-1 text-[var(--q-mute)]">
+                Tu comando: <span className="font-mono break-all">{fb.ans}</span> · Referencia: <span className="font-mono break-all">{p.sol}</span>. Queda en ⚖️ Apelaciones: compruébalo en la máquina virtual antes del examen.
+              </p>
+            ) : null}
+            {p && !fb.appealed ? (
               <>
                 <code className="block font-mono break-all">{p.sol}</code>
                 {p.exp ? <p className="mt-1">{p.exp}</p> : null}
@@ -323,6 +511,11 @@ export function QuestPlay({
             ) : t?.[2] ? (
               <p>{t[2]}</p>
             ) : null}
+            {p && !fb.ok && fb.ans ? (
+              <button type="button" onClick={appeal} data-testid="quest-appeal" className={cn(btn, "mt-3 mr-2 border-[var(--q-line)] bg-transparent")}>
+                ⚖️ Mi comando también vale
+              </button>
+            ) : null}
             <button ref={nextRef} type="button" onClick={advance} data-testid="quest-next" className={cn(btn, "mt-3 border-[var(--q-gold)] bg-[var(--q-panel2)]")}>
               {last ? "Ver resultado" : "Siguiente"} →
             </button>
@@ -330,5 +523,24 @@ export function QuestPlay({
         ) : null}
       </div>
     </>,
+  );
+}
+
+/** Una pregunta de la revisión final: enunciado, respuesta correcta y lo que contestó la usuaria. */
+function ReviewItem({ l }: { l: { item: QuestItem; ans: string; appeal?: boolean } }) {
+  const it = l.item;
+  const q = it.type === "t" ? it.t?.[0] : it.type === "e" ? it.e?.q : it.p?.q;
+  return (
+    <>
+      <b className="break-words">{q}</b>
+      <div className="mt-1 text-[var(--q-lin)]">
+        ✔ <span className={cn("break-words", it.type !== "e" && "font-mono break-all")}>{it.type === "t" ? it.t?.[1][0] : it.type === "e" ? it.e?.model : it.p?.sol}</span>
+      </div>
+      {l.ans && l.ans !== "(no lo sé)" ? (
+        <div className="text-[var(--q-mute)]">
+          Tú: <span className="font-mono break-all">{l.ans}</span>
+        </div>
+      ) : null}
+    </>
   );
 }

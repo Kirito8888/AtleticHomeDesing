@@ -195,7 +195,13 @@ await libre.click();
 // 5 · ★★ en el nivel 1 abre el 2; fallos habilitan la mazmorra
 const key = await page.evaluate(() => Object.keys(localStorage).find((k) => k.startsWith("atlenza.study.quest.")) ?? "");
 if (key !== `atlenza.study.quest.${mid}`) errors.push(`clave de almacenamiento: ${key}`);
-await page.evaluate(([k, t1]) => localStorage.setItem(k, JSON.stringify({ xp: 150, lv: { [t1]: { stars: 2, best: 85 } }, fails: ["L1:t0", "L1:p1"], free: false })), [key, `t1${stamp}`]);
+// v2.6 · el progreso también vive en el servidor: para simular una partida distinta se parte de cero en ambos sitios
+await page.waitForTimeout(1500); // deja terminar el envío pendiente del «Modo libre» (retardo de 700 ms) antes de borrar en el servidor
+psql(`delete from "QuestProgress" where "moduleId"='${mid}'`);
+await page.evaluate(([k, t1]) => {
+  localStorage.removeItem(`${k}.sync`);
+  localStorage.setItem(k, JSON.stringify({ xp: 150, lv: { [t1]: { stars: 2, best: 85 } }, fails: ["L1:t0", "L1:p1"], free: false }));
+}, [key, `t1${stamp}`]);
 await page.reload();
 await page.getByTestId("quest").waitFor();
 const d2 = await nodes.evaluateAll((els) => els.map((e) => !!(e as HTMLButtonElement).disabled));

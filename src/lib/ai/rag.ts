@@ -11,6 +11,7 @@ import { ocrAvailable, ocrPdf } from "@/lib/files/ocr";
 import { embedTexts, generateText, toVectorLiteral } from "@/lib/ai/llm";
 import type { EmbedTask } from "@/lib/ai/provider";
 import { assertAiAllowed } from "@/lib/ai/guard";
+import { extractPptxPages, looksLikePptx, PPTX_MIME } from "@/lib/ai/pptx";
 import { supportsIterativeScan } from "@/lib/ai/pgvector-version";
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
@@ -24,6 +25,7 @@ const ALLOWED: Record<string, string> = {
   "application/pdf": ".pdf",
   "text/plain": ".txt",
   "text/markdown": ".md",
+  [PPTX_MIME]: ".pptx",
 };
 
 function mimeOf(file: File): string | null {
@@ -32,15 +34,17 @@ function mimeOf(file: File): string | null {
   if (ext === ".md" || ext === ".markdown") return "text/markdown";
   if (ext === ".txt") return "text/plain";
   if (ext === ".pdf") return "application/pdf";
+  if (ext === ".pptx") return PPTX_MIME;
   return null;
 }
 
 /**
- * Valida el contenido real, no solo la extensión: un PDF empieza por "%PDF-"
+ * Valida el contenido real, no solo la extensión: un PDF empieza por "%PDF-", un PPTX es un ZIP con `ppt/presentation.xml`
  * y un TXT/MD debe ser UTF-8 válido sin bytes nulos (descarta binarios renombrados).
  */
 export function contentMatches(buf: Buffer, mime: string): boolean {
   if (mime === "application/pdf") return buf.subarray(0, 1024).includes("%PDF-");
+  if (mime === PPTX_MIME) return looksLikePptx(buf);
   if (buf.includes(0)) return false;
   try {
     new TextDecoder("utf-8", { fatal: true }).decode(buf);
@@ -71,6 +75,15 @@ async function extractPages(buf: Buffer, mime: string): Promise<string[]> {
     if (text.every((p) => !p.trim()) && (await ocrAvailable())) return ocrPdf(buf);
     return text;
   }
+  if (mime === PPTX_MIME) {
+    try {
+      const pages = extractPptxPages(buf);
+      if (pages.length) return pages;
+    } catch (err) {
+      throw new Error(`No se pudo leer la presentación: ${err instanceof Error ? err.message : "fichero dañado"}`);
+    }
+    throw new Error("La presentación no tiene texto (¿solo imágenes?)");
+  }
   return [buf.toString("utf8")];
 }
 
@@ -87,12 +100,12 @@ async function extractPages(buf: Buffer, mime: string): Promise<string[]> {
  */
 export async function createDocumentFromUpload(userId: string, file: File, meta: { title?: string; subject?: string }) {
   const mime = mimeOf(file);
-  if (!mime) throw new ApiError(415, "Formato no soportado (PDF, TXT o Markdown)");
+  if (!mime) throw new ApiError(415, "Formato no soportado (PDF, PPTX, TXT o Markdown)");
   if (file.size > MAX_UPLOAD_BYTES) throw new ApiError(413, "El fichero supera 15 MB");
   await assertAiAllowed(userId); // sin clave o sin consentimiento, fallar antes de escribir en disco o en BD
 
   const buf = Buffer.from(await file.arrayBuffer());
-  if (!contentMatches(buf, mime)) throw new ApiError(415, "El contenido del fichero no corresponde a un PDF o texto UTF-8");
+  if (!contentMatches(buf, mime)) throw new ApiError(415, "El contenido del fichero no corresponde a un PDF, PPTX o texto UTF-8");
   await assertQuota(userId, buf.length);
   const doc = await prisma.studyDocument.create({
     data: {
