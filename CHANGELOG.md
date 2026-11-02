@@ -13,7 +13,7 @@ Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el 
 - **PPTX:** las presentaciones se leen diapositiva a diapositiva, en el orden de la presentación y con las notas del orador.
 
 **Datos y operaciones**
-- Migración `20270601080000_v2_6_features` (aditiva): `StudyTopicPack`, `QuestProgress` y `StudyModule.examFormat`.
+- Migraciones de la v2.6 (aditivas): `20270601080000_v2_6_features` (índice de texto en apuntes) y `20270602080000_v2_6_study_pack` (`StudyTopicPack`, `QuestProgress` y `StudyModule.examFormat`; idempotente). Detalle y reparación en [`docs/migracion-v2-5-a-v2-6.md`](docs/migracion-v2-5-a-v2-6.md).
 - Gemini: tiempo máximo por petición (120 s) en el SDK. Variable nueva opcional `STUDY_PACK_MIN_INTERVAL_MS`; no hay claves nuevas (usa `GEMINI_API_KEY`/`GEMINI_CHAT_MODEL` o la IA propia de cada usuaria).
 
 ## v2.5.0 — finanzas en el móvil, estudio con TDAH y Modo Juego, rutinas con ciencia y seguridad (25/10/2026)
