@@ -97,6 +97,9 @@ log("formato guardado (test + desarrollo + terminal, pesos 50/20/30)");
 // 3 · la generación arranca sola y avanza en segundo plano (sin router.refresh)
 await page.getByTestId("pack-ready").waitFor({ timeout: 60_000 });
 log("paquete generado en segundo plano");
+await minH(page.getByTestId("pack-play"), "«Web de estudio del tema»");
+await minH(page.getByTestId("pack-open-game"), "«Abrir la web de estudio»");
+if (!(await page.getByTestId("pack-play").getAttribute("href"))?.includes(`level=${tid}`)) errors.push("«Web de estudio del tema» no abre el nivel del tema");
 const row = psql(`select status||'|'||coalesce(model,'') from "StudyTopicPack" where "topicId"='${tid}'`);
 if (row !== "READY|simulado") errors.push(`paquete en BD: ${row}`);
 const fmt = psql(`select "examFormat"::text from "StudyModule" where id='${mid}'`);

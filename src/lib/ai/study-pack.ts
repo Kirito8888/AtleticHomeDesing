@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
 import { assertAiAllowed } from "@/lib/ai/guard";
-import { aiFor, extractJson } from "@/lib/ai/provider";
+import { aiFor, extractJson, isTransientAiError } from "@/lib/ai/provider";
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
@@ -22,8 +22,8 @@ const fakeAi = () => process.env.LIFEOS_FAKE_AI === "1";
 export const MAX_SUMMARY_CHARS = 150_000;
 /** Reintentos por respuesta que no pasa la validación (zod o fuentes). */
 export const MAX_VALIDATION_RETRIES = 2;
-/** Esperas ante un 429 (límite por minuto del nivel gratuito). */
-export const RATE_LIMIT_WAITS_MS = [15_000, 30_000, 60_000];
+/** Esperas ante un 429 (límite por minuto del nivel gratuito) o una saturación temporal del proveedor (503…): se repite la misma llamada. */
+export const RATE_LIMIT_WAITS_MS = [15_000, 30_000, 60_000, 90_000];
 /** Un trabajo `RUNNING` sin actividad en este tiempo se da por interrumpido (reinicio del servidor). */
 export const STALE_MS = 25 * 60_000;
 /** Preguntas objetivo de un nivel (todas las partes juntas): el juego original tiene ~10. */
@@ -80,7 +80,7 @@ const problemsOf = (e: z.ZodError) => e.issues.slice(0, 6).map((i) => `${i.path.
 
 /**
  * Una llamada a la IA con validación: JSON → zod → `accept` (validación contra las fuentes). Si falla, reintenta enviando los fallos
- * (hasta `MAX_VALIDATION_RETRIES`); ante un 429 espera y repite (`RATE_LIMIT_WAITS_MS`). Lanza el último problema si no hay manera.
+ * (hasta `MAX_VALIDATION_RETRIES`); ante un 429 o un 503 del proveedor espera y repite (`RATE_LIMIT_WAITS_MS`). Lanza el último problema si no hay manera.
  */
 export async function validatedCall<S extends z.ZodType, R>(
   ai: PackAi,
@@ -98,9 +98,9 @@ export async function validatedCall<S extends z.ZodType, R>(
     try {
       res = await ai.text({ system: p.system, prompt: p.prompt + note, json });
     } catch (e) {
-      if (e instanceof ApiError && e.status === 429 && waits < RATE_LIMIT_WAITS_MS.length) {
+      if (isTransientAiError(e) && waits < RATE_LIMIT_WAITS_MS.length) {
         await deps.sleep(RATE_LIMIT_WAITS_MS[waits++]);
-        attempt--; // un 429 no gasta un reintento de validación
+        attempt--; // un 429 o un 503 no gasta un reintento de validación
         continue;
       }
       throw e;

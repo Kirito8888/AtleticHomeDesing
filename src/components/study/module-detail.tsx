@@ -90,13 +90,13 @@ export function ModuleDetail({ data }: { data: ModuleDetailData }) {
 
       <div className="flex flex-wrap gap-2">
         <Button asChild className="min-h-11">
-          <Link href={`/study/modules/${data.id}/test`}>
-            <ClipboardCheck /> Evaluar nivel
+          <Link href={`/study/modules/${data.id}/quest`}>
+            <Gamepad2 /> Web de estudio · Modo Juego
           </Link>
         </Button>
         <Button asChild variant="outline" className="min-h-11">
-          <Link href={`/study/modules/${data.id}/quest`}>
-            <Gamepad2 /> Modo Juego
+          <Link href={`/study/modules/${data.id}/test`}>
+            <ClipboardCheck /> Evaluar nivel
           </Link>
         </Button>
       </div>

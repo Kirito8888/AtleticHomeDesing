@@ -209,12 +209,12 @@ Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Pri
 
 ## Paquete de estudio por tema (novedad en curso, v2.6)
 
-Dentro de una asignatura (`/study/modules/…`), sección **Paquete de estudio (IA)**:
+Dentro de una asignatura (`/study/modules/…`), sección **Resumen y web de estudio (IA)**. La web de estudio (el juego tipo ASO Quest) se abre con **Web de estudio · Modo Juego** arriba, con **Abrir la web de estudio de la asignatura** o, por tema, con **Web de estudio del tema**:
 1. Sube los apuntes del tema (PDF o PPTX) y asígnalos a la asignatura. Si el tema tiene varios ficheros, márcalos en «Sumar otros apuntes».
 2. La primera vez te pregunta **«¿Cómo es tu examen?»** (teórico, práctico, test, desarrollo y su peso). Puedes cambiarlo cuando quieras; solo afecta a lo que generes a partir de entonces.
-3. Pulsa **Generar paquete**. Tarda unos minutos y puedes salir de la página. Al acabar verás «Listo». Si queda «Parcial», pulsa **Reintentar lo que falta**; **Empezar de cero** lo rehace todo.
+3. Pulsa **Generar paquete**. Tarda unos minutos y puedes salir de la página. Si Google está saturado («high demand», error 503), Atlenza espera y lo reintenta solo; si aun así falla, pulsa **Reintentar lo que falta** más tarde. Al acabar verás «Listo». Si queda «Parcial», pulsa **Reintentar lo que falta**; **Empezar de cero** lo rehace todo.
 4. **Resumen**: lo que cae seguro primero, luego lo probable y al final lo que sobra; arriba, «si solo tengo 10 minutos». Las soluciones de la autoevaluación están plegadas: inténtalo antes. Lo que el temario tenga mal sale marcado como **Errata**.
-5. **Modo Juego**: los niveles usan las preguntas del paquete. En las de **desarrollo** escribes, miras la rúbrica y marcas los puntos que cubrías. Si tu comando es correcto aunque no coincida, **⚖️ Mi comando también vale**: cuenta como acierto y queda en **Apelaciones** para probarlo en la máquina virtual. El **Examen final** se abre con ★★ en el Jefe (o con el modo libre): cronometrado, sin pistas ni vidas, con nota sobre 10.
+5. **Web de estudio (Modo Juego)**: los niveles usan las preguntas del paquete. En las de **desarrollo** escribes, miras la rúbrica y marcas los puntos que cubrías. Si tu comando es correcto aunque no coincida, **⚖️ Mi comando también vale**: cuenta como acierto y queda en **Apelaciones** para probarlo en la máquina virtual. El **Examen final** se abre con ★★ en el Jefe (o con el modo libre): cronometrado, sin pistas ni vidas, con nota sobre 10.
 
 Tu progreso del juego se guarda en tu cuenta: lo ves igual desde el móvil y el ordenador.
 
