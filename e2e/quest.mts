@@ -156,7 +156,7 @@ if (!(await res3.innerText()).includes("GAME OVER")) errors.push("al quedarse si
 await noOverflow("resultado");
 await page.screenshot({ path: `${out}/quest-play-390.png`, fullPage: true });
 if (!(await page.getByTestId("quest-review").innerText()).includes("✔")) errors.push("el repaso no muestra las soluciones");
-const stored = await page.evaluate(() => JSON.parse(localStorage.getItem(Object.keys(localStorage).find((q) => q.startsWith("atlenza.study.quest.")) ?? "") ?? "{}"));
+const stored = await page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? "{}"), `atlenza.study.quest.${mid}`);
 if (!Array.isArray(stored.fails) || stored.fails.length < 3) errors.push(`fallos guardados: ${JSON.stringify(stored.fails)}`);
 if (stored.lv?.[`t1${stamp}`]?.stars !== 0) errors.push("el Game Over no debe dar estrellas");
 log("partida: corazón perdido con shake y Game Over");
@@ -193,25 +193,34 @@ log("modo libre desbloquea y persiste");
 await libre.click();
 
 // 5 · ★★ en el nivel 1 abre el 2; fallos habilitan la mazmorra
-const key = await page.evaluate(() => Object.keys(localStorage).find((k) => k.startsWith("atlenza.study.quest.")) ?? "");
-if (key !== `atlenza.study.quest.${mid}`) errors.push(`clave de almacenamiento: ${key}`);
-// v2.6 · el progreso también vive en el servidor: para simular una partida distinta se parte de cero en ambos sitios
-await page.waitForTimeout(1500); // deja terminar el envío pendiente del «Modo libre» (retardo de 700 ms) antes de borrar en el servidor
-psql(`delete from "QuestProgress" where "moduleId"='${mid}'`);
-await page.evaluate(([k, t1]) => {
+// v2.6 · junto a la partida hay una marca de sincronización (`.sync`): la clave del estado se fija, no se busca por prefijo
+const key = `atlenza.study.quest.${mid}`;
+if (!(await page.evaluate((k) => localStorage.getItem(k) !== null, key))) errors.push(`clave de almacenamiento: no existe ${key}`);
+// v2.6 · el progreso también vive en el servidor. Para simular otra partida sin depender del tiempo: se sale a una página que no usa el
+// almacén (muere cualquier envío pendiente), se vacía el almacenamiento local y se fija el estado deseado en el servidor; el mapa lo adopta al abrir.
+await page.goto(`${B}/study`);
+await page.waitForTimeout(1000);
+await page.evaluate((k) => {
+  localStorage.removeItem(k);
   localStorage.removeItem(`${k}.sync`);
-  localStorage.setItem(k, JSON.stringify({ xp: 150, lv: { [t1]: { stars: 2, best: 85 } }, fails: ["L1:t0", "L1:p1"], free: false }));
-}, [key, `t1${stamp}`]);
-await page.reload();
+}, key);
+const wanted = JSON.stringify({ xp: 150, lv: { [`t1${stamp}`]: { stars: 2, best: 85 } }, fails: ["L1:t0", "L1:p1"], free: false }).replace(/'/g, "''");
+psql(`insert into "QuestProgress"(id,"userId","moduleId",state,version,"updatedAt") values ('qp${stamp}','${uid}','${mid}','${wanted}',99,now()) on conflict ("userId","moduleId") do update set state=excluded.state, version=99, "updatedAt"=now()`);
+await page.goto(`${B}/study/modules/${mid}/quest`);
 await page.getByTestId("quest").waitFor();
+await page.waitForFunction(() => document.querySelector("[data-testid=quest-xp]")?.textContent?.trim() === "150", undefined, { timeout: 10_000 }); // el progreso llega del servidor
 const d2 = await nodes.evaluateAll((els) => els.map((e) => !!(e as HTMLButtonElement).disabled));
 if (d2.join() !== "false,false,true,true") errors.push(`desbloqueo con ★★: ${d2.join()}`);
 if ((await page.getByTestId("quest-xp").innerText()).trim() !== "150") errors.push("XP guardada no se muestra");
 const dung = page.getByRole("link", { name: /Mazmorra de fallos \(2\)/ });
+if (!(await dung.waitFor({ timeout: 8000 }).then(() => true, () => false))) {
+  const st = await page.evaluate((k) => ({ ls: localStorage.getItem(k), sync: localStorage.getItem(`${k}.sync`), btn: document.querySelector("[data-testid=quest-dungeon]")?.textContent }), key);
+  throw new Error(`mazmorra sin los 2 fallos esperados: ${JSON.stringify(st)}`);
+}
 await dung.click();
 await page.waitForURL(/mode=dungeon/);
 await page.getByTestId("quest-start").waitFor();
-log("estrellas, XP y mazmorra desde localStorage");
+log("estrellas, XP y mazmorra desde el progreso guardado");
 
 // 6 · el estado no se comparte con otra asignatura
 const mid2 = `mod2${stamp}`;
