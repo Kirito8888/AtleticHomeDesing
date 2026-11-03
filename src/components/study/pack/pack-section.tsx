@@ -95,10 +95,15 @@ export function PackSection({
   const kinds = activeKinds(format);
   return (
     <section aria-label="Paquete de estudio" className="grid gap-2" data-testid="pack-section">
-      <h2 className="text-lg font-semibold">Paquete de estudio (IA)</h2>
+      <h2 className="text-lg font-semibold">Resumen y web de estudio (IA)</h2>
       <p className="text-sm text-muted-foreground">
-        De los apuntes de cada tema sale un <b>resumen por prioridad</b> y las <b>preguntas del Modo Juego</b>. Se genera en segundo plano, por partes, y solo con lo que dicen tus apuntes.
+        De los apuntes de cada tema salen un <b>resumen por prioridad</b> y su <b>web de estudio</b> (el juego tipo ASO Quest: niveles, terminal, mazmorra de fallos y examen final). Se genera en segundo plano, por partes, y solo con lo que dicen tus apuntes.
       </p>
+      <Button asChild className="min-h-12 w-full text-base sm:w-auto">
+        <Link href={`/study/modules/${moduleId}/quest`} data-testid="pack-open-game">
+          <Gamepad2 /> Abrir la web de estudio de la asignatura
+        </Link>
+      </Button>
 
       <div className="flex flex-wrap items-center gap-2 rounded-lg border p-2 text-sm">
         <span className="min-w-0 flex-1">
@@ -195,13 +200,16 @@ export function PackSection({
                     </Button>
                   ) : null}
                   {p && p.questions > 0 ? (
-                    <Button asChild size="sm" variant="outline" className="min-h-11">
-                      <Link href={`/study/modules/${moduleId}/quest/play?level=${t.id}`}>
-                        <Gamepad2 /> Jugar
+                    <Button asChild size="sm" className="min-h-11">
+                      <Link href={`/study/modules/${moduleId}/quest/play?level=${t.id}`} data-testid="pack-play">
+                        <Gamepad2 /> Web de estudio del tema
                       </Link>
                     </Button>
                   ) : null}
                 </div>
+                {!running && !(p && p.questions > 0) ? (
+                  <p className="text-xs text-muted-foreground">Genera el paquete para tener el resumen y la web de estudio de este tema.</p>
+                ) : null}
               </li>
             );
           })}
