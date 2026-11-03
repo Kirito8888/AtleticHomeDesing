@@ -7,7 +7,7 @@ Cuanto más larga es una sesión, más cuesta cada mensaje (se relee todo) y má
 1. **Sesión nueva** desde la barra lateral, repo `AtleticHomeDesing` (en la web no existe `/clear`: sesión nueva = empezar limpio).
 2. **Modo Plan** en el desplegable junto al cuadro de texto (móvil: **+** → **Permission** → **Plan**).
 3. **Primer mensaje, solo:** `/model opus` (en la web `/model` siempre lleva el nombre; `opusplan` no consta que funcione).
-4. **Segundo mensaje: el encargo** (plantilla abajo). Claude lee los dos ficheros y propone un plan corto. Lo apruebas.
+4. **Segundo mensaje: el encargo** (plantilla abajo; si es grande o dudas del tipo, prepáralo antes con el Gem de Gemini: `docs/gemini-gem.md`). Claude lee los dos ficheros y propone un plan corto. Lo apruebas.
 5. **Justo después de aprobar:** `/model sonnet` y cambia el desplegable a **Auto** (o **Accept edits**). Sonnet implementa.
 6. **Si se atasca** (falla dos veces o es un problema de diseño): `/model opus`; resuelto, vuelve a `/model sonnet`.
 7. **Al terminar** («bloque subido»): cierra la sesión. El siguiente bloque, sesión nueva.
@@ -28,6 +28,10 @@ No me preguntes salvo bloqueo. Al acabar: commit, push y actualiza docs/estado.m
 ```
 /model sonnet
 ```
+
+## Preparar el encargo con Gemini (opcional)
+El Gem «Prompts para Atlenza» clasifica la petición, la divide si es grande y entrega: **Cómo lanzarlo**, **Prompt** (≤ 350 palabras, sin repetir `CLAUDE.md`) y **Siguientes bloques**.
+Instrucciones, ficheros que adjuntar y refresco tras cada versión: `docs/gemini-gem.md`.
 
 ## Plantillas
 - **Siguiente bloque:** `Lee docs/estado.md y sigue con el bloque que toque. No me preguntes salvo bloqueo.`

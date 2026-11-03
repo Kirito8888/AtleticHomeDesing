@@ -2,7 +2,7 @@
 
 # Atlenza · instrucciones para Claude
 
-Lee también `docs/estado.md` (versión, siguiente bloque, decisiones). Cómo se trabaja: `docs/como-trabajar.md`.
+Lee también `docs/estado.md` (versión, siguiente bloque, decisiones). Cómo se trabaja: `docs/como-trabajar.md` (encargos preparados con el Gem de Gemini: `docs/gemini-gem.md`).
 
 ## Entorno (contenedor de la web)
 El hook `scripts/dev/session-start.sh` deja listos Postgres 16 + pgvector (127.0.0.1:5432, BD `lifeos`),
