@@ -13,7 +13,7 @@ import { activeKinds, allocate, LEVEL_QUESTIONS, parseFormat, type Kind } from "
 import { requireModule } from "@/lib/study/modules-service";
 import { fakeBatchJson, fakeSummaryJson } from "@/lib/study/pack-fake";
 import { batchToItems, gameBatchSchema, sanitizeBatch, sanitizeSummary, summarySchema, type GameBatch, type Summary } from "@/lib/study/pack-schema";
-import { batchPrompt, PACK_SYSTEM, retryNote, sourceHash, splitParts, summaryPrompt } from "@/lib/study/pack-prompts";
+import { batchPrompt, emptyNote, PACK_SYSTEM, retryNote, sourceHash, splitParts, summaryPrompt } from "@/lib/study/pack-prompts";
 import type { QuestItem } from "@/lib/study/quest-mock";
 
 const fakeAi = () => process.env.LIFEOS_FAKE_AI === "1";
@@ -28,6 +28,9 @@ export const RATE_LIMIT_WAITS_MS = [15_000, 30_000, 60_000, 90_000];
 export const STALE_MS = 25 * 60_000;
 /** Preguntas objetivo de un nivel (todas las partes juntas): el juego original tiene ~10. */
 const LEVEL_TARGET = LEVEL_QUESTIONS;
+
+/** Tope de salida por llamada: un lote o el resumen en JSON no cabe en los 8 192 por defecto. */
+export const PACK_MAX_OUTPUT_TOKENS = 32_768;
 
 /** Lo mínimo que necesita el generador de la IA: así los tests y la IA simulada entran por el mismo camino. */
 export interface PackAi {
@@ -59,7 +62,7 @@ const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 function realAi(model: string, ai: Awaited<ReturnType<typeof aiFor>>): PackAi {
   return {
     model,
-    text: (p) => ai.text({ system: p.system, messages: [{ role: "user", text: p.prompt }], temperature: 0.3, json: p.json }),
+    text: (p) => ai.text({ system: p.system, messages: [{ role: "user", text: p.prompt }], temperature: 0.3, json: p.json, maxOutputTokens: PACK_MAX_OUTPUT_TOKENS }),
   };
 }
 
@@ -101,6 +104,13 @@ export async function validatedCall<S extends z.ZodType, R>(
       if (isTransientAiError(e) && waits < RATE_LIMIT_WAITS_MS.length) {
         await deps.sleep(RATE_LIMIT_WAITS_MS[waits++]);
         attempt--; // un 429 o un 503 no gasta un reintento de validación
+        continue;
+      }
+      // Respuesta vacía, bloqueada o cortada: sí gasta un reintento, pidiendo algo más corto o más neutro.
+      const d = e instanceof ApiError ? (e.details as { code?: string; reason?: string } | undefined) : undefined;
+      if (d?.code === "ai_empty") {
+        last = e instanceof ApiError ? e.message : "La IA no devolvió contenido";
+        note = emptyNote(d.reason ?? "OTHER");
         continue;
       }
       throw e;
@@ -226,6 +236,7 @@ export async function runPack(userId: string, topicId: string, opts: { documentI
         meta.done++;
       } catch (e) {
         meta.failed.push({ part: "summary", error: e instanceof Error ? e.message : "error" });
+        log.warn("paquete de estudio: parte sin generar", { job: "study-pack", kind: "summary", code: e instanceof ApiError ? e.status : "error" });
       }
       await save("RUNNING");
     }
@@ -250,6 +261,7 @@ export async function runPack(userId: string, topicId: string, opts: { documentI
         meta.done++;
       } catch (e) {
         meta.failed.push({ part: key, error: e instanceof Error ? e.message : "error" });
+        log.warn("paquete de estudio: parte sin generar", { job: "study-pack", kind: key, code: e instanceof ApiError ? e.status : "error" });
       }
       await save("RUNNING");
     }

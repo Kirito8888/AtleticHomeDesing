@@ -42,7 +42,7 @@ describe.skipIf(!HAS_DB)("paquete de estudio (BD real)", () => {
   const sleep = async (ms: number) => void sleeps.push(ms);
 
   // IA de prueba: respuestas del simulador, con fallos programables por llamada.
-  const makeAi = (plan: (n: number, prompt: string) => "ok" | "bad-json" | "bad-schema" | "bad-source" | "429" | "503" = () => "ok") => {
+  const makeAi = (plan: (n: number, prompt: string) => "ok" | "bad-json" | "bad-schema" | "bad-source" | "429" | "503" | "recitation" | "max-tokens" = () => "ok") => {
     const calls: string[] = [];
     const ai = {
       model: "modelo-de-prueba",
@@ -56,6 +56,11 @@ describe.skipIf(!HAS_DB)("paquete de estudio (BD real)", () => {
         if (mode === "503") {
           const { providerError } = await import("@/lib/ai/provider");
           throw providerError("GEMINI", 503, "This model is currently experiencing high demand", null);
+        }
+        if (mode === "recitation" || mode === "max-tokens") {
+          const { ApiError } = await import("@/lib/api");
+          const reason = mode === "recitation" ? "RECITATION" : "MAX_TOKENS";
+          throw new ApiError(502, `Google Gemini no devolvió contenido (${reason})`, { code: "ai_empty", reason });
         }
         if (mode === "bad-json") return { text: "esto no es json" };
         if (mode === "bad-schema") return { text: JSON.stringify({ theoryTest: [{ question: "x" }] }) };
@@ -192,6 +197,29 @@ describe.skipIf(!HAS_DB)("paquete de estudio (BD real)", () => {
     expect((await sp.getPack(me, topic))?.status).toBe("READY");
     expect(sleeps.slice(0, 3)).toEqual([15_000, 30_000, 60_000]);
     expect(calls).toHaveLength(5); // 3 intentos con 503 + resumen + 1 parte
+  });
+
+  it("respuesta vacía por RECITATION: reintenta pidiendo citas cortas y acaba con resumen y preguntas reales", async () => {
+    await wipe(topic);
+    const { ai, calls } = makeAi((n) => (n === 1 ? "recitation" : "ok"));
+    await sp.preparePack(me, topic);
+    await sp.runPack(me, topic, {}, { ai, sleep, minIntervalMs: 0 });
+    const p = await sp.getPack(me, topic);
+    expect(p?.status).toBe("READY");
+    expect(p?.summary).not.toBeNull();
+    expect(p?.questions).toBeGreaterThan(0);
+    expect(calls[1]).toMatch(/RECITATION[\s\S]*120 caracteres/);
+    expect((await prisma.studyTopicPack.findUnique({ where: { topicId: topic } }))?.outputTokens).toBeGreaterThan(0);
+  });
+
+  it("si la IA siempre llega vacía (MAX_TOKENS) el paquete queda FAILED con el motivo, sin lanzar", async () => {
+    await wipe(topic);
+    const { ai } = makeAi(() => "max-tokens");
+    await sp.preparePack(me, topic);
+    await sp.runPack(me, topic, {}, { ai, sleep, minIntervalMs: 0 });
+    const p = await sp.getPack(me, topic);
+    expect(p?.status).toBe("FAILED");
+    expect(p?.error).toMatch(/MAX_TOKENS/);
   });
 
   it("si el proveedor sigue caído tras todas las esperas, el paquete queda FAILED con el motivo (no se pierde nada)", async () => {

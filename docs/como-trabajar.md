@@ -32,8 +32,12 @@ No me preguntes salvo bloqueo. Al acabar: commit, push y actualiza docs/estado.m
 ## Plantillas
 - **Siguiente bloque:** `Lee docs/estado.md y sigue con el bloque que toque. No me preguntes salvo bloqueo.`
 - **Cierre de versión** (con `/model opus`, migración y PR): `Lee docs/estado.md. Cierre de la v2.0: todas las E2E, prueba de la migración, documentación y PR.`
-- **Arreglo pequeño** (sin plan, modo Auto, `/model sonnet`): `Lee CLAUDE.md. En /nutrition/micros el calcio sale con 3 decimales; déjalo en entero. Commit y push.`
+- **Arreglo pequeño** (parche; sin plan, modo Auto, `/model sonnet`): `Lee CLAUDE.md. En /nutrition/micros el calcio sale con 3 decimales; déjalo en entero. Commit y push.`
 - **Revisar un fallo de la CI:** `Lee CLAUDE.md. La CI del PR #N falla en <job>; arréglalo con el mínimo cambio.`
+
+## Versiones y documentos (regla fija)
+- **Parche** = arreglo sin función nueva · **menor** = bloque o función pequeña · **mayor** = cambio estructural o hito grande. `package.json` se sube al cerrar la versión; el número lo decide la usuaria.
+- **Tras cada cambio** se actualizan `CLAUDE.md`, `docs/estado.md` y este fichero (si les afecta), en el mismo commit. Pídelo en el encargo: «Al acabar: actualiza los tres documentos».
 
 ## Qué modelo
 | Tarea | Modelo |
