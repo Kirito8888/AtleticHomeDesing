@@ -2,7 +2,7 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
-## Sin publicar (v2.6) — paquete de estudio por tema
+## v2.6.0 — Estudio: paquete de tema y optimizaciones de backend (03/11/2026)
 
 **Estudio** (`/study/modules/[id]`)
 - **Paquete de estudio por tema (IA):** de los apuntes de un tema (PDF, **PPTX**, TXT o Markdown) salen un **resumen por prioridad** («Cae seguro» · «Probable» · «Si sobra tiempo»: conceptos de ≤ 4 viñetas, comandos con opciones/error típico/rutas, tablas comparativas, trampas, mnemotecnias, «Errata» del temario, «si solo tengo 10 minutos» y autoevaluación de 10 preguntas + 2 prácticos con las soluciones aparte) y el **banco de preguntas del Modo Juego**. La IA devuelve JSON, nunca HTML: se valida con un esquema, cada elemento lleva una cita literal de tus apuntes y los comandos/opciones deben aparecer en ellos (si no, se descartan).
@@ -15,6 +15,8 @@ Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el 
 **Datos y operaciones**
 - Migraciones de la v2.6 (aditivas): `20270601080000_v2_6_features` (índice de texto en apuntes) y `20270602080000_v2_6_study_pack` (`StudyTopicPack`, `QuestProgress` y `StudyModule.examFormat`; idempotente). Detalle y reparación en [`docs/migracion-v2-5-a-v2-6.md`](docs/migracion-v2-5-a-v2-6.md).
 - Gemini: tiempo máximo por petición (120 s) en el SDK. Variable nueva opcional `STUDY_PACK_MIN_INTERVAL_MS`; no hay claves nuevas (usa `GEMINI_API_KEY`/`GEMINI_CHAT_MODEL` o la IA propia de cada usuaria).
+- Gemini, respuestas cortadas o vacías (RECITATION, SAFETY, MAX_TOKENS): antes daban texto vacío sin reintento y la parte se perdía; ahora se detecta el motivo, se reintenta pidiendo citas más cortas y se amplía el límite de salida del paquete. También se reintenta cuando el proveedor está saturado (503 «high demand»).
+- Herramientas de desarrollo: `snapshot.sh --before` admite varias migraciones y reconoce `IF NOT EXISTS`; `e2e.sh all` incluye `v25l` y `v25o`.
 
 ## v2.5.0 — finanzas en el móvil, estudio con TDAH y Modo Juego, rutinas con ciencia y seguridad (25/10/2026)
 

@@ -2,25 +2,29 @@
 # Foto de la BD de desarrollo ANTES de tocar el esquema de una versión (base para regen-mig y test-migration).
 # test-migration.sh añade datos sintéticos (scripts/dev/synthetic-data.sql) a la copia, así que no hace falta sembrar la foto.
 # Para que tenga datos reales de desarrollo: npx prisma migrate deploy && npx prisma db seed && scripts/dev/e2e.sh e2e:v110
-# Con --before <MIGRACIÓN>: la foto se deja como estaba ANTES de esa migración (aditiva): se borran las tablas y tipos
+# Con --before <MIGRACIÓN> […]: (admite varias, p. ej. las dos de la v2.6; reconoce IF NOT EXISTS) la foto se deja como estaba ANTES de esa migración (aditiva): se borran las tablas y tipos
 # (y los índices) que crea y su fila de _prisma_migrations. Sirve en bloques posteriores al A de una versión, cuyo fichero se regenera entero.
 set -e
 cd "$(dirname "$0")/../.."
 set -a; . ./.env.local; set +a
 BASE=${DATABASE_URL%%\?*}; ROOT=${BASE%/*}; OUT=/tmp/atlenza-before.dump
 if [ "$1" = "--before" ] && [ -n "$2" ]; then
-  F=prisma/migrations/$2/migration.sql; [ -f $F ] || { echo "no existe $F"; exit 1; }
+  shift
+  for M in "$@"; do [ -f prisma/migrations/$M/migration.sql ] || { echo "no existe prisma/migrations/$M/migration.sql"; exit 1; }; done
   pg_dump -Fc "$BASE" > /tmp/atlenza-dev.dump
   psql "$ROOT/postgres" -qc "drop database if exists atlenza_snap" -c "create database atlenza_snap"
   pg_restore --no-owner -d "$ROOT/atlenza_snap" /tmp/atlenza-dev.dump 2>/dev/null || true
-  grep -o '^CREATE TABLE "[A-Za-z_]*"' $F | cut -d'"' -f2 | while read -r t; do psql "$ROOT/atlenza_snap" -qc "drop table if exists \"$t\" cascade"; done
-  grep -o '^CREATE TYPE "[A-Za-z_]*"' $F | cut -d'"' -f2 | while read -r t; do psql "$ROOT/atlenza_snap" -qc "drop type if exists \"$t\" cascade"; done
-  # Columnas añadidas a tablas previas (ALTER TABLE "T" ADD COLUMN "c", también en líneas de continuación)
-  awk '/^ALTER TABLE "/ { split($0, a, "\""); t = a[2] } /ADD COLUMN/ && t != "" { n = split($0, s, "ADD COLUMN"); for (i = 2; i <= n; i++) { split(s[i], c, "\""); print t, c[2] } } /;[[:space:]]*$/ { t = "" }' $F |
-    while read -r t c; do psql "$ROOT/atlenza_snap" -qc "alter table if exists \"$t\" drop column if exists \"$c\" cascade"; done
-  # Índices creados sobre tablas previas (los de tablas nuevas caen con su tabla)
-  grep -oE '^CREATE (UNIQUE )?INDEX "[A-Za-z0-9_]*"' $F | cut -d'"' -f2 | while read -r i; do psql "$ROOT/atlenza_snap" -qc "drop index if exists \"$i\""; done
-  psql "$ROOT/atlenza_snap" -qc "delete from \"_prisma_migrations\" where migration_name='$2'"
+  for M in "$@"; do
+    F=prisma/migrations/$M/migration.sql
+    grep -oE '^CREATE TABLE (IF NOT EXISTS )?"[A-Za-z_]*"' $F | cut -d'"' -f2 | while read -r t; do psql "$ROOT/atlenza_snap" -qc "drop table if exists \"$t\" cascade"; done
+    grep -oE '^CREATE TYPE "[A-Za-z_]*"' $F | cut -d'"' -f2 | while read -r t; do psql "$ROOT/atlenza_snap" -qc "drop type if exists \"$t\" cascade"; done
+    # Columnas añadidas a tablas previas (ALTER TABLE "T" ADD COLUMN [IF NOT EXISTS] "c", también en líneas de continuación)
+    awk '/^ALTER TABLE "/ { split($0, a, "\""); t = a[2] } /ADD COLUMN/ && t != "" { n = split($0, s, "ADD COLUMN"); for (i = 2; i <= n; i++) { split(s[i], c, "\""); print t, c[2] } } /;[[:space:]]*$/ { t = "" }' $F |
+      while read -r t c; do psql "$ROOT/atlenza_snap" -qc "alter table if exists \"$t\" drop column if exists \"$c\" cascade"; done
+    # Índices creados sobre tablas previas (los de tablas nuevas caen con su tabla); admite IF NOT EXISTS
+    grep -oE '^CREATE (UNIQUE )?INDEX (IF NOT EXISTS )?"[A-Za-z0-9_]*"' $F | cut -d'"' -f2 | while read -r i; do psql "$ROOT/atlenza_snap" -qc "drop index if exists \"$i\""; done
+    psql "$ROOT/atlenza_snap" -qc "delete from \"_prisma_migrations\" where migration_name='$M'"
+  done
   pg_dump -Fc "$ROOT/atlenza_snap" > $OUT
   psql "$ROOT/postgres" -qc "drop database atlenza_snap"
 else

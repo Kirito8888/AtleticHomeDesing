@@ -1,6 +1,6 @@
-# Migración técnica de v2.5 a v2.6 (en curso)
+# Migración técnica de v2.5 a v2.6
 
-> **Estado: abierto.** La versión aún no está cerrada; este documento recoge lo que ya hay que saber para actualizar el servidor.
+> **Estado: cerrada (v2.6.0, 03/11/2026).** Recoge lo necesario para actualizar el servidor desde v2.5.
 > Marcadores: `<RUTA_DE_LA_APP>` es el directorio del repositorio en el servidor; `dc` es `docker compose --env-file .env.production`; `USUARIO_BD` y `NOMBRE_BD` son el usuario y la base de datos de `.env.production` (`POSTGRES_USER`, `POSTGRES_DB`).
 
 **Migraciones (ambas aditivas):**

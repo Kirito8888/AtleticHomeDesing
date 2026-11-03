@@ -16,7 +16,7 @@ Para comandos que necesitan la BD: `set -a; . ./.env.local; set +a`.
 | Tests (unitarios + integración con BD) | `npx vitest run [ruta]` |
 | E2E de un bloque | `npm run -s build && sh scripts/dev/e2e.sh e2e:v110` (suites en package.json) |
 | Todas las E2E (solo al cerrar versión) | `sh scripts/dev/e2e.sh all` |
-| Foto de la BD antes de cambiar el esquema | `sh scripts/dev/snapshot.sh` |
+| Foto de la BD antes de cambiar el esquema | `sh scripts/dev/snapshot.sh` (o `--before <migración> […]` en bloques posteriores al A) |
 | Migración de la versión (una por versión) | `sh scripts/dev/regen-mig.sh <AAAAMMDDhhmmss_v2_0_features>` |
 | Probar la migración sobre copia | `sh scripts/dev/test-migration.sh` |
 | Licencias | `node scripts/third-party-notices.mjs --check` |

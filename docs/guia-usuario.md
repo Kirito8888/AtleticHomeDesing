@@ -207,7 +207,7 @@ Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Pri
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
 - **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
 
-## Paquete de estudio por tema (novedad en curso, v2.6)
+## Paquete de estudio por tema (novedad de la v2.6)
 
 Dentro de una asignatura (`/study/modules/…`), sección **Resumen y web de estudio (IA)**. La web de estudio (el juego tipo ASO Quest) se abre con **Web de estudio · Modo Juego** arriba, con **Abrir la web de estudio de la asignatura** o, por tema, con **Web de estudio del tema**:
 1. Sube los apuntes del tema (PDF o PPTX) y asígnalos a la asignatura. Si el tema tiene varios ficheros, márcalos en «Sumar otros apuntes».
