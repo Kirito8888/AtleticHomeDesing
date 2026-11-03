@@ -34,6 +34,11 @@ Para comandos que necesitan la BD: `set -a; . ./.env.local; set +a`.
 - La usuaria fusiona los PR; Claude nunca fusiona. Rama de trabajo: la que indique la sesión.
 - Respuestas en español, como asesor crítico (ver preferencias de la usuaria).
 
+## Versionado y documentación viva
+- **Parche (x.y.Z):** arreglos y ajustes sin función nueva. **Menor (x.Y.0):** bloques y funciones pequeñas. **Mayor (X.0.0):** cambios estructurales o hitos grandes (arquitectura, esquema que rompe compatibilidad, rediseños).
+- `package.json` se sube al **cerrar** la versión, no en cada bloque; la decisión del número final es de la usuaria.
+- **Tras cada cambio** (bloque, arreglo o dependencia) se actualizan siempre `CLAUDE.md`, `docs/estado.md` y `docs/como-trabajar.md` si lo cambiado les afecta, en el mismo commit.
+
 ## Verificación (proporcional, para gastar poco)
 - **Cada bloque:** typecheck, lint, los tests de lo tocado y la suite E2E del bloque. Commit + push. Actualizar `docs/estado.md`.
 - **Cierre de versión:** todo lo anterior + `e2e.sh all` + `test-migration.sh` + Semgrep + licencias, CHANGELOG, guía,

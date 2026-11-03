@@ -3,11 +3,12 @@ import "server-only";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, HarmBlockThreshold, HarmCategory } from "@google/genai";
 import { z } from "zod";
 
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
+import { log } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
 import { openJson } from "@/lib/security/data-key";
 
@@ -52,7 +53,7 @@ export interface AiClient {
   /** Identifica los vectores de los apuntes (modelo y dimensión); null = sin embeddings, búsqueda por texto. */
   embedTag: string | null;
   /** `json`: esquema JSON de la respuesta (Gemini lo impone al decodificar; el resto lo recibe en las instrucciones). */
-  text(p: { system: string; messages: ChatTurn[]; temperature?: number; json?: Record<string, unknown> }): Promise<{ text: string; inputTokens?: number; outputTokens?: number }>;
+  text(p: { system: string; messages: ChatTurn[]; temperature?: number; json?: Record<string, unknown>; maxOutputTokens?: number }): Promise<{ text: string; inputTokens?: number; outputTokens?: number }>;
   embed: ((texts: string[], task: EmbedTask) => Promise<number[][]>) | null;
 }
 
@@ -177,6 +178,56 @@ function withSchema(system: string, schema: Record<string, unknown>) {
   return `${system}\n\nResponde únicamente con un objeto JSON válido, sin texto antes ni después, que cumpla este esquema JSON:\n${JSON.stringify(schema)}`;
 }
 
+// Respuesta vacía de Gemini ------------------------------------------------------------------------
+
+/** Tope de salida por defecto de Gemini: sin él, el modelo usa el suyo y un JSON largo puede cortarse. */
+export const GEMINI_DEFAULT_MAX_OUTPUT = 8192;
+
+/** Seguridad tolerante con contenido académico (comandos, redes, seguridad informática): solo bloquea lo muy probable. */
+export const GEMINI_SAFETY = [
+  HarmCategory.HARM_CATEGORY_HARASSMENT,
+  HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+  HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+  HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+].map((category) => ({ category, threshold: HarmBlockThreshold.BLOCK_ONLY_HIGH }));
+
+/** Forma mínima de la respuesta de Gemini que nos importa (facilita probarlo sin el SDK). */
+export interface GeminiLike {
+  text?: string;
+  candidates?: { finishReason?: string }[];
+  promptFeedback?: { blockReason?: string };
+  usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number; thoughtsTokenCount?: number };
+}
+
+const EMPTY_HINT: Record<string, string> = {
+  RECITATION: "repite literalmente demasiado texto de las fuentes",
+  SAFETY: "bloqueada por los filtros de seguridad",
+  PROHIBITED_CONTENT: "bloqueada por los filtros de contenido",
+  BLOCKLIST: "bloqueada por los filtros de contenido",
+  SPII: "bloqueada por datos personales",
+  MAX_TOKENS: "cortada por el límite de salida",
+  OTHER: "sin motivo indicado",
+};
+
+/**
+ * Lee la respuesta de Gemini. Si no hay texto utilizable (vacía, bloqueada o cortada por `MAX_TOKENS`) deja un aviso en el registro
+ * (solo motivo y tokens, nunca contenido) y lanza `ApiError(502, …, { code: "ai_empty", reason })`.
+ * Los tokens de salida incluyen los de «pensar» (`thoughtsTokenCount`), que también se facturan.
+ */
+export function readGeminiResponse(res: GeminiLike): { text: string; inputTokens?: number; outputTokens?: number } {
+  const u = res.usageMetadata;
+  const outputTokens = u?.candidatesTokenCount === undefined && u?.thoughtsTokenCount === undefined ? undefined : (u?.candidatesTokenCount ?? 0) + (u?.thoughtsTokenCount ?? 0);
+  const finish = res.candidates?.[0]?.finishReason;
+  const reason = res.promptFeedback?.blockReason ?? (finish && finish !== "STOP" ? finish : undefined);
+  const text = res.text ?? "";
+  if (!text || finish === "MAX_TOKENS") {
+    const why = reason ?? "OTHER";
+    log.warn("respuesta de la IA sin contenido utilizable", { kind: "gemini", code: why, count: outputTokens ?? 0 });
+    throw new ApiError(502, `Google Gemini no devolvió contenido (${EMPTY_HINT[why] ?? why.toLowerCase()})`, { code: "ai_empty", reason: why });
+  }
+  return { text, inputTokens: u?.promptTokenCount, outputTokens };
+}
+
 function geminiClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
   const key = cfg.apiKey;
   if (!key) throw new ApiError(503, "Falta la clave de Google Gemini");
@@ -197,16 +248,15 @@ function geminiClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
     chatModel: cfg.model,
     // Mismo identificador que antes de la v1.9: los apuntes ya vectorizados con Gemini siguen valiendo
     embedTag: embeddingModel ? `${embeddingModel}@${EMBED_DIM}` : null,
-    async text({ system, messages, temperature, json }) {
+    async text({ system, messages, temperature, json, maxOutputTokens }) {
       const res = await wrap(() =>
         sdk.models.generateContent({
           model: cfg.model,
           contents: messages.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [...(m.images ?? []).map((i) => ({ inlineData: { mimeType: i.mime, data: i.base64 } })), { text: m.text }] })),
-          config: { systemInstruction: system, temperature: temperature ?? 0.3, ...(json ? { responseMimeType: "application/json", responseJsonSchema: json } : {}) },
+          config: { systemInstruction: system, temperature: temperature ?? 0.3, maxOutputTokens: maxOutputTokens ?? GEMINI_DEFAULT_MAX_OUTPUT, safetySettings: GEMINI_SAFETY, ...(json ? { responseMimeType: "application/json", responseJsonSchema: json } : {}) },
         }),
       );
-      if (!res.text) throw new ApiError(502, "Google Gemini no devolvió contenido");
-      return { text: res.text, inputTokens: res.usageMetadata?.promptTokenCount, outputTokens: res.usageMetadata?.candidatesTokenCount };
+      return readGeminiResponse(res);
     },
     embed: embeddingModel
       ? async (texts, task) => {

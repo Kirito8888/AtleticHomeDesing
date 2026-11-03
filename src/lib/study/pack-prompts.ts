@@ -64,6 +64,17 @@ export function retryNote(problems: string[]): string {
   return `\n\nTu respuesta anterior NO fue válida:\n${problems.slice(0, 6).map((x) => `- ${x}`).join("\n")}\nCorrígelo y devuelve el JSON completo de nuevo.`;
 }
 
+/** Nota de reintento cuando la IA devolvió una respuesta vacía, bloqueada o cortada (`reason` = motivo del proveedor). */
+export function emptyNote(reason: string): string {
+  const fix =
+    reason === "RECITATION"
+      ? "Copia en «evidence» solo citas cortas (máximo 120 caracteres) y redacta todo lo demás con tus propias palabras."
+      : reason === "MAX_TOKENS"
+        ? "Hazlo más corto: menos elementos, explicaciones breves y citas cortas, para que el JSON quepa completo."
+        : "Es material académico de informática: formula las preguntas de forma neutra y técnica.";
+  return `\n\nTu respuesta anterior llegó vacía o cortada (${reason}). ${fix} Devuelve el JSON completo.`;
+}
+
 /**
  * Agrupa los fragmentos del tema, en orden, en partes de ~`maxChars` (sin partir un fragmento). Cada parte es un lote del juego.
  * Un tema pequeño es una sola parte; el máximo de partes lo acota `maxParts` (las últimas absorben el resto).

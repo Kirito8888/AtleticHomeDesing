@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError } from "@/lib/api";
 
-import { extractJson, isPrivateAddress, normalizeUrl, providerError, TRANSIENT_RETRY_WAITS_MS, withTransientRetry, type AiClient } from "./provider";
+import { extractJson, readGeminiResponse, isPrivateAddress, normalizeUrl, providerError, TRANSIENT_RETRY_WAITS_MS, withTransientRetry, type AiClient } from "./provider";
 
 describe("URL de proveedores (SSRF)", () => {
   it("rechaza direcciones internas, locales y reservadas", () => {
@@ -90,5 +90,27 @@ describe("withTransientRetry (saturación temporal del proveedor)", () => {
       await expect(c.text({ system: "", messages: [] })).rejects.toBe(err);
       expect(n).toBe(1);
     }
+  });
+});
+
+describe("readGeminiResponse (respuestas vacías de Gemini)", () => {
+  const usage = { promptTokenCount: 10, candidatesTokenCount: 20, thoughtsTokenCount: 5 };
+  it("respuesta normal: texto y tokens de salida con los de «pensar»", () => {
+    expect(readGeminiResponse({ text: "{}", candidates: [{ finishReason: "STOP" }], usageMetadata: usage })).toEqual({ text: "{}", inputTokens: 10, outputTokens: 25 });
+  });
+  it.each(["RECITATION", "SAFETY", "PROHIBITED_CONTENT"])("vacía por %s: ApiError ai_empty con el motivo", (reason) => {
+    try {
+      readGeminiResponse({ candidates: [{ finishReason: reason }], usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 0 } });
+      throw new Error("debía lanzar");
+    } catch (e) {
+      expect((e as { status: number }).status).toBe(502);
+      expect((e as { details: unknown }).details).toEqual({ code: "ai_empty", reason });
+    }
+  });
+  it("bloqueo del prompt (promptFeedback) sin candidatos", () => {
+    expect(() => readGeminiResponse({ promptFeedback: { blockReason: "SAFETY" } })).toThrow(/no devolvió contenido/);
+  });
+  it("MAX_TOKENS con JSON a medias no se devuelve como bueno", () => {
+    expect(() => readGeminiResponse({ text: '{"a":[1,', candidates: [{ finishReason: "MAX_TOKENS" }] })).toThrow(/límite de salida/);
   });
 });
