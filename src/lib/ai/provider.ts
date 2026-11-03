@@ -122,7 +122,15 @@ export function providerError(provider: AiProvider, status: number | null, detai
   const name = provider === "GEMINI" ? "Google Gemini" : provider === "ANTHROPIC" ? "Anthropic" : "el proveedor de IA";
   if (status === 401 || status === 403) return new ApiError(502, `${name} rechaza la clave (${status}). Revísala en Ajustes → IA.`, { code: "ai_key_rejected" });
   if (status === 429) return new ApiError(429, `${name} ha limitado las peticiones (429). Prueba más tarde o revisa tu cuota.`);
-  return new ApiError(502, `${name} respondió con un error${status ? ` (${status})` : ""}: ${msg || "sin detalle"}`);
+  // Caída o saturación temporal del proveedor (500/502/503/504 o sin conexión): quien genera por partes puede esperar y repetir.
+  const transient = status === null || status === 500 || status === 502 || status === 503 || status === 504;
+  return new ApiError(502, `${name} respondió con un error${status ? ` (${status})` : ""}: ${msg || "sin detalle"}`, transient ? { code: "ai_overloaded" } : undefined);
+}
+
+/** ¿El error es de saturación o caída temporal del proveedor (merece esperar y reintentar)? 429 también. */
+export function isTransientAiError(e: unknown): boolean {
+  if (!(e instanceof ApiError)) return false;
+  return e.status === 429 || (e.details as { code?: string } | undefined)?.code === "ai_overloaded";
 }
 
 async function postJson(provider: AiProvider, url: string, headers: Record<string, string>, body: unknown, apiKey: string | null): Promise<unknown> {
@@ -308,10 +316,34 @@ function anthropicClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
   };
 }
 
+/** Esperas (ms) ante una saturación o caída temporal del proveedor (503…) en una llamada de chat: se repite la misma petición. */
+export const TRANSIENT_RETRY_WAITS_MS = [3_000, 8_000];
+
+/**
+ * Repite `text()` si el proveedor está saturado un momento («high demand», 503…). Los errores permanentes (clave rechazada, petición
+ * mal formada) y el límite de cuota (429, que pide esperar más) no se repiten aquí: los trata quien llama.
+ */
+export function withTransientRetry(client: AiClient, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))): AiClient {
+  const text = client.text.bind(client);
+  return {
+    ...client,
+    async text(p) {
+      for (let i = 0; ; i++) {
+        try {
+          return await text(p);
+        } catch (e) {
+          const overloaded = e instanceof ApiError && (e.details as { code?: string } | undefined)?.code === "ai_overloaded";
+          if (!overloaded || i >= TRANSIENT_RETRY_WAITS_MS.length) throw e;
+          await sleep(TRANSIENT_RETRY_WAITS_MS[i]);
+        }
+      }
+    },
+  };
+}
+
 export function buildClient(cfg: AiConfig, source: AiClient["source"] = "user"): AiClient {
-  if (cfg.provider === "GEMINI") return geminiClient(cfg, source);
-  if (cfg.provider === "ANTHROPIC") return anthropicClient(cfg, source);
-  return openAiClient(cfg, source);
+  const client = cfg.provider === "GEMINI" ? geminiClient(cfg, source) : cfg.provider === "ANTHROPIC" ? anthropicClient(cfg, source) : openAiClient(cfg, source);
+  return withTransientRetry(client);
 }
 
 // Selección por usuario ---------------------------------------------------------------------------

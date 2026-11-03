@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { extractJson, isPrivateAddress, normalizeUrl, providerError } from "./provider";
+import { ApiError } from "@/lib/api";
+
+import { extractJson, isPrivateAddress, normalizeUrl, providerError, TRANSIENT_RETRY_WAITS_MS, withTransientRetry, type AiClient } from "./provider";
 
 describe("URL de proveedores (SSRF)", () => {
   it("rechaza direcciones internas, locales y reservadas", () => {
@@ -42,5 +44,51 @@ describe("JSON de los modelos", () => {
     expect(extractJson('```json\n{"a":2}\n```')).toEqual({ a: 2 });
     expect(extractJson('Aquí tienes: {"a":3} ¡suerte!')).toEqual({ a: 3 });
     expect(() => extractJson("nada")).toThrow();
+  });
+});
+
+describe("withTransientRetry (saturación temporal del proveedor)", () => {
+  const base = (text: AiClient["text"]): AiClient => ({ provider: "GEMINI", source: "server", chatModel: "m", embedTag: null, text, embed: null });
+  const overloaded = () => providerError("GEMINI", 503, "This model is currently experiencing high demand", null);
+
+  it("un 503 se espera y se repite hasta que responde", async () => {
+    const waits: number[] = [];
+    let n = 0;
+    const c = withTransientRetry(
+      base(async () => {
+        if (++n <= 2) throw overloaded();
+        return { text: "ok" };
+      }),
+      async (ms) => void waits.push(ms),
+    );
+    expect(await c.text({ system: "", messages: [] })).toEqual({ text: "ok" });
+    expect(n).toBe(3);
+    expect(waits).toEqual(TRANSIENT_RETRY_WAITS_MS);
+  });
+  it("si sigue saturado tras las esperas, lanza el error original", async () => {
+    let n = 0;
+    const c = withTransientRetry(
+      base(async () => {
+        n++;
+        throw overloaded();
+      }),
+      async () => {},
+    );
+    await expect(c.text({ system: "", messages: [] })).rejects.toMatchObject({ status: 502 });
+    expect(n).toBe(TRANSIENT_RETRY_WAITS_MS.length + 1);
+  });
+  it("la clave rechazada, el 429 y los errores de petición no se repiten", async () => {
+    for (const err of [providerError("GEMINI", 403, "x", null), providerError("GEMINI", 429, "x", null), providerError("GEMINI", 400, "x", null), new ApiError(400, "mal")]) {
+      let n = 0;
+      const c = withTransientRetry(
+        base(async () => {
+          n++;
+          throw err;
+        }),
+        async () => {},
+      );
+      await expect(c.text({ system: "", messages: [] })).rejects.toBe(err);
+      expect(n).toBe(1);
+    }
   });
 });
