@@ -63,15 +63,21 @@ export async function enqueueIngest(documentId: string, queue = INGEST_QUEUE): P
   await boss.send(queue, { documentId }, { singletonKey: documentId });
 }
 
-// Un paquete son hasta ~8 llamadas con esperas por límite de cuota: más margen que una ingesta. Sin reintentos automáticos
-// (volver a lanzarlo solo rehace lo que falló y lo decide la usuaria).
-const packOptions = { retryLimit: 0, expireInSeconds: 60 * 60 };
+/**
+ * L2 · Caducidad de un trabajo del paquete. Peor caso con la IA local (~35 tok/s, de una en una): 7 llamadas (resumen + 6 partes)
+ * × 3 intentos (`MAX_VALIDATION_RETRIES` + 1) × 300 s (`LOCAL_AI_TIMEOUT_MS` por defecto) = 105 min. Se fija por trabajo en `send`
+ * porque `createQueue` no cambia una cola que ya existe en la BD.
+ */
+export const PACK_EXPIRE_SECONDS = 2 * 60 * 60;
+
+// Sin reintentos automáticos (volver a lanzarlo solo rehace lo que falló y lo decide la usuaria).
+const packOptions = { retryLimit: 0, expireInSeconds: PACK_EXPIRE_SECONDS };
 
 /** Encola la generación del paquete de un tema. `singletonKey` evita duplicarla si se pulsa dos veces. */
 export async function enqueuePack(job: { userId: string; topicId: string; documentIds?: string[] }, queue = PACK_QUEUE): Promise<void> {
   const boss = await getBoss();
   await ensureQueue(boss, queue, packOptions);
-  await boss.send(queue, job, { singletonKey: job.topicId });
+  await boss.send(queue, job, { singletonKey: job.topicId, expireInSeconds: PACK_EXPIRE_SECONDS });
 }
 
 /** Trabajador del paquete de estudio: uno a la vez (la cuota de la IA es de la usuaria). */
