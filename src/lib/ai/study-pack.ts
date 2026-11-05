@@ -62,7 +62,7 @@ const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 function realAi(model: string, ai: Awaited<ReturnType<typeof aiFor>>): PackAi {
   return {
     model,
-    text: (p) => ai.text({ system: p.system, messages: [{ role: "user", text: p.prompt }], temperature: 0.3, json: p.json, maxOutputTokens: PACK_MAX_OUTPUT_TOKENS }),
+    text: (p) => ai.text({ system: p.system, messages: [{ role: "user", text: p.prompt }], temperature: 0.3, json: p.json, maxOutputTokens: PACK_MAX_OUTPUT_TOKENS, thinking: true }),
   };
 }
 

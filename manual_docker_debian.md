@@ -494,6 +494,7 @@ cd /opt/lifeos
 | Variable | Para qué |
 |---|---|
 | `AI_LOCAL_BASE_URLS` | URL de modelos locales que los usuarios pueden elegir, separadas por comas. Ej.: `http://ollama:11434/v1` si Ollama está en la misma red de Docker, o `http://host.docker.internal:11434/v1` si corre en el host (añade `extra_hosts: ["host.docker.internal:host-gateway"]` al servicio `web`). Cualquier otra URL que ponga un usuario debe ser https y pública. |
+| `LOCAL_AI_BASE_URL`, `LOCAL_AI_KEY`, `LOCAL_AI_MODEL`, `LOCAL_AI_TIMEOUT_MS` | Servidor de IA (llama.cpp, API compatible con OpenAI) en otro equipo de la red, p. ej. `http://IP_DEL_SERVIDOR_IA:8080/v1`. Si se define, se usa primero y Gemini (o la IA de cada usuaria) queda de respaldo. El contenedor `web` debe alcanzar esa IP. En los logs: `ia: proveedor local`, `ia: servidor local apagado, se usa el respaldo`, `ia: el servidor local falló…`, `ia: proveedor de respaldo`. |
 | `TELEGRAM_BOT_TOKEN` y `TELEGRAM_ADMIN_CHAT_ID` | Avisos de la vigilancia interna por Telegram: copias fallidas, BD lenta, cola con fallos, poco disco o picos de errores, y cuándo se resuelven. Crea el bot con @BotFather; tu chat id sale en `https://api.telegram.org/bot<TOKEN>/getUpdates` tras escribirle. |
 
 **Vigilancia de la web caída** (la app no puede avisar si está caída). Añade al cron del usuario que despliega:
