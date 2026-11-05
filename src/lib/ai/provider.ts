@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
+import { localConfig, localFirst, withSchema } from "@/lib/ai/local";
 import { log } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
 import { openJson } from "@/lib/security/data-key";
@@ -53,7 +54,7 @@ export interface AiClient {
   /** Identifica los vectores de los apuntes (modelo y dimensión); null = sin embeddings, búsqueda por texto. */
   embedTag: string | null;
   /** `json`: esquema JSON de la respuesta (Gemini lo impone al decodificar; el resto lo recibe en las instrucciones). */
-  text(p: { system: string; messages: ChatTurn[]; temperature?: number; json?: Record<string, unknown>; maxOutputTokens?: number }): Promise<{ text: string; inputTokens?: number; outputTokens?: number }>;
+  text(p: { system: string; messages: ChatTurn[]; temperature?: number; json?: Record<string, unknown>; maxOutputTokens?: number; thinking?: boolean }): Promise<{ text: string; inputTokens?: number; outputTokens?: number }>;
   embed: ((texts: string[], task: EmbedTask) => Promise<number[][]>) | null;
 }
 
@@ -173,10 +174,6 @@ function checkVectors(provider: AiProvider, vectors: number[][], expected: numbe
 // Proveedores -------------------------------------------------------------------------------------
 
 const EMBED_BATCH = 100;
-
-function withSchema(system: string, schema: Record<string, unknown>) {
-  return `${system}\n\nResponde únicamente con un objeto JSON válido, sin texto antes ni después, que cumpla este esquema JSON:\n${JSON.stringify(schema)}`;
-}
 
 // Respuesta vacía de Gemini ------------------------------------------------------------------------
 
@@ -417,18 +414,29 @@ export async function userConfig(userId: string): Promise<AiConfig | null> {
   };
 }
 
-/** Proveedor que se usará con los datos de `userId`: el suyo o, si no tiene, el del servidor. */
-export async function aiFor(userId: string): Promise<AiClient> {
+/** IA que habría tocado sin servidor local: la propia del usuario o, si no tiene, la del servidor. */
+async function resolveAi(userId: string): Promise<AiClient | null> {
   const own = await userConfig(userId);
   if (own) return buildClient(own, "user");
   const server = serverConfig();
-  if (server) return buildClient(server, "server");
+  return server ? buildClient(server, "server") : null;
+}
+
+/**
+ * Proveedor que se usará con los datos de `userId`. Si hay servidor de IA local (LOCAL_AI_BASE_URL) va primero,
+ * incluso si el usuario tiene clave propia; si no responde, se usa lo de siempre (su IA o la Gemini del servidor).
+ */
+export async function aiFor(userId: string): Promise<AiClient> {
+  const base = await resolveAi(userId);
+  const local = localConfig();
+  if (local) return localFirst(local, base);
+  if (base) return base;
   throw new ApiError(503, "Configura tu IA en Ajustes → IA (tu propia clave de Google, OpenAI, Anthropic o un modelo local)", { code: "ai_not_configured" });
 }
 
 /** Si hay alguna IA disponible para ese usuario (sin descifrar nada). */
 export async function aiAvailable(userId: string): Promise<boolean> {
-  if (serverConfig()) return true;
+  if (localConfig() || serverConfig()) return true;
   return Boolean(await prisma.aiCredential.findUnique({ where: { userId }, select: { id: true } }));
 }
 

@@ -62,6 +62,12 @@ const schema = z.object({
   STUDY_PACK_MIN_INTERVAL_MS: z.coerce.number().int().min(0).max(120_000).default(0),
   // v1.9 · Opcional: clave de Gemini del servidor, de respaldo para quien no tenga su propia IA (Ajustes → IA).
   GEMINI_API_KEY: z.string().optional(),
+  // v2.7 · Servidor de IA local (llama.cpp, API compatible con OpenAI) en otro equipo de la red. Si está definido,
+  // va primero y Gemini/la IA de cada usuaria quedan de respaldo. Solo servidor: nunca NEXT_PUBLIC_.
+  LOCAL_AI_BASE_URL: z.string().url().optional(),
+  LOCAL_AI_KEY: z.string().optional(),
+  LOCAL_AI_MODEL: z.string().default("qwen36"),
+  LOCAL_AI_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(900_000).default(300_000),
   // v1.9 · URL de modelos locales que los usuarios pueden elegir (Ollama, LM Studio, vLLM…), separadas por comas.
   // p. ej. http://ollama:11434/v1. Cualquier otra URL debe ser https y pública.
   AI_LOCAL_BASE_URLS: z.string().optional(),
