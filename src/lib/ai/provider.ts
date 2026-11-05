@@ -1,5 +1,6 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
@@ -40,7 +41,11 @@ export const OPENAI_PRESETS = {
 
 export const ANTHROPIC_URL = "https://api.anthropic.com/v1";
 const ANTHROPIC_VERSION = "2023-06-01";
-const TIMEOUT_MS = 120_000;
+/** Espera máxima de una petición al proveedor (chat y embeddings; Gemini la aplica con `httpOptions.timeout` a cada petición del SDK). */
+export const TIMEOUT_MS = 120_000;
+
+/** Opciones internas del cliente: solo tests y «probar conexión». Con ellas no se usa la caché de clientes. */
+export type ClientOpts = { timeoutMs?: number; fetch?: typeof fetch; fresh?: boolean };
 
 /** v1.10 · `images`: fotos JPEG o PNG en base64 (sin EXIF; las reescala el navegador). */
 export type ChatTurn = { role: "user" | "assistant"; text: string; images?: Array<{ mime: "image/jpeg" | "image/png"; base64: string }> };
@@ -129,26 +134,47 @@ export function providerError(provider: AiProvider, status: number | null, detai
   return new ApiError(502, `${name} respondió con un error${status ? ` (${status})` : ""}: ${msg || "sin detalle"}`, transient ? { code: "ai_overloaded" } : undefined);
 }
 
+/** B1 · La IA no respondió a tiempo. No es una saturación: no se repite (repetir multiplicaría la espera). */
+export function timeoutError(provider: AiProvider, ms: number): ApiError {
+  const name = provider === "GEMINI" ? "Google Gemini" : provider === "ANTHROPIC" ? "Anthropic" : "El proveedor de IA";
+  return new ApiError(504, `${name} no respondió en ${Math.round(ms / 1000)} s`, { code: "ai_timeout" });
+}
+
+/** ¿El error es de un corte por tiempo (AbortSignal.timeout o el temporizador del SDK)? */
+export function isAbortError(e: unknown): boolean {
+  const name = (e as { name?: unknown } | null)?.name;
+  return name === "AbortError" || name === "TimeoutError";
+}
+
 /** ¿El error es de saturación o caída temporal del proveedor (merece esperar y reintentar)? 429 también. */
 export function isTransientAiError(e: unknown): boolean {
   if (!(e instanceof ApiError)) return false;
   return e.status === 429 || (e.details as { code?: string } | undefined)?.code === "ai_overloaded";
 }
 
-async function postJson(provider: AiProvider, url: string, headers: Record<string, string>, body: unknown, apiKey: string | null): Promise<unknown> {
+async function postJson(provider: AiProvider, url: string, headers: Record<string, string>, body: unknown, apiKey: string | null, opts: ClientOpts = {}): Promise<unknown> {
+  const timeoutMs = opts.timeoutMs ?? TIMEOUT_MS;
   let res: Response;
   try {
-    res = await fetch(url, {
+    res = await (opts.fetch ?? fetch)(url, {
       method: "POST",
       headers: { "content-type": "application/json", ...headers },
       body: JSON.stringify(body),
       redirect: "error",
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (e) {
+    if (isAbortError(e)) throw timeoutError(provider, timeoutMs);
     throw providerError(provider, null, e instanceof Error ? e.message : "sin conexión", apiKey);
   }
-  const text = await res.text();
+  let text: string;
+  try {
+    text = await res.text();
+  } catch (e) {
+    // El cuerpo también cuenta para el tiempo: la misma señal corta una respuesta que se queda a medias
+    if (isAbortError(e)) throw timeoutError(provider, timeoutMs);
+    throw providerError(provider, res.status, e instanceof Error ? e.message : "respuesta cortada", apiKey);
+  }
   if (!res.ok) throw providerError(provider, res.status, text, apiKey);
   try {
     return JSON.parse(text);
@@ -225,15 +251,18 @@ export function readGeminiResponse(res: GeminiLike): { text: string; inputTokens
   return { text, inputTokens: u?.promptTokenCount, outputTokens };
 }
 
-function geminiClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
+function geminiClient(cfg: AiConfig, source: AiClient["source"], opts: ClientOpts = {}): AiClient {
   const key = cfg.apiKey;
   if (!key) throw new ApiError(503, "Falta la clave de Google Gemini");
-  const sdk = new GoogleGenAI({ apiKey: key, httpOptions: { timeout: TIMEOUT_MS } });
+  const timeoutMs = opts.timeoutMs ?? TIMEOUT_MS;
+  // Sin `retryOptions`: el SDK no repite; el tiempo vale para cada petición (generateContent y embedContent)
+  const sdk = new GoogleGenAI({ apiKey: key, httpOptions: { timeout: timeoutMs, ...(opts.fetch ? { fetch: opts.fetch } : {}) } });
   const wrap = async <T,>(fn: () => Promise<T>): Promise<T> => {
     try {
       return await fn();
     } catch (e) {
       if (e instanceof ApiError) throw e;
+      if (isAbortError(e)) throw timeoutError("GEMINI", timeoutMs);
       const status = typeof (e as { status?: unknown }).status === "number" ? (e as { status: number }).status : null;
       throw providerError("GEMINI", status, e instanceof Error ? e.message : String(e), key);
     }
@@ -276,7 +305,7 @@ const openAiChat = z.object({
 });
 const openAiEmbed = z.object({ data: z.array(z.object({ embedding: z.array(z.number()), index: z.number().optional() })) });
 
-function openAiClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
+function openAiClient(cfg: AiConfig, source: AiClient["source"], opts: ClientOpts = {}): AiClient {
   if (!cfg.baseUrl) throw new ApiError(400, "Falta la URL del proveedor");
   const base = cfg.baseUrl;
   const headers: Record<string, string> = cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {};
@@ -300,6 +329,7 @@ function openAiClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
           ...(json ? { response_format: { type: "json_object" } } : {}),
         },
         cfg.apiKey,
+        opts,
       );
       const parsed = openAiChat.safeParse(raw);
       const text = parsed.success ? parsed.data.choices[0].message.content : null;
@@ -312,7 +342,7 @@ function openAiClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
           const out: number[][] = [];
           for (let i = 0; i < texts.length; i += EMBED_BATCH) {
             const batch = texts.slice(i, i + EMBED_BATCH);
-            const raw = await postJson("OPENAI", url, headers, { model: embeddingModel, input: batch, dimensions: EMBED_DIM }, cfg.apiKey);
+            const raw = await postJson("OPENAI", url, headers, { model: embeddingModel, input: batch, dimensions: EMBED_DIM }, cfg.apiKey, opts);
             const parsed = openAiEmbed.safeParse(raw);
             if (!parsed.success) throw new ApiError(502, "Respuesta de embeddings inesperada");
             const rows = [...parsed.data.data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
@@ -329,7 +359,7 @@ const anthropicMsg = z.object({
   usage: z.object({ input_tokens: z.number().optional(), output_tokens: z.number().optional() }).optional(),
 });
 
-function anthropicClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
+function anthropicClient(cfg: AiConfig, source: AiClient["source"], opts: ClientOpts = {}): AiClient {
   if (!cfg.apiKey) throw new ApiError(503, "Falta la clave de Anthropic");
   const key = cfg.apiKey;
   // Otra URL (pasarela propia o servidor de pruebas) solo si la autoriza la administración
@@ -353,6 +383,7 @@ function anthropicClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
           messages: messages.map((m) => ({ role: m.role, content: m.images?.length ? [...m.images.map((i) => ({ type: "image", source: { type: "base64", media_type: i.mime, data: i.base64 } })), { type: "text", text: m.text }] : m.text })),
         },
         key,
+        opts,
       );
       const parsed = anthropicMsg.safeParse(raw);
       const text = parsed.success ? parsed.data.content.filter((c) => c.type === "text").map((c) => c.text ?? "").join("") : "";
@@ -365,22 +396,26 @@ function anthropicClient(cfg: AiConfig, source: AiClient["source"]): AiClient {
 
 /** Esperas (ms) ante una saturación o caída temporal del proveedor (503…) en una llamada de chat: se repite la misma petición. */
 export const TRANSIENT_RETRY_WAITS_MS = [3_000, 8_000];
+/** B1 · Solo se repite una saturación que llega rápido: un 503 tras mucho rato no se multiplica. */
+export const TRANSIENT_FAST_MS = 15_000;
 
 /**
- * Repite `text()` si el proveedor está saturado un momento («high demand», 503…). Los errores permanentes (clave rechazada, petición
- * mal formada) y el límite de cuota (429, que pide esperar más) no se repiten aquí: los trata quien llama.
+ * Repite `text()` si el proveedor está saturado un momento («high demand», 503…) y lo dijo en menos de `TRANSIENT_FAST_MS`.
+ * Los errores permanentes (clave rechazada, petición mal formada), el límite de cuota (429, que pide esperar más) y el corte por
+ * tiempo (`ai_timeout`) no se repiten aquí. Peor caso de una llamada: 15 + 3 + 15 + 8 + 120 s = 161 s.
  */
-export function withTransientRetry(client: AiClient, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms))): AiClient {
+export function withTransientRetry(client: AiClient, sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms)), now: () => number = Date.now): AiClient {
   const text = client.text.bind(client);
   return {
     ...client,
     async text(p) {
       for (let i = 0; ; i++) {
+        const t0 = now();
         try {
           return await text(p);
         } catch (e) {
           const overloaded = e instanceof ApiError && (e.details as { code?: string } | undefined)?.code === "ai_overloaded";
-          if (!overloaded || i >= TRANSIENT_RETRY_WAITS_MS.length) throw e;
+          if (!overloaded || i >= TRANSIENT_RETRY_WAITS_MS.length || now() - t0 >= TRANSIENT_FAST_MS) throw e;
           await sleep(TRANSIENT_RETRY_WAITS_MS[i]);
         }
       }
@@ -388,9 +423,40 @@ export function withTransientRetry(client: AiClient, sleep: (ms: number) => Prom
   };
 }
 
-export function buildClient(cfg: AiConfig, source: AiClient["source"] = "user"): AiClient {
-  const client = cfg.provider === "GEMINI" ? geminiClient(cfg, source) : cfg.provider === "ANTHROPIC" ? anthropicClient(cfg, source) : openAiClient(cfg, source);
+/** O18 · Clientes reutilizados entre peticiones (un `GoogleGenAI` por configuración, no uno por llamada). */
+const CLIENT_CACHE_MAX = 32;
+const clientCache = new Map<string, AiClient>();
+
+/** Índice de la caché: hash de la configuración (la clave del proveedor nunca se guarda en claro como índice). */
+function cacheKey(cfg: AiConfig, source: AiClient["source"]): string {
+  return createHash("sha256").update(JSON.stringify([cfg.provider, cfg.baseUrl, cfg.model, cfg.embeddingModel, cfg.apiKey, source])).digest("hex");
+}
+
+/** Vacía la caché (al guardar o borrar una credencial: que no quede en memoria la clave anterior). */
+export function resetAiClientCache(): void {
+  clientCache.clear();
+}
+
+function createClient(cfg: AiConfig, source: AiClient["source"], opts: ClientOpts): AiClient {
+  const client = cfg.provider === "GEMINI" ? geminiClient(cfg, source, opts) : cfg.provider === "ANTHROPIC" ? anthropicClient(cfg, source, opts) : openAiClient(cfg, source, opts);
   return withTransientRetry(client);
+}
+
+/** Cliente para una configuración: el de la caché si ya existe. Con `opts` (tests, «probar conexión») siempre uno nuevo y fuera de la caché. */
+export function buildClient(cfg: AiConfig, source: AiClient["source"] = "user", opts?: ClientOpts): AiClient {
+  if (opts) return createClient(cfg, source, opts);
+  const key = cacheKey(cfg, source);
+  const hit = clientCache.get(key);
+  if (hit) {
+    // LRU: el último usado pasa al final
+    clientCache.delete(key);
+    clientCache.set(key, hit);
+    return hit;
+  }
+  const client = createClient(cfg, source, {});
+  clientCache.set(key, client);
+  if (clientCache.size > CLIENT_CACHE_MAX) clientCache.delete(clientCache.keys().next().value as string);
+  return client;
 }
 
 // Selección por usuario ---------------------------------------------------------------------------

@@ -25,6 +25,8 @@ export const MAX_SUMMARY_CHARS = 150_000;
 export const MAX_VALIDATION_RETRIES = 2;
 /** Esperas ante un 429 (límite por minuto del nivel gratuito) o una saturación temporal del proveedor (503…): se repite la misma llamada. */
 export const RATE_LIMIT_WAITS_MS = [15_000, 30_000, 60_000, 90_000];
+/** B1 · Presupuesto de tiempo de una llamada validada (con sus reintentos y esperas): pasado, no se empieza otro intento ni otra espera. */
+export const PACK_CALL_BUDGET_MS = 8 * 60_000;
 /** Un trabajo `RUNNING` sin actividad en este tiempo se da por interrumpido (reinicio del servidor). */
 export const STALE_MS = 25 * 60_000;
 /** Preguntas objetivo de un nivel (todas las partes juntas): el juego original tiene ~10. */
@@ -43,6 +45,10 @@ export interface PackAi {
 export interface PackDeps {
   ai?: PackAi;
   sleep?: (ms: number) => Promise<void>;
+  /** Reloj (tests). */
+  now?: () => number;
+  /** Presupuesto de tiempo por llamada validada (por defecto `PACK_CALL_BUDGET_MS`). */
+  budgetMs?: number;
   /** Pausa entre llamadas (por defecto `STUDY_PACK_MIN_INTERVAL_MS`, o 0 con la IA local). */
   minIntervalMs?: number;
 }
@@ -104,7 +110,7 @@ const problemsOf = (e: z.ZodError) => e.issues.slice(0, 6).map((i) => `${i.path.
  */
 export async function validatedCall<S extends z.ZodType, R>(
   ai: PackAi,
-  deps: Required<Pick<PackDeps, "sleep">>,
+  deps: Required<Pick<PackDeps, "sleep">> & Pick<PackDeps, "now" | "budgetMs">,
   p: { system: string; prompt: string; schema: S; accept: (data: z.infer<S>) => { result: R; problems: string[] } },
 ): Promise<{ result: R; inputTokens: number; outputTokens: number }> {
   const json = schemaOf(p.schema);
@@ -115,19 +121,24 @@ export async function validatedCall<S extends z.ZodType, R>(
   let reason: PartFailReason = "empty";
   let jsonErrors = 0;
   let waits = 0;
+  const now = deps.now ?? Date.now;
+  const budget = deps.budgetMs ?? PACK_CALL_BUDGET_MS;
+  const t0 = now();
   for (let attempt = 0; attempt <= MAX_VALIDATION_RETRIES; attempt++) {
+    // Presupuesto agotado: se lanza el último problema en vez de acumular otro intento de minutos
+    if (attempt > 0 && now() - t0 >= budget) break;
     let res;
     try {
       res = await ai.text({ system: p.system, prompt: p.prompt + note, json });
     } catch (e) {
-      if (isTransientAiError(e) && waits < RATE_LIMIT_WAITS_MS.length) {
+      if (isTransientAiError(e) && waits < RATE_LIMIT_WAITS_MS.length && now() - t0 + RATE_LIMIT_WAITS_MS[waits] <= budget) {
         await deps.sleep(RATE_LIMIT_WAITS_MS[waits++]);
         attempt--; // un 429 o un 503 no gasta un reintento de validación
         continue;
       }
       // Respuesta vacía, bloqueada o cortada: sí gasta un reintento, pidiendo algo más corto o más neutro.
       const d = e instanceof ApiError ? (e.details as { code?: string; reason?: string } | undefined) : undefined;
-      if (d?.code === "ai_empty") {
+      if (d?.code === "ai_empty" && now() - t0 < budget) {
         last = e instanceof ApiError ? e.message : "La IA no devolvió contenido";
         reason = "empty";
         note = emptyNote(d.reason ?? "OTHER");
@@ -252,7 +263,7 @@ export async function runPack(userId: string, topicId: string, opts: { documentI
       await throttle();
       try {
         const sources = full.slice(0, MAX_SUMMARY_CHARS);
-        const r = await validatedCall(ai, { sleep }, {
+        const r = await validatedCall(ai, { sleep, now: deps.now, budgetMs: deps.budgetMs }, {
           system: PACK_SYSTEM,
           prompt: summaryPrompt({ moduleName: topic.module.name, topic: topic.name, sources }),
           schema: summarySchema,
@@ -278,7 +289,7 @@ export async function runPack(userId: string, topicId: string, opts: { documentI
       if (levels[key]) continue;
       await throttle();
       try {
-        const r = await validatedCall(ai, { sleep }, {
+        const r = await validatedCall(ai, { sleep, now: deps.now, budgetMs: deps.budgetMs }, {
           system: PACK_SYSTEM,
           prompt: batchPrompt({ moduleName: topic.module.name, topic: topic.name, part: `${i + 1} de ${parts.length}`, counts: counts[i], sources: parts[i] }),
           schema: gameBatchSchema,

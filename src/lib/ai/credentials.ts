@@ -10,6 +10,7 @@ import {
   assertExternalAiAllowed,
   assertSafeBaseUrl,
   buildClient,
+  resetAiClientCache,
   LOCAL_AI_LABEL,
   localBaseUrls,
   normalizeUrl,
@@ -66,7 +67,7 @@ export async function credentialView(userId: string) {
 /** Prueba real: una respuesta corta y, si hay modelo de embeddings, un vector de 768 dimensiones. */
 export async function testConfig(cfg: AiConfig) {
   assertExternalAiAllowed(); // LOCAL_AI_ONLY: ni una petición de prueba a un proveedor externo
-  const client = buildClient(cfg);
+  const client = buildClient(cfg, "user", { fresh: true }); // claves sin guardar: fuera de la caché de clientes
   const started = Date.now();
   const r = await client.text({ system: "Responde solo con la palabra OK.", messages: [{ role: "user", text: "Prueba de conexión de Atlenza. Responde OK." }], temperature: 0 });
   if (client.embed) await client.embed(["Prueba de conexión de Atlenza"], "RETRIEVAL_QUERY");
@@ -115,6 +116,7 @@ export async function saveCredential(userId: string, input: CredentialInput, ctx
     verifiedAt: new Date(),
   };
   await prisma.aiCredential.upsert({ where: { userId }, create: { userId, ...data }, update: data });
+  resetAiClientCache(); // que no quede en memoria el cliente con la clave anterior
   const label = providerLabel(cfg.provider, baseUrl);
   await recordEvent(userId, "AI_PROVIDER_CHANGED", ctx, `${label} · ${cfg.model}`);
   let consentReset = false;
@@ -126,6 +128,7 @@ export async function saveCredential(userId: string, input: CredentialInput, ctx
 /** Quitar la IA propia: se usará la del servidor si existe (otro proveedor → se retira el consentimiento). */
 export async function deleteCredential(userId: string, ctx: AuditContext = {}) {
   const { count } = await prisma.aiCredential.deleteMany({ where: { userId } });
+  resetAiClientCache();
   if (!count) return { removed: false, consentReset: false, reindexing: 0 };
   await recordEvent(userId, "AI_PROVIDER_CHANGED", ctx, "IA propia eliminada");
   const consentReset = await resetConsent(userId, ctx, "IA propia eliminada");

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "@/lib/api";
 
 import { resetLocalHealthCache } from "./local";
-import { aiAvailable, aiFor, assertExternalAiAllowed, providerLabel, extractJson, readGeminiResponse, isPrivateAddress, normalizeUrl, providerError, TRANSIENT_RETRY_WAITS_MS, withTransientRetry, type AiClient } from "./provider";
+import { aiAvailable, aiFor, assertExternalAiAllowed, buildClient, resetAiClientCache, TRANSIENT_FAST_MS, providerLabel, extractJson, readGeminiResponse, isPrivateAddress, normalizeUrl, providerError, TRANSIENT_RETRY_WAITS_MS, withTransientRetry, type AiClient } from "./provider";
 
 const findUnique = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/prisma", () => ({ prisma: { aiCredential: { findUnique } } }));
@@ -193,5 +193,66 @@ describe("readGeminiResponse (respuestas vacías de Gemini)", () => {
   });
   it("MAX_TOKENS con JSON a medias no se devuelve como bueno", () => {
     expect(() => readGeminiResponse({ text: '{"a":[1,', candidates: [{ finishReason: "MAX_TOKENS" }] })).toThrow(/límite de salida/);
+  });
+});
+
+describe("B1 · timeout, SDK que no responde y cliente reutilizado", () => {
+  /** fetch que nunca responde: solo termina cuando se aborta su señal (como una red colgada). */
+  const hang = () => {
+    const calls: string[] = [];
+    const fn = ((url: unknown, init?: RequestInit) => {
+      calls.push(String(url));
+      return new Promise<Response>((_, reject) => {
+        const sig = init?.signal;
+        const abort = () => reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+        if (sig?.aborted) abort();
+        else sig?.addEventListener("abort", abort);
+      });
+    }) as unknown as typeof fetch;
+    return { fn, calls };
+  };
+  const gemini = { provider: "GEMINI" as const, baseUrl: null, model: "gemini-2.5-flash", embeddingModel: "gemini-embedding-001", apiKey: "AIzaSy-prueba-b1" };
+  const openai = { provider: "OPENAI" as const, baseUrl: "https://api.openai.com/v1", model: "m", embeddingModel: "text-embedding-3-small", apiKey: "sk-prueba-b1" };
+
+  it("Gemini: chat y embeddings se cortan a tiempo, con ai_timeout y sin repetir", async () => {
+    for (const run of [(c: AiClient) => c.text({ system: "s", messages: [{ role: "user", text: "hola" }] }), (c: AiClient) => c.embed!(["hola"], "RETRIEVAL_QUERY")]) {
+      const h = hang();
+      const c = buildClient(gemini, "user", { timeoutMs: 50, fetch: h.fn });
+      const t0 = Date.now();
+      await expect(run(c)).rejects.toMatchObject({ status: 504, details: { code: "ai_timeout" } });
+      expect(Date.now() - t0).toBeLessThan(2_000);
+      expect(h.calls).toHaveLength(1); // ni el SDK ni withTransientRetry repiten
+    }
+  });
+
+  it("OpenAI compatible: chat y embeddings se cortan a tiempo y sin repetir", async () => {
+    for (const run of [(c: AiClient) => c.text({ system: "s", messages: [{ role: "user", text: "hola" }] }), (c: AiClient) => c.embed!(["hola"], "RETRIEVAL_QUERY")]) {
+      const h = hang();
+      const c = buildClient(openai, "user", { timeoutMs: 50, fetch: h.fn });
+      await expect(run(c)).rejects.toMatchObject({ status: 504, details: { code: "ai_timeout" } });
+      expect(h.calls).toHaveLength(1);
+    }
+  });
+
+  it("withTransientRetry: un 503 lento (≥ TRANSIENT_FAST_MS) no se repite", async () => {
+    let clock = 0;
+    let n = 0;
+    const base: AiClient = {
+      provider: "GEMINI", source: "server", chatModel: "m", embedTag: null, embed: null,
+      async text() { n++; clock += TRANSIENT_FAST_MS; throw providerError("GEMINI", 503, "alta demanda", null); },
+    };
+    await expect(withTransientRetry(base, async () => {}, () => clock).text({ system: "", messages: [] })).rejects.toMatchObject({ status: 502 });
+    expect(n).toBe(1);
+  });
+
+  it("el cliente se reutiliza por configuración y se renueva al cambiarla o vaciar la caché", () => {
+    resetAiClientCache();
+    const a = buildClient(gemini, "user");
+    expect(buildClient({ ...gemini }, "user")).toBe(a);
+    expect(buildClient({ ...gemini, apiKey: "AIzaSy-otra-b1" }, "user")).not.toBe(a);
+    expect(buildClient(gemini, "server")).not.toBe(a);
+    expect(buildClient(gemini, "user", { timeoutMs: 50 })).not.toBe(a); // con opciones: fuera de la caché
+    resetAiClientCache();
+    expect(buildClient(gemini, "user")).not.toBe(a);
   });
 });

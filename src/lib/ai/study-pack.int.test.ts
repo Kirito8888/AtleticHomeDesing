@@ -199,6 +199,30 @@ describe.skipIf(!HAS_DB)("paquete de estudio (BD real)", () => {
     expect(calls).toHaveLength(5); // 3 intentos con 503 + resumen + 1 parte
   });
 
+  it("B1 · un 429 perpetuo no acumula esperas por encima del presupuesto de la llamada", async () => {
+    const { z } = await import("zod");
+    const { ApiError } = await import("@/lib/api");
+    let clock = 0;
+    const waited: number[] = [];
+    const ai = { model: "m", async text() { throw new ApiError(429, "límite"); } };
+    await expect(
+      sp.validatedCall(ai, { sleep: async (ms) => void ((clock += ms), waited.push(ms)), now: () => clock, budgetMs: 100_000 }, { system: "", prompt: "", schema: z.object({}), accept: () => ({ result: 1, problems: [] }) }),
+    ).rejects.toMatchObject({ status: 429 });
+    // 15 + 30 + 60 = 105 s no cabe en 100 s: solo 15 + 30 (45 s); la de 60 s se rechaza
+    expect(waited).toEqual([15_000, 30_000]);
+  });
+
+  it("B1 · un corte por tiempo (ai_timeout) no se repite: una sola llamada", async () => {
+    const { z } = await import("zod");
+    const { timeoutError } = await import("@/lib/ai/provider");
+    let n = 0;
+    const ai = { model: "m", async text() { n++; throw timeoutError("GEMINI", 120_000); } };
+    await expect(
+      sp.validatedCall(ai, { sleep }, { system: "", prompt: "", schema: z.object({}), accept: () => ({ result: 1, problems: [] }) }),
+    ).rejects.toMatchObject({ status: 504, details: { code: "ai_timeout" } });
+    expect(n).toBe(1);
+  });
+
   it("respuesta vacía por RECITATION: reintenta pidiendo citas cortas y acaba con resumen y preguntas reales", async () => {
     await wipe(topic);
     const { ai, calls } = makeAi((n) => (n === 1 ? "recitation" : "ok"));
