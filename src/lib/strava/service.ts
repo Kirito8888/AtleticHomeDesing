@@ -113,11 +113,12 @@ export async function syncStrava(userId: string, opts: { fetcher?: Fetcher; budg
   let imported = 0;
   let skipped = 0;
   let newest = link.syncedUntil;
+  // O4: fecha de la sesión importada más antigua; la carga se recalcula una vez desde ella al terminar.
+  let earliest: Date | null = null;
   try {
     const token = await accessToken(userId, fetcher);
     const auth = { headers: { authorization: `Bearer ${token}` } };
     const after = Math.floor((link.syncedUntil ?? new Date(now.getTime() - 30 * 864e5)).getTime() / 1000);
-    let earliest: Date | null = null;
     for (let page = 1; budget > 0 && page <= 5; page++) {
       budget--;
       const list = await call<StravaActivity[]>(fetcher, `${base()}/api/v3/athlete/activities?after=${after}&per_page=50&page=${page}`, auth);
@@ -137,11 +138,11 @@ export async function syncStrava(userId: string, opts: { fetcher?: Fetcher; budg
           return {} as StravaStreams; // sin streams se importa el resumen
         });
         const { payload } = await previewParsed(userId, stravaToParsed(a, streams));
-        const created = await createTrainingSession(userId, null, { ...payload, title: (a.name?.trim() || payload.title || "Strava").slice(0, 120) });
+        const created = await createTrainingSession(userId, null, { ...payload, title: (a.name?.trim() || payload.title || "Strava").slice(0, 120) }, { skipLoads: true });
         await prisma.trainingSession.update({ where: { id: created.id }, data: { source: STRAVA, externalId } });
         imported++;
         if (!newest || started > newest) newest = started;
-        if (!earliest || started < earliest) earliest = started;
+        if (!earliest || created.date < earliest) earliest = created.date;
       }
       if (list.length < 50) break;
     }
@@ -150,6 +151,9 @@ export async function syncStrava(userId: string, opts: { fetcher?: Fetcher; budg
     const msg = e instanceof ApiError ? e.message : "Error al importar de Strava";
     await prisma.stravaLink.update({ where: { userId }, data: { lastError: msg.slice(0, 200), syncedUntil: newest } }).catch(() => {});
     if (!(e instanceof ApiError) || e.status !== 429) throw e;
+  } finally {
+    // También si Strava cortó a mitad: las sesiones ya creadas cuentan en la carga.
+    if (earliest) await recomputeDailyLoads(userId, earliest);
   }
   return { imported, skipped };
 }
