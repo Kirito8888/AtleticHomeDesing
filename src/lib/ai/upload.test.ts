@@ -14,3 +14,16 @@ describe("contentMatches", () => {
     expect(contentMatches(Buffer.from([0xc3, 0x28]), "text/plain")).toBe(false);
   });
 });
+
+describe("contentMatches · DOCX", () => {
+  it("acepta un DOCX y rechaza un PPTX, un ZIP genérico y texto renombrados a .docx", async () => {
+    const { buildDocxForTest } = await import("./docx-fixture");
+    const { buildPptxForTest } = await import("./pptx-fixture");
+    const { zipSync, strToU8 } = await import("fflate");
+    const mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    expect(contentMatches(buildDocxForTest([{ text: "hola" }]), mime)).toBe(true);
+    expect(contentMatches(buildPptxForTest([{ text: ["x"] }]), mime)).toBe(false);
+    expect(contentMatches(Buffer.from(zipSync({ "a.txt": strToU8("x".repeat(50)) })), mime)).toBe(false);
+    expect(contentMatches(Buffer.from("texto plano"), mime)).toBe(false);
+  });
+});

@@ -21,7 +21,12 @@ for (const [path, v] of Object.entries(lock.packages ?? {})) {
 }
 deps.sort((a, b) => a.name.localeCompare(b.name));
 
-const bad = deps.filter((d) => DENY.test(d.license) || (/LGPL/i.test(d.license) && !ALLOW_LGPL.test(d.name)));
+// Expresión SPDX con «OR» (p. ej. jszip: MIT OR GPL-3.0-or-later): basta una alternativa admitida; «AND» exige todas.
+const notAllowed = (name, lic) => {
+  const alts = lic.replace(/^\(|\)$/g, "").split(/\s+OR\s+/);
+  return !alts.some((a) => !DENY.test(a) && !(/LGPL/i.test(a) && !ALLOW_LGPL.test(name)));
+};
+const bad = deps.filter((d) => notAllowed(d.name, d.license));
 if (process.argv.includes("--check")) {
   if (bad.length) {
     console.error("Licencias no admitidas en dependencias de producción:");

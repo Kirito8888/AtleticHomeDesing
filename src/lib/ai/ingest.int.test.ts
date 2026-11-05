@@ -91,6 +91,31 @@ describe.skipIf(!HAS_DB)("ingesta de apuntes en segundo plano (BD real)", () => 
     expect(s.maxPage).toBe(100);
   }, 60_000);
 
+  it("un DOCX se extrae, se trocea y se indexa; uno dañado queda FAILED con el texto genérico", async () => {
+    const { buildDocxForTest } = await import("./docx-fixture");
+    const DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    const buf = buildDocxForTest([
+      { h: 1, text: "Termodinamica" },
+      { text: "La entropia de un sistema aislado nunca disminuye segun el segundo principio. ".repeat(10) },
+      { h: 1, text: "Cinetica" },
+      { li: "La constante de velocidad depende de la temperatura de Arrhenius." },
+    ]);
+    const doc = await newDoc("apuntes.docx", buf, DOCX);
+    expect((await rag.processDocument(doc.id, deps))?.status).toBe("EMBEDDED");
+    const s = await chunkStats(doc.id);
+    expect(s.total).toBeGreaterThanOrEqual(2);
+    expect(s.sinVector).toBe(0);
+    const text = (await prisma.documentChunk.findMany({ where: { documentId: doc.id }, select: { content: true } })).map((c) => c.content).join("\n");
+    expect(text).toContain("entropia");
+    expect(text).toContain("Arrhenius");
+
+    const bad = await newDoc("roto.docx", buf.subarray(0, buf.length - 40), DOCX);
+    await expect(rag.processDocument(bad.id, deps)).rejects.toThrow();
+    const failed = await prisma.studyDocument.findUniqueOrThrow({ where: { id: bad.id } });
+    expect(failed.status).toBe("FAILED");
+    expect(failed.error).toBe((await import("@/lib/ai/doc-error")).DOC_ERROR);
+  }, 60_000);
+
   it("si los embeddings fallan queda FAILED con un texto genérico; el reintento no duplica fragmentos", async () => {
     const doc = await newDoc("fallo.txt", Buffer.from("Apuntes de bioquimica. ".repeat(400)), "text/plain");
     await expect(
