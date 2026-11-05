@@ -112,7 +112,7 @@ Leyenda: **Impacto** A/M/B · **Esfuerzo** S (≤ 1 bloque pequeño) / M (1 bloq
 | 1 · backend alto | O1 embeddings con `unnest` | Hecho (B1) | — |
 | 1 | O2 `hnsw.iterative_scan` | Hecho (B1) | Rama activa solo ejercitada en CI (pgvector ≥ 0.8) |
 | 1 | O3 timeout del SDK de Gemini | **Pendiente** | Prioritario: el paquete de estudio hace llamadas largas en cola |
-| 1 | O4 recalcular carga una vez + `refreshReadiness` en lote | **Pendiente** | Afecta a restaurar, Strava y VFC |
+| 1 | O4 recalcular carga una vez + `refreshReadiness` en lote | Hecho (v2.7.0 B2) | Consultas medidas en `docs/estado.md`; Strava difiere ≤ 0,01 de la cadena antigua (redondeo) |
 | 1 | O5 extracto bancario en lote | **Pendiente** | ~6 consultas por línea |
 | 2 · portada | O6 `dueCounts` | Hecho (B1) | — |
 | 2 | O7 `budgetsStatus` | Hecho (B1) | — |

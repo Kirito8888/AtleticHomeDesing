@@ -100,7 +100,8 @@ export async function restoreExport(userId: string, data: unknown) {
       skipped.push(`sesión del ${date}`);
       continue;
     }
-    await createTrainingSession(userId, null, parsed.data);
+    // La carga se recalcula una sola vez al final (O4), no por cada sesión.
+    await createTrainingSession(userId, null, parsed.data, { skipLoads: true });
     add("sesiones");
   }
 

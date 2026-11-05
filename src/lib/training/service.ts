@@ -53,7 +53,8 @@ export async function createTrainingSession(
   userId: string,
   plannedById: string | null,
   input: CreateSessionInput,
-  opts: { replace?: { id: string; date: Date }; id?: string } = {},
+  /** `skipLoads`: no recalcula la carga; quien crea varias sesiones (restaurar, Strava) la recalcula una vez al final. */
+  opts: { replace?: { id: string; date: Date }; id?: string; skipLoads?: boolean } = {},
 ) {
   const date = dateOnly(input.date);
   // v1.6 · registro sin conexión: el mismo clientId no crea dos sesiones (reenvío tras perder la respuesta)
@@ -234,7 +235,9 @@ export async function createTrainingSession(
     });
 
   // Al editar, la carga cambia desde la fecha más antigua (la sesión pudo cambiar de día o de estado).
-  if (opts.replace) await recomputeDailyLoads(userId, opts.replace.date < date ? opts.replace.date : date);
+  if (opts.skipLoads) {
+    // El recálculo lo hace quien llama, una sola vez desde la fecha más antigua.
+  } else if (opts.replace) await recomputeDailyLoads(userId, opts.replace.date < date ? opts.replace.date : date);
   else if (counts) await recomputeDailyLoads(userId, date);
   // Condiciones de la pista (Open-Meteo) en segundo plano: no retrasa el guardado.
   if (technical && counts) void attachConditions(userId, session.id, date, input.startedAt);
@@ -443,11 +446,8 @@ export async function recomputeDailyLoads(userId: string, from: Date): Promise<v
     }),
   ]);
 
-  const recoveries = await prisma.recoveryMetrics.findMany({
-    where: { userId, date: { gte: start, lte: end } },
-    select: { date: true },
-  });
-  for (const r of recoveries) await refreshReadiness(userId, r.date);
+  // El readiness depende del TSB: el del rango es el que se acaba de escribir (sin releerlo).
+  await refreshReadinessRange(userId, start, end, { tsbByDay: new Map(series.map((d) => [d.date, d.tsb])) });
 }
 
 /** Garantiza que la serie llega hasta hoy (los días sin entreno también hacen decaer la fatiga). */
@@ -498,32 +498,93 @@ export async function upsertRecovery(userId: string, input: RecoveryInput) {
   return refreshReadiness(userId, date);
 }
 
+type RecoveryRow = Awaited<ReturnType<typeof prisma.recoveryMetrics.findMany>>[number];
+
+/** Readiness de una fila con su historia (días previos en orden de fecha) y el TSB del día. Mismo cálculo en los dos caminos. */
+function readinessData(row: RecoveryRow, history: Array<{ hrvRmssdMs: number | null; restingHr: number | null }>, tsb: number | null) {
+  const result = computeReadiness({
+    ...row,
+    tsb,
+    hrvHistory: history.flatMap((h) => (h.hrvRmssdMs != null ? [h.hrvRmssdMs] : [])),
+    restingHrHistory: history.flatMap((h) => (h.restingHr != null ? [h.restingHr] : [])),
+  });
+  return { readinessScore: result.score, readinessParts: { ...result.parts, label: result.label, ...result.context } };
+}
+
 /** Recalcula y guarda el readiness de un día usando la línea base de los 60 días previos. */
 export async function refreshReadiness(userId: string, date: Date) {
   const [row, history, load] = await Promise.all([
     prisma.recoveryMetrics.findUnique({ where: { userId_date: { userId, date } } }),
     prisma.recoveryMetrics.findMany({
       where: { userId, date: { gte: addDays(date, -BASELINE_DAYS), lt: date } },
+      // Orden fijo: la media y la desviación en coma flotante dependen del orden de la suma (igual que en el lote).
+      orderBy: { date: "asc" },
       select: { hrvRmssdMs: true, restingHr: true },
     }),
     prisma.dailyLoad.findUnique({ where: { userId_date: { userId, date } } }),
   ]);
   if (!row) return null;
 
-  const result = computeReadiness({
-    ...row,
-    tsb: load?.tsb ?? null,
-    hrvHistory: history.flatMap((h) => (h.hrvRmssdMs != null ? [h.hrvRmssdMs] : [])),
-    restingHrHistory: history.flatMap((h) => (h.restingHr != null ? [h.restingHr] : [])),
-  });
-
+  const data = readinessData(row, history, load?.tsb ?? null);
   return prisma.recoveryMetrics.update({
     where: { id: row.id },
-    data: {
-      readinessScore: result.score,
-      readinessParts: { ...result.parts, label: result.label, ...result.context } as Prisma.InputJsonValue,
-    },
+    data: { readinessScore: data.readinessScore, readinessParts: data.readinessParts as Prisma.InputJsonValue },
   });
+}
+
+const READINESS_BATCH = 1000;
+
+/**
+ * O4 · readiness de todos los días con recuperación en `[from, to]` (o solo de `dates`) en lote:
+ * 1 lectura de recuperación (con los 60 días previos de línea base), 1 de carga (ninguna si se pasa
+ * `tsbByDay`) y 1 UPDATE por cada 1000 días. Mismo resultado que `refreshReadiness` día a día.
+ */
+export async function refreshReadinessRange(
+  userId: string,
+  from: Date,
+  to: Date,
+  opts: { dates?: Date[]; tsbByDay?: Map<string, number> } = {},
+): Promise<number> {
+  const start = dateOnly(from);
+  const end = dateOnly(to);
+  const rows = await prisma.recoveryMetrics.findMany({
+    where: { userId, date: { gte: addDays(start, -BASELINE_DAYS), lte: end } },
+    orderBy: { date: "asc" },
+  });
+  const only = opts.dates ? new Set(opts.dates.map((d) => toIsoDay(d))) : null;
+  const targets = rows.filter((r) => r.date >= start && (!only || only.has(toIsoDay(r.date))));
+  if (!targets.length) return 0;
+
+  let tsbByDay = opts.tsbByDay;
+  if (!tsbByDay) {
+    const loads = await prisma.dailyLoad.findMany({
+      where: { userId, date: { gte: targets[0].date, lte: targets.at(-1)!.date } },
+      select: { date: true, tsb: true },
+    });
+    tsbByDay = new Map(loads.map((l) => [toIsoDay(l.date), l.tsb]));
+  }
+
+  // Historia de cada día = filas con fecha en [día − 60, día), en orden de fecha (ventana deslizante sobre `rows`).
+  const updates: Array<{ id: string; score: number | null; parts: string }> = [];
+  let lo = 0;
+  let hi = 0;
+  for (const row of targets) {
+    const baseFrom = addDays(row.date, -BASELINE_DAYS);
+    while (rows[lo].date < baseFrom) lo++;
+    while (rows[hi].date < row.date) hi++;
+    const data = readinessData(row, rows.slice(lo, hi), tsbByDay.get(toIsoDay(row.date)) ?? null);
+    updates.push({ id: row.id, score: data.readinessScore, parts: JSON.stringify(data.readinessParts) });
+  }
+
+  for (let i = 0; i < updates.length; i += READINESS_BATCH) {
+    const part = updates.slice(i, i + READINESS_BATCH);
+    await prisma.$executeRaw`
+      UPDATE "RecoveryMetrics" AS r
+      SET "readinessScore" = v.score, "readinessParts" = v.parts::jsonb, "updatedAt" = now()
+      FROM unnest(${part.map((u) => u.id)}::text[], ${part.map((u) => u.score)}::float8[], ${part.map((u) => u.parts)}::text[]) AS v(id, score, parts)
+      WHERE r.id = v.id AND r."userId" = ${userId}`;
+  }
+  return updates.length;
 }
 
 /** Serie combinada para la gráfica PMC + panel de recuperación. */
