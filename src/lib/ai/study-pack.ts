@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { Prisma } from "@/generated/prisma/client";
 import { assertAiAllowed } from "@/lib/ai/guard";
+import { localConfig } from "@/lib/ai/local";
 import { aiFor, extractJson, isTransientAiError } from "@/lib/ai/provider";
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
@@ -35,12 +36,14 @@ export const PACK_MAX_OUTPUT_TOKENS = 32_768;
 /** Lo mínimo que necesita el generador de la IA: así los tests y la IA simulada entran por el mismo camino. */
 export interface PackAi {
   model: string;
+  /** L2 · Servidor de IA local: ya atiende de una en una y no tiene cuota por minuto, así que no hace falta pausa entre llamadas. */
+  local?: boolean;
   text(p: { system: string; prompt: string; json: Record<string, unknown> }): Promise<{ text: string; inputTokens?: number; outputTokens?: number }>;
 }
 export interface PackDeps {
   ai?: PackAi;
   sleep?: (ms: number) => Promise<void>;
-  /** Pausa entre llamadas (por defecto `STUDY_PACK_MIN_INTERVAL_MS`). */
+  /** Pausa entre llamadas (por defecto `STUDY_PACK_MIN_INTERVAL_MS`, o 0 con la IA local). */
   minIntervalMs?: number;
 }
 
@@ -57,6 +60,20 @@ const schemaOf = (s: z.ZodType) => {
   void _i;
   return rest;
 };
+/** L2 · Por qué no salió una parte (para el log; sin texto de la usuaria). */
+export type PartFailReason = "json" | "schema" | "sources" | "empty" | "error";
+
+/** Fallo de validación de una parte tras agotar los reintentos. `jsonErrors`: intentos cuya respuesta no era JSON (tasa de fallos de JSON). */
+export class PackPartError extends Error {
+  constructor(
+    message: string,
+    readonly reason: PartFailReason,
+    readonly jsonErrors: number,
+  ) {
+    super(message);
+  }
+}
+
 const defaultSleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 function realAi(model: string, ai: Awaited<ReturnType<typeof aiFor>>): PackAi {
@@ -76,7 +93,7 @@ async function resolveAi(userId: string): Promise<PackAi> {
     };
   }
   const ai = await aiFor(userId);
-  return realAi(ai.chatModel, ai);
+  return { ...realAi(ai.chatModel, ai), local: Boolean(localConfig()) };
 }
 
 const problemsOf = (e: z.ZodError) => e.issues.slice(0, 6).map((i) => `${i.path.join(".") || "(raíz)"}: ${i.message}`);
@@ -95,6 +112,8 @@ export async function validatedCall<S extends z.ZodType, R>(
   let tokensIn = 0;
   let tokensOut = 0;
   let last = "La IA no devolvió nada utilizable";
+  let reason: PartFailReason = "empty";
+  let jsonErrors = 0;
   let waits = 0;
   for (let attempt = 0; attempt <= MAX_VALIDATION_RETRIES; attempt++) {
     let res;
@@ -110,6 +129,7 @@ export async function validatedCall<S extends z.ZodType, R>(
       const d = e instanceof ApiError ? (e.details as { code?: string; reason?: string } | undefined) : undefined;
       if (d?.code === "ai_empty") {
         last = e instanceof ApiError ? e.message : "La IA no devolvió contenido";
+        reason = "empty";
         note = emptyNote(d.reason ?? "OTHER");
         continue;
       }
@@ -124,14 +144,20 @@ export async function validatedCall<S extends z.ZodType, R>(
         const acc = p.accept(parsed.data);
         if (!acc.problems.length) return { result: acc.result, inputTokens: tokensIn, outputTokens: tokensOut };
         problems = acc.problems;
-      } else problems = problemsOf(parsed.error);
+        reason = "sources";
+      } else {
+        problems = problemsOf(parsed.error);
+        reason = "schema";
+      }
     } catch {
       problems = ["La respuesta no es JSON válido."];
+      reason = "json";
+      jsonErrors++;
     }
-    last = problems[0];
+    last = reason === "json" ? `La IA no devolvió JSON válido tras ${MAX_VALIDATION_RETRIES + 1} intentos.` : problems[0];
     note = retryNote(problems);
   }
-  throw new Error(last);
+  throw new PackPartError(last, reason, jsonErrors);
 }
 
 /** Lotes de la partición: cuántas preguntas de cada tipo pide cada parte (suman ~`LEVEL_TARGET` en total). */
@@ -185,12 +211,16 @@ export async function preparePack(userId: string, topicId: string, opts: { docum
  */
 export async function runPack(userId: string, topicId: string, opts: { documentIds?: string[] } = {}, deps: PackDeps = {}): Promise<void> {
   const sleep = deps.sleep ?? defaultSleep;
-  const gap = deps.minIntervalMs ?? env().STUDY_PACK_MIN_INTERVAL_MS;
+  let gap = deps.minIntervalMs ?? 0;
   let lastCall = 0;
   const throttle = async () => {
     const wait = lastCall + gap - Date.now();
     if (gap > 0 && lastCall && wait > 0) await sleep(wait);
     lastCall = Date.now();
+  };
+  const failLog = (kind: string, e: unknown) => {
+    const extra = e instanceof PackPartError ? { code: e.reason, count: e.jsonErrors } : { code: e instanceof ApiError ? e.status : "error" };
+    log.warn("paquete de estudio: parte sin generar", { job: "study-pack", kind, ...extra });
   };
   try {
     const topic = await prisma.studyTopic.findFirst({ where: { id: topicId, userId }, include: { module: true } });
@@ -199,6 +229,8 @@ export async function runPack(userId: string, topicId: string, opts: { documentI
     const chunks = await loadSources(userId, topic.moduleId, topic.documentId, opts.documentIds ?? []);
     const full = chunks.join("\n\n");
     const ai = deps.ai ?? (await resolveAi(userId));
+    // L2 · Con la IA local no se espera entre partes: su cola ya serializa y no hay límite por minuto.
+    gap = deps.minIntervalMs ?? (ai.local ? 0 : env().STUDY_PACK_MIN_INTERVAL_MS);
     const pack = await prisma.studyTopicPack.findUnique({ where: { topicId } });
     const summaryDone = pack?.summary ? summarySchema.safeParse(pack.summary).success : false;
     const levels = (pack?.game as { levels?: Record<string, GameBatch> } | null)?.levels ?? {};
@@ -236,7 +268,7 @@ export async function runPack(userId: string, topicId: string, opts: { documentI
         meta.done++;
       } catch (e) {
         meta.failed.push({ part: "summary", error: e instanceof Error ? e.message : "error" });
-        log.warn("paquete de estudio: parte sin generar", { job: "study-pack", kind: "summary", code: e instanceof ApiError ? e.status : "error" });
+        failLog("summary", e);
       }
       await save("RUNNING");
     }
@@ -261,7 +293,7 @@ export async function runPack(userId: string, topicId: string, opts: { documentI
         meta.done++;
       } catch (e) {
         meta.failed.push({ part: key, error: e instanceof Error ? e.message : "error" });
-        log.warn("paquete de estudio: parte sin generar", { job: "study-pack", kind: key, code: e instanceof ApiError ? e.status : "error" });
+        failLog(key, e);
       }
       await save("RUNNING");
     }

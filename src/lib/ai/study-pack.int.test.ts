@@ -241,6 +241,51 @@ describe.skipIf(!HAS_DB)("paquete de estudio (BD real)", () => {
     expect(sleeps.some((s) => s > 0 && s <= 4000)).toBe(true);
   });
 
+  it("L2 · con la IA local no hay pausa entre llamadas aunque STUDY_PACK_MIN_INTERVAL_MS esté fijada", async () => {
+    await wipe(topic);
+    sleeps.length = 0;
+    const prev = process.env.STUDY_PACK_MIN_INTERVAL_MS;
+    process.env.STUDY_PACK_MIN_INTERVAL_MS = "4000";
+    vi.resetModules();
+    try {
+      const fresh = await import("@/lib/ai/study-pack");
+      const { ai } = makeAi();
+      await fresh.preparePack(me, topic);
+      await fresh.runPack(me, topic, {}, { ai: { ...ai, local: true }, sleep });
+      expect(sleeps).toEqual([]);
+      sleeps.length = 0;
+      await wipe(topic);
+      await fresh.preparePack(me, topic);
+      await fresh.runPack(me, topic, {}, { ai, sleep }); // proveedor externo: sí respeta la variable
+      expect(sleeps.some((s) => s > 0 && s <= 4000)).toBe(true);
+    } finally {
+      if (prev === undefined) delete process.env.STUDY_PACK_MIN_INTERVAL_MS;
+      else process.env.STUDY_PACK_MIN_INTERVAL_MS = prev;
+      vi.resetModules();
+    }
+  });
+
+  it("L2 · si la IA local no devuelve JSON válido en una parte, queda PARCIAL con aviso claro y sin lanzar", async () => {
+    await wipe(topic);
+    const bad = makeAi((_n, prompt) => (prompt.includes("RESUMEN DE ESTUDIO") ? "ok" : "bad-json"));
+    await sp.preparePack(me, topic);
+    await expect(sp.runPack(me, topic, {}, { ai: { ...bad.ai, local: true }, sleep })).resolves.toBeUndefined();
+    const p = await sp.getPack(me, topic);
+    expect(p?.status).toBe("PARTIAL");
+    expect(p?.meta?.failed).toHaveLength(1);
+    expect(p?.meta?.failed[0].part).toBe("g1");
+    expect(p?.meta?.failed[0].error).toMatch(/JSON válido tras 3 intentos/);
+    expect(p?.summary).not.toBeNull();
+    expect(bad.calls).toHaveLength(1 + 3);
+  });
+
+  it("L2 · la caducidad del trabajo cubre el peor caso con la IA local", async () => {
+    const { PACK_EXPIRE_SECONDS } = await import("@/lib/jobs/queue");
+    const calls = 1 + 6; // resumen + máximo de partes
+    const attempts = sp.MAX_VALIDATION_RETRIES + 1;
+    expect(PACK_EXPIRE_SECONDS).toBeGreaterThanOrEqual(calls * attempts * 300);
+  });
+
   it("no genera sin apuntes (409), ni de un tema ajeno (404); getPack tampoco lo revela", async () => {
     await expect(sp.preparePack(me, topic2)).rejects.toMatchObject({ status: 409 });
     await expect(sp.preparePack(me, otherTopic)).rejects.toMatchObject({ status: 404 });
