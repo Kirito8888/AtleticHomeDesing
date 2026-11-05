@@ -92,7 +92,7 @@ export function DocumentsPanel({ docs, aiEnabled, modules }: { docs: DocItem[]; 
     <div className="grid gap-4">
       <form onSubmit={upload} className="grid gap-3 rounded-lg border p-3 sm:grid-cols-[1fr_12rem_12rem_auto] sm:items-end">
         <Field label="Apuntes (PDF, PPTX, TXT o Markdown, máx. 15 MB)" htmlFor="doc-file">
-          <Input id="doc-file" ref={fileRef} type="file" accept=".pdf,.pptx,.txt,.md,.markdown,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,text/markdown" />
+          <Input id="doc-file" ref={fileRef} type="file" accept=".pdf,.pptx,.docx,.txt,.md,.markdown,application/pdf,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown" />
         </Field>
         <Field label="Asignatura" htmlFor="doc-subject">
           <Input id="doc-subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Bioquímica" />
