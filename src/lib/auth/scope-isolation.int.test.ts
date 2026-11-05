@@ -7,8 +7,10 @@
 //   RECOVERY  → recovery, recovery/injuries
 // Con cada entrenadora: ámbito ajeno → 403; ámbito propio → responde sin rastro de los otros ámbitos ni de Strava.
 //
+// Texto libre de la IA (v2.7.0 B4, S1): ai/coach/weekly se prueba al final de este fichero (prompt, respuesta y informe guardado).
+//
 // Rutas que leen a otra persona y NO están aquí, con su motivo:
-//   - training/sessions, sessions/[id], records, pmc, ai/coach/weekly, .ics, informe compartido, panel del club,
+//   - training/sessions, sessions/[id], records, pmc, .ics, informe compartido, panel del club,
 //     comentarios y fisio compartida: ya cubiertas en `strava/privacy.int.test.ts`, `block-l`, `physio` y `club-panel`.
 //   - páginas `training/exercises`, `exercises/[id]` y `tests/comparar`: llaman al mismo `resolveAthleteId` y a los
 //     mismos servicios que las rutas de arriba, sin consulta propia.
@@ -19,10 +21,36 @@ import { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 let current: { id: string; role: "ATHLETE" | "COACH" } = { id: "", role: "ATHLETE" };
+// IA simulada (v2.7.0 B4): captura lo que llegaría al modelo y devuelve un texto que cita la recuperación aunque no se le dio
+const aiCalls: Array<{ system: string; prompt: string }> = [];
+const LEAKY_REPORT = {
+  summary: "Semana dura. Tu VFC de 77,7 ms está baja y duermes 6.5 h. Carga estable.",
+  riskLevel: "MODERATE",
+  keyFindings: ["Rampa de CTL alta", "FC en reposo de 43 elevada"],
+  recommendations: [
+    { area: "SLEEP", action: "Duerme 8 h", rationale: "Sueño de 6.5 h", priority: "HIGH" },
+    { area: "LOAD", action: "Baja el volumen un 20 %. Vigila la recuperación.", rationale: "Rampa alta", priority: "HIGH" },
+  ],
+  nextWeek: { targetTssMin: 200, targetTssMax: 300, maxHardSessions: 2, notes: "Tapering. Descanso extra por la VFC." },
+  dataGaps: ["Falta registrar el sueño"],
+};
+vi.mock("@/lib/ai/llm", async (orig) => ({
+  ...(await orig<typeof import("@/lib/ai/llm")>()),
+  generateJson: async (_schema: unknown, p: { system: string; prompt: string }) => {
+    aiCalls.push({ system: p.system, prompt: p.prompt });
+    return { data: structuredClone(LEAKY_REPORT), model: "modelo-simulado" };
+  },
+}));
+vi.mock("@/lib/ai/provider", async (orig) => ({ ...(await orig<typeof import("@/lib/ai/provider")>()), aiAvailable: async () => true }));
 vi.mock("@/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/auth/session", async (orig) => ({ ...(await orig<typeof import("@/lib/auth/session")>()), requireUser: async () => current }));
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
+// Detector de fuga: cualquier valor de recuperación sembrado o término de recuperación en un texto
+const LEAK_VALUES = [/(?<![\d.,])77[.,]7(?!\d)/, /(?<![\d.,])6[.,]5(?!\d)/, /(?<![\d.,])43(?![\d])/];
+const LEAK_KEYS = /"(recovery|hrv|sleepH|rhr|doms|readiness)"/;
+const LEAK_TERMS = /\b(vfc|hrv|rmssd|readiness|sue[ñn]o|duerm\w*|descans\w*|recuper\w*|fc en reposo|rhr|doms|agujetas|sleep)\b/i;
+const leaks = (text: string) => [...LEAK_VALUES.filter((r) => r.test(text)).map(String), ...(LEAK_KEYS.test(text) ? ["clave"] : []), ...(LEAK_TERMS.test(text) ? [String(text.match(LEAK_TERMS))] : [])];
 const SCOPES = ["LOAD", "SESSIONS", "PLANNING", "RECOVERY", "REPORTS"] as const;
 type Scope = (typeof SCOPES)[number];
 
@@ -51,6 +79,7 @@ describe.skipIf(!HAS_DB)("una entrenadora con un solo ámbito (BD real)", () => 
   let exerciseId: string;
   let curveId: string;
   const coaches = {} as Record<Scope, string>;
+  let coachBoth: string;
   const t = Date.now();
   const day = new Date(Date.UTC(2026, 9, 7));
   const req = (url: string, method = "GET", body?: unknown) =>
@@ -79,11 +108,14 @@ describe.skipIf(!HAS_DB)("una entrenadora con un solo ámbito (BD real)", () => 
     process.env.AUTH_SECRET ??= "secreto-auth-de-prueba";
     prisma = (await import("@/lib/prisma")).prisma;
     athlete = (await prisma.user.create({ data: { email: `si-a-${t}@test.dev`, name: "Atleta" } })).id;
+    await prisma.user.update({ where: { id: athlete }, data: { aiConsentAt: new Date() } });
     await prisma.athleteProfile.create({ data: { userId: athlete, birthDate: new Date(Date.UTC(2010, 0, 1)) } });
     for (const s of SCOPES) {
       coaches[s] = (await prisma.user.create({ data: { email: `si-c-${s.toLowerCase()}-${t}@test.dev`, name: `Entrenadora ${s}`, role: "COACH" } })).id;
       await prisma.coachAthlete.create({ data: { coachId: coaches[s], athleteId: athlete, status: "ACTIVE", scopes: [s], canPlan: true } });
     }
+    coachBoth = (await prisma.user.create({ data: { email: `si-c-both-${t}@test.dev`, name: "Entrenadora REPORTS+RECOVERY", role: "COACH" } })).id;
+    await prisma.coachAthlete.create({ data: { coachId: coachBoth, athleteId: athlete, status: "ACTIVE", scopes: ["REPORTS", "RECOVERY"], canPlan: false } });
     // Una sesión de Strava (con TSS pendiente de recalcular) y una propia
     await prisma.trainingSession.create({ data: { userId: athlete, date: day, type: "TRACK", status: "COMPLETED", durationSec: 3000, sessionRpe: 6, title: M.STRAVA, source: "STRAVA", externalId: `strava:si-${t}` } });
     await prisma.trainingSession.create({ data: { userId: athlete, date: day, type: "STRENGTH", status: "COMPLETED", durationSec: 3600, sessionRpe: 5, title: "Fuerza propia" } });
@@ -92,7 +124,7 @@ describe.skipIf(!HAS_DB)("una entrenadora con un solo ámbito (BD real)", () => 
     exerciseId = (await prisma.exercise.create({ data: { userId: athlete, name: `${M.SESSIONS}-${t}` } })).id;
     await prisma.trainingCycle.create({ data: { userId: athlete, level: "MESO", name: M.PLANNING, startDate: day, endDate: new Date(Date.UTC(2026, 10, 7)) } });
     await prisma.calendarEvent.create({ data: { userId: athlete, type: "COMPETITION", title: M.PLANNING_EVENT, startAt: day, priority: "A" } });
-    await prisma.recoveryMetrics.create({ data: { userId: athlete, date: day, hrvRmssdMs: 77.7, sleepHours: 6.5, notes: M.RECOVERY_DAY } });
+    await prisma.recoveryMetrics.create({ data: { userId: athlete, date: day, hrvRmssdMs: 77.7, sleepHours: 6.5, restingHr: 43, notes: M.RECOVERY_DAY } });
     await prisma.injury.create({ data: { userId: athlete, area: "SHOULDER", pain: 4, startedOn: day, notes: M.RECOVERY } });
     curveId = (
       await prisma.referenceCurve.create({
@@ -103,7 +135,7 @@ describe.skipIf(!HAS_DB)("una entrenadora con un solo ámbito (BD real)", () => 
 
   afterAll(async () => {
     await prisma.referenceCurve.deleteMany({ where: { id: curveId } });
-    await prisma.user.deleteMany({ where: { id: { in: [athlete, ...Object.values(coaches)].filter(Boolean) } } });
+    await prisma.user.deleteMany({ where: { id: { in: [athlete, coachBoth, ...Object.values(coaches)].filter(Boolean) } } });
   });
 
   for (const scope of SCOPES) {
@@ -162,5 +194,77 @@ describe.skipIf(!HAS_DB)("una entrenadora con un solo ámbito (BD real)", () => 
     }
     expect(await prisma.thresholdHistory.count({ where: { userId: athlete } })).toBe(1);
     expect(await prisma.calendarEvent.count({ where: { userId: athlete } })).toBe(1);
+  });
+
+  // v2.7.0 B4 (S1) · el texto libre de la IA no revela la recuperación si el ámbito está cerrado
+  describe("informe semanal de la IA y recuperación", () => {
+    const weekly = () => import("@/app/api/ai/coach/weekly/route");
+    const post = async (user: typeof current, athleteId?: string) => {
+      current = user;
+      return (await weekly()).POST(req("/api/ai/coach/weekly", "POST", { ...(athleteId ? { athleteId } : {}), weekOf: "2026-10-05" }), undefined as never);
+    };
+    const get = async (user: typeof current, qs: string) => {
+      current = user;
+      return (await weekly()).GET(req(`/api/ai/coach/weekly?${qs}`), undefined as never);
+    };
+
+    it("el detector no es vacío: lo que el modelo devolvería sin sanear sí es una fuga", () => {
+      expect(leaks(JSON.stringify(LEAKY_REPORT)).length).toBeGreaterThan(3);
+    });
+
+    it("la atleta genera con su recuperación: el prompt la lleva (la prueba no es vacía)", async () => {
+      aiCalls.length = 0;
+      const res = await post({ id: athlete, role: "ATHLETE" });
+      expect(res.status).toBe(201);
+      expect(aiCalls[0].prompt).toContain("77.7");
+      expect(aiCalls[0].system).toMatch(/VFC/);
+      expect(await res.text()).toContain("VFC");
+    });
+
+    it("la entrenadora solo con REPORTS lee el informe guardado por la atleta sin rastro de recuperación", async () => {
+      const res = await get({ id: coaches.REPORTS, role: "COACH" }, `athleteId=${athlete}`);
+      expect(res.status).toBe(200);
+      const text = await res.text();
+      expect(leaks(text), text).toEqual([]);
+      expect(text).toContain("recoveryRedacted");
+      expect(text).toContain("Carga estable"); // lo que no es recuperación se conserva
+    });
+
+    it("la entrenadora con REPORTS+RECOVERY y la propia atleta sí lo leen completo", async () => {
+      for (const [u, qs] of [[{ id: coachBoth, role: "COACH" as const }, `athleteId=${athlete}`], [{ id: athlete, role: "ATHLETE" as const }, ""]] as const) {
+        const text = await (await get(u, qs)).text();
+        expect(text).toContain("VFC");
+        expect(text).toContain("77.7");
+      }
+    });
+
+    it("generar con solo REPORTS: ni el prompt ni el snapshot llevan recuperación y la respuesta se sanea y se guarda saneada", async () => {
+      aiCalls.length = 0;
+      const res = await post({ id: coaches.REPORTS, role: "COACH" }, athlete);
+      expect(res.status).toBe(201);
+      expect(aiCalls).toHaveLength(1);
+      expect(leaks(aiCalls[0].system + "\n" + aiCalls[0].prompt), "prompt/system enviado a la IA").toEqual([]);
+      const body = await res.text();
+      expect(leaks(body), body).toEqual([]);
+      const stored = await prisma.coachReport.findFirstOrThrow({ where: { userId: athlete } });
+      const storedText = JSON.stringify({ s: stored.inputSnapshot, t: stored.summary, r: stored.recommendations });
+      expect(leaks(storedText), storedText).toEqual([]);
+      expect(storedText).toContain("Carga estable");
+    });
+
+    it("la vista previa del snapshot con solo REPORTS no lleva recuperación; con RECOVERY sí", async () => {
+      const qs = `athleteId=${athlete}&preview=1&weekOf=2026-10-05`;
+      const reports = await (await get({ id: coaches.REPORTS, role: "COACH" }, qs)).text();
+      expect(leaks(reports), reports).toEqual([]);
+      const both = await (await get({ id: coachBoth, role: "COACH" }, qs)).text();
+      expect(both).toContain("77.7");
+    });
+
+    it("una entrenadora sin REPORTS no accede (403) ni genera", async () => {
+      expect((await get({ id: coaches.RECOVERY, role: "COACH" }, `athleteId=${athlete}`)).status).toBe(403);
+      aiCalls.length = 0;
+      expect((await post({ id: coaches.LOAD, role: "COACH" }, athlete)).status).toBe(403);
+      expect(aiCalls).toHaveLength(0);
+    });
   });
 });
