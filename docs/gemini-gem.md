@@ -16,11 +16,11 @@ Flujo completo de sesión: `docs/como-trabajar.md`. Este fichero solo cubre el G
 ## Configuración en Gemini (una vez)
 1. En Gemini → **Gems** → **Nuevo Gem**. Nombre: `Prompts para Atlenza`.
 2. En **Instrucciones**, pega el bloque de la sección siguiente tal cual.
-3. En **Conocimiento**, adjunta la versión **actual de `main`** de: `CLAUDE.md`, `docs/estado.md`, `docs/como-trabajar.md`.
+3. En **Conocimiento**, adjunta la versión **actual de `main`** de: `CLAUDE.md`, `docs/estado.md`, `docs/como-trabajar.md` y `docs/roadmap-v2-7.md` (para que conozca los bloques propuestos).
 4. Guarda y prueba con: «Arreglo: en /nutrition/micros el calcio sale con 3 decimales». Debe salir un prompt de 2–3 líneas sin reglas repetidas.
 
 **Refresco obligatorio.** Los ficheros adjuntos son una copia congelada: el Gem no sabe lo que se fusionó después.
-Vuelve a subir los tres **tras cada cierre de versión** y cada vez que cambie `CLAUDE.md`. Si no, propondrá bloques ya hechos o reglas antiguas.
+Vuelve a subir los cuatro **tras cada cierre de versión** y cada vez que cambie `CLAUDE.md`. Si no, propondrá bloques ya hechos o reglas antiguas.
 
 ## Instrucciones de sistema (copiar y pegar)
 ~~~text
@@ -30,7 +30,7 @@ No programas. Eres un asesor crítico: si la petición es ambigua, redundante, d
 Respondes siempre en español.
 
 FUENTES
-Tienes adjuntos CLAUDE.md, docs/estado.md y docs/como-trabajar.md. Son una copia que puede estar desfasada: no afirmes qué está hecho ni el estado de la CI; el prompt siempre manda a Claude leer docs/estado.md.
+Tienes adjuntos CLAUDE.md, docs/estado.md, docs/como-trabajar.md y docs/roadmap-v2-7.md (bloques propuestos: pide al usuario que elija y usa su nombre, p. ej. «L1»). Son una copia que puede estar desfasada: no afirmes qué está hecho ni el estado de la CI; el prompt siempre manda a Claude leer docs/estado.md.
 
 CLASIFICA la petición en uno de estos tipos y aplica su lanzamiento según docs/como-trabajar.md:
 - Bloque (función nueva o ampliación): sesión nueva, modo Plan, opus para planificar y sonnet para implementar.

@@ -36,6 +36,18 @@ Tiempo de la usuaria; solo genera parches si algo falla.
 | v2.6.1 | C2 endurecer la espera de `v25d`; C3 `v20b` con fecha de Madrid; C7 espera en E2E que entran por `?tab=` | `v25d`, `v20b`, `v25k`, `v25l`, `v25o` |
 | v2.6.2 | C1 retirar «Sugerir fotogramas» de la UI (si la usuaria lo decide) | `salto` |
 
+## Bloques de IA local (L1–L4 · propuesta; nacen de la IA local ya fusionada, PR #120)
+Contexto: `docs/estado.md` § «IA local primero». La usuaria usa **solo su servidor de IA local** de momento. Sin migración; cada uno es un parche pequeño que se puede fusionar solo. Qué versión llevan lo decide la usuaria.
+
+| Bloque | Contenido | Terminado = | Pruebas |
+|---|---|---|---|
+| L1 | **`LOCAL_AI_ONLY=true`**: `aiFor` nunca devuelve otro proveedor aunque haya claves guardadas; embeddings desactivados (búsqueda por texto); `providerLabel` y el texto «Privacidad e IA» de Ajustes dicen que los datos solo van al servidor propio; con el local apagado, error 503 claro | Con la variable y una clave de Gemini guardada, ninguna petición sale de la red local; Ajustes lo explica | `provider.test.ts`/`local.test.ts` ampliados; E2E de Ajustes → IA |
+| L2 | **Paquete de tema con IA local:** revisar `expireInSeconds` (15 min) y `STUDY_PACK_MIN_INTERVAL_MS` con ~35 tok/s y la cola de uno en uno; tasa de fallos de JSON | Un tema real se genera completo o falla con aviso; tope documentado | `study-pack.int.test.ts`; E2E `v26pack` |
+| L3 | **DOCX** (`mammoth`): subir apuntes `.docx` con validación de contenido y topes de descompresión como `pptx.ts` | Un `.docx` se procesa y se pregunta sobre él | `upload.test.ts`, `ingest.int.test.ts` |
+| L4 | **Imágenes grandes:** redimensionar en servidor (`sharp`, ya presente) al pasar de 5 MB en lugar de rechazarlas | Una foto de 8 MB se envía al local reducida | `local.test.ts` |
+
+Orden recomendado: **L1 → L2 → L4 → L3.** Sin L1, el aviso de privacidad es falso y Gemini puede volver a recibir datos.
+
 ## v2.7.0 · IA y backend fiables (Fase 1)
 - **Objetivo para la atleta:** que restaurar, importar de Strava, guardar la VFC o importar un extracto no se queden esperando, y que ninguna llamada de IA cuelgue la pantalla.
 - **Alcance funcional:** ninguno nuevo; mismo comportamiento, más rápido y predecible. Una excepción de privacidad (B4).
@@ -125,6 +137,7 @@ Tiempo de la usuaria; solo genera parches si algo falla.
 | S1 | v2.7 B4 |
 | S2, S3, S8 | v2.11 B4 (S8: solo vigilar Node) |
 | S4–S7, S9 | Hito 0 |
+| L1–L4 | IA local (propuesta, tras PR #120) |
 | S10 | Fuera: logs del host y Sentry, esfuerzo M sin riesgo actual |
 
 ## Decisiones que necesita la usuaria
@@ -133,6 +146,7 @@ Tiempo de la usuaria; solo genera parches si algo falla.
 3. **Foco tras v2.7:** el orden propuesto pone Estudio (v2.8–v2.9) antes que Entreno (v2.10) por la evidencia de carencias; el benchmark apunta a Entreno como lo más quieto. Si prefiere invertirlo, v2.10 pasa a v2.8 sin dependencias.
 4. **Migración:** confirmar que O13 se hace solo si `pg_trgm` está disponible en el servidor real.
 5. **Alcance autorizado:** ¿solo v2.7 y v2.8 ahora?
+6. **IA local (L1–L4):** ¿en qué versión entran? L1 es el más urgente (privacidad).
 
 ## Cómo lanzar un bloque
 Sesión nueva, `/model opus` (diseño) o `sonnet` (implementar), y:
