@@ -1,8 +1,89 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError } from "@/lib/api";
 
-import { extractJson, readGeminiResponse, isPrivateAddress, normalizeUrl, providerError, TRANSIENT_RETRY_WAITS_MS, withTransientRetry, type AiClient } from "./provider";
+import { resetLocalHealthCache } from "./local";
+import { aiAvailable, aiFor, assertExternalAiAllowed, providerLabel, extractJson, readGeminiResponse, isPrivateAddress, normalizeUrl, providerError, TRANSIENT_RETRY_WAITS_MS, withTransientRetry, type AiClient } from "./provider";
+
+const findUnique = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/prisma", () => ({ prisma: { aiCredential: { findUnique } } }));
+// Entorno mínimo y mutable (el test no depende de .env.local)
+const e = vi.hoisted(() => ({
+  LOCAL_AI_ONLY: false as boolean,
+  LOCAL_AI_BASE_URL: undefined as string | undefined,
+  LOCAL_AI_KEY: undefined,
+  LOCAL_AI_MODEL: "qwen36",
+  LOCAL_AI_TIMEOUT_MS: 5_000,
+  GEMINI_API_KEY: undefined as string | undefined,
+  GEMINI_CHAT_MODEL: "gemini-2.5-flash",
+  GEMINI_EMBEDDING_MODEL: "gemini-embedding-001",
+  AI_LOCAL_BASE_URLS: undefined,
+}));
+vi.mock("@/lib/env", async (orig) => ({ ...(await orig<typeof import("@/lib/env")>()), env: () => e }));
+
+describe("L1 · LOCAL_AI_ONLY", () => {
+  const prev = { only: e.LOCAL_AI_ONLY, url: e.LOCAL_AI_BASE_URL, gemini: e.GEMINI_API_KEY };
+  const fetchMock = vi.fn();
+  const set = (only: boolean, url: string | undefined) => {
+    e.LOCAL_AI_ONLY = only;
+    e.LOCAL_AI_BASE_URL = url;
+    e.GEMINI_API_KEY = "AIzaSy-clave-del-servidor-de-prueba"; // y además hay credencial guardada (findUnique)
+    findUnique.mockReset().mockResolvedValue({ id: "c1", provider: "GEMINI", baseUrl: null, model: "gemini-2.5-flash", embeddingModel: "gemini-embedding-001", keySealed: null });
+    resetLocalHealthCache();
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+  };
+  afterEach(() => {
+    Object.assign(e, { LOCAL_AI_ONLY: prev.only, LOCAL_AI_BASE_URL: prev.url, GEMINI_API_KEY: prev.gemini });
+    resetLocalHealthCache();
+    vi.unstubAllGlobals();
+  });
+
+  it("aiFor no lee la credencial guardada, no tiene embeddings y solo habla con el local", async () => {
+    set(true, "http://ia.test:8080/v1");
+    fetchMock.mockImplementation(async (url: string) => (String(url).endsWith("/health") ? new Response("{}") : new Response(JSON.stringify({ choices: [{ message: { content: "local" } }] }))));
+    const ai = await aiFor("u1");
+    expect(findUnique).not.toHaveBeenCalled();
+    expect(ai.embed).toBeNull();
+    expect(ai.embedTag).toBeNull();
+    expect((await ai.text({ system: "s", messages: [{ role: "user", text: "hola" }] })).text).toBe("local");
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(0);
+    expect(fetchMock.mock.calls.every((c) => String(c[0]).startsWith("http://ia.test:8080/"))).toBe(true);
+  });
+
+  it("local apagado → 503 claro, sin tocar Gemini", async () => {
+    set(true, "http://ia.test:8080/v1");
+    fetchMock.mockRejectedValue(new Error("ECONNREFUSED"));
+    const ai = await aiFor("u1");
+    await expect(ai.text({ system: "s", messages: [{ role: "user", text: "hola" }] })).rejects.toMatchObject({ status: 503, details: { code: "ai_local_down" } });
+    expect(fetchMock.mock.calls.every((c) => String(c[0]).startsWith("http://ia.test:8080/"))).toBe(true);
+  });
+
+  it("sin LOCAL_AI_BASE_URL → 503 y aiAvailable false (aunque haya Gemini y credencial)", async () => {
+    set(true, undefined);
+    await expect(aiFor("u1")).rejects.toMatchObject({ status: 503, details: { code: "ai_not_configured" } });
+    expect(await aiAvailable("u1")).toBe(false);
+    expect(findUnique).not.toHaveBeenCalled();
+    set(true, "http://ia.test:8080/v1");
+    expect(await aiAvailable("u1")).toBe(true);
+  });
+
+  it("IA externa bloqueada (403) y la etiqueta de una clave guardada avisa de que no se usa", () => {
+    set(true, "http://ia.test:8080/v1");
+    expect(() => assertExternalAiAllowed()).toThrow(expect.objectContaining({ status: 403 }));
+    expect(providerLabel("GEMINI")).toBe("Google Gemini (guardada, sin uso: solo IA local)");
+  });
+
+  it("con la variable a false, todo como antes: el respaldo (credencial guardada) sigue disponible", async () => {
+    set(false, "http://ia.test:8080/v1");
+    findUnique.mockResolvedValue({ id: "c1", provider: "OPENAI", baseUrl: "https://api.openai.com/v1", model: "m", embeddingModel: "text-embedding-3-small", keySealed: null });
+    expect(() => assertExternalAiAllowed()).not.toThrow();
+    expect(providerLabel("GEMINI")).toBe("Google Gemini");
+    const ai = await aiFor("u1");
+    expect(findUnique).toHaveBeenCalled();
+    expect(ai.embedTag).toBe("openai:api.openai.com:text-embedding-3-small@768"); // hereda los embeddings del respaldo
+  });
+});
 
 describe("URL de proveedores (SSRF)", () => {
   it("rechaza direcciones internas, locales y reservadas", () => {

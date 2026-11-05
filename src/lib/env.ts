@@ -68,6 +68,12 @@ const schema = z.object({
   LOCAL_AI_KEY: z.string().optional(),
   LOCAL_AI_MODEL: z.string().default("qwen36"),
   LOCAL_AI_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(900_000).default(300_000),
+  // L1 · Solo IA local: ninguna petición de IA (chat, embeddings, pruebas de conexión) sale a proveedores externos,
+  // aunque haya claves guardadas o GEMINI_API_KEY. Las claves guardadas se conservan sin usarse.
+  LOCAL_AI_ONLY: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
   // v1.9 · URL de modelos locales que los usuarios pueden elegir (Ollama, LM Studio, vLLM…), separadas por comas.
   // p. ej. http://ollama:11434/v1. Cualquier otra URL debe ser https y pública.
   AI_LOCAL_BASE_URLS: z.string().optional(),

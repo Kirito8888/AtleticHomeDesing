@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
-import { localConfig, localFirst, withSchema } from "@/lib/ai/local";
+import { localConfig, localFirst, localOnly, withSchema } from "@/lib/ai/local";
 import { log } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
 import { openJson } from "@/lib/security/data-key";
@@ -427,8 +427,13 @@ async function resolveAi(userId: string): Promise<AiClient | null> {
  * incluso si el usuario tiene clave propia; si no responde, se usa lo de siempre (su IA o la Gemini del servidor).
  */
 export async function aiFor(userId: string): Promise<AiClient> {
-  const base = await resolveAi(userId);
   const local = localConfig();
+  if (localOnly()) {
+    // L1 · Solo IA local: ni se lee la credencial guardada ni la clave del servidor; nada sale de la red local.
+    if (!local) throw new ApiError(503, "Esta instalación solo usa IA local (LOCAL_AI_ONLY), pero falta LOCAL_AI_BASE_URL", { code: "ai_not_configured" });
+    return localFirst(local, null, undefined, { only: true });
+  }
+  const base = await resolveAi(userId);
   if (local) return localFirst(local, base);
   if (base) return base;
   throw new ApiError(503, "Configura tu IA en Ajustes → IA (tu propia clave de Google, OpenAI, Anthropic o un modelo local)", { code: "ai_not_configured" });
@@ -436,12 +441,29 @@ export async function aiFor(userId: string): Promise<AiClient> {
 
 /** Si hay alguna IA disponible para ese usuario (sin descifrar nada). */
 export async function aiAvailable(userId: string): Promise<boolean> {
+  if (localOnly()) return Boolean(localConfig());
   if (localConfig() || serverConfig()) return true;
   return Boolean(await prisma.aiCredential.findUnique({ where: { userId }, select: { id: true } }));
 }
 
-/** Nombre legible del proveedor que trata los datos (para avisos de privacidad). */
+/** Nombre del servidor de IA local (LOCAL_AI_BASE_URL) en los avisos de privacidad. */
+export const LOCAL_AI_LABEL = "tu servidor de IA propio (red local)";
+
+/** L1 · Con LOCAL_AI_ONLY la IA externa no se usa ni se prueba: Guardar y probar / Probar conexión → 403. */
+export function assertExternalAiAllowed(): void {
+  if (localOnly()) throw new ApiError(403, "Esta instalación solo usa IA local: la IA externa está desactivada por la administración", { code: "ai_local_only" });
+}
+
+/**
+ * Nombre legible del proveedor de una configuración (para avisos de privacidad). Con LOCAL_AI_ONLY se avisa de que
+ * esa IA (p. ej. una clave guardada) no recibe datos.
+ */
 export function providerLabel(provider: AiProvider, baseUrl?: string | null): string {
+  const name = baseProviderLabel(provider, baseUrl);
+  return localOnly() ? `${name} (guardada, sin uso: solo IA local)` : name;
+}
+
+function baseProviderLabel(provider: AiProvider, baseUrl?: string | null): string {
   if (provider === "GEMINI") return "Google Gemini";
   if (provider === "ANTHROPIC") return "Anthropic (Claude)";
   const preset = Object.values(OPENAI_PRESETS).find((p) => p.baseUrl === baseUrl);

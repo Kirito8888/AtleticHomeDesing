@@ -227,6 +227,8 @@ export default async function SettingsPage({
     optional("IA", () => credentialView(user.id), {
       own: null,
       serverFallback: null,
+      local: null,
+      localOnlyMissing: false,
     }),
     optional("Telegram", () => telegramStatus(user.id), {
       configured: false,
@@ -269,9 +271,18 @@ export default async function SettingsPage({
   const p = me.athleteProfile;
   const prefs = readPrefs(p?.prefs);
   const isDemo = Boolean(me.demoExpiresAt);
-  const aiProviderName =
+  const aiFallbackName =
     aiView.own?.label ??
     (aiView.serverFallback ? "Google Gemini" : "la IA que configures");
+  // L1 · Aviso veraz: con LOCAL_AI_ONLY solo recibe datos el servidor local; sin ella, el local va primero y el resto es respaldo.
+  const aiProviderName = aiView.local ? aiView.local.label : aiFallbackName;
+  const aiPrivacyText = aiView.local?.only
+    ? `Tus datos solo van a ${aiView.local.label} si lo permites. Ningún proveedor externo (Google, OpenAI, Anthropic…) los recibe, aunque haya claves guardadas.`
+    : aiView.localOnlyMissing
+      ? "Solo IA local activada, pero falta el servidor: la IA no está disponible y ningún dato sale de este servidor."
+      : aiView.local
+        ? `Tus datos solo van a ${aiView.local.label} si lo permites; si no responde, a ${aiView.own || aiView.serverFallback ? aiFallbackName : "ninguna otra IA"}.`
+        : `Tus datos solo van a ${aiProviderName} si lo permites.`;
 
   return (
     <>
@@ -652,11 +663,11 @@ export default async function SettingsPage({
           <Section
             id="privacidad"
             title="Privacidad e IA"
-            description={`Tus datos solo van a ${aiProviderName} si lo permites.`}
+            description={aiPrivacyText}
           >
             <AiConsentToggle
               initial={me.aiConsentAt != null}
-              configured={Boolean(aiView.own ?? aiView.serverFallback)}
+              configured={!aiView.localOnlyMissing && Boolean(aiView.local ?? aiView.own ?? aiView.serverFallback)}
               provider={aiProviderName}
             />
             <Link

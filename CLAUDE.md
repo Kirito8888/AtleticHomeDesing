@@ -29,7 +29,7 @@ Para comandos que necesitan la BD: `set -a; . ./.env.local; set +a`.
 - **El repo es público:** nunca IPs, usuarios, rutas, dominios, nombres de equipos ni la topología real del servidor o del router,
   ni en docs, ni en tests, ni en mensajes de commit o PR. Usar marcadores (`USUARIO`, `IP_DEL_SERVIDOR`, `<RUTA>`).
 - La salud cifrada nunca va a la IA, al coach ni al `.ics`. Lo importado de Strava (`notFromStrava`) no va a la IA ni a la entrenadora.
-- IA: si hay `LOCAL_AI_BASE_URL`, el servidor de IA local va primero (`lib/ai/local.ts`); la usuaria no quiere IA ajena por ahora. Detalle en `docs/estado.md`.
+- IA: si hay `LOCAL_AI_BASE_URL`, el servidor de IA local va primero (`lib/ai/local.ts`); la usuaria no quiere IA ajena por ahora: con `LOCAL_AI_ONLY=true` `aiFor` nunca devuelve otro proveedor (sin embeddings; local apagado → 503). Detalle en `docs/estado.md`.
 - Nada escribe en el plan sin confirmación (siempre borrador + aceptar).
 - Migraciones solo aditivas; una por versión, regenerada con `regen-mig.sh`.
 - La usuaria fusiona los PR; Claude nunca fusiona. Rama de trabajo: la que indique la sesión.
