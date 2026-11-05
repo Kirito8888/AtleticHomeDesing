@@ -17,6 +17,10 @@ type Provider = "GEMINI" | "OPENAI" | "ANTHROPIC";
 export type AiProviderView = {
   own: { provider: Provider; baseUrl: string | null; model: string; embeddingModel: string | null; keyHint: string | null; verifiedAt: string | null; label: string } | null;
   serverFallback: { label: string; model: string } | null;
+  /** L1 · Servidor de IA local (LOCAL_AI_BASE_URL); `only` = LOCAL_AI_ONLY: ninguna otra IA recibe datos. */
+  local?: { only: boolean; label: string; model: string } | null;
+  /** LOCAL_AI_ONLY activo pero sin LOCAL_AI_BASE_URL: la IA no funciona. */
+  localOnlyMissing?: boolean;
 };
 
 const PROVIDER_LABEL: Record<Provider, string> = { GEMINI: "Google Gemini", OPENAI: "OpenAI o compatible (Mistral, Groq, OpenRouter, local…)", ANTHROPIC: "Anthropic (Claude)" };
@@ -41,6 +45,7 @@ export function AiProviderSettings({
 }) {
   const router = useRouter();
   const own = view.own;
+  const localOnly = Boolean(view.local?.only || view.localOnlyMissing);
   const [provider, setProvider] = useState<Provider>(own?.provider ?? "GEMINI");
   const knownUrls = [...presets.map((p) => p.baseUrl), ...locals];
   const initialUrl = own?.baseUrl ?? presets[0]?.baseUrl ?? "";
@@ -82,7 +87,16 @@ export function AiProviderSettings({
   return (
     <div className="grid gap-4 text-sm">
       <p role="status" aria-label="IA en uso" className="rounded-md border p-2">
-        {own ? (
+        {view.local?.only ? (
+          <>
+            <strong>Solo IA local:</strong> {view.local.label} · {view.local.model}. Tus datos no salen de tu red: ningún proveedor externo (Google, OpenAI, Anthropic…) los recibe. Los apuntes se buscan por texto y, si el servidor está apagado, la IA no responde hasta que vuelva.
+            {own ? ` Tu clave guardada (${own.label}) se conserva, pero no se usa.` : ""}
+          </>
+        ) : view.localOnlyMissing ? (
+          <>
+            <strong>Solo IA local, sin servidor configurado:</strong> la administración ha desactivado la IA externa y falta la dirección del servidor local. La IA no está disponible.
+          </>
+        ) : own ? (
           <>
             <strong>Tu IA:</strong> {own.label} · {own.model}
             {own.embeddingModel ? ` · apuntes con ${own.embeddingModel}` : " · apuntes buscados por texto"}
@@ -166,7 +180,7 @@ export function AiProviderSettings({
           La clave se guarda cifrada en este servidor y no se vuelve a mostrar ni se exporta. Antes de guardar se prueba con un mensaje corto que no lleva datos tuyos. Los datos de salud nunca se envían a la IA.
         </p>
         <div className="flex flex-wrap gap-2">
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" disabled={busy || localOnly}>
             Guardar y probar
           </Button>
           {own ? (
@@ -174,7 +188,7 @@ export function AiProviderSettings({
               <Button
                 type="button"
                 variant="outline"
-                disabled={busy}
+                disabled={busy || localOnly}
                 onClick={() =>
                   run(async () => {
                     const r = await api<{ ms: number; label: string; embeddings: boolean }>("/api/account/ai-provider/test", { method: "POST" });

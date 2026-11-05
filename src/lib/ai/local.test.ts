@@ -62,6 +62,31 @@ describe("selección de proveedor", () => {
     await expect(localFirst(cfg, null).text(call)).rejects.toMatchObject({ status: 503 });
   });
 
+  it("L1 · solo local: sin embeddings ni respaldo aunque existan; health ok usa el local", async () => {
+    routes(() => ok({}), () => chatOk("desde local"));
+    const fb = fallback();
+    const c = localFirst(cfg, fb, undefined, { only: true });
+    expect(c.embed).toBeNull();
+    expect(c.embedTag).toBeNull();
+    expect((await c.text(call)).text).toBe("desde local");
+    expect(fb.text).not.toHaveBeenCalled();
+  });
+
+  it("L1 · solo local y apagado → 503 ai_local_down, sin respaldo ni chat", async () => {
+    routes(() => { throw new Error("ECONNREFUSED"); }, () => chatOk("no"));
+    const fb = fallback();
+    await expect(localFirst(cfg, fb, undefined, { only: true }).text(call)).rejects.toMatchObject({ status: 503, details: { code: "ai_local_down" }, message: expect.stringMatching(/no responde/) });
+    expect(fb.text).not.toHaveBeenCalled();
+    expect(fetchMock.mock.calls.every((c) => String(c[0]).startsWith("http://ia.test:8080/"))).toBe(true);
+  });
+
+  it("L1 · solo local y fallo a mitad → error del local, nunca el respaldo", async () => {
+    routes(() => ok({}), () => new Response("boom", { status: 500 }));
+    const fb = fallback();
+    await expect(localFirst(cfg, fb, undefined, { only: true }).text(call)).rejects.toMatchObject({ status: 502, details: { code: "ai_local_failed" } });
+    expect(fb.text).not.toHaveBeenCalled();
+  });
+
   it("la clave se envía como Bearer y no aparece en los errores", async () => {
     routes(() => ok({}), () => new Response("clave k-secreta-123 mala", { status: 401 }));
     await expect(localChat(cfg, call)).rejects.toThrow(/•••/);

@@ -2,12 +2,15 @@ import "server-only";
 
 import { z } from "zod";
 
+import { localConfig, localOnly } from "@/lib/ai/local";
 import { documentsToReindex } from "@/lib/ai/rag";
 import {
   AI_PROVIDERS,
   ANTHROPIC_URL,
+  assertExternalAiAllowed,
   assertSafeBaseUrl,
   buildClient,
+  LOCAL_AI_LABEL,
   localBaseUrls,
   normalizeUrl,
   providerLabel,
@@ -48,15 +51,21 @@ export async function credentialView(userId: string) {
     where: { userId },
     select: { provider: true, baseUrl: true, model: true, embeddingModel: true, keyHint: true, verifiedAt: true, updatedAt: true },
   });
-  const server = serverConfig();
+  const only = localOnly();
+  const server = only ? null : serverConfig();
+  const local = localConfig();
   return {
     own: c ? { ...c, provider: c.provider as AiProvider, label: providerLabel(c.provider as AiProvider, c.baseUrl) } : null,
     serverFallback: server ? { label: "Google Gemini (clave del servidor)", model: server.model } : null,
+    // L1 · Servidor de IA local: va primero; con `only` es lo único que recibe datos.
+    local: local ? { only, label: LOCAL_AI_LABEL, model: local.model } : null,
+    localOnlyMissing: only && !local,
   };
 }
 
 /** Prueba real: una respuesta corta y, si hay modelo de embeddings, un vector de 768 dimensiones. */
 export async function testConfig(cfg: AiConfig) {
+  assertExternalAiAllowed(); // LOCAL_AI_ONLY: ni una petición de prueba a un proveedor externo
   const client = buildClient(cfg);
   const started = Date.now();
   const r = await client.text({ system: "Responde solo con la palabra OK.", messages: [{ role: "user", text: "Prueba de conexión de Atlenza. Responde OK." }], temperature: 0 });
@@ -76,6 +85,7 @@ async function reindex(userId: string, tag: string | null) {
  * otro modelo se reindexan en segundo plano.
  */
 export async function saveCredential(userId: string, input: CredentialInput, ctx: AuditContext = {}) {
+  assertExternalAiAllowed(); // antes de nada: ni la consulta DNS de la URL del proveedor
   const owner = await prisma.user.findUnique({ where: { id: userId }, select: { demoExpiresAt: true } });
   if (owner?.demoExpiresAt) throw new ApiError(403, "Las cuentas de demostración no pueden configurar una IA propia");
   const prev = await prisma.aiCredential.findUnique({ where: { userId } });
@@ -119,7 +129,7 @@ export async function deleteCredential(userId: string, ctx: AuditContext = {}) {
   if (!count) return { removed: false, consentReset: false, reindexing: 0 };
   await recordEvent(userId, "AI_PROVIDER_CHANGED", ctx, "IA propia eliminada");
   const consentReset = await resetConsent(userId, ctx, "IA propia eliminada");
-  const server = serverConfig();
+  const server = localOnly() ? null : serverConfig();
   return { removed: true, consentReset, reindexing: await reindex(userId, server ? buildClient(server, "server").embedTag : null) };
 }
 
@@ -133,6 +143,7 @@ async function resetConsent(userId: string, ctx: AuditContext, why: string) {
 
 /** Vuelve a probar la configuración guardada (botón «Probar conexión»). */
 export async function testSaved(userId: string) {
+  assertExternalAiAllowed();
   const cfg = await userConfig(userId);
   if (!cfg) throw new ApiError(404, "No tienes una IA propia configurada");
   const r = await testConfig(cfg);

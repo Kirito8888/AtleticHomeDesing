@@ -36,6 +36,11 @@ export function localConfig(): LocalAiConfig | null {
   return { baseUrl: e.LOCAL_AI_BASE_URL.replace(/\/+$/, ""), apiKey: e.LOCAL_AI_KEY ?? null, model: e.LOCAL_AI_MODEL, timeoutMs: e.LOCAL_AI_TIMEOUT_MS };
 }
 
+/** L1 · ¿Solo IA local? (LOCAL_AI_ONLY=true): nunca se usa otro proveedor, ni para chat ni para embeddings. */
+export function localOnly(): boolean {
+  return env().LOCAL_AI_ONLY === true;
+}
+
 // Limitador de concurrencia -----------------------------------------------------------------------
 
 /** Cola FIFO con `max` ejecuciones simultáneas. Sin dependencias; vale para un único proceso. */
@@ -266,8 +271,11 @@ export async function* localChatStream(cfg: LocalAiConfig, p: ChatParams, limite
  * Cliente «local primero». Si el servidor no responde a `/health` o falla a mitad, usa `fallback`
  * (la IA que habría tocado sin servidor local: la propia de la usuaria o la Gemini del servidor).
  * Los embeddings siguen siendo los de `fallback` (el modelo local no los ofrece).
+ * Con `only` (LOCAL_AI_ONLY) no hay respaldo ni embeddings: local apagado → 503 `ai_local_down`; fallo a mitad → el error del local.
  */
-export function localFirst(cfg: LocalAiConfig, fallback: AiClient | null, limiter = localLimiter): AiClient {
+export function localFirst(cfg: LocalAiConfig, fallbackIn: AiClient | null, limiter = localLimiter, opts: { only?: boolean } = {}): AiClient {
+  // Solo IA local: el respaldo no existe (ni chat ni embeddings → los apuntes se buscan por texto)
+  const fallback = opts.only ? null : fallbackIn;
   return {
     provider: "OPENAI",
     source: "server",
@@ -275,7 +283,12 @@ export function localFirst(cfg: LocalAiConfig, fallback: AiClient | null, limite
     embedTag: fallback?.embedTag ?? null,
     embed: fallback?.embed ?? null,
     async text(p) {
-      if (await localHealthy(cfg)) {
+      const healthy = await localHealthy(cfg);
+      if (!healthy && opts.only) {
+        log.warn("ia: solo IA local y el servidor local está apagado", { kind: "ai-local" });
+        throw new ApiError(503, "El servidor de IA local no responde. Esta instalación solo usa IA local: vuelve a intentarlo cuando esté encendido.", { code: "ai_local_down" });
+      }
+      if (healthy) {
         const t0 = Date.now();
         try {
           const prepared = await condenseLong(cfg, p, limiter);

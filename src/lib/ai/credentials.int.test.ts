@@ -142,6 +142,60 @@ describe.skipIf(!HAS_DB)("IA propia por usuario (BD real y proveedor simulado)",
     await expect(creds.saveCredential(userId, { provider: "ANTHROPIC", baseUrl: "https://evil.example/v1", model: "m", embeddingModel: null, apiKey: "k" })).rejects.toMatchObject({ status: 400 });
   });
 
+  it("L1 · LOCAL_AI_ONLY: con clave guardada y GEMINI_API_KEY, todo va al local; nada sale fuera; apagado → 503", async () => {
+    const localSeen: string[] = [];
+    let healthy = true;
+    const localSrv = createServer((req, res) => {
+      localSeen.push(req.url ?? "");
+      res.setHeader("content-type", "application/json");
+      if (req.url === "/health") {
+        res.statusCode = healthy ? 200 : 503;
+        return res.end("{}");
+      }
+      req.resume();
+      req.on("end", () => res.end(JSON.stringify({ choices: [{ message: { content: "desde el local" } }], usage: { prompt_tokens: 2, completion_tokens: 3 } })));
+    });
+    await new Promise<void>((r) => localSrv.listen(0, "127.0.0.1", r));
+    const e = (await import("@/lib/env")).env();
+    const local = await import("./local");
+    const prev = { only: e.LOCAL_AI_ONLY, url: e.LOCAL_AI_BASE_URL, gemini: e.GEMINI_API_KEY };
+    try {
+      e.LOCAL_AI_ONLY = true;
+      e.LOCAL_AI_BASE_URL = `http://127.0.0.1:${(localSrv.address() as AddressInfo).port}/v1`;
+      e.GEMINI_API_KEY = "AIzaSy-clave-del-servidor-de-prueba";
+      local.resetLocalHealthCache();
+      const before = await prisma.aiCredential.findUniqueOrThrow({ where: { userId } }); // la de Anthropic del caso anterior
+      seen.length = 0;
+
+      const out = await llm.generateText({ userId, system: "s", messages: [{ role: "user", text: "hola" }] });
+      expect(out.text).toBe("desde el local");
+      expect(await llm.embedTexts(userId, ["x"], "RETRIEVAL_QUERY")).toBeNull(); // sin embeddings: búsqueda por texto
+      expect(await llm.embedTagFor(userId)).toBeNull();
+
+      const view = await creds.credentialView(userId);
+      expect(view.local).toMatchObject({ only: true });
+      expect(view.serverFallback).toBeNull();
+      expect(view.own?.label).toMatch(/sin uso: solo IA local/);
+      await expect(creds.testSaved(userId)).rejects.toMatchObject({ status: 403 });
+      await expect(creds.saveCredential(userId, { provider: "OPENAI", baseUrl: base, model: "m", embeddingModel: null, apiKey: OPENAI_KEY })).rejects.toMatchObject({ status: 403 });
+
+      healthy = false;
+      local.resetLocalHealthCache();
+      await expect(llm.generateText({ userId, system: "s", messages: [{ role: "user", text: "hola" }] })).rejects.toMatchObject({ status: 503, details: { code: "ai_local_down" } });
+
+      expect(seen).toEqual([]); // ni una petición al proveedor guardado
+      expect(localSeen.filter((u) => u !== "/health")).toEqual(["/v1/chat/completions"]);
+      const after = await prisma.aiCredential.findUniqueOrThrow({ where: { userId } });
+      expect(after).toEqual(before); // la credencial guardada no se toca
+    } finally {
+      e.LOCAL_AI_ONLY = prev.only;
+      e.LOCAL_AI_BASE_URL = prev.url;
+      e.GEMINI_API_KEY = prev.gemini;
+      local.resetLocalHealthCache();
+      localSrv.close();
+    }
+  });
+
   it("quitar la IA propia borra la clave y retira el consentimiento", async () => {
     await prisma.user.update({ where: { id: userId }, data: { aiConsentAt: new Date() } });
     const r = await creds.deleteCredential(userId);
