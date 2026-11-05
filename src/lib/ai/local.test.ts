@@ -1,4 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { randomBytes } from "node:crypto";
+
+import sharp from "sharp";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { chunkByTokens, condenseText, createLimiter, estimateTokens, localChat, localChatStream, localFirst, localHealthy, resetLocalHealthCache, type LocalAiConfig } from "./local";
 import type { AiClient } from "./provider";
@@ -113,11 +116,71 @@ describe("cuerpo de la petición", () => {
     expect(b.messages[1].content[0].image_url.url).toBe("data:image/png;base64,AAAA");
   });
 
-  it("rechaza imágenes de más de 5 MB (y entonces se usa el respaldo)", async () => {
+  it("L4 · imagen ≤ 5 MB no se toca", async () => {
     routes(() => ok({}), () => chatOk("x"));
-    const big = { ...call, messages: [{ role: "user" as const, text: "a", images: [{ mime: "image/png" as const, base64: "A".repeat(7 * 1024 * 1024) }] }] };
-    await expect(localChat(cfg, big)).rejects.toMatchObject({ status: 413 });
-    expect((await localFirst(cfg, fallback()).text(big)).text).toBe("desde gemini");
+    await localChat(cfg, { ...call, messages: [{ role: "user", text: "a", images: [{ mime: "image/png", base64: "AAAA" }] }] });
+    const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
+    expect(body.messages[1].content[0].image_url.url).toBe("data:image/png;base64,AAAA");
+  });
+});
+
+describe("L4 · imágenes de más de 5 MB", () => {
+  const W = 2600;
+  const H = 1100;
+  let bigPng: Buffer;
+  beforeAll(async () => {
+    bigPng = await sharp(randomBytes(W * H * 3), { raw: { width: W, height: H, channels: 3 } }).png({ compressionLevel: 0 }).toBuffer();
+  }, 30_000);
+  const withImage = (b: Buffer, mime: "image/png" | "image/jpeg" = "image/png") => ({ ...call, messages: [{ role: "user" as const, text: "mira", images: [{ mime, base64: b.toString("base64") }] }] });
+  const sentImage = () => {
+    const body = JSON.parse((fetchMock.mock.calls.find((c) => String(c[0]).includes("chat/completions"))![1] as RequestInit).body as string);
+    const url: string = body.messages[1].content[0].image_url.url;
+    return { url, bytes: Buffer.from(url.split(",")[1], "base64") };
+  };
+
+  it("el fixture supera los 5 MB", () => {
+    expect(bigPng.length).toBeGreaterThan(5 * 1024 * 1024);
+  });
+
+  it("se redimensiona a JPEG ≤ 2048 px y ~2 MB, con la misma proporción", async () => {
+    routes(() => ok({}), () => chatOk("ok"));
+    await localChat(cfg, withImage(bigPng));
+    const { url, bytes } = sentImage();
+    expect(url.startsWith("data:image/jpeg;base64,")).toBe(true);
+    expect(bytes.length).toBeLessThanOrEqual(2 * 1024 * 1024);
+    const m = await sharp(bytes).metadata();
+    expect(m.format).toBe("jpeg");
+    expect(Math.max(m.width!, m.height!)).toBeLessThanOrEqual(2048);
+    expect(Math.abs(m.width! / m.height! - W / H)).toBeLessThan(0.01);
+  }, 30_000);
+
+  it("con el local sano responde el local y no se llama al respaldo", async () => {
+    routes(() => ok({ status: "ok" }), () => chatOk("desde local"));
+    const fb = fallback();
+    expect((await localFirst(cfg, fb).text(withImage(bigPng))).text).toBe("desde local");
+    expect(fb.text).not.toHaveBeenCalled();
+  }, 30_000);
+
+  it("buffer > 5 MB que no es imagen → 422 controlado, sin llamar al chat", async () => {
+    routes(() => ok({}), () => chatOk("no"));
+    await expect(localChat(cfg, withImage(randomBytes(6 * 1024 * 1024)))).rejects.toMatchObject({ status: 422, details: { code: "ai_local_image_invalid" } });
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("chat/completions"))).toBe(false);
+  });
+
+  it("imagen no procesable: localFirst no usa el respaldo (con o sin only)", async () => {
+    routes(() => ok({ status: "ok" }), () => chatOk("no"));
+    const junk = withImage(randomBytes(6 * 1024 * 1024));
+    const fb = fallback();
+    await expect(localFirst(cfg, fb).text(junk)).rejects.toMatchObject({ status: 422 });
+    await expect(localFirst(cfg, fb, undefined, { only: true }).text(junk)).rejects.toMatchObject({ status: 422 });
+    expect(fb.text).not.toHaveBeenCalled();
+  });
+
+  it("el streaming rechaza la imagen inválida con 422 y libera la cola", async () => {
+    const limiter = createLimiter(1);
+    const gen = localChatStream(cfg, withImage(randomBytes(6 * 1024 * 1024)), limiter);
+    await expect(gen.next()).rejects.toMatchObject({ status: 422 });
+    await expect(limiter.run(async () => "libre")).resolves.toBe("libre");
   });
 });
 
