@@ -4,6 +4,7 @@ import { ApiError } from "@/lib/api";
 import { env } from "@/lib/env";
 import { log } from "@/lib/log";
 
+import { IMAGE_INVALID_CODE, shrinkImage } from "./image-shrink";
 import type { AiClient, ChatTurn } from "./provider";
 
 /**
@@ -26,7 +27,7 @@ export const CHARS_PER_TOKEN = 4;
 export const CHUNK_TOKENS = 40_000;
 /** Por encima de esto el mensaje se condensa antes de enviarlo (deja hueco a la salida y al sistema). */
 export const CONDENSE_ABOVE_TOKENS = 48_000;
-/** Tope de una imagen enviada al modelo local. */
+/** Tope de una imagen enviada al modelo local; las mayores se reducen antes con sharp (L4). */
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 /** Configuración del servidor local, o null si no está definido. */
@@ -192,13 +193,42 @@ function fail(status: number | null, detail: string, cfg: LocalAiConfig): LocalA
   return new LocalAiError(502, `El servidor de IA local falló${status ? ` (${status})` : ""}: ${msg || "sin detalle"}`, { code: "ai_local_failed" });
 }
 
-function checkImages(p: ChatParams) {
-  for (const m of p.messages) for (const i of m.images ?? []) if (imageBytes(i.base64) > MAX_IMAGE_BYTES) throw new LocalAiError(413, "Imagen demasiado grande para el modelo local", { code: "ai_local_image" });
+/**
+ * L4 · Las imágenes de más de 5 MB se reducen con sharp (JPEG ≤ 2048 px); las demás no se tocan.
+ * @throws LocalAiError 422 `ai_local_image_invalid` si no es una imagen procesable; 413 si aun reducida no cabe.
+ */
+async function prepareImages(p: ChatParams): Promise<ChatParams> {
+  if (!p.messages.some((m) => m.images?.some((i) => imageBytes(i.base64) > MAX_IMAGE_BYTES))) return p;
+  const messages: ChatTurn[] = [];
+  for (const m of p.messages) {
+    if (!m.images?.length) {
+      messages.push(m);
+      continue;
+    }
+    const images: NonNullable<ChatTurn["images"]> = [];
+    for (const i of m.images) {
+      if (imageBytes(i.base64) <= MAX_IMAGE_BYTES) {
+        images.push(i);
+        continue;
+      }
+      let r: Awaited<ReturnType<typeof shrinkImage>>;
+      try {
+        r = await shrinkImage(Buffer.from(i.base64, "base64"));
+      } catch (e) {
+        throw new LocalAiError(422, "La imagen no se puede procesar", { code: IMAGE_INVALID_CODE, cause: e instanceof Error ? e.message : undefined });
+      }
+      if (r.buffer.length > MAX_IMAGE_BYTES) throw new LocalAiError(413, "Imagen demasiado grande para el modelo local", { code: "ai_local_image" });
+      log.info("ia: imagen reducida", { kind: "ai-local", count: r.buffer.length });
+      images.push({ mime: r.mime, base64: r.buffer.toString("base64") });
+    }
+    messages.push({ ...m, images });
+  }
+  return { ...p, messages };
 }
 
 /** Una respuesta completa. NO pasa por la cola: lo hace quien llama. */
-export async function localChat(cfg: LocalAiConfig, p: ChatParams): Promise<{ text: string; inputTokens?: number; outputTokens?: number }> {
-  checkImages(p);
+export async function localChat(cfg: LocalAiConfig, pIn: ChatParams): Promise<{ text: string; inputTokens?: number; outputTokens?: number }> {
+  const p = await prepareImages(pIn);
   let res: Response;
   try {
     res = await fetch(`${cfg.baseUrl}/chat/completions`, { method: "POST", headers: headers(cfg), body: JSON.stringify(buildBody(cfg, p, false)), redirect: "error", signal: AbortSignal.timeout(cfg.timeoutMs) });
@@ -223,8 +253,8 @@ export async function localChat(cfg: LocalAiConfig, p: ChatParams): Promise<{ te
  * Respuesta en streaming (SSE de OpenAI): emite solo `delta.content`. Ocupa el hueco de la cola mientras dura.
  * Pensado para rutas que deban enviar datos al navegador antes de los 60 s del proxy.
  */
-export async function* localChatStream(cfg: LocalAiConfig, p: ChatParams, limiter = localLimiter): AsyncGenerator<string, { outputTokens?: number }> {
-  checkImages(p);
+export async function* localChatStream(cfg: LocalAiConfig, pIn: ChatParams, limiter = localLimiter): AsyncGenerator<string, { outputTokens?: number }> {
+  const p = await prepareImages(pIn);
   const release = await limiter.acquire();
   try {
     let res: Response;
@@ -296,7 +326,8 @@ export function localFirst(cfg: LocalAiConfig, fallbackIn: AiClient | null, limi
           log.info("ia: proveedor local", { kind: "ai-local", ms: Date.now() - t0, count: r.outputTokens ?? 0 });
           return r;
         } catch (e) {
-          if (!fallback) throw e;
+          // Imagen no procesable: es un fallo de la entrada, no del servidor local; otro proveedor no la arregla
+          if (!fallback || (e instanceof ApiError && (e.details as { code?: string } | undefined)?.code === IMAGE_INVALID_CODE)) throw e;
           log.warn("ia: el servidor local falló, se usa el respaldo", { kind: "ai-local", code: e instanceof ApiError ? e.status : "error", ms: Date.now() - t0 });
         }
       } else {

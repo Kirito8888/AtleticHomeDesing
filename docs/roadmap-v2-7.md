@@ -44,7 +44,7 @@ Contexto: `docs/estado.md` § «IA local primero». La usuaria usa **solo su ser
 | L1 ✅ (05/11/2026) | **`LOCAL_AI_ONLY=true`**: `aiFor` nunca devuelve otro proveedor aunque haya claves guardadas; embeddings desactivados (búsqueda por texto); `providerLabel` y el texto «Privacidad e IA» de Ajustes dicen que los datos solo van al servidor propio; con el local apagado, error 503 claro | Con la variable y una clave de Gemini guardada, ninguna petición sale de la red local; Ajustes lo explica | `provider.test.ts`/`local.test.ts` ampliados; E2E de Ajustes → IA |
 | L2 ✅ (05/11/2026) | **Paquete de tema con IA local:** revisar `expireInSeconds` (15 min) y `STUDY_PACK_MIN_INTERVAL_MS` con ~35 tok/s y la cola de uno en uno; tasa de fallos de JSON | Un tema real se genera completo o falla con aviso; tope documentado | `study-pack.int.test.ts`; E2E `v26pack` |
 | L3 | **DOCX** (`mammoth`): subir apuntes `.docx` con validación de contenido y topes de descompresión como `pptx.ts` | Un `.docx` se procesa y se pregunta sobre él | `upload.test.ts`, `ingest.int.test.ts` |
-| L4 | **Imágenes grandes:** redimensionar en servidor (`sharp`, ya presente) al pasar de 5 MB en lugar de rechazarlas | Una foto de 8 MB se envía al local reducida | `local.test.ts` |
+| L4 | **Imágenes grandes (hecho 05/11/2026):** redimensionar en servidor (`sharp`, ahora declarada en `package.json`) al pasar de 5 MB en lugar de rechazarlas | Una foto de 8 MB se envía al local reducida | `local.test.ts` |
 
 Orden recomendado: **L1 → L2 → L4 → L3.** Sin L1, el aviso de privacidad es falso y Gemini puede volver a recibir datos.
 
