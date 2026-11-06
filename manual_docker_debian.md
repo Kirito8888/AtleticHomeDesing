@@ -299,6 +299,23 @@ dc up -d --build web
 docker image prune -f
 ```
 
+#### De v2.6 a v2.7 (IA local, DOCX y optimizaciones)
+
+**Lo que cambia para quien usa la app:** apuntes en DOCX, foto de la comida hasta 10 MB, IA local primero si la configuras, informes semanales sin recuperación para entrenadoras sin ese permiso. Detalle en [`CHANGELOG.md`](CHANGELOG.md).
+
+**Base de datos:** sin migraciones.
+
+```bash
+cd <RUTA_DE_LA_APP>
+./scripts/update.sh
+```
+
+**Variables nuevas:** ninguna obligatoria. Opcionales `LOCAL_AI_BASE_URL`, `LOCAL_AI_KEY`, `LOCAL_AI_MODEL`, `LOCAL_AI_TIMEOUT_MS` y `LOCAL_AI_ONLY` (ver `.env.example`). Tras cambiarlas: `dc up -d --force-recreate web`.
+
+**Comprobar:** *Estado del servidor* muestra la versión 2.7.0; con IA local, `dc logs web --since 10m | grep "ia:"` muestra `ia: proveedor local` tras usar la IA.
+
+Guía técnica paso a paso: [`docs/migracion-v2-6-a-v2-7.md`](docs/migracion-v2-6-a-v2-7.md). De v2.5 a v2.6: [`docs/migracion-v2-5-a-v2-6.md`](docs/migracion-v2-5-a-v2-6.md).
+
 #### De v2.4 a v2.5 (finanzas, estudio TDAH y seguridad)
 
 **Lo que cambia para quien usa la app:** Finanzas más corta en el móvil (historial editable, presupuestos mensuales), Estudio con resúmenes, micro-pasos, asignaturas, test de nivel y manual en PDF, rutinas con varios espacios y prescripción citada, diálogos y formatos nuevos. Detalle en [`CHANGELOG.md`](CHANGELOG.md).

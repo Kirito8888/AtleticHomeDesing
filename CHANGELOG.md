@@ -2,6 +2,35 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v2.7.0 — IA local y optimizaciones de backend e IA (06/11/2026)
+
+Sin migraciones de base de datos. Detalle para el servidor en [`docs/migracion-v2-6-a-v2-7.md`](docs/migracion-v2-6-a-v2-7.md).
+
+**IA local**
+- **Servidor de IA local primero:** con `LOCAL_AI_BASE_URL` (y opcionales `LOCAL_AI_KEY`, `LOCAL_AI_MODEL`, `LOCAL_AI_TIMEOUT_MS`) Atlenza usa antes un servidor compatible con OpenAI de tu red (p. ej. llama.cpp); si no responde, vuelve a la IA de siempre. Atiende de una petición en una.
+- **`LOCAL_AI_ONLY=true`:** solo IA local, nunca otro proveedor (ni la clave guardada ni `GEMINI_API_KEY`); sin embeddings (los apuntes se buscan por texto); si el local está apagado, la IA responde «no disponible». «Guardar y probar» otra IA queda bloqueado. Ajustes → IA y «Privacidad e IA» dicen con veracidad a dónde va el texto.
+- **Paquete de tema con IA local:** la generación puede durar hasta 2 h (antes caducaba a los 60 min), sin pausa entre partes con el local; si la IA devuelve JSON roto tras 3 intentos, la parte queda «Parcial». Tope recomendado: ~50 000 caracteres de apuntes por tema.
+- **Fotos grandes:** las imágenes de más de 5 MB se reducen en el servidor (JPEG ≤ 2048 px) antes de ir a la IA local; la foto de la comida admite hasta **10 MB** (antes 4). Una imagen dañada da un error claro sin tumbar nada.
+
+**Estudio**
+- **Apuntes en DOCX** (Word, ≤ 15 MB) por el mismo camino que PDF y PPTX: encabezados, listas y tablas; un documento protegido con contraseña o dañado se rechaza al subirlo.
+
+**IA: tiempos y rendimiento (O3, O18)**
+- Un corte por tiempo de la IA ya no se reintenta como si fuera saturación: da **504 `ai_timeout`** a la primera. Peor caso de una petición: de ~371 s a ~161 s; de un paquete de tema con IA externa: de ~4,4 h a ≤ ~75 min (cálculo con las constantes, no medido en red real).
+- Cada parte del paquete tiene un presupuesto de 8 min; una saturación solo se repite si llega rápido (< 15 s).
+- El cliente de IA se reutiliza entre peticiones (se renueva al guardar o borrar una credencial).
+
+**Backend (O4, O5)**
+- **Carga de entrenamiento una vez:** restaurar una copia, importar de Strava o un CSV de VFC recalculan carga y readiness **una sola vez** y en lote. Consultas: recálculo con 10 sesiones 128 → 9, VFC de 30 días 155 → 6, Strava con 10 actividades 953 → 82. Tras Strava los valores de CTL/ATL/TSB pueden diferir en 0,01 (ya no se redondea a mitad de cadena).
+- **Extracto bancario en lote:** importar un extracto cuesta 8 operaciones de base de datos sea cual sea su tamaño (antes ~5 por línea) y es **atómico**: si una línea falla, no se importa ninguna. Los duplicados se detectan igual que antes.
+
+**Privacidad (S1)**
+- Una entrenadora con permiso de informes pero **sin** permiso de recuperación ya no ve sueño, VFC ni FC en reposo en el **texto** del informe semanal (resumen, hallazgos, recomendaciones), ni en informes guardados antes ni al generarlos ella: el modelo no recibe esos datos y lo que devuelve se sanea. Si ella regenera una semana, ese informe queda sin análisis de recuperación hasta que la atleta lo regenere.
+
+**Datos y operaciones**
+- Sin migraciones. Variables nuevas, todas opcionales: `LOCAL_AI_BASE_URL`, `LOCAL_AI_KEY`, `LOCAL_AI_MODEL`, `LOCAL_AI_TIMEOUT_MS`, `LOCAL_AI_ONLY`. Dependencias nuevas: `mammoth` (DOCX) y `sharp` declarada (ya venía con Next).
+- Licencias: `third-party-notices.mjs` admite expresiones SPDX con `OR` si alguna alternativa está admitida.
+
 ## v2.6.0 — Estudio: paquete de tema y optimizaciones de backend (03/11/2026)
 
 **Estudio** (`/study/modules/[id]`)
