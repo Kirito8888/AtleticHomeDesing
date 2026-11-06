@@ -181,6 +181,11 @@ bash "$HERE/backup-lifeos.sh" >>"$OUTALL" 2>&1 && grep -q 'insert into "BackupRu
 : > "$FAKE_PSQL_IN"; bash "$HERE/backup-lifeos.sh" --dry-run >>"$OUTALL" 2>&1; [ ! -s "$FAKE_PSQL_IN" ] && ok "backup --dry-run no anota nada"
 unset FAKE_PSQL_IN
 
+# verify-hito-0.sh: solo lectura y con la IA local apagada avisa en amarillo pero sale con 0
+VH="$HERE/verify-hito-0.sh"
+bash -n "$VH" && bash "$VH" --help >>"$OUTALL" 2>&1 && ok "verify-hito-0: sintaxis y --help"
+LOCAL_AI_BASE_URL="http://127.0.0.1:9/v1" LOCAL_AI_ONLY=true ENV_FILE=/no/existe DATABASE_URL="" bash "$VH" --no-color >"$T/vh1.txt" 2>&1 && grep -q 'DEGRADADO / APAGADO' "$T/vh1.txt" && ok "verify-hito-0: IA local apagada → DEGRADADO y exit 0"
+
 if grep -q "$FAKEPW" "$OUTALL"; then bad "aparece la contraseña ficticia en la salida"; fi
 ok "sin secretos en la salida"
 echo "Todo correcto."
