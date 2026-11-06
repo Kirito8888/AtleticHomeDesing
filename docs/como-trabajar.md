@@ -35,7 +35,7 @@ Instrucciones, ficheros que adjuntar y refresco tras cada versión: `docs/gemini
 
 ## Plantillas
 - **Siguiente bloque:** `Lee docs/estado.md y sigue con el bloque que toque. No me preguntes salvo bloqueo.`
-- **Cierre de versión** (con `/model opus`, migración y PR): `Lee docs/estado.md. Cierre de la v2.0: todas las E2E, prueba de la migración, documentación y PR.`
+- **Cierre de versión** (con `/model opus`, migración y PR): `Lee docs/estado.md. Cierre de la v2.0: todas las E2E, prueba de la migración (si la versión tiene), Semgrep, licencias, documentación y PR.`
 - **Arreglo pequeño** (parche; sin plan, modo Auto, `/model sonnet`): `Lee CLAUDE.md. En /nutrition/micros el calcio sale con 3 decimales; déjalo en entero. Commit y push.`
 - **Revisar un fallo de la CI:** `Lee CLAUDE.md. La CI del PR #N falla en <job>; arréglalo con el mínimo cambio.`
 

@@ -199,7 +199,7 @@ Lo que se envía a tu IA: solo tus respuestas del cuestionario (incluidas las zo
 
 Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Privacidad e IA**: está desactivada hasta que la autorizas, porque envía texto al proveedor que elijas.
 
-- **Apuntes:** sube PDF, PPTX, TXT o Markdown. Se procesan en segundo plano y, si fallan, puedes reintentar.
+- **Apuntes:** sube PDF, PPTX, DOCX (Word), TXT o Markdown. Se procesan en segundo plano y, si fallan, puedes reintentar.
 - **Chat:** preguntas sobre tus apuntes, con las fuentes citadas.
 - **Flashcards:** se generan desde un documento y se repasan con repetición espaciada.
 - **Coach semanal:** un informe de tu semana de entrenamiento. Tus lesiones no se envían a la IA.
@@ -217,6 +217,14 @@ Dentro de una asignatura (`/study/modules/…`), sección **Resumen y web de est
 5. **Web de estudio (Modo Juego)**: los niveles usan las preguntas del paquete. En las de **desarrollo** escribes, miras la rúbrica y marcas los puntos que cubrías. Si tu comando es correcto aunque no coincida, **⚖️ Mi comando también vale**: cuenta como acierto y queda en **Apelaciones** para probarlo en la máquina virtual. El **Examen final** se abre con ★★ en el Jefe (o con el modo libre): cronometrado, sin pistas ni vidas, con nota sobre 10.
 
 Tu progreso del juego se guarda en tu cuenta: lo ves igual desde el móvil y el ordenador.
+
+## Novedades de la v2.7
+
+- **Apuntes en Word (DOCX)**, hasta 15 MB. Si el documento tiene contraseña o está dañado, se rechaza al subirlo: quítale la contraseña o guárdalo de nuevo.
+- **Foto de la comida** hasta 10 MB; si es muy grande, el servidor la reduce antes de mandarla a la IA.
+- **IA del servidor:** si la administración tiene un servidor de IA local, Atlenza lo usa primero. En **Ajustes → IA** y **Privacidad e IA** ves a dónde va tu texto; si está en «solo IA local», no se envía a ningún proveedor externo, los apuntes se buscan por texto y, si ese servidor está apagado, las funciones de IA dicen que no están disponibles.
+- **Con IA local, el paquete de tema** puede tardar más (hasta 2 h en el peor caso); puedes salir de la página. Mejor temas de unos 50 000 caracteres como mucho.
+- **Entrenadoras:** si no tienes permiso de recuperación de una atleta, su informe semanal ya no menciona su sueño, VFC ni FC en reposo.
 
 ## Novedades de la v2.5 (dónde está cada cosa)
 

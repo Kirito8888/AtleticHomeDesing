@@ -8,6 +8,9 @@ Lee también `docs/estado.md` (versión, siguiente bloque, decisiones). Cómo se
 El hook `scripts/dev/session-start.sh` deja listos Postgres 16 + pgvector (127.0.0.1:5432, BD `lifeos`),
 `.env.local` de desarrollo, tesseract/poppler, dependencias, migraciones y seed. Si algo falla: `sh scripts/dev/session-start.sh`.
 Para comandos que necesitan la BD: `set -a; . ./.env.local; set +a`.
+Antes de vitest/E2E en un contenedor nuevo: `npm install` (el hook no siempre trae las dependencias nuevas, p. ej. `mammoth`),
+`CHROMIUM_PATH=/opt/pw-browsers/chromium` y las claves VAPID solo-CI de `ci.yml` en `.env.local`. Sin ellas fallan `study-manual`/`pdf-render`
+(503) y las suites `e2e`/`e2e:security` por entorno, no por código.
 
 ## Comandos
 | Qué | Comando |

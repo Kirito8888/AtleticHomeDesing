@@ -13,7 +13,7 @@ Pensada para el móvil y autoalojada en tu propio servidor.
 > [`LICENSE`](LICENSE); componentes de terceros en [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 > No es «open source»: es código visible con todos los derechos reservados.
 
-**Versión actual: v2.6**: Estudio con paquete de tema por IA (resumen por prioridad y banco de preguntas generados por partes desde PDF/PPTX), «¿Cómo es tu examen?», Modo Juego con preguntas de desarrollo, examen final cronometrado y progreso guardado en tu cuenta, e índice de texto en apuntes. Dos migraciones aditivas (`v2_6_features`, `v2_6_study_pack`). (v2.5: finanzas en el móvil, estudio con TDAH, rutinas con ciencia y refuerzo de seguridad. v2.4: perfil fuerza-velocidad y auditoría del staff. v2.3: navegación agrupada.) Ver [`CHANGELOG.md`](CHANGELOG.md).
+**Versión actual: v2.7**: servidor de IA local primero (opcionalmente solo local con `LOCAL_AI_ONLY`), apuntes en DOCX, fotos grandes reducidas antes de la IA, tiempos de IA acotados, carga de entrenamiento y extractos bancarios en lote, y la recuperación fuera del texto del informe semanal para quien no tiene ese permiso. Sin migraciones. (v2.6: paquete de tema por IA, Modo Juego con desarrollo y examen final. v2.5: finanzas en el móvil, estudio con TDAH, rutinas con ciencia y refuerzo de seguridad. v2.4: perfil fuerza-velocidad y auditoría del staff. v2.3: navegación agrupada.) Ver [`CHANGELOG.md`](CHANGELOG.md).
 
 **Stack:** Next.js 16 (App Router) · TypeScript · Tailwind v4 · shadcn/ui · PostgreSQL 17 + pgvector · Prisma 7 · pg-boss · Docker Compose · IA de cada usuario (Gemini, compatible con OpenAI o Anthropic; opcional).
 
