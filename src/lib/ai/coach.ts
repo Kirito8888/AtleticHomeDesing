@@ -9,6 +9,7 @@ import { addDays, round, startOfIsoWeek, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { strengthSessionStress } from "@/lib/training/strength";
 import { ensureLoadsUpToDate } from "@/lib/training/service";
+import { redactCoachReport } from "@/lib/ai/recovery-redact";
 
 const BASELINE_DAYS = 28;
 
@@ -22,7 +23,8 @@ const avg = (xs: Array<number | null | undefined>) => {
  * tipo de sesión, evolución PMC, recuperación frente a la línea base de 28
  * días y próximo calendario competitivo. Es lo único que ve el modelo.
  */
-export async function buildWeeklySnapshot(userId: string, weekStart: Date) {
+export async function buildWeeklySnapshot(userId: string, weekStart: Date, opts: { recovery?: boolean } = {}) {
+  const withRecovery = opts.recovery ?? true; // false = quien lo pide no tiene el ámbito RECOVERY: ni se consulta ni se incluye
   await ensureLoadsUpToDate(userId);
   const weekEnd = addDays(weekStart, 6);
   const baselineStart = addDays(weekStart, -BASELINE_DAYS);
@@ -46,7 +48,7 @@ export async function buildWeeklySnapshot(userId: string, weekStart: Date) {
       where: { userId, status: "COMPLETED", date: { gte: addDays(weekStart, -7), lt: weekStart }, ...notFromStrava },
       _sum: { tss: true },
     }),
-    prisma.recoveryMetrics.findMany({ where: { userId, date: { gte: baselineStart, lte: weekEnd } }, orderBy: { date: "asc" } }),
+    withRecovery ? prisma.recoveryMetrics.findMany({ where: { userId, date: { gte: baselineStart, lte: weekEnd } }, orderBy: { date: "asc" } }) : Promise.resolve([]),
     prisma.calendarEvent.findMany({
       where: { userId, startAt: { gt: weekEnd, lte: addDays(weekEnd, 35) } },
       orderBy: { startAt: "asc" },
@@ -125,29 +127,33 @@ export async function buildWeeklySnapshot(userId: string, weekStart: Date) {
           }
         : undefined,
     })),
-    recovery: {
-      daily: weekRecovery.map((r) => ({
-        date: toIsoDay(r.date),
-        readiness: r.readinessScore,
-        hrv: r.hrvRmssdMs,
-        sleepH: r.sleepHours,
-        rhr: r.restingHr,
-        doms: r.doms,
-      })),
-      weekAvg: {
-        hrv: avg(weekRecovery.map((r) => r.hrvRmssdMs)),
-        sleepH: avg(weekRecovery.map((r) => r.sleepHours)),
-        rhr: avg(weekRecovery.map((r) => r.restingHr)),
-        readiness: avg(weekRecovery.map((r) => r.readinessScore)),
-        doms: avg(weekRecovery.map((r) => r.doms)),
-      },
-      baseline28d: {
-        hrv: avg(baseRecovery.map((r) => r.hrvRmssdMs)),
-        sleepH: avg(baseRecovery.map((r) => r.sleepHours)),
-        rhr: avg(baseRecovery.map((r) => r.restingHr)),
-      },
-      daysLogged: weekRecovery.length,
-    },
+    ...(withRecovery
+      ? {
+          recovery: {
+            daily: weekRecovery.map((r) => ({
+              date: toIsoDay(r.date),
+              readiness: r.readinessScore,
+              hrv: r.hrvRmssdMs,
+              sleepH: r.sleepHours,
+              rhr: r.restingHr,
+              doms: r.doms,
+            })),
+            weekAvg: {
+              hrv: avg(weekRecovery.map((r) => r.hrvRmssdMs)),
+              sleepH: avg(weekRecovery.map((r) => r.sleepHours)),
+              rhr: avg(weekRecovery.map((r) => r.restingHr)),
+              readiness: avg(weekRecovery.map((r) => r.readinessScore)),
+              doms: avg(weekRecovery.map((r) => r.doms)),
+            },
+            baseline28d: {
+              hrv: avg(baseRecovery.map((r) => r.hrvRmssdMs)),
+              sleepH: avg(baseRecovery.map((r) => r.sleepHours)),
+              rhr: avg(baseRecovery.map((r) => r.restingHr)),
+            },
+            daysLogged: weekRecovery.length,
+          },
+        }
+      : {}),
     periodization: cycles.map((c) => ({ ...c, startDate: toIsoDay(c.startDate), endDate: toIsoDay(c.endDate) })),
     upcoming: events.map((e) => ({ ...e, startAt: toIsoDay(e.startAt) })),
   };
@@ -205,16 +211,42 @@ Reglas:
 - No diagnostiques lesiones ni des consejo médico; ante dolor persistente, recomienda
   consultar a un profesional sanitario.`;
 
-export async function generateWeeklyCoachReport(userId: string, weekOf: Date) {
+/** Variante sin recuperación (v2.7.0 B4): quien pide el informe no tiene el ámbito RECOVERY. */
+export const COACH_SYSTEM_PROMPT_NO_RECOVERY = `Eres el Coach de Rendimiento de Atlenza: preparador físico de atletismo
+(velocidad, fondo, saltos y lanzamientos como la jabalina) y de fuerza. Respondes en español.
+
+Recibes un snapshot JSON de la semana de un atleta. Analiza la CARGA (TSS por tipo: pista/cardio,
+técnica, fuerza; CTL, ATL, TSB, ACWR, rampa) y recomienda ajustes para la próxima semana.
+
+Este informe solo cubre la carga de entrenamiento: no menciones, supongas ni recomiendes nada sobre
+otros datos fisiológicos o de hábitos del atleta, y no los listes en dataGaps.
+
+Criterios (aplícalos con juicio, no como reglas ciegas):
+- Rampa de CTL > 5-8 puntos/semana o ACWR > 1.3-1.5 → riesgo de sobrecarga creciente.
+- TSB < -20 a -30 sostenido → fatiga acumulada; TSB +5 a +15 → forma para competir.
+- Lanzadores/saltadores: ajusta primero el número de intentos de máxima intensidad o el peso del implemento.
+- Fuerza: con TSB bajo, mantén intensidad (cargas) y recorta volumen (series duras).
+- Si hay competición en ≤ 14 días, plantea tapering (−40 a −60 % de volumen, intensidad
+  mantenida). Respeta la fase de periodización indicada.
+
+Reglas:
+- Cada recomendación debe citar el dato concreto que la justifica.
+- Si faltan datos de carga, dilo en dataGaps; no los supongas.
+- No diagnostiques lesiones ni des consejo médico.`;
+
+export async function generateWeeklyCoachReport(userId: string, weekOf: Date, opts: { recovery?: boolean } = {}) {
+  const withRecovery = opts.recovery ?? true;
   await assertAiAllowed(userId); // consentimiento del atleta, aunque lo pida su coach
   const weekStart = startOfIsoWeek(weekOf);
-  const snapshot = await buildWeeklySnapshot(userId, weekStart);
-  const { data, model } = await generateJson(coachReportSchema, {
+  const snapshot = await buildWeeklySnapshot(userId, weekStart, { recovery: withRecovery });
+  const { data: raw, model } = await generateJson(coachReportSchema, {
     userId,
-    system: COACH_SYSTEM_PROMPT,
+    system: withRecovery ? COACH_SYSTEM_PROMPT : COACH_SYSTEM_PROMPT_NO_RECOVERY,
     prompt: `Snapshot semanal:\n${JSON.stringify(snapshot)}`,
     temperature: 0.3,
   });
+  // Salvaguarda de respuesta: aunque el modelo cite la recuperación sin que se la hayamos dado, no se guarda ni se entrega
+  const data = withRecovery ? raw : redactCoachReport(raw).report;
   const fields = {
     inputSnapshot: snapshot as unknown as Prisma.InputJsonValue,
     summary: data.summary,
