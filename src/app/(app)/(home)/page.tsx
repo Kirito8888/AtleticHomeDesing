@@ -106,7 +106,7 @@ export default async function DashboardPage() {
         </Link>
       ) : null}
       {focus || reviewDue ? (
-        <Link href="/review" className="mb-4 block rounded-md border p-3 text-sm" aria-label="Foco de la semana">
+        <Link href="/review" className="mb-4 block rounded-md border p-3 text-sm">
           {focus ? (
             <>
               🎯 <span className="font-medium">Foco de la semana:</span> {focus}
