@@ -186,6 +186,20 @@ VH="$HERE/verify-hito-0.sh"
 bash -n "$VH" && bash "$VH" --help >>"$OUTALL" 2>&1 && ok "verify-hito-0: sintaxis y --help"
 LOCAL_AI_BASE_URL="http://127.0.0.1:9/v1" LOCAL_AI_ONLY=true ENV_FILE=/no/existe DATABASE_URL="" bash "$VH" --no-color >"$T/vh1.txt" 2>&1 && grep -q 'DEGRADADO / APAGADO' "$T/vh1.txt" && ok "verify-hito-0: IA local apagada → DEGRADADO y exit 0"
 
+# queue-failed.sh: por defecto solo lee; las acciones se simulan salvo --apply; valida los argumentos
+QF="$HERE/queue-failed.sh"; QID="123e4567-e89b-12d3-a456-426614174000"
+bash -n "$QF" && bash "$QF" --help >>"$OUTALL" 2>&1 && ok "queue-failed: sintaxis y --help"
+export FAKE_PSQL_IN="$T/qf-in.txt"; : > "$FAKE_PSQL_IN"
+bash "$QF" >>"$OUTALL" 2>&1 && ! grep -qE 'update pgboss|delete from' "$FAKE_PSQL_IN" && grep -q "state = 'failed'" "$FAKE_PSQL_IN" && ok "queue-failed: listar solo lee"
+: > "$FAKE_PSQL_IN"; bash "$QF" --retry --queue study-pack --dry-run >"$T/qf1.txt" 2>&1 && grep -q SIMULACIÓN "$T/qf1.txt" && ! grep -q 'update pgboss' "$FAKE_PSQL_IN" && ok "queue-failed --retry en seco no escribe"
+: > "$FAKE_PSQL_IN"; bash "$QF" --discard --id "$QID" >"$T/qf2.txt" 2>&1 && grep -q SIMULACIÓN "$T/qf2.txt" && ! grep -q 'delete from' "$FAKE_PSQL_IN" && ok "queue-failed --discard sin --apply no borra"
+: > "$FAKE_PSQL_IN"; bash "$QF" --retry --apply --id "$QID" >>"$OUTALL" 2>&1 && grep -q "update pgboss.job set state = 'retry'" "$FAKE_PSQL_IN" && grep -q "$QID" "$FAKE_PSQL_IN" && ok "queue-failed --retry --apply actualiza"
+: > "$FAKE_PSQL_IN"; bash "$QF" --discard --apply >>"$OUTALL" 2>&1 && grep -q 'delete from pgboss.job' "$FAKE_PSQL_IN" && ok "queue-failed --discard --apply borra"
+if bash "$QF" --id "x'; drop table y;--" >>"$OUTALL" 2>&1; then bad "queue-failed aceptó un id inválido"; else ok "queue-failed rechaza ids no UUID"; fi
+if bash "$QF" --queue "a'b" >>"$OUTALL" 2>&1; then bad "queue-failed aceptó una cola inválida"; else ok "queue-failed rechaza nombres de cola raros"; fi
+if bash "$QF" --retry --discard >>"$OUTALL" 2>&1; then bad "queue-failed aceptó --retry y --discard"; else ok "queue-failed rechaza acciones contradictorias"; fi
+unset FAKE_PSQL_IN
+
 if grep -q "$FAKEPW" "$OUTALL"; then bad "aparece la contraseña ficticia en la salida"; fi
 ok "sin secretos en la salida"
 echo "Todo correcto."
