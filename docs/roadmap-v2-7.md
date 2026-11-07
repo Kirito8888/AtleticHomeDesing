@@ -1,6 +1,6 @@
 # Roadmap v2.7+ · propuesta para autorizar
 
-> **Propuesta, no compromiso.** Base: v2.6.0 (03/11/2026). Cruza `docs/analisis-competencia-feedback.md` (IDs N/O/C/S) con el Plan de Optimización de `docs/estado.md`.
+> **Propuesta, no compromiso.** Base: v2.6.0 (03/11/2026); **v2.7.0 publicada y desplegada el 07/11/2026**. Cruza `docs/analisis-competencia-feedback.md` (IDs N/O/C/S) con el Plan de Optimización de `docs/estado.md`.
 > Los números de versión y qué entra en cada una los decide la usuaria; Claude no empieza nada sin autorización. Solo documentación: no cambia código, esquema ni paquetes.
 > Confianza: [Seguro] comprobado en el repo · [Probable] inferencia sólida · [Suponiendo] hueco sin prueba.
 
@@ -23,12 +23,12 @@ Tiempo de la usuaria; solo genera parches si algo falla.
 
 | ID | Qué | Cómo se da por hecho |
 |---|---|---|
-| S5 | Construir la imagen Docker con Chromium | La ruta del manual PDF responde 200, no 503 |
-| S9 | Aplicar `v2_6_study_pack` en el servidor real | `migrate status` al día y `/study/modules/…` sin error (comprobación en `docs/migracion-v2-5-a-v2-6.md`) |
-| S4 | Generar un paquete de tema con Gemini real | Revisar los `log.warn` con `code` (`ai_empty`, motivo); anotar citas literales, distractores y límites del nivel gratuito (`STUDY_PACK_MIN_INTERVAL_MS=4000`) |
-| S6 | Primer `--dry-run` de ops, `verify-backup.sh --restore-test`, `check-backups.sh` | Copia restaurada y registro en `BackupRun` |
-| S7 | Revisar `UPLOAD_QUOTA_MB` del `.env` del servidor | Valor que la usuaria quiere (200 manda sobre 5 120) |
-| C1 | Decidir «Sugerir fotogramas» | Recomendado: retirar de la UI y dejar el código apagado |
+| S5 | Construir la imagen Docker con Chromium | La ruta del manual PDF responde 200, no 503 · **07/11: Chromium presente y imagen construida; falta solo la prueba manual con sesión** |
+| S9 ✅ (07/11/2026) | Aplicar `v2_6_study_pack` en el servidor real | `migrate status` al día y `/study/modules/…` sin error (comprobación en `docs/migracion-v2-5-a-v2-6.md`) · tablas y migración confirmadas con `verify-hito-0.sh` |
+| S4 (sustituido) | Generar un paquete de tema con Gemini real → **ahora, con la IA local** (`LOCAL_AI_ONLY=true`, hoy apagada) | Revisar los `log.warn` con `code` (`ai_empty`, motivo); anotar citas literales, distractores y límites del nivel gratuito (`STUDY_PACK_MIN_INTERVAL_MS=4000`) |
+| S6 ✅ (07/11/2026) | Primer `--dry-run` de ops, `verify-backup.sh --restore-test`, `check-backups.sh` | Copia restaurada y registro en `BackupRun` · `check-backups.sh`: copias al día |
+| S7 (pendiente) | Revisar `UPLOAD_QUOTA_MB` del `.env` del servidor | Valor que la usuaria quiere (200 manda sobre 5 120) |
+| C1 (pendiente) | Decidir «Sugerir fotogramas» | Recomendado: retirar de la UI y dejar el código apagado |
 
 ## Parches v2.6.x opcionales (cada uno, un bloque pequeño, sin migración)
 | Parche | Contenido | Pruebas |
@@ -43,10 +43,19 @@ Contexto: `docs/estado.md` § «IA local primero». La usuaria usa **solo su ser
 |---|---|---|---|
 | L1 ✅ (05/11/2026) | **`LOCAL_AI_ONLY=true`**: `aiFor` nunca devuelve otro proveedor aunque haya claves guardadas; embeddings desactivados (búsqueda por texto); `providerLabel` y el texto «Privacidad e IA» de Ajustes dicen que los datos solo van al servidor propio; con el local apagado, error 503 claro | Con la variable y una clave de Gemini guardada, ninguna petición sale de la red local; Ajustes lo explica | `provider.test.ts`/`local.test.ts` ampliados; E2E de Ajustes → IA |
 | L2 ✅ (05/11/2026) | **Paquete de tema con IA local:** revisar `expireInSeconds` (15 min) y `STUDY_PACK_MIN_INTERVAL_MS` con ~35 tok/s y la cola de uno en uno; tasa de fallos de JSON | Un tema real se genera completo o falla con aviso; tope documentado | `study-pack.int.test.ts`; E2E `v26pack` |
-| L3 | **DOCX** (`mammoth`): subir apuntes `.docx` con validación de contenido y topes de descompresión como `pptx.ts` | Un `.docx` se procesa y se pregunta sobre él | `upload.test.ts`, `ingest.int.test.ts` |
-| L4 | **Imágenes grandes (hecho 05/11/2026):** redimensionar en servidor (`sharp`, ahora declarada en `package.json`) al pasar de 5 MB en lugar de rechazarlas | Una foto de 8 MB se envía al local reducida | `local.test.ts` |
+| L3 ✅ (05/11/2026) | **DOCX** (`mammoth`): subir apuntes `.docx` con validación de contenido y topes de descompresión como `pptx.ts` | Un `.docx` se procesa y se pregunta sobre él | `upload.test.ts`, `ingest.int.test.ts` |
+| L4 ✅ (05/11/2026) | **Imágenes grandes:** redimensionar en servidor (`sharp`, ahora declarada en `package.json`) al pasar de 5 MB en lugar de rechazarlas | Una foto de 8 MB se envía al local reducida | `local.test.ts` |
 
 Orden recomendado: **L1 → L2 → L4 → L3.** Sin L1, el aviso de privacidad es falso y Gemini puede volver a recibir datos.
+
+## Pendientes sin versión asignada (detectados tras desplegar v2.7.0, 07/11/2026)
+Los asigna la usuaria; ninguno cambia el esquema.
+
+| Pendiente | Contenido | Terminado = |
+|---|---|---|
+| P1 · CSP `eval` | Evento «script-src bloqueó eval» en `/study`, `/recovery` y `/nutrition` (visto en Estado del servidor desde el 03/11, antes de v2.7.0). Encontrar qué lo dispara y quitarlo **sin relajar la CSP** | Sin nuevos eventos CSP en esas rutas y la función afectada (si la había) funciona |
+| P2 · Cola | 3 trabajos fallidos (`failed 3 · completed 6`). Mirar el motivo en el panel de administración; [Suponiendo] IA local apagada | Motivo conocido; reintentados o descartados |
+| P3 · Build fuera del servidor | El `next build` dentro del servidor se ahogó por memoria (otra carga del mismo servidor dejaba poca libre; presión de memoria alta, ~5 h sin acabar el tipado; `tsc` aislado tarda ~30 s). Construir en CI, publicar la imagen y que `scripts/update.sh` haga `pull` en vez de `build`; mientras tanto, `timeout` en el build y actualizar solo con memoria libre. La imagen no debe llevar secretos | Una actualización sin compilar en el servidor |
 
 ## v2.7.0 · IA y backend fiables (Fase 1)
 - **Objetivo para la atleta:** que restaurar, importar de Strava, guardar la VFC o importar un extracto no se queden esperando, y que ninguna llamada de IA cuelgue la pantalla.

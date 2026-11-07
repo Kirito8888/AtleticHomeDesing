@@ -50,7 +50,13 @@ const HAS_DB = Boolean(process.env.DATABASE_URL);
 const LEAK_VALUES = [/(?<![\d.,])77[.,]7(?!\d)/, /(?<![\d.,])6[.,]5(?!\d)/, /(?<![\d.,])43(?![\d])/];
 const LEAK_KEYS = /"(recovery|hrv|sleepH|rhr|doms|readiness)"/;
 const LEAK_TERMS = /\b(vfc|hrv|rmssd|readiness|sue[ñn]o|duerm\w*|descans\w*|recuper\w*|fc en reposo|rhr|doms|agujetas|sleep)\b/i;
-const leaks = (text: string) => [...LEAK_VALUES.filter((r) => r.test(text)).map(String), ...(LEAK_KEYS.test(text) ? ["clave"] : []), ...(LEAK_TERMS.test(text) ? [String(text.match(LEAK_TERMS))] : [])];
+// Las marcas de tiempo ISO («…T13:04:43.952Z») llevan números sueltos que no son datos sembrados: sin quitarlas, el «43» de la FC
+// en reposo saltaba como fuga cuando los segundos o minutos de `createdAt` valían 43 (fallo intermitente de CI, 07/11/2026).
+const ISO_TS = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g;
+const leaks = (raw: string) => {
+  const text = raw.replace(ISO_TS, "");
+  return [...LEAK_VALUES.filter((r) => r.test(text)).map(String), ...(LEAK_KEYS.test(text) ? ["clave"] : []), ...(LEAK_TERMS.test(text) ? [String(text.match(LEAK_TERMS))] : [])];
+};
 const SCOPES = ["LOAD", "SESSIONS", "PLANNING", "RECOVERY", "REPORTS"] as const;
 type Scope = (typeof SCOPES)[number];
 
