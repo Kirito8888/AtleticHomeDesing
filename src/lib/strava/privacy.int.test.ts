@@ -16,8 +16,12 @@ describe.skipIf(!HAS_DB)("Strava no llega a terceros (BD real)", () => {
   let coach: string;
   let stravaId: string;
   let ownId: string;
+  let recentStravaId: string;
+  let recentOwnId: string;
   const t = Date.now();
   const day = new Date(Date.UTC(2026, 9, 7));
+  // Las vistas con ventana móvil (entrenadora −30 d, .ics −30 d) necesitan fechas relativas a hoy: con `day` fija el test caducaba.
+  const recent = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() - 2));
   const req = (url: string) => new NextRequest(`http://localhost${url}`);
 
   beforeAll(async () => {
@@ -28,6 +32,8 @@ describe.skipIf(!HAS_DB)("Strava no llega a terceros (BD real)", () => {
     await prisma.coachAthlete.create({ data: { coachId: coach, athleteId: athlete, status: "ACTIVE", scopes: ["SESSIONS", "LOAD", "REPORTS"], canPlan: true } });
     stravaId = (await prisma.trainingSession.create({ data: { userId: athlete, date: day, type: "TRACK", status: "COMPLETED", durationSec: 3000, tss: 55, title: TITLE, source: "STRAVA", externalId: `strava:${t}` } })).id;
     ownId = (await prisma.trainingSession.create({ data: { userId: athlete, date: day, type: "STRENGTH", status: "COMPLETED", durationSec: 3600, tss: 40, title: "Fuerza propia" } })).id;
+    recentStravaId = (await prisma.trainingSession.create({ data: { userId: athlete, date: recent, type: "TRACK", status: "COMPLETED", durationSec: 3000, tss: 55, title: TITLE, source: "STRAVA", externalId: `strava:${t}:r` } })).id;
+    recentOwnId = (await prisma.trainingSession.create({ data: { userId: athlete, date: recent, type: "STRENGTH", status: "COMPLETED", durationSec: 3600, tss: 40, title: "Fuerza propia" } })).id;
     await prisma.personalRecord.create({ data: { userId: athlete, kind: "TECHNICAL_MARK", value: 40, achievedOn: day, sessionId: stravaId } });
     await prisma.personalRecord.create({ data: { userId: athlete, kind: "TECHNICAL_MARK", value: 41, achievedOn: day, sessionId: ownId } });
     await prisma.recoveryMetrics.create({ data: { userId: athlete, date: day, hrvRmssdMs: 77.7, sleepHours: 6.5 } });
@@ -41,8 +47,12 @@ describe.skipIf(!HAS_DB)("Strava no llega a terceros (BD real)", () => {
   it("la vista de la entrenadora solo lleva la sesión propia", async () => {
     const { coachOverview, coachSessionDetail } = await import("@/lib/coach/overview");
     const o = await coachOverview({ id: coach, role: "COACH" });
-    expect(o.sessions.map((s) => s.id)).toEqual([ownId]);
+    const ids = o.sessions.map((s) => s.id);
+    expect(ids).toContain(recentOwnId);
+    expect(ids).not.toContain(stravaId);
+    expect(ids).not.toContain(recentStravaId);
     expect(await coachSessionDetail({ id: coach, role: "COACH" }, stravaId, athlete)).toBeNull();
+    expect(await coachSessionDetail({ id: coach, role: "COACH" }, recentStravaId, athlete)).toBeNull();
     expect((await coachSessionDetail({ id: coach, role: "COACH" }, ownId, athlete))?.session.id).toBe(ownId);
   });
 
