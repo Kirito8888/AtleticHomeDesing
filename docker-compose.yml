@@ -118,6 +118,8 @@ services:
   # One-shot (no arranca con `up`): aplica migraciones de Prisma.
   migrate:
     profiles: ["tools"]
+    # Nombre fijo: update.sh etiqueta aquí la imagen descargada de GHCR (o se construye en local).
+    image: lifeos-migrate:latest
     build:
       context: .
       target: migrate

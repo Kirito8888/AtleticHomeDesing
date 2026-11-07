@@ -167,6 +167,9 @@ if "${HEXEC[@]}" bash "$H" --bind 0.0.0.0 >>"$OUTALL" 2>&1; then bad "aceptó --
 CB="$HERE/check-backups.sh"; NOW="$(date +%s)"
 bash -n "$CB" && bash "$CB" --help >>"$OUTALL" 2>&1 && ok "check-backups: sintaxis y --help"
 bash -n "$HERE/../update.sh" && ok "update.sh: sintaxis"
+# P3: pull de la imagen de CI y timeout en el build local
+grep -q 'pull_images' "$HERE/../update.sh" && grep -q 'timeout "\$BUILD_TIMEOUT"' "$HERE/../update.sh" && ok "update.sh: pull de GHCR y timeout en el build local"
+{ grep -q 'GITHUB_TOKEN' "$HERE/../../.github/workflows/image.yml" && ! grep -qE 'secrets\.[A-Z_]+' <(grep -v 'secrets.GITHUB_TOKEN' "$HERE/../../.github/workflows/image.yml"); } && ok "workflow de imagen: solo GITHUB_TOKEN, sin otros secretos"
 # shellcheck disable=SC2016  # el stub se escribe tal cual, sin expandir
 printf '#!/usr/bin/env bash\n[ -n "${FAKE_CRON:-}" ] && echo "30 3 * * * <RUTA>/scripts/ops/backup-lifeos.sh"\nexit 0\n' > "$T/bin/crontab"; chmod +x "$T/bin/crontab"
 FAKE_CRON=1 FAKE_PSQL_OUT="$((NOW - 3600)) $((NOW - 3600)) true" bash "$CB" >"$T/cb1.txt" 2>&1 && grep -q 'Copias al día' "$T/cb1.txt" && ok "check-backups: cron + copia reciente → exit 0"

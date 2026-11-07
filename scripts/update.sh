@@ -5,8 +5,16 @@
 #   BRANCH=otra ./scripts/update.sh
 #   ./scripts/update.sh --no-pull    # reconstruye el código actual (sin git pull)
 #
+# Imagen de CI (workflow «Imagen»): define en el ENV_FILE
+#   WEB_IMAGE_REPO=ghcr.io/USUARIO/REPO   (minúsculas; la de migraciones es <REPO>-migrate)
+# y el paquete debe ser público (la imagen no lleva secretos) o hacer `docker login ghcr.io` antes.
+# Con --no-pull o sin esa variable, o si la imagen del commit aún no está publicada, se
+# construye en local: UPDATE_BUILD_TIMEOUT (s, def. 1800) corta el build y UPDATE_MIN_FREE_MB
+# (def. 1500) exige memoria libre; UPDATE_FORCE_BUILD=1 se salta la comprobación de memoria.
+#
 # Pasos: copia de la BD → etiqueta la imagen actual como :previous → git pull →
-# construye la imagen nueva (con la web vieja en marcha) → migraciones → cambia la web
+# descarga la imagen ya compilada en CI (GHCR; si no está, la construye en local con timeout)
+# con la web vieja en marcha → migraciones → cambia la web
 # (limpiando contenedores sobrantes) → espera al healthcheck. Si no queda "healthy",
 # vuelve al commit y a la imagen anteriores. Las migraciones son aditivas, así
 # que la versión anterior funciona con la BD ya migrada.
@@ -18,6 +26,8 @@ BRANCH="${BRANCH:-main}"
 HEALTH_TIMEOUT="${UPDATE_HEALTH_TIMEOUT:-180}"
 # Carpeta propia: ./backups la escribe como root el servicio "backup".
 BACKUP_DIR="${UPDATE_BACKUP_DIR:-./backups-pre-update}"
+BUILD_TIMEOUT="${UPDATE_BUILD_TIMEOUT:-1800}"
+MIN_FREE_MB="${UPDATE_MIN_FREE_MB:-1500}"
 PULL=1
 [ "${1:-}" = "--no-pull" ] && PULL=0
 
@@ -30,6 +40,22 @@ envval() { grep -E "^$1=" "$ENV_FILE" 2>/dev/null | tail -1 | cut -d= -f2- | tr 
 if [ "$PULL" = 1 ] && [ -n "$(git status --porcelain --untracked-files=no)" ]; then
   die "Hay cambios locales en ficheros del repositorio (git status). Guárdalos o descártalos antes de actualizar."
 fi
+
+# Memoria disponible (MB); vacío si no se puede leer.
+free_mb() { awk '/^MemAvailable:/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || true; }
+
+# Descarga de GHCR las imágenes del commit actual y las deja como lifeos-web/lifeos-migrate:latest.
+# Devuelve 1 (sin tocar nada) si no hay repositorio configurado o la imagen aún no existe.
+pull_images() {
+  local repo sha
+  repo="${WEB_IMAGE_REPO:-$(envval WEB_IMAGE_REPO)}"
+  [ -n "$repo" ] || return 1
+  sha="$(git rev-parse HEAD)"
+  log "Descargando la imagen compilada en CI ($repo:sha-${sha:0:12})…"
+  timeout 600 docker pull "$repo:sha-$sha" && timeout 600 docker pull "$repo-migrate:sha-$sha" || return 1
+  docker image tag "$repo:sha-$sha" lifeos-web:latest
+  docker image tag "$repo-migrate:sha-$sha" lifeos-migrate:latest
+}
 
 # Espera a que el contenedor web esté "healthy" (healthcheck de docker-compose.yml).
 wait_healthy() {
@@ -129,10 +155,22 @@ rollback() {
 # v1.8 · el commit queda dentro de la imagen (Estado del servidor avisa si hay uno más nuevo)
 GIT_SHA="$(git rev-parse HEAD 2>/dev/null || echo "")"
 export GIT_SHA
-log "Construyendo la imagen nueva (la web actual sigue funcionando)…"
-if ! dc build web; then
-  [ "$PULL" = 1 ] && git checkout -q "$PREV_COMMIT"
-  die "El build falló: no se ha cambiado nada (la versión anterior sigue en marcha)."
+LOCAL_BUILD=0
+if [ "$PULL" = 1 ] && pull_images; then
+  log "Imagen descargada: no se compila nada en el servidor."
+else
+  LOCAL_BUILD=1
+  [ "$PULL" = 1 ] && log "Sin imagen publicada para este commit: construyo en local."
+  FREE="$(free_mb)"
+  if [ "${UPDATE_FORCE_BUILD:-0}" != 1 ] && [ -n "$FREE" ] && [ "$FREE" -lt "$MIN_FREE_MB" ]; then
+    [ "$PULL" = 1 ] && git checkout -q "$PREV_COMMIT"
+    die "Memoria libre ${FREE} MB < ${MIN_FREE_MB} MB: no compilo (nada cambiado). Libera memoria, usa la imagen de CI o UPDATE_FORCE_BUILD=1."
+  fi
+  log "Construyendo la imagen nueva (la web actual sigue funcionando; máx. ${BUILD_TIMEOUT}s)…"
+  if ! timeout "$BUILD_TIMEOUT" docker compose --env-file "$ENV_FILE" build web; then
+    [ "$PULL" = 1 ] && git checkout -q "$PREV_COMMIT"
+    die "El build falló o superó ${BUILD_TIMEOUT}s: no se ha cambiado nada (la versión anterior sigue en marcha)."
+  fi
 fi
 
 # 4b. Base de datos: si cambió su configuración (imagen fijada, memoria, ajustes de Postgres), Compose
@@ -147,7 +185,10 @@ if ! { dc up -d --no-build db && wait_healthy db; }; then
 fi
 
 # 5. Migraciones (aditivas) y 6. web nueva (solo se para la vieja aquí, unos segundos)
-dc --profile tools run --rm --build migrate || rollback
+if [ "$LOCAL_BUILD" = 1 ]; then
+  timeout "$BUILD_TIMEOUT" docker compose --env-file "$ENV_FILE" --profile tools build migrate || rollback
+fi
+dc --profile tools run --rm migrate || rollback
 up_web || rollback
 
 # 7. Healthcheck
