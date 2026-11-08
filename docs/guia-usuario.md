@@ -55,7 +55,7 @@ Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servid
 - **Tests físicos** (botón del cronómetro): 30 m, saltos, balón medicinal… o los tuyos, con mejor marca y gráfica.
 - **Material** (botón de la caja): jabalinas, clavos y zapatillas con vida útil (usos o meses). Las jabalinas cuentan solas los lanzamientos registrados con su peso desde la compra; «+usos» para los que no apuntaste. Al 80 % te avisa y al 100 % pide reponer.
 
-### Tests de salto: perfil F-V y sugerir fotogramas
+### Tests de salto: perfil F-V
 
 **Perfil fuerza-velocidad** (**Entreno → Tests → Perfil F-V**)
 1. Indica tu **peso corporal** (kg), la **fecha** y tu **hPO** (cm): el recorrido del impulso, es decir, la altura del trocánter de pie menos la que tiene en la posición de salida (rodillas a 90°). Se mide a mano.
@@ -64,13 +64,6 @@ Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servid
 - Si el ajuste de las cargas es pobre (r² < 0,95) no da resultado: repite los saltos o cambia las cargas.
 - El óptimo sigue el modelo de Samozino y no se ha contrastado con la tabla del artículo.
 - Es un dato tuyo: **no se envía a la IA ni a tu entrenadora**.
-
-**Sugerir fotogramas** (**Tests → Medir salto**, *experimental*)
-- Es el interruptor «Sugerir fotogramas», **apagado por defecto**. Graba de lado, con los pies en el tercio inferior del encuadre.
-- Al activarlo, la app analiza el vídeo **en tu navegador** (no sale de él) y muestra «Analizando la parte baja del vídeo…».
-- Si encuentra un salto, enseña una **propuesta (borrador)** de despegue y aterrizaje. «Aceptar» solo rellena las marcas; **nada se guarda hasta «Añadir intento»**.
-- Si no está segura dice «No propongo fotogramas» y las marcas se ponen a mano. Si el vídeo es muy largo, solo analiza el principio (2400 fotogramas): recórtalo.
-- Los umbrales son estimaciones sin calibrar: **revisa siempre las marcas a mano**.
 
 ## Planificación
 
@@ -255,10 +248,7 @@ Tu progreso del juego se guarda en tu cuenta: lo ves igual desde el móvil y el 
 ## Novedades de la v2.4 (dónde está cada cosa)
 
 **Perfil fuerza-velocidad** (**Entreno → Tests → Perfil F-V**)
-- Mide saltos SJ con 2 a 4 cargas distintas; la app calcula tu fuerza y velocidad máximas, tu potencia y si tu perfil está desequilibrado. Es solo para ti: no se envía a la IA ni a tu entrenadora. Paso a paso en [Tests de salto](#tests-de-salto-perfil-f-v-y-sugerir-fotogramas).
-
-**Sugerir fotogramas** (**Tests → Medir salto**, *experimental*)
-- Actívalo con el interruptor «Sugerir fotogramas». Graba de lado, con los pies en el tercio inferior del encuadre. La app propone el despegue y el aterrizaje; pulsa «Aceptar» para rellenar las marcas y **revísalas siempre a mano**: aún no está calibrado con vídeos reales.
+- Mide saltos SJ con 2 a 4 cargas distintas; la app calcula tu fuerza y velocidad máximas, tu potencia y si tu perfil está desequilibrado. Es solo para ti: no se envía a la IA ni a tu entrenadora. Paso a paso en [Tests de salto](#tests-de-salto-perfil-f-v).
 
 **Combinadas**
 - Si tu prueba es una combinada, las reglas de límite de ritmo rápido y de saltos también te avisan.
