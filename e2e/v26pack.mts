@@ -106,6 +106,36 @@ const fmt = psql(`select "examFormat"::text from "StudyModule" where id='${mid}'
 if (!fmt.includes('"questions": 12') && !fmt.includes('"questions":12')) errors.push(`examFormat en BD: ${fmt}`);
 await page.screenshot({ path: `${out}/pack-390.png`, fullPage: true });
 
+// 3b · N2: crear flashcards desde el paquete (mazo de la asignatura, confirmación con cifras, sin duplicar)
+const cardsIn = (deck: string) => Number(psql(`select count(*) from "Flashcard" f join "FlashcardDeck" d on d.id=f."deckId" where d."userId"='${uid}' and d.name='${deck}'`));
+const toast = (re: RegExp) => page.locator("[data-sonner-toast]", { hasText: re }).first().waitFor({ timeout: 8000 });
+await minH(page.getByTestId("pack-cards"), "«Crear flashcards» del tema");
+await page.getByTestId("pack-cards").click();
+await page.getByTestId("cards-form").waitFor();
+if (!(await page.getByLabel("Mazo de destino").innerText()).includes("Administración")) errors.push("N2: el mazo vinculado a la asignatura no aparece");
+await noOverflow("flashcards del paquete");
+await minH(page.getByTestId("cards-review"), "«Revisar»");
+await page.getByTestId("cards-review").click();
+const dlg = page.getByRole("alertdialog");
+await dlg.waitFor();
+const txt = (await dlg.textContent()) ?? "";
+const nNew = Number(/Crear (\d+)/.exec(txt)?.[1] ?? 0);
+if (!nNew || !/0 se descartan/.test(txt)) errors.push(`N2: diálogo sin cifras: ${txt}`);
+if (cardsIn("Administración") !== 0) errors.push("N2: se escribió antes de confirmar");
+await dlg.getByRole("button", { name: "Cancelar" }).click();
+if (cardsIn("Administración") !== 0) errors.push("N2: cancelar creó tarjetas");
+await page.getByTestId("cards-review").click();
+await page.getByRole("alertdialog").getByRole("button", { name: "Crear" }).click();
+await toast(/flashcards? creadas?/);
+if (cardsIn("Administración") !== nNew) errors.push(`N2: se esperaban ${nNew} tarjetas y hay ${cardsIn("Administración")}`);
+await page.getByTestId("pack-cards").click();
+await page.getByTestId("cards-review").click();
+await toast(/ya están/);
+if (cardsIn("Administración") !== nNew) errors.push("N2: la segunda vez duplicó tarjetas");
+const foreign = await page.request.post(`${B}/api/study/cards/import`, { data: { deck: "X", dryRun: true, source: { kind: "pack", topicId: "no-es-mia" } } });
+if (foreign.status() !== 404) errors.push(`N2: tema ajeno debe dar 404 (${foreign.status()})`);
+log(`N2: ${nNew} flashcards del paquete en «Administración»; repetir no duplica; tema ajeno 404`);
+
 // 4 · resumen por prioridad
 await page.getByTestId("pack-summary-link").click();
 await page.getByTestId("summary").waitFor();

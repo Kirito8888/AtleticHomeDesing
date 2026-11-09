@@ -5,6 +5,7 @@ import type { z } from "zod";
 import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
+import { dedupeCards } from "@/lib/study/flashcard-extract";
 
 import { assignmentAlert, type AssignmentStatus, type assignmentSchema, focusBySlot, subjectAverages } from "./coursework";
 
@@ -15,6 +16,21 @@ export async function addManualCards(userId: string, deck: string, subject: stri
   await prisma.flashcard.createMany({ data: cards.map((c) => ({ deckId: d.id, front: c.front, back: c.back })) });
   await prisma.flashcardDeck.update({ where: { id: d.id }, data: { updatedAt: new Date() } });
   return { deckId: d.id, added: cards.length };
+}
+
+/**
+ * v2.8 · N2 · Importa tarjetas ya extraídas (Resumir / paquete) a un mazo PROPIO, sin duplicar el anverso.
+ * `dryRun` solo cuenta (para el diálogo de confirmación); sin nuevas no crea ni el mazo.
+ */
+export async function importCards(userId: string, p: { deck: string; subject: string | null; cards: Array<{ front: string; back: string }>; dryRun: boolean }) {
+  const existing = await prisma.flashcardDeck.findUnique({
+    where: { userId_name: { userId, name: p.deck } },
+    select: { id: true, cards: { select: { front: true } } },
+  });
+  const { fresh, duplicates } = dedupeCards(p.cards, existing?.cards.map((c) => c.front) ?? []);
+  if (p.dryRun || !fresh.length) return { deck: p.deck, isNew: !existing, create: fresh.length, duplicates, added: 0 };
+  const r = await addManualCards(userId, p.deck, p.subject, fresh);
+  return { deck: p.deck, isNew: !existing, create: fresh.length, duplicates, added: r.added, deckId: r.deckId };
 }
 
 // 23 · Trabajos y entregas

@@ -8,8 +8,10 @@ import { toast } from "sonner";
 import { Chips, Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
+import { SaveToFlashcards } from "@/components/study/save-to-flashcards";
 import { SourcePicker, useSource } from "@/components/study/source-picker";
 import { api } from "@/lib/client-api";
+import { cardsFromAdapt } from "@/lib/study/flashcard-extract";
 import { TAG_EMOJI, TAG_LABEL, attackPlan, type ReportDoc } from "@/lib/study/adhd-report";
 import { type AdaptDoc, type AdaptMode, fromMarkdown, MODE_LABEL, type OutlineNode, parseBold } from "@/lib/study/adhd-format";
 
@@ -146,7 +148,7 @@ function Reading({ content }: { content: AdaptDoc }) {
   );
 }
 
-export function AdaptPanel({ docs, aiEnabled }: { docs: Array<{ id: string; title: string }>; aiEnabled: boolean }) {
+export function AdaptPanel({ docs, aiEnabled }: { docs: Array<{ id: string; title: string; moduleName?: string | null }>; aiEnabled: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<AdaptMode>("summary");
   const src = useSource(docs);
@@ -157,6 +159,10 @@ export function AdaptPanel({ docs, aiEnabled }: { docs: Array<{ id: string; titl
   const [editing, setEditing] = useState(false);
   // lo que se guardaría: el texto editado, ya vuelto a pasar por los límites TDAH
   const current = useMemo<AdaptDoc | null>(() => (!result ? null : draft === null ? result.content : fromMarkdown(draft, result.content)), [result, draft]);
+
+  const cardCount = useMemo(() => (current ? cardsFromAdapt(current).length : 0), [current]);
+  const srcDoc = src.source.kind === "document" ? docs.find((d) => d.id === (src.source as { documentId: string }).documentId) : undefined;
+  const cardDecks = current ? [srcDoc?.moduleName, current.doc.title].filter((x): x is string => !!x) : [];
 
   function discard() {
     setResult(null);
@@ -273,6 +279,13 @@ export function AdaptPanel({ docs, aiEnabled }: { docs: Array<{ id: string; titl
               <X /> Descartar
             </Button>
           </div>
+          {!editing && current ? (
+            cardCount > 0 ? (
+              <SaveToFlashcards key={cardDecks.join("|")} source={{ kind: "adapt", content: current }} suggested={cardDecks} subject={srcDoc?.moduleName ?? null} label={`Crear flashcards (≈${cardCount})`} testId="adapt-cards" />
+            ) : (
+              <p className="text-xs text-muted-foreground" data-testid="adapt-cards-none">Sin conceptos destacados (negritas o «término: definición») de los que sacar flashcards.</p>
+            )
+          ) : null}
           <p className="text-xs text-muted-foreground">Nada se guarda hasta que pulses «Guardar»; se crea un apunte nuevo.</p>
         </div>
       ) : null}

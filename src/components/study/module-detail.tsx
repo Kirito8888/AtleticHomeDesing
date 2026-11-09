@@ -191,7 +191,7 @@ export function ModuleDetail({ data }: { data: ModuleDetailData }) {
         </form>
       </section>
 
-      <PackSection moduleId={data.id} topics={data.topics.map((t) => ({ id: t.id, name: t.name }))} documents={data.documents} initialPacks={data.packs} examFormat={data.examFormat} examFormatSet={data.examFormatSet} />
+      <PackSection moduleId={data.id} moduleName={data.name} topics={data.topics.map((t) => ({ id: t.id, name: t.name }))} documents={data.documents} initialPacks={data.packs} examFormat={data.examFormat} examFormatSet={data.examFormatSet} />
 
       <section aria-label="Apuntes" className="grid gap-2">
         <h2 className="text-lg font-semibold">Apuntes</h2>
