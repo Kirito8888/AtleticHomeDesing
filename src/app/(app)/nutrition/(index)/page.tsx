@@ -5,7 +5,7 @@ import { AddFoodSheet } from "@/components/nutrition/add-food-sheet";
 import { FoodPhoto } from "@/components/nutrition/food-ai";
 import { DeleteEntry, IronToggle } from "@/components/nutrition/delete-entry";
 import { womenEnabled } from "@/lib/health/women-service";
-import { MealShortcuts, SaveMealFavorite } from "@/components/nutrition/meal-shortcuts";
+import { LoadTemplate, MealShortcuts, SaveMealFavorite } from "@/components/nutrition/meal-shortcuts";
 import { MEAL_LABEL } from "@/components/nutrition/meals";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -125,7 +125,8 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
                   <CardTitle className="text-sm">{MEAL_LABEL[m]}</CardTitle>
                   <span className="flex items-center gap-1 text-xs text-muted-foreground tabular-nums">
                     {Math.round(kcal)} kcal
-                    <SaveMealFavorite date={date} mealType={m} />
+                    <LoadTemplate date={date} mealType={m} templates={favorites} />
+                    <SaveMealFavorite date={date} mealType={m} existing={favorites.map((f) => f.name)} />
                   </span>
                 </CardHeader>
                 <CardContent className="px-4">
