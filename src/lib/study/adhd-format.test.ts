@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fakeAdapt, LIMITS, normalizeOutline, normalizeSummary, type OutlineNode, parseBold, splitBlock, stripBold, toMarkdown } from "./adhd-format";
+import { fakeAdapt, fromMarkdown, LIMITS, normalizeOutline, normalizeSummary, type OutlineNode, parseBold, splitBlock, stripBold, toMarkdown } from "./adhd-format";
 
 const WALL =
   "La **glucólisis** es la vía que convierte la glucosa en piruvato. Ocurre en el citoplasma de la célula. Produce 2 ATP netos por molécula de glucosa. " +
@@ -85,5 +85,45 @@ describe("toMarkdown y fakeAdapt", () => {
     if (s.mode === "summary") for (const sec of s.doc.sections) for (const b of sec.blocks) expect(stripBold(b).length).toBeLessThanOrEqual(LIMITS.block);
     const o = fakeAdapt(WALL, "outline");
     if (o.mode === "outline") expect(depthOf(o.doc.root)).toBeLessThanOrEqual(LIMITS.depth + 1);
+  });
+});
+
+describe("fromMarkdown (editar antes de guardar)", () => {
+  const SRC = "Uno dos tres. Cuatro cinco seis. Siete ocho nueve. Diez once doce. Trece catorce quince. Dieciséis diecisiete.";
+  it("ida y vuelta: sin editar, el resumen y el esquema no cambian", () => {
+    for (const mode of ["summary", "outline"] as const) {
+      const d = fakeAdapt(SRC, mode);
+      expect(fromMarkdown(toMarkdown(d), d)).toEqual(d);
+    }
+  });
+  it("el texto editado llega al documento y un muro se parte a ≤ 120", () => {
+    const d = fakeAdapt(SRC, "summary");
+    const out = fromMarkdown(`# Mi título\n\n**En una frase:** Mi idea\n\n## Tema\n\n${WALL}\n\n## Recuerda\n\n- a\n- b\n- c\n- d\n`, d);
+    expect(out?.mode).toBe("summary");
+    if (out?.mode !== "summary") return;
+    expect(out.doc.title).toBe("Mi título");
+    expect(out.doc.oneLiner).toBe("Mi idea");
+    expect(out.doc.sections[0].blocks.length).toBeLessThanOrEqual(LIMITS.blocksPerSection);
+    for (const b of out.doc.sections[0].blocks) expect(stripBold(b).length).toBeLessThanOrEqual(LIMITS.block);
+    expect(out.doc.remember).toHaveLength(LIMITS.remember);
+  });
+  it("máximo de secciones y título borrado → conserva el original", () => {
+    const d = fakeAdapt(SRC, "summary");
+    const md = Array.from({ length: 8 }, (_, i) => `## S${i}\n\nTexto ${i}.`).join("\n\n");
+    const out = fromMarkdown(md, d);
+    if (out?.mode !== "summary" || d.mode !== "summary") throw new Error("modo");
+    expect(out.doc.sections).toHaveLength(LIMITS.sections);
+    expect(out.doc.title).toBe(d.doc.title);
+  });
+  it("esquema: limita la profundidad y tolera sangría de 4 espacios", () => {
+    const d = fakeAdapt(SRC, "outline");
+    const out = fromMarkdown("# T\n\n- R\n    - A — detalle\n        - B\n            - C\n                - D\n                    - E\n", d);
+    if (out?.mode !== "outline") throw new Error("modo");
+    expect(depthOf(out.doc.root)).toBeLessThanOrEqual(LIMITS.depth + 1);
+    expect(out.doc.root.children?.[0].detail).toBe("detalle");
+  });
+  it("texto vacío → null", () => {
+    expect(fromMarkdown("   \n", fakeAdapt(SRC, "summary"))).toBeNull();
+    expect(fromMarkdown("", fakeAdapt(SRC, "report"))).toBeNull();
   });
 });

@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { Copy, Save, Sparkles, X } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Copy, Eye, Pencil, Save, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { Chips, Field } from "@/components/form/chips";
@@ -11,7 +11,7 @@ import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { SourcePicker, useSource } from "@/components/study/source-picker";
 import { api } from "@/lib/client-api";
 import { TAG_EMOJI, TAG_LABEL, attackPlan, type ReportDoc } from "@/lib/study/adhd-report";
-import { type AdaptDoc, type AdaptMode, MODE_LABEL, type OutlineNode, parseBold } from "@/lib/study/adhd-format";
+import { type AdaptDoc, type AdaptMode, fromMarkdown, MODE_LABEL, type OutlineNode, parseBold } from "@/lib/study/adhd-format";
 
 interface Result {
   content: AdaptDoc;
@@ -152,13 +152,25 @@ export function AdaptPanel({ docs, aiEnabled }: { docs: Array<{ id: string; titl
   const src = useSource(docs);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
+  /** Markdown en edición (N1); `null` = sin tocar, se usa el resultado de la IA tal cual. */
+  const [draft, setDraft] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  // lo que se guardaría: el texto editado, ya vuelto a pasar por los límites TDAH
+  const current = useMemo<AdaptDoc | null>(() => (!result ? null : draft === null ? result.content : fromMarkdown(draft, result.content)), [result, draft]);
 
+  function discard() {
+    setResult(null);
+    setDraft(null);
+    setEditing(false);
+  }
 
   async function generate(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
       setResult(await api<Result>("/api/ai/study/adapt", { body: { mode, source: src.source } }));
+      setDraft(null);
+      setEditing(false);
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -169,7 +181,7 @@ export function AdaptPanel({ docs, aiEnabled }: { docs: Array<{ id: string; titl
   async function copy() {
     if (!result) return;
     try {
-      await navigator.clipboard.writeText(result.markdown);
+      await navigator.clipboard.writeText(draft ?? result.markdown);
       toast.success("Copiado");
     } catch {
       toast.error("No se pudo copiar");
@@ -178,7 +190,11 @@ export function AdaptPanel({ docs, aiEnabled }: { docs: Array<{ id: string; titl
 
   async function save() {
     if (!result) return;
-    const name = `${MODE_LABEL[result.content.mode]} · ${result.content.doc.title}`;
+    if (!current) {
+      toast.error("El texto quedó vacío o sin estructura; no hay nada que guardar");
+      return;
+    }
+    const name = `${MODE_LABEL[current.mode]} · ${current.doc.title}`;
     const ok = await confirmDialog({
       title: "¿Guardar en tus apuntes?",
       description: `Se crea un apunte nuevo «${name}». Tus apuntes y flashcards actuales no cambian.`,
@@ -186,9 +202,9 @@ export function AdaptPanel({ docs, aiEnabled }: { docs: Array<{ id: string; titl
     });
     if (!ok) return;
     try {
-      await api("/api/ai/study/adapt/save", { body: { content: result.content } });
+      await api("/api/ai/study/adapt/save", { body: { content: current } });
       toast.success("Guardado en Apuntes");
-      setResult(null);
+      discard();
       router.refresh();
     } catch (err) {
       toast.error((err as Error).message);
@@ -226,15 +242,34 @@ export function AdaptPanel({ docs, aiEnabled }: { docs: Array<{ id: string; titl
 
       {result ? (
         <div className="grid gap-3" aria-live="polite">
-          <Reading content={result.content} />
-          <div className="grid grid-cols-3 gap-2 border-t pt-3">
+          {editing ? (
+            <div className="grid gap-1.5">
+              <label htmlFor="adapt-edit" className="text-sm font-medium">Texto del apunte (Markdown)</label>
+              <textarea
+                id="adapt-edit"
+                className="min-h-[50vh] w-full rounded-md border bg-background p-3 font-mono text-base leading-relaxed"
+                value={draft ?? result.markdown}
+                onChange={(e) => setDraft(e.target.value)}
+                spellCheck
+              />
+              <p className="text-xs text-muted-foreground">Al guardar se reajusta al formato TDAH (límites de longitud y cupos); lo que sobre se recorta.</p>
+            </div>
+          ) : current ? (
+            <Reading content={current} />
+          ) : (
+            <p role="alert" className="rounded-md border p-3 text-sm">El texto quedó vacío o sin estructura. Pulsa «Editar» para corregirlo.</p>
+          )}
+          <div className="grid grid-cols-2 gap-2 border-t pt-3 sm:grid-cols-4">
+            <Button type="button" variant="outline" className="min-h-11" onClick={() => setEditing((v) => !v)}>
+              {editing ? <Eye /> : <Pencil />} {editing ? "Vista previa" : "Editar"}
+            </Button>
             <Button type="button" variant="outline" className="min-h-11" onClick={copy}>
               <Copy /> Copiar
             </Button>
-            <Button type="button" className="min-h-11" onClick={save}>
+            <Button type="button" className="min-h-11" onClick={save} disabled={!current}>
               <Save /> Guardar
             </Button>
-            <Button type="button" variant="ghost" className="min-h-11" onClick={() => setResult(null)}>
+            <Button type="button" variant="ghost" className="min-h-11" onClick={discard}>
               <X /> Descartar
             </Button>
           </div>
