@@ -115,6 +115,29 @@ for (const path of ["/", "/settings", "/finance"]) {
 }
 log("fechas y cifras en formato español");
 
+// 7 · Plantillas de comidas en Nutrición: guardar con Sheet (sin diálogo nativo), cargar en otra toma
+{
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
+  const r = await page.request.post(B + "/api/nutrition/entries", {
+    data: { date: today, mealType: "BREAKFAST", customName: "Tostada", quantityG: 80, kcal: 210, proteinG: 7, carbsG: 38, fatG: 3 },
+  });
+  if (!r.ok()) errors.push(`no se pudo crear la toma: ${r.status()}`);
+  await page.goto(B + "/nutrition");
+  await page.getByRole("button", { name: "Guardar desayuno como plantilla" }).click();
+  await page.getByLabel("Nombre de la plantilla").waitFor();
+  errors.push(...(await a11y(page, "guardar plantilla")));
+  await page.getByRole("button", { name: "Guardar plantilla" }).click();
+  await page.getByText("«Desayuno habitual» guardada en plantillas").first().waitFor();
+  await page.getByRole("button", { name: "Cargar plantilla en desayuno" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Desayuno habitual ·/ }).waitFor();
+  errors.push(...(await a11y(page, "cargar plantilla")));
+  await page.getByRole("dialog").getByRole("button", { name: /^Desayuno habitual ·/ }).click();
+  await page.getByText("«Desayuno habitual» añadida a desayuno").first().waitFor();
+  await page.waitForFunction(() => document.body.innerText.split("Tostada").length - 1 >= 2);
+  await noOverflow("/nutrition");
+}
+log("plantillas de comidas: guardar y cargar sin diálogo nativo");
+
 await browser.close();
 if (errors.length) {
   console.error(errors.join("\n"));

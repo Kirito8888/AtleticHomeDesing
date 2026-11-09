@@ -61,6 +61,7 @@ export async function saveMealTemplate(userId: string, name: string, day: string
   });
 }
 
+/** Vuelca una plantilla en `day`, en su toma o en `mealType` si se indica. */
 export async function applyMealTemplate(userId: string, templateId: string, day: string, mealType?: MealType) {
   const tpl = await prisma.mealTemplate.findFirst({ where: { id: templateId, userId }, include: { items: true } });
   if (!tpl) throw new ApiError(404, "Comida favorita no encontrada");
@@ -75,11 +76,19 @@ export async function applyMealTemplate(userId: string, templateId: string, day:
   return { added: count, mealType: target };
 }
 
+/** Plantillas (comidas habituales) de la usuaria, con su toma, kcal y los nombres de sus alimentos. */
 export async function listMealTemplates(userId: string) {
   const rows = await prisma.mealTemplate.findMany({
     where: { userId },
     orderBy: { name: "asc" },
-    include: { items: { select: { kcal: true } } },
+    include: { items: { select: { kcal: true, customName: true, foodProduct: { select: { name: true } } } } },
   });
-  return rows.map((t) => ({ id: t.id, name: t.name, mealType: t.mealType, items: t.items.length, kcal: Math.round(t.items.reduce((a, i) => a + i.kcal, 0)) }));
+  return rows.map((t) => ({
+    id: t.id,
+    name: t.name,
+    mealType: t.mealType,
+    items: t.items.length,
+    kcal: Math.round(t.items.reduce((a, i) => a + i.kcal, 0)),
+    foods: t.items.map((i) => i.foodProduct?.name ?? i.customName ?? "Alimento"),
+  }));
 }

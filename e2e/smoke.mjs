@@ -156,13 +156,19 @@ await toast("Añadido");
 await page.getByText("Arroz con pollo").waitFor();
 await shot("06-nutrition");
 log("comida manual registrada");
-// Favorita: ★ en la comida → se registra de un toque
-page.once("dialog", (d) => d.accept("Comida de prueba"));
-await page.getByRole("button", { name: /como favorita/ }).first().click();
-await toast("«Comida de prueba» guardada en favoritas");
-await page.getByRole("region", { name: "Comidas favoritas" }).getByRole("button", { name: /^Comida de prueba ·/ }).click();
+// Plantilla: ★ en la toma → Sheet con nombre → se carga de un toque
+await page.getByRole("button", { name: /como plantilla/ }).first().click();
+await page.getByLabel("Nombre de la plantilla").fill("Comida de prueba");
+await page.getByRole("button", { name: "Guardar plantilla" }).click();
+await toast("«Comida de prueba» guardada en plantillas");
+await page.getByRole("region", { name: "Plantillas de comidas" }).getByRole("button", { name: /^Comida de prueba ·/ }).click();
 await toast("«Comida de prueba» añadida");
 await page.waitForFunction(() => document.body.innerText.split("Arroz con pollo").length - 1 >= 2);
+// «Cargar plantilla» en la toma: vuelca en esa toma
+await page.getByRole("button", { name: /Cargar plantilla en/ }).first().click();
+await page.getByRole("dialog").getByRole("button", { name: /^Comida de prueba ·/ }).click();
+await toast(/«Comida de prueba» añadida a /);
+await page.waitForFunction(() => document.body.innerText.split("Arroz con pollo").length - 1 >= 3);
 // Repetir de ayer
 // «Ayer» en la zona de la app (Europe/Madrid): en UTC fallaría entre las 22:00 y las 24:00.
 const madridToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());

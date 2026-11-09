@@ -153,7 +153,7 @@ En el calendario o en Inicio, toca una competición:
 ## Nutrición
 
 - **Buscar alimentos** (OpenFoodFacts) o **escanear el código de barras** con la cámara.
-- **Comidas favoritas** y **repetir una comida de ayer** con un toque.
+- **Plantillas de comidas habituales** (desayuno, comida, merienda, cena…): ★ en una toma guarda sus alimentos y cantidades con el nombre que quieras; otro día, un toque en la plantilla la añade a su toma, o «Cargar plantilla» en cualquier toma la vuelca allí. Si repites nombre, se sustituye (te avisa). Y **repetir una comida de ayer** con un toque.
 - El objetivo del día se ajusta si es día de entreno (también cuenta una sesión planificada).
 - **Hidratos según el día:** en **Ajustes → Objetivo nutricional**, pon los gramos de hidratos para día de lanzamientos, de gimnasio y sin entreno (los de tu plantilla). El día muestra cuál aplica.
 - **Agua:** vasos con un toque; el objetivo sube los días con sesión y con calor (Ajustes → Agua).
