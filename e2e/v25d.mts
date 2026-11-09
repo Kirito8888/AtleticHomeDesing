@@ -100,6 +100,9 @@ if (await retry.count()) await minH(retry, "«Reintentar»");
 await noOverflow("sin red");
 log("sin red: aviso y reintento");
 await ctx.setOffline(false);
+// El SW puede seguir sirviendo /offline unos instantes: se espera a que la red responda de verdad antes de reintentar
+await page.waitForFunction(() => navigator.onLine, null, { timeout: 5000 });
+await page.waitForFunction(async () => (await fetch("/api/health", { cache: "no-store" }).catch(() => null))?.ok === true, null, { timeout: 10000, polling: 250 });
 await page.waitForTimeout(500);
 const back = page.waitForEvent("framenavigated", { timeout: 10000 }).catch(() => errors.push("«Reintentar» no recarga"));
 await retry.tap().catch(() => undefined);

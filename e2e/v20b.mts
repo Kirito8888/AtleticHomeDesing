@@ -74,8 +74,10 @@ for (const [k, canPlan] of [["a1", true], ["a2", true], ["a3", false]] as const)
 log("coach con tres atletas: dos con canPlan, una sin");
 
 // El plan descarta los días anteriores a «start»: se parte del lunes para que no dependa del día en que corre la prueba
+const madridToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
 function mondayOfThisWeek() {
-  const d = new Date();
+  // «Hoy» en Europe/Madrid, como la app (en UTC fallaba el domingo por la noche: ya es lunes en Madrid)
+  const d = new Date(`${madridToday}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
   return d.toISOString().slice(0, 10);
 }
@@ -99,7 +101,7 @@ await coa.getByLabel("Qué copiar").selectOption({ label: "Semana E2E" });
 // Inicio por defecto: hoy si es lunes, si no el lunes siguiente (en fin de semana «hoy» dejaba la copia vacía con un 422)
 const dateInput = coa.locator('input[type="date"]');
 const defStart = await dateInput.inputValue();
-const todayIso = new Date().toISOString().slice(0, 10);
+const todayIso = madridToday;
 const ahead = (Date.parse(defStart) - Date.parse(todayIso)) / 864e5;
 if (new Date(`${defStart}T00:00:00Z`).getUTCDay() !== 1 || ahead < -1 || ahead > 7) errors.push(`inicio por defecto ${defStart} no es el lunes de hoy o el siguiente`);
 // A mitad de semana se avisa de los días que quedan fuera; en lunes, no

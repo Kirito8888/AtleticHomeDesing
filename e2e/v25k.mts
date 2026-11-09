@@ -50,6 +50,10 @@ const NOTES =
 
 await page.goto(B + "/study?tab=adapt");
 await page.getByRole("tab", { name: "Resumir" }).waitFor();
+// Entrada por URL con ?tab=: se espera a que el panel lazy esté montado e hidratado antes de interactuar
+await page.getByRole("tab", { name: "Resumir" }).and(page.locator('[aria-selected="true"]')).waitFor();
+await page.getByRole("tabpanel").first().waitFor();
+await page.waitForLoadState("networkidle");
 await noOverflow("/study (pestañas)");
 const tabs = page.getByRole("tablist").first();
 const tb = await tabs.boundingBox();
