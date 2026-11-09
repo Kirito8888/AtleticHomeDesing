@@ -37,6 +37,7 @@ export function FeelingsPicker({ value, onChange }: { value: FeelingValue[]; onC
         <BodyMap
           label="Toca dónde te molesta"
           marked={value.map((f) => f.area)}
+          intensity={Object.fromEntries(value.map((f) => [f.area, f.pain]))}
           onPick={(area) => (value.some((f) => f.area === area) ? onChange(value.filter((f) => f.area !== area)) : onChange([...value, { area, side: null, pain: 3 }]))}
         />
       ) : null}
