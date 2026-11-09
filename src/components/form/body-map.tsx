@@ -24,7 +24,7 @@ function ell(cx: number, cy: number, rx: number, ry: number): string {
 }
 
 /** La misma forma en ambos lados: `make(x)` recibe el centro del lado izquierdo y se refleja respecto a x = 50. */
-const pair = (x: number, make: (cx: number) => string) => make(x) + make(100 - x);
+const pair = (x: number, make: (cx: number) => string): string[] => [make(x), make(100 - x)];
 
 /** Desplaza todas las coordenadas x absolutas de un path generado por estas funciones (las relativas `a` no cambian). */
 function shift(d: string, dx: number): string {
@@ -48,10 +48,10 @@ const SILHOUETTE = [
   pair(43.5, (x) => taper(x, 90, 14, x + 0.5, 142, 10, 5)), // muslo
   pair(44, (x) => taper(x, 140, 10, x + 1, 199, 6, 3)), // pierna
   pair(45, (x) => taper(x, 198, 7, x - 1, 214, 10, 3)), // pie
-].join("");
+].flat().join("");
 
-/** Zonas tocables. `back` = vista de espaldas. */
-const ZONES: Array<{ area: BodyAreaName; d: string; back?: boolean }> = [
+/** Zonas tocables (un path por lado en las bilaterales). `back` = vista de espaldas. */
+const ZONES: Array<{ area: BodyAreaName; d: string | string[]; back?: boolean }> = [
   // Delante
   { area: "HEAD_NECK", d: ell(50, 13, 8.5, 10) + taper(50, 23, 8, 50, 30, 10, 2) },
   { area: "SHOULDER", d: pair(31, (x) => ell(x, 37, 6.5, 5.5)) },
@@ -122,7 +122,7 @@ export function BodyMap({
         {/* Columna vertebral en la vista de espaldas: sólo referencia visual */}
         <path d={`M${50 + BACK_DX} 34V78`} className="stroke-border" strokeWidth={0.8} strokeLinecap="round" />
         {ZONES.map((z) => {
-          const d = shift(z.d, z.back ? BACK_DX : 0);
+          const parts = (Array.isArray(z.d) ? z.d : [z.d]).map((d) => shift(d, z.back ? BACK_DX : 0));
           const lv = levelOf(z.area);
           return (
             <g
@@ -138,13 +138,18 @@ export function BodyMap({
             >
               <title>{nameOf(z.area)}</title>
               {/* Área de toque algo mayor que la zona visible (móvil) */}
-              <path d={d} fill="transparent" stroke="transparent" strokeWidth={4} pointerEvents="all" />
-              <path
-                d={d}
-                strokeWidth={1.2}
-                strokeLinejoin="round"
-                className={cn("stroke-background transition-colors group-focus-visible:stroke-ring group-focus-visible:[stroke-width:2]", LEVEL_FILL[lv])}
-              />
+              {parts.map((d, i) => (
+                <path key={`h${i}`} data-hit d={d} fill="transparent" stroke="transparent" strokeWidth={4} pointerEvents="all" />
+              ))}
+              {parts.map((d, i) => (
+                <path
+                  key={`v${i}`}
+                  d={d}
+                  strokeWidth={1.2}
+                  strokeLinejoin="round"
+                  className={cn("stroke-background transition-colors group-focus-visible:stroke-ring group-focus-visible:[stroke-width:2]", LEVEL_FILL[lv])}
+                />
+              ))}
             </g>
           );
         })}
