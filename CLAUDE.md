@@ -32,7 +32,7 @@ Antes de vitest/E2E en un contenedor nuevo: `npm install` (el hook no siempre tr
 - **El repo es público:** nunca IPs, usuarios, rutas, dominios, nombres de equipos ni la topología real del servidor o del router,
   ni en docs, ni en tests, ni en mensajes de commit o PR. Usar marcadores (`USUARIO`, `IP_DEL_SERVIDOR`, `<RUTA>`).
 - La recuperación (sueño, VFC, FC en reposo…) sin ámbito RECOVERY no entra en el prompt ni sale en el texto de la IA (`lib/ai/recovery-redact.ts`, informe semanal).
-- La salud cifrada nunca va a la IA, al coach ni al `.ics`. Lo importado de Strava (`notFromStrava`) no va a la IA ni a la entrenadora.
+- La salud cifrada (ciclo, salud de la mujer, composición corporal ISAK `lib/health/isak*`) nunca va a la IA, al coach, al informe semanal ni al `.ics`. Lo importado de Strava (`notFromStrava`) no va a la IA ni a la entrenadora.
 - IA: si hay `LOCAL_AI_BASE_URL`, el servidor de IA local va primero (`lib/ai/local.ts`); la usuaria no quiere IA ajena por ahora: con `LOCAL_AI_ONLY=true` `aiFor` nunca devuelve otro proveedor (sin embeddings; local apagado → 503). Detalle en `docs/estado.md`.
 - Nada escribe en el plan sin confirmación (siempre borrador + aceptar).
 - Migraciones solo aditivas; una por versión, regenerada con `regen-mig.sh`.

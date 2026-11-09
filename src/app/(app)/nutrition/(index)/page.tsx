@@ -78,6 +78,9 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
         <Button asChild variant="outline" size="sm">
           <Link href="/nutrition/micros">Micronutrientes y mis alimentos</Link>
         </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/nutrition/composition">Composición corporal</Link>
+        </Button>
       </nav>
 
       <Card className="mb-4 py-4">

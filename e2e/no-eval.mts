@@ -33,7 +33,7 @@ await page.fill("#email", email);
 await page.fill("#password", pw);
 await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/login")), page.click("button[type=submit]")]);
 
-const routes = ["/study", "/study?tab=manual", "/study/plan", "/recovery", "/recovery/trends", "/recovery/body", "/recovery/health", "/nutrition", "/nutrition/plan", "/nutrition/recipes", "/nutrition/micros"];
+const routes = ["/study", "/study?tab=manual", "/study/plan", "/recovery", "/recovery/trends", "/recovery/body", "/recovery/health", "/nutrition", "/nutrition/plan", "/nutrition/recipes", "/nutrition/micros", "/nutrition/composition"];
 for (const r of routes) {
   await page.goto(B + r, { waitUntil: "networkidle" });
   const v = await page.evaluate(() => (window as unknown as { __csp: string[] }).__csp);

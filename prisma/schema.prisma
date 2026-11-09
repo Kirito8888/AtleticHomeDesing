@@ -115,6 +115,7 @@ model User {
   sharedReports          SharedReport[]
   womenHealth            WomenHealth?
   healthLogs             HealthLog[]
+  bodyCompositions       BodyComposition[]
   testResults            TestResult[]
   fvSeries               FvSeries[]
   returnProtocols        ReturnProtocol[]
@@ -1881,6 +1882,19 @@ model HealthLog {
   userId    String
   date      DateTime @db.Date
   data      String // cifrado: { kind, ... }
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+/// Composición corporal ISAK (v2.9): medidas y resultado cifrados en `data`; solo la fecha va en claro.
+model BodyComposition {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @db.Date
+  data      String // cifrado: { input, result, source }
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
