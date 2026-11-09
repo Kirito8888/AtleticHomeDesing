@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BookOpenCheck, Gamepad2, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
+import { SaveToFlashcards } from "@/components/study/save-to-flashcards";
 import { ExamFormatForm } from "@/components/study/pack/exam-format-form";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
@@ -26,6 +27,7 @@ const RUNNING = new Set(["PENDING", "RUNNING"]);
  */
 export function PackSection({
   moduleId,
+  moduleName,
   topics,
   documents,
   initialPacks,
@@ -33,6 +35,7 @@ export function PackSection({
   examFormatSet,
 }: {
   moduleId: string;
+  moduleName: string;
   topics: { id: string; name: string }[];
   documents: { id: string; title: string }[];
   initialPacks: Record<string, { status: string; hasSummary: boolean }>;
@@ -207,6 +210,9 @@ export function PackSection({
                     </Button>
                   ) : null}
                 </div>
+                {p && !running && p.questions > 0 ? (
+                  <SaveToFlashcards source={{ kind: "pack", topicId: t.id }} suggested={[moduleName, t.name]} subject={moduleName} testId="pack-cards" />
+                ) : null}
                 {!running && !(p && p.questions > 0) ? (
                   <p className="text-xs text-muted-foreground">Genera el paquete para tener el resumen y la web de estudio de este tema.</p>
                 ) : null}

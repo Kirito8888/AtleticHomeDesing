@@ -125,7 +125,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
           <ModulesPanel modules={modules} />
         </TabsContent>
         <TabsContent value="adapt">
-          <AdaptPanel aiEnabled={aiEnabled || process.env.LIFEOS_FAKE_AI === "1"} docs={docs.filter((d) => d.status === "EMBEDDED").map((d) => ({ id: d.id, title: d.title }))} />
+          <AdaptPanel aiEnabled={aiEnabled || process.env.LIFEOS_FAKE_AI === "1"} docs={docs.filter((d) => d.status === "EMBEDDED").map((d) => ({ id: d.id, title: d.title, moduleName: modules.find((m) => m.id === d.moduleId)?.name ?? null }))} />
         </TabsContent>
         <TabsContent value="steps">
           <MicroStepsPanel aiEnabled={aiEnabled || process.env.LIFEOS_FAKE_AI === "1"} docs={docs.filter((d) => d.status === "EMBEDDED").map((d) => ({ id: d.id, title: d.title }))} />

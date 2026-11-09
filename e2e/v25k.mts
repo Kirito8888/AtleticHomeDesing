@@ -221,6 +221,46 @@ const longLine = psql(`select count(*) from "DocumentChunk" c join "StudyDocumen
 if (longLine !== "0") errors.push("el repaso final editado no se recortó a 15 palabras");
 log("informe editado: se guarda con mi texto y la viñeta larga se recorta");
 
+// 7 · N2: crear flashcards desde Resumir (mazo elegido, confirmación con cifras, sin duplicar)
+const cardsIn = (deck: string) => Number(psql(`select count(*) from "Flashcard" f join "FlashcardDeck" d on d.id=f."deckId" where d."userId"='${uid}' and d.name='${deck}'`));
+const DECK = "Metabolismo N2";
+await page.getByRole("radiogroup", { name: "Formato" }).getByRole("radio", { name: "Esquema visual" }).click();
+await page.getByRole("radiogroup", { name: "Formato" }).getByRole("radio", { name: "Resumen TDAH" }).click();
+await page.getByRole("button", { name: "Generar" }).click();
+await page.getByTestId("adapt-summary").waitFor();
+const open = page.getByTestId("adapt-cards");
+if (!(await open.count())) {
+  errors.push("N2: no aparece «Crear flashcards» en el resumen (¿sin negritas en el resumen simulado?)");
+} else {
+  await minH(open, "«Crear flashcards»");
+  await open.click();
+  await page.getByTestId("cards-form").waitFor();
+  await page.getByLabel("Mazo de destino").selectOption("__other__");
+  await page.getByLabel("Nombre del mazo").fill(DECK);
+  await noOverflow("crear flashcards");
+  await minH(page.getByTestId("cards-review"), "«Revisar»");
+  await page.getByTestId("cards-review").click();
+  const dlg = page.getByRole("alertdialog");
+  await dlg.waitFor();
+  const txt = (await dlg.textContent()) ?? "";
+  const nNew = Number(/Crear (\d+)/.exec(txt)?.[1] ?? 0);
+  if (!nNew || !/0 se descartan/.test(txt)) errors.push(`N2: el diálogo no indica cuántas se crean/descartan: ${txt}`);
+  if (cardsIn(DECK) !== 0) errors.push("N2: se escribió antes de confirmar");
+  await dlg.getByRole("button", { name: "Cancelar" }).click();
+  if (cardsIn(DECK) !== 0) errors.push("N2: cancelar creó tarjetas");
+  await page.getByTestId("cards-review").click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Crear" }).click();
+  await toast(/flashcards creadas/);
+  if (cardsIn(DECK) !== nNew) errors.push(`N2: se esperaban ${nNew} tarjetas y hay ${cardsIn(DECK)}`);
+  // repetir: todas duplicadas, no se crea nada
+  await page.getByTestId("adapt-cards").click();
+  await page.getByLabel("Mazo de destino").selectOption(DECK);
+  await page.getByTestId("cards-review").click();
+  await toast(/ya están/);
+  if (cardsIn(DECK) !== nNew) errors.push("N2: la segunda vez duplicó tarjetas");
+  log(`N2: ${nNew} flashcards desde Resumir en «${DECK}»; repetir no duplica`);
+}
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));
