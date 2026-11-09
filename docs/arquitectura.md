@@ -192,7 +192,7 @@ Escala (27/10/2026): 125 modelos Prisma, 252 rutas `route.ts` y 88 páginas.
 
 ## Auditoría de rendimiento (27/10/2026)
 
-Auditoría **estática** (lectura del código, sin medir): los impactos son estimaciones por forma de la consulta, no tiempos. **Resueltos en Optimización B1 (marcados ✅):** O1, O2, O6, O7, O8 (objetivos/material), O12; el resto sigue sin corregir; el plan de ataque resumido está en [`estado.md`](estado.md) § Plan de Optimización. Los IDs `O1…` son los mismos en ambos documentos. Antes de arreglar cada uno hay que **medir** (contar consultas como en el B5 de la v2.5; TTFB en `ttfb-v2-4.md`).
+Auditoría **estática** (lectura del código, sin medir): los impactos son estimaciones por forma de la consulta, no tiempos. **Resueltos en Optimización B1 (marcados ✅):** O1, O2, O6, O7, O8 (objetivos/material; resumen diario en v2.8.0 B4), O9 (v2.8.0 B4), O12; el resto sigue sin corregir; el plan de ataque resumido está en [`estado.md`](estado.md) § Plan de Optimización. Los IDs `O1…` son los mismos en ambos documentos. Antes de arreglar cada uno hay que **medir** (contar consultas como en el B5 de la v2.5; TTFB en `ttfb-v2-4.md`).
 
 ### Fase 1 · Backend de alto impacto
 | ID | Dónde | Problema | Arreglo propuesto |
@@ -208,8 +208,8 @@ Auditoría **estática** (lectura del código, sin medir): los impactos son esti
 |---|---|---|---|
 | O6 ✅ | `ai/flashcards.ts:132-140` (`dueCounts`, portada) | Carga **todas** las tarjetas visibles con su repaso solo para contar las pendientes. | `COUNT` en SQL con `LEFT JOIN` a `FlashcardReview`, agrupado por mazo (existe el índice `(userId, dueAt)`). |
 | O7 ✅ | `finance/service.ts:303-311` (`budgetsStatus`, portada) | Un `posting.aggregate` con 3 tablas por cada presupuesto activo. | Un `groupBy` por ventana de periodo, como ya hace `monthlyBudgetView` (`budgets-service.ts:26`). |
-| O8 ✅ (parcial: objetivos y material) | `goals/service.ts:43-48`, `training/equipment-service.ts:17-47`, `scheduler.ts:154-158` | Una consulta por objetivo (hasta 50, también los terminados) y por material (incluido el retirado); el resumen diario reexplora cada hora a quien no tiene nada que avisar. | Calcular solo lo abierto, agrupar por tipo y guardar la clave `digest:` aunque no haya aviso. |
-| O9 | `components/study/documents-panel.tsx:51-55` + `app/(app)/study/(index)/page.tsx:32-45` | Mientras un apunte está PENDING/PROCESSING se hace `router.refresh()` **cada 3 s**: cada vez se ejecutan `aiAvailable` + 7 consultas (incluida la suma de cuota) de las 8 pestañas. | Sondear un endpoint pequeño de estado y refrescar solo si cambia; cargar los datos por pestaña (`?tab=` ya se lee). |
+| O8 ✅ (objetivos, material y resumen diario; este último en v2.8.0 B4: 1+3N → 3 consultas) | `goals/service.ts:43-48`, `training/equipment-service.ts:17-47`, `scheduler.ts:154-158` | Una consulta por objetivo (hasta 50, también los terminados) y por material (incluido el retirado); el resumen diario reexplora cada hora a quien no tiene nada que avisar. | Calcular solo lo abierto, agrupar por tipo y guardar la clave `digest:` aunque no haya aviso. |
+| O9 ✅ (v2.8.0 B4: sondeo de `/api/ai/documents/status`) | `components/study/documents-panel.tsx:51-55` + `app/(app)/study/(index)/page.tsx:32-45` | Mientras un apunte está PENDING/PROCESSING se hace `router.refresh()` **cada 3 s**: cada vez se ejecutan `aiAvailable` + 7 consultas (incluida la suma de cuota) de las 8 pestañas. | Sondear un endpoint pequeño de estado y refrescar solo si cambia; cargar los datos por pestaña (`?tab=` ya se lee). |
 
 ### Fase 3 · Índices (irían en la migración de la versión siguiente; solo aditivos)
 La migración `v2_5_features` ya añadió `@@index([userId])` en nueve modelos (StudyModule, StudyTopic, CalendarFeed, HabitLog, PlanFeedback, PrehabLog, ReturnProtocol, RoutineTest, SharedReport) más `StudyTopic(moduleId)` y `StudyDocument(moduleId)`. Quedan sin cubrir:

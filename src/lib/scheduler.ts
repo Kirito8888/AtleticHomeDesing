@@ -5,7 +5,7 @@ import { addDays, dateOnly, localDay, startOfIsoWeek, today, toIsoDay } from "@/
 import { formatEur, formatTime } from "@/lib/format";
 import { env } from "@/lib/env";
 import { runDueSubscriptions } from "@/lib/finance/service";
-import { subscriptionAlerts } from "@/lib/finance/season-service";
+import { chargedAlertsByUser } from "@/lib/finance/season-service";
 import { pruneExpiredDemos } from "@/lib/demo/service";
 import { backupAlert, checkIntegrity } from "@/lib/admin/ops";
 import { pruneRateLimits } from "@/lib/rate-limit-db";
@@ -150,6 +150,8 @@ export async function runDailyDigestJob(hour = madridHour()): Promise<number> {
       subscriptions: { where: { isActive: true, nextChargeDate: tomorrow }, select: { name: true, amountCents: true } },
     },
   });
+  // v2.8.0 B4 (O8) · las subidas de precio de todos a la vez (2 consultas), no 3 por persona
+  const priceRises = await chargedAlertsByUser(users.map((u) => u.id), toIsoDay(day));
   let sent = 0;
   for (const u of users) {
     const parts: string[] = [];
@@ -161,7 +163,7 @@ export async function runDailyDigestJob(hour = madridHour()): Promise<number> {
       parts.push(`mañana se cobra ${u.subscriptions.map((s) => `${s.name} ${formatEur(s.amountCents)}`).join(", ")}`);
     }
     // v1.7 · subidas de precio detectadas en los cargos (una vez al día, mientras no se actualice el importe)
-    const rises = (await subscriptionAlerts(u.id, toIsoDay(day))).charged;
+    const rises = priceRises.get(u.id) ?? [];
     if (rises.length) parts.push(`${rises.map((r) => r.name).join(", ")} te cobra más que antes`);
     if (!parts.length) continue;
     const ok = await notifyOnce(u.id, `digest:${toIsoDay(day)}`, {
