@@ -49,6 +49,13 @@ log("sesión iniciada y navegación normal");
 
 // 2. Ruta protegida: pasa hasta el límite y luego 429 con Retry-After (contador en la BD)
 const req = (ip: string) => ctx.request.get(`${B}/api/shared/health/token-falso-e2e`, { headers: { "x-forwarded-for": ip } });
+// El límite es de ventana fija alineada al reloj (LIMITS.sharedReport.windowMs = 60 min): si las peticiones cruzaran
+// un corte de hora, el contador volvería a 0 y no habría 429. Se espera a pasar el corte si está a menos de 60 s.
+{
+  const WINDOW_MS = 60 * 60_000;
+  const left = WINDOW_MS - (Date.now() % WINDOW_MS);
+  if (left < 60_000) await new Promise((r) => setTimeout(r, left + 1000));
+}
 let blocked = 0;
 let retry = "";
 for (let i = 1; i <= LIMIT + 2; i++) {
