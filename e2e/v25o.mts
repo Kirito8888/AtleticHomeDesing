@@ -31,6 +31,10 @@ await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/login")), pag
 
 await page.goto(B + "/study?tab=manual");
 await page.getByRole("tab", { name: "Manual PDF" }).waitFor();
+// Entrada por URL con ?tab=: se espera a que el panel lazy esté montado e hidratado antes de interactuar
+await page.getByRole("tab", { name: "Manual PDF" }).and(page.locator('[aria-selected="true"]')).waitFor();
+await page.getByRole("tabpanel").first().waitFor();
+await page.waitForLoadState("networkidle");
 await page.getByRole("radio", { name: "Texto" }).click();
 const btn = page.getByRole("button", { name: "Generar manual práctico PDF" });
 if (!(await btn.isDisabled())) errors.push("el botón debía estar desactivado sin texto");

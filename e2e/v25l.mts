@@ -50,6 +50,10 @@ const NOTES =
 await page.clock.install();
 await page.goto(B + "/study?tab=steps");
 await page.getByRole("tab", { name: "Pasos" }).waitFor();
+// Entrada por URL con ?tab=: se espera a que el panel lazy esté montado e hidratado antes de interactuar
+await page.getByRole("tab", { name: "Pasos" }).and(page.locator('[aria-selected="true"]')).waitFor();
+await page.getByRole("tabpanel").first().waitFor();
+await page.waitForLoadState("networkidle");
 await noOverflow("/study (pestañas)");
 log("pestaña «Pasos» visible, sin desborde");
 
