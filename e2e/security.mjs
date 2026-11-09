@@ -104,6 +104,11 @@ const alertText = (page) => page.locator("p[role=alert]").first().textContent({ 
 
 // 2. Límite por IP: 10 intentos / 15 min, aunque cada uno use un email distinto
 {
+  // El límite es de ventana fija alineada al reloj (LIMITS.login.windowMs = 15 min: cortes en :00/:15/:30/:45).
+  // Si las 11 peticiones cruzaran un corte, el contador volvería a 0 y el intento 11 no se limitaría.
+  const WINDOW_MS = 15 * 60_000;
+  const left = WINDOW_MS - (Date.now() % WINDOW_MS);
+  if (left < 60_000) await new Promise((r) => setTimeout(r, left + 1000));
   const page = await newPage();
   for (let i = 0; i < 10; i++) {
     await login(page, `nadie${i}-${run}@test.dev`, "x");

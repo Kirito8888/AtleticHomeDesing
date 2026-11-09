@@ -314,7 +314,7 @@ cd <RUTA_DE_LA_APP>
 
 **Comprobar:** *Estado del servidor* muestra la versión 2.7.0; con IA local, `dc logs web --since 10m | grep "ia:"` muestra `ia: proveedor local` tras usar la IA.
 
-Guía técnica paso a paso: [`docs/migracion-v2-6-a-v2-7.md`](docs/migracion-v2-6-a-v2-7.md). De v2.5 a v2.6: [`docs/migracion-v2-5-a-v2-6.md`](docs/migracion-v2-5-a-v2-6.md).
+Guía técnica de v2.7 a v2.8 (sin migraciones): [`docs/migracion-v2-7-a-v2-8.md`](docs/migracion-v2-7-a-v2-8.md). De v2.6 a v2.7: [`docs/migracion-v2-6-a-v2-7.md`](docs/migracion-v2-6-a-v2-7.md). De v2.5 a v2.6: [`docs/migracion-v2-5-a-v2-6.md`](docs/migracion-v2-5-a-v2-6.md).
 
 #### De v2.4 a v2.5 (finanzas, estudio TDAH y seguridad)
 
