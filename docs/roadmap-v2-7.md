@@ -18,23 +18,23 @@
 5. Se mantienen las reglas fijas: salud cifrada y Strava fuera de la IA y de la entrenadora; nada escribe en el plan sin confirmar; repo público.
 6. El cierre de cada versión (`e2e.sh all`, `test-migration.sh`, Semgrep, licencias, CHANGELOG, guía, manual «De vX a vY», PR) es una sesión aparte, no cuenta en los 4 bloques.
 
-## Hito 0 · Validar v2.6 en real (puerta previa, sin versión)
+## Hito 0 · Validar v2.6 en real (puerta previa, sin versión) · ✅ CERRADO (08/11/2026)
 Tiempo de la usuaria; solo genera parches si algo falla.
 
 | ID | Qué | Cómo se da por hecho |
 |---|---|---|
-| S5 | Construir la imagen Docker con Chromium | La ruta del manual PDF responde 200, no 503 · **07/11: Chromium presente y imagen construida; falta solo la prueba manual con sesión** |
+| S5 ✅ (08/11/2026) | Construir la imagen Docker con Chromium | La ruta del manual PDF responde 200, no 503 · validado en el servidor (200) |
 | S9 ✅ (07/11/2026) | Aplicar `v2_6_study_pack` en el servidor real | `migrate status` al día y `/study/modules/…` sin error (comprobación en `docs/migracion-v2-5-a-v2-6.md`) · tablas y migración confirmadas con `verify-hito-0.sh` |
-| S4 (sustituido) | Generar un paquete de tema con Gemini real → **ahora, con la IA local** (`LOCAL_AI_ONLY=true`, hoy apagada) | Revisar los `log.warn` con `code` (`ai_empty`, motivo); anotar citas literales, distractores y límites del nivel gratuito (`STUDY_PACK_MIN_INTERVAL_MS=4000`) |
+| S4 ✅ (08/11/2026, sustituido) | Generar un paquete de tema con Gemini real → **ahora, con la IA local** (`LOCAL_AI_ONLY=true`, hoy apagada) | Revisar los `log.warn` con `code` (`ai_empty`, motivo); anotar citas literales, distractores y límites del nivel gratuito (`STUDY_PACK_MIN_INTERVAL_MS=4000`) |
 | S6 ✅ (07/11/2026) | Primer `--dry-run` de ops, `verify-backup.sh --restore-test`, `check-backups.sh` | Copia restaurada y registro en `BackupRun` · `check-backups.sh`: copias al día |
-| S7 (pendiente) | Revisar `UPLOAD_QUOTA_MB` del `.env` del servidor | Valor que la usuaria quiere (200 manda sobre 5 120) |
-| C1 (pendiente) | Decidir «Sugerir fotogramas» | Recomendado: retirar de la UI y dejar el código apagado |
+| S7 ✅ (08/11/2026) | Revisar `UPLOAD_QUOTA_MB` del `.env` del servidor | Valor que la usuaria quiere (200 manda sobre 5 120) · revisado en producción |
+| C1 ✅ (08/11/2026) | Decidir «Sugerir fotogramas» | Retirado de la UI del medidor; `jump-detect.ts` y `jump-scan.ts` se conservan sin usar. Marcado manual intacto · `e2e:salto` |
 
 ## Parches v2.6.x opcionales (cada uno, un bloque pequeño, sin migración)
 | Parche | Contenido | Pruebas |
 |---|---|---|
 | v2.6.1 | C2 endurecer la espera de `v25d`; C3 `v20b` con fecha de Madrid; C7 espera en E2E que entran por `?tab=` | `v25d`, `v20b`, `v25k`, `v25l`, `v25o` |
-| v2.6.2 | C1 retirar «Sugerir fotogramas» de la UI (si la usuaria lo decide) | `salto` |
+| v2.6.2 | C1 retirar «Sugerir fotogramas» de la UI ✅ hecho (08/11/2026, fuera de versión) | `salto` |
 
 ## Bloques de IA local (L1–L4 · propuesta; nacen de la IA local ya fusionada, PR #120)
 Contexto: `docs/estado.md` § «IA local primero». La usuaria usa **solo su servidor de IA local** de momento. Sin migración; cada uno es un parche pequeño que se puede fusionar solo. Qué versión llevan lo decide la usuaria.
