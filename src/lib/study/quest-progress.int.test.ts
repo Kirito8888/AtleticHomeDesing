@@ -8,6 +8,7 @@ vi.mock("@/lib/auth/session", async (orig) => ({ ...(await orig<typeof import("@
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 const put = (id: string, body: unknown) => new NextRequest(`http://localhost/api/study/quest-progress/${id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+const del = (id: string) => new NextRequest(`http://localhost/api/study/quest-progress/${id}`, { method: "DELETE" });
 const get = (id: string) => new NextRequest(`http://localhost/api/study/quest-progress/${id}`);
 
 describe.skipIf(!HAS_DB)("progreso del juego (BD real)", () => {
@@ -62,6 +63,27 @@ describe.skipIf(!HAS_DB)("progreso del juego (BD real)", () => {
   it("aislamiento: no se lee ni se escribe el de otra usuaria", async () => {
     expect((await r.GET(get(otherMod), ctx(otherMod))).status).toBe(404);
     expect((await r.PUT(put(otherMod, { baseVersion: 0, state: {} }), ctx(otherMod))).status).toBe(404);
+    expect(await prisma.questProgress.count({ where: { moduleId: otherMod } })).toBe(0);
+  });
+  it("DELETE reinicia: estado vacío, versión +1 y un PUT con la versión anterior da 409", async () => {
+    const before = (await (await r.GET(get(mod), ctx(mod))).json()).version as number;
+    const res = await r.DELETE(del(mod), ctx(mod));
+    expect(res.status).toBe(200);
+    const j = await res.json();
+    expect(j.version).toBe(before + 1);
+    expect(j.state).toEqual({ xp: 0, lv: {}, fails: [], free: false, seen: true });
+    const stale = await r.PUT(put(mod, { baseVersion: before, state: { xp: 99, lv: {}, fails: [], free: false } }), ctx(mod));
+    expect(stale.status).toBe(409);
+    expect((await (await r.GET(get(mod), ctx(mod))).json()).state.xp).toBe(0);
+  });
+  it("DELETE sin fila crea la partida vacía en versión 1", async () => {
+    const m2 = (await prisma.studyModule.create({ data: { userId: me, name: "Redes" } })).id;
+    const j = await (await r.DELETE(del(m2), ctx(m2))).json();
+    expect(j.version).toBe(1);
+    expect(j.state.xp).toBe(0);
+  });
+  it("DELETE de la asignatura de otra usuaria → 404 y no toca nada", async () => {
+    expect((await r.DELETE(del(otherMod), ctx(otherMod))).status).toBe(404);
     expect(await prisma.questProgress.count({ where: { moduleId: otherMod } })).toBe(0);
   });
   it("body inválido → 400", async () => {

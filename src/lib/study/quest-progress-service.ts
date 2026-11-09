@@ -5,7 +5,7 @@ import { ApiError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { requireModule } from "@/lib/study/modules-service";
 import { sanitizeQuest } from "@/lib/study/quest-progress";
-import type { QuestState } from "@/lib/study/quest";
+import { freshQuest, type QuestState } from "@/lib/study/quest";
 
 export interface ProgressView {
   /** null = esta usuaria aún no ha guardado progreso de esta asignatura. */
@@ -45,4 +45,21 @@ export async function putProgress(userId: string, moduleId: string, input: { sta
   const upd = await prisma.questProgress.updateMany({ where: { userId, moduleId, version: input.baseVersion }, data: { state: state as object, version: { increment: 1 } } });
   if (!upd.count) throw await conflict();
   return { state, version: input.baseVersion + 1 };
+}
+
+/**
+ * «Reiniciar partida» (v2.8): deja la partida a cero sin mirar la versión (gana sobre cualquier otro dispositivo) y la sube en 1.
+ * No borra la fila: con versión 0 un dispositivo ya sincronizado volvería a subir su progreso local al abrir el mapa.
+ *
+ * @throws {ApiError} 404 asignatura ajena.
+ */
+export async function resetProgress(userId: string, moduleId: string): Promise<ProgressView> {
+  await requireModule(userId, moduleId);
+  const state = freshQuest();
+  const row = await prisma.questProgress.upsert({
+    where: { userId_moduleId: { userId, moduleId } },
+    create: { userId, moduleId, state: state as object, version: 1 },
+    update: { state: state as object, version: { increment: 1 } },
+  });
+  return { state, version: row.version };
 }
