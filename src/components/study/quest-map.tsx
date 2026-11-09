@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
+import { toast } from "sonner";
 
 import { PALETTE } from "@/components/study/quest/palette";
 import { useQuestStore } from "@/components/study/quest/use-quest-store";
@@ -10,7 +11,7 @@ import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { formatDateTime, formatDec, formatInt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { TAG_EMOJI, type Tag } from "@/lib/study/adhd-report";
-import { BOSS_ID, buildQuestMap, currentIndex, emptyQuest, FINAL_ID, isUnlocked, maxStars, rankFor, starsOf, totalStars, UNLOCK_STARS } from "@/lib/study/quest";
+import { BOSS_ID, buildQuestMap, currentIndex, FINAL_ID, isUnlocked, maxStars, rankFor, starsOf, totalStars, UNLOCK_STARS } from "@/lib/study/quest";
 
 const NODE_PROPS = {
   className:
@@ -20,7 +21,9 @@ const NODE_PROPS = {
 /** v2.5 · Modo Juego, partes 3 y 4: mapa de aventura con un nivel por tema; cada nodo desbloqueado abre la partida. */
 export function QuestMap({ moduleId, moduleName, topics }: { moduleId: string; moduleName: string; topics: { id: string; name: string; tag: Tag; minutes: number }[] }) {
   // Partida en localStorage sincronizada con el servidor (en el servidor de render es la partida vacía, sin romper la hidratación).
-  const [s, save] = useQuestStore(moduleId);
+  const [s, save, reset] = useQuestStore(moduleId);
+  const [howOpen, setHowOpen] = useState(false);
+  const howRef = useRef<HTMLElement>(null);
   const nodes = useMemo(() => buildQuestMap(topics), [topics]);
   const [view, setView] = useState<"map" | "appeals">("map");
 
@@ -121,36 +124,61 @@ export function QuestMap({ moduleId, moduleName, topics }: { moduleId: string; m
         <button type="button" aria-pressed={s.free} onClick={() => save({ ...s, free: !s.free })} className={cn(btn, "border-[var(--q-line)] bg-transparent")}>
           {s.free ? "🔓 Modo libre: ON" : "🔒 Modo libre: OFF"}
         </button>
-        <button type="button" onClick={() => save({ ...s, seen: false })} className={cn(btn, "border-[var(--q-line)] bg-transparent")}>
+        <button
+          type="button"
+          data-testid="quest-how-open"
+          aria-expanded={!s.seen || howOpen}
+          aria-controls="quest-how"
+          onClick={() => {
+            setHowOpen(true);
+            setTimeout(() => howRef.current?.focus(), 0);
+          }}
+          className={cn(btn, "border-[var(--q-line)] bg-transparent")}
+        >
           ❓ Cómo se juega
         </button>
         <button
           type="button"
           data-testid="quest-reset"
           onClick={async () => {
-            if (await confirmDialog({ title: "¿Reiniciar la partida de esta asignatura?", description: "Se borran estrellas, XP, mazmorra, apelaciones e historial de exámenes. No se puede deshacer.", confirmLabel: "Reiniciar", destructive: true })) save({ ...emptyQuest(), seen: true });
+            if (
+              await confirmDialog({
+                title: "¿Reiniciar la partida de esta asignatura?",
+                description: "Se borran estrellas, XP, mazmorra, apelaciones e historial de exámenes, en este dispositivo y en tu cuenta (todos tus dispositivos). No se puede deshacer.",
+                confirmLabel: "Reiniciar partida",
+                destructive: true,
+              })
+            ) {
+              setHowOpen(false);
+              if (!(await reset())) toast.info("Se reinició en este dispositivo; se sincronizará al volver la conexión.");
+            }
           }}
-          className={cn(btn, "border-[var(--q-line)] bg-transparent")}
+          className={cn(btn, "border-[var(--q-bad)] bg-transparent")}
         >
-          ↺ Reiniciar
+          ↺ Reiniciar partida
         </button>
       </div>
 
-      {!s.seen ? (
-        <section aria-label="Cómo se juega" className="mb-4 rounded-2xl border-2 border-[var(--q-gold)] bg-[var(--q-panel)] p-4 text-sm leading-relaxed" data-testid="quest-how">
+      {!s.seen || howOpen ? (
+        <section id="quest-how" ref={howRef} tabIndex={-1} aria-label="Cómo se juega" className="mb-4 rounded-2xl border-2 border-[var(--q-gold)] bg-[var(--q-panel)] p-4 text-sm leading-relaxed" data-testid="quest-how">
           <b className="text-[17px]">Cómo se juega</b>
           <ul className="mt-2 grid gap-1.5">
             <li>• Cada <b>nivel</b> es un tema: preguntas de <b>teoría</b> (test, teclas 1–4), de <b>desarrollo</b> (te autocorriges con una rúbrica) y <b>prácticas</b> donde escribes el comando en una terminal.</li>
             <li>• Tienes <b>3 ❤️</b> por nivel. Cada fallo quita una; con 0, game over.</li>
             <li>• <b>★ 60 % · ★★ 80 % · ★★★ 100 %</b>. Necesitas ★★ para desbloquear el siguiente nivel.</li>
             <li>• <b>Pista</b> = enseña el inicio del comando, pero el acierto vale la mitad. <b>No lo sé</b> = te enseña la solución y cuenta como fallo.</li>
+            <li>• <b>Combo</b>: los aciertos seguidos suman; desde ×3 ganas +5 XP extra por acierto. Un fallo lo rompe.</li>
             <li>• Todo lo que fallas va a la <b>💀 Mazmorra de fallos</b>. Vacíala: ahí está tu 10.</li>
             <li>• El <b>Jefe</b> mezcla los temas y no tiene pistas. El <b>Examen final</b> es un simulacro cronometrado con nota sobre 10.</li>
             <li>• Se aceptan <b>formas equivalentes</b> de un comando: opciones en otro orden, juntas o separadas, largas o cortas, con o sin <code>sudo</code>, con o sin comillas.</li>
             <li>• Si estás seguro de que tu comando también vale, pulsa <b>⚖️ Mi comando también vale</b>: cuenta como acierto y queda en <b>Apelaciones</b> para que lo pruebes en la máquina virtual.</li>
             <li>• <b>Modo libre</b> desbloquea todo, para repasar un tema concreto la víspera.</li>
           </ul>
-          <button type="button" onClick={() => save({ ...s, seen: true })} data-testid="quest-how-ok" className={cn(btn, "mt-3 border-[var(--q-lin)] bg-[#12452e]")}>
+          <button type="button" onClick={() => {
+              setHowOpen(false);
+              if (!s.seen) save({ ...s, seen: true });
+            }}
+            data-testid="quest-how-ok" className={cn(btn, "mt-3 border-[var(--q-lin)] bg-[#12452e]")}>
             ¡Entendido, a jugar!
           </button>
         </section>

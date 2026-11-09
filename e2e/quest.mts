@@ -222,6 +222,51 @@ await page.waitForURL(/mode=dungeon/);
 await page.getByTestId("quest-start").waitFor();
 log("estrellas, XP y mazmorra desde el progreso guardado");
 
+// 5b · v2.8 N5: «Cómo se juega» bajo demanda (sin tocar la partida guardada) y «Reiniciar partida» con confirmación (local + servidor)
+await page.goto(`${B}/study/modules/${mid}/quest`);
+await page.getByTestId("quest").waitFor();
+await page.waitForFunction(() => document.querySelector("[data-testid=quest-xp]")?.textContent?.trim() === "150", undefined, { timeout: 10_000 });
+const how = page.getByTestId("quest-how");
+// primera visita (el estado sembrado no tiene `seen`): se abre solo; «Entendido» lo cierra y no vuelve tras recargar
+await how.waitFor({ timeout: 8000 }).catch(() => errors.push("N5: el tutorial no se abre en la primera visita"));
+await page.getByTestId("quest-how-ok").click();
+await page.reload();
+await page.getByTestId("quest").waitFor();
+await page.waitForTimeout(800);
+if (await how.count()) errors.push("N5: el tutorial reaparece tras «Entendido»");
+const howBtn = page.getByTestId("quest-how-open");
+await minH(howBtn, "botón Cómo se juega");
+await howBtn.click();
+await how.waitFor();
+if ((await howBtn.getAttribute("aria-expanded")) !== "true") errors.push("N5: aria-expanded del tutorial");
+if (!/Combo/.test(await how.innerText())) errors.push("N5: el tutorial no explica el combo");
+await page.getByTestId("quest-how-ok").click();
+if (await how.count()) errors.push("N5: «Entendido» no cierra el tutorial");
+const serverState = () => JSON.parse(psql(`select state::text from "QuestProgress" where "userId"='${uid}' and "moduleId"='${mid}'`)) as { xp: number; lv: object; fails: string[]; seen?: boolean };
+const resetBtn = page.getByTestId("quest-reset");
+await minH(resetBtn, "botón Reiniciar partida");
+// cancelar no toca nada
+await resetBtn.click();
+await page.getByRole("button", { name: "Cancelar" }).click();
+if ((await page.getByTestId("quest-xp").innerText()).trim() !== "150") errors.push("N5: cancelar el reinicio cambió la partida");
+// confirmar: a cero aquí y en el servidor
+await resetBtn.click();
+await page.getByRole("button", { name: "Reiniciar partida" }).last().click();
+await page.waitForFunction(() => document.querySelector("[data-testid=quest-xp]")?.textContent?.trim() === "0", undefined, { timeout: 10_000 });
+const d3 = await nodes.evaluateAll((els) => els.map((e) => !!(e as HTMLButtonElement).disabled));
+if (d3.join() !== "false,true,true,true") errors.push(`N5: tras reiniciar solo el nivel 1 debe estar abierto: ${d3.join()}`);
+if ((await page.getByTestId("quest-how").count()) !== 0) errors.push("N5: reiniciar no debe reabrir el tutorial");
+await page.waitForTimeout(500);
+const loc = await page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? "{}"), key);
+if (loc.xp !== 0 || Object.keys(loc.lv ?? {}).length || loc.fails?.length) errors.push(`N5: localStorage no quedó a cero: ${JSON.stringify(loc)}`);
+const srv = serverState();
+if (srv.xp !== 0 || Object.keys(srv.lv).length || srv.fails.length) errors.push(`N5: el servidor no quedó a cero: ${JSON.stringify(srv)}`);
+await page.reload();
+await page.getByTestId("quest").waitFor();
+await page.waitForTimeout(1000);
+if ((await page.getByTestId("quest-xp").innerText()).trim() !== "0") errors.push("N5: tras recargar la partida volvió");
+log("tutorial bajo demanda y reiniciar partida (local + servidor)");
+
 // 6 · el estado no se comparte con otra asignatura
 const mid2 = `mod2${stamp}`;
 psql(`insert into "StudyModule"(id,"userId",name,"updatedAt") values ('${mid2}','${uid}','Otra',now())`);

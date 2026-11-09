@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
-import { getProgress, putProgress } from "@/lib/study/quest-progress-service";
+import { getProgress, putProgress, resetProgress } from "@/lib/study/quest-progress-service";
 
 /**
  * `GET /api/study/quest-progress/[moduleId]` · Progreso del Modo Juego de la usuaria en esa asignatura:
@@ -29,4 +29,17 @@ export const PUT = route(async (req, ctx: RouteContext<"/api/study/quest-progres
   const user = await requireUser();
   const { moduleId } = await ctx.params;
   return putProgress(user.id, moduleId, await parseBody(req, putBody));
+});
+
+/**
+ * `DELETE /api/study/quest-progress/[moduleId]` · «Reiniciar partida»: vacía el progreso (0 XP, sin estrellas, solo el nivel 1 abierto)
+ * sin control de versión y sube la versión, así los demás dispositivos sincronizados adoptan la partida vacía al abrir.
+ *
+ * - Salida: 200 `{ state, version }`.
+ * - Errores: 401 · 403 origen/condiciones · 404 asignatura no suya.
+ */
+export const DELETE = route(async (_req, ctx: RouteContext<"/api/study/quest-progress/[moduleId]">) => {
+  const user = await requireUser();
+  const { moduleId } = await ctx.params;
+  return resetProgress(user.id, moduleId);
 });

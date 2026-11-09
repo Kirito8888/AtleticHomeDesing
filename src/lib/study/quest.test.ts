@@ -5,6 +5,7 @@ import {
   buildQuestMap,
   currentIndex,
   emptyQuest,
+  freshQuest,
   isUnlocked,
   maxStars,
   parseQuest,
@@ -128,5 +129,15 @@ describe("parseQuest", () => {
   it("xp negativa o no numérica → 0", () => {
     expect(parseQuest(JSON.stringify({ xp: -5 })).xp).toBe(0);
     expect(parseQuest(JSON.stringify({ xp: "100" })).xp).toBe(0);
+  });
+});
+
+describe("freshQuest (reiniciar partida)", () => {
+  it("0 XP, sin niveles ni fallos, tutorial visto y solo el nivel 1 abierto", () => {
+    const s = freshQuest();
+    expect(s).toEqual({ xp: 0, lv: {}, fails: [], free: false, seen: true });
+    expect(currentIndex(nodes, s)).toBe(0);
+    expect(totalStars(nodes, s)).toBe(0);
+    expect(nodes.map((_, i) => isUnlocked(nodes, i, s))).toEqual([true, false, false, false]);
   });
 });

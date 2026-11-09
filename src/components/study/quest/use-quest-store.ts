@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
 
-import { emptyQuest, parseQuest, questKey, type QuestState } from "@/lib/study/quest";
+import { emptyQuest, freshQuest, parseQuest, questKey, type QuestState } from "@/lib/study/quest";
 import { hasProgress, mergeQuest, sanitizeQuest } from "@/lib/study/quest-progress";
 
 const EVENT = "atlenza-quest";
@@ -126,10 +126,34 @@ async function pull(id: string): Promise<void> {
 }
 
 /**
+ * «Reiniciar partida» (v2.8): deja la partida a cero aquí y en el servidor (`DELETE`, sin control de versión). Un envío anterior
+ * aún en vuelo choca (409) y se une con el servidor ya vacío. Sin red devuelve `false`: queda pendiente y se envía con el
+ * siguiente cambio (por versión, así que si otro dispositivo guardó entretanto se unirán sus progresos).
+ */
+export async function resetQuest(id: string): Promise<boolean> {
+  clearTimeout(timers.get(id));
+  timers.delete(id);
+  writeLocal(id, freshQuest());
+  try {
+    const res = await fetch(url(id), { method: "DELETE" });
+    if (res.ok) {
+      const j = (await res.json()) as { version: number };
+      writeMeta(id, { version: j.version, dirty: false });
+      return true;
+    }
+  } catch {
+    /* sin conexión: se envía como un cambio normal */
+  }
+  writeMeta(id, { version: readMeta(id)?.version ?? 0, dirty: true });
+  schedule(id);
+  return false;
+}
+
+/**
  * Estado de la partida de una asignatura: copia en localStorage (en el servidor es la partida vacía, sin romper la hidratación)
  * sincronizada con el servidor. Cada cambio se guarda al momento en local y se envía en segundo plano.
  */
-export function useQuestStore(moduleId: string): [QuestState, (next: QuestState) => void] {
+export function useQuestStore(moduleId: string): [QuestState, (next: QuestState) => void, () => Promise<boolean>] {
   const key = questKey(moduleId);
   const raw = useSyncExternalStore(
     subscribe,
@@ -159,5 +183,6 @@ export function useQuestStore(moduleId: string): [QuestState, (next: QuestState)
     },
     [moduleId],
   );
-  return [state, save];
+  const reset = useCallback(() => resetQuest(moduleId), [moduleId]);
+  return [state, save, reset];
 }

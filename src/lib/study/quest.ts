@@ -46,6 +46,8 @@ export interface ExamAttempt {
 export const MAX_APPEALS = 100;
 export const MAX_EXAMS = 20;
 export const emptyQuest = (): QuestState => ({ xp: 0, lv: {}, fails: [], free: false });
+/** Partida a cero tras «Reiniciar partida» (v2.8): sin progreso y con el tutorial ya visto. */
+export const freshQuest = (): QuestState => ({ ...emptyQuest(), seen: true });
 
 export interface QuestNode {
   id: string;
