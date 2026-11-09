@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { fakeReport, normalizeReport, reportSchema, reportToMarkdown, type ReportDoc } from "@/lib/study/adhd-report";
+import { fakeReport, normalizeReport, parseReportMarkdown, reportSchema, reportToMarkdown, type ReportDoc } from "@/lib/study/adhd-report";
 import { clip, parseBold, sentences, stripBold } from "@/lib/study/bold-text";
 
 export { clip, parseBold, sentences, stripBold };
@@ -177,6 +177,100 @@ export function toMarkdown(d: AdaptDoc): string {
   const lines: string[] = [];
   outlineLines(d.doc.root, 0, lines);
   return `# ${d.doc.title}\n\n${lines.join("\n")}\n`;
+}
+
+// ---------------------------------------------------------------- edición (N1): Markdown → documento
+
+const lines = (md: string) => md.replace(/\r\n?/g, "\n").split("\n");
+
+/** Lee el Markdown de `toMarkdown` (resumen), tolerante a lo que la atleta edite. */
+export function parseSummaryMarkdown(md: string): SummaryDoc {
+  let title = "";
+  let oneLiner = "";
+  const sections: SummaryDoc["sections"] = [];
+  const remember: string[] = [];
+  let cur: { heading: string; paras: string[]; buf: string[] } | null = null;
+  const flush = () => {
+    if (!cur?.buf.length) return;
+    cur.paras.push(cur.buf.join(" "));
+    cur.buf = [];
+  };
+  const close = () => {
+    flush();
+    if (cur && cur.heading !== "Recuerda" && cur.paras.length) sections.push({ heading: cur.heading, blocks: cur.paras });
+    cur = null;
+  };
+  for (const raw of lines(md)) {
+    const l = raw.trim();
+    let m: RegExpMatchArray | null;
+    if ((m = l.match(/^#\s+(.+)$/))) title ||= m[1];
+    else if ((m = l.match(/^##\s+(.+)$/))) {
+      close();
+      cur = { heading: m[1].replace(/\*\*/g, "").trim(), paras: [], buf: [] };
+    } else if ((m = l.match(/^\*\*En una frase:\*\*\s*(.*)$/))) oneLiner ||= m[1];
+    else if (!l) flush();
+    else {
+      cur ??= { heading: "Notas", paras: [], buf: [] };
+      if (cur.heading === "Recuerda") {
+        const item = l.replace(/^[-*]\s+/, "").trim();
+        if (item) remember.push(item);
+      } else cur.buf.push(l);
+    }
+  }
+  close();
+  return { title, oneLiner, sections, remember };
+}
+
+/** Lee el Markdown de `toMarkdown` (esquema): lista anidada `- etiqueta — detalle`. */
+export function parseOutlineMarkdown(md: string): OutlineDoc {
+  let title = "";
+  const roots: OutlineNode[] = [];
+  const stack: Array<{ indent: number; node: OutlineNode }> = [];
+  for (const raw of lines(md)) {
+    const t = raw.match(/^(\s*)[-*]\s+(.+)$/);
+    if (!t) {
+      const h = raw.trim().match(/^#\s+(.+)$/);
+      if (h) title ||= h[1];
+      continue;
+    }
+    const indent = t[1].replace(/\t/g, "  ").length;
+    const [label, ...rest] = t[2].split(" — ");
+    const node: OutlineNode = { label: label.trim(), ...(rest.join(" — ").trim() ? { detail: rest.join(" — ").trim() } : {}) };
+    while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
+    const parent = stack[stack.length - 1]?.node;
+    if (parent) (parent.children ??= []).push(node);
+    else roots.push(node);
+    stack.push({ indent, node });
+  }
+  const root: OutlineNode = roots.length === 1 ? roots[0] : { label: title || "Esquema", children: roots };
+  return { title, root };
+}
+
+/**
+ * Convierte el Markdown editado de vuelta a documento y le impone otra vez los límites TDAH (recorta en silencio).
+ *
+ * @param fallback Documento original: aporta el modo y el título si la atleta lo borró.
+ * @returns El documento normalizado, o `null` si no queda contenido válido.
+ */
+export function fromMarkdown(md: string, fallback: AdaptDoc): AdaptDoc | null {
+  try {
+    let d: AdaptDoc;
+    if (fallback.mode === "report") {
+      const doc = parseReportMarkdown(md);
+      d = { mode: "report", doc: { ...doc, title: doc.title || fallback.doc.title } };
+    } else if (fallback.mode === "summary") {
+      const doc = parseSummaryMarkdown(md);
+      d = { mode: "summary", doc: { ...doc, title: doc.title || fallback.doc.title, oneLiner: doc.oneLiner || doc.sections[0]?.blocks[0] || "" } };
+    } else {
+      const doc = parseOutlineMarkdown(md);
+      d = { mode: "outline", doc: { title: doc.title || fallback.doc.title, root: doc.root } };
+    }
+    const n = normalizeDoc(d);
+    const ok = adaptDocSchema.safeParse(n);
+    return ok.success ? (ok.data as AdaptDoc) : null;
+  } catch {
+    return null;
+  }
 }
 
 export const MODE_LABEL: Record<AdaptMode, string> = { summary: "Resumen TDAH", outline: "Esquema visual", report: "Informe TDAH" };

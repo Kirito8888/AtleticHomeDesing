@@ -200,6 +200,139 @@ export function reportToMarkdown(d: ReportDoc): string {
   return `${out.join("\n\n")}\n`;
 }
 
+// ---------------------------------------------------------------- edición (N1): Markdown → informe
+
+type Topic = ReportDoc["topics"][number];
+const TAG_BY_EMOJI: Record<string, Tag> = { "🔴": "red", "🟡": "yellow", "⚪": "grey" };
+const TAG_RE = /^([^\p{L}\p{N}\s]+)?\s*/u;
+const unNum = (s: string) => s.replace(/^\d+\.\s*/, "").trim();
+const real = (s: string) => s.trim() && s.trim() !== NOT_IN_SOURCES;
+
+function parseTopic(head: string, body: string[]): Topic {
+  const em = head.match(TAG_RE)?.[1] ?? "";
+  const t: Topic = { name: head.replace(TAG_RE, "").trim(), tag: TAG_BY_EMOJI[em] ?? "grey", inThirty: [], concepts: [], commands: [], tables: [], traps: [] };
+  let sec = "";
+  let code: string[] | null = null;
+  let table: Topic["tables"][number] | null = null;
+  for (const raw of body) {
+    const l = raw.trim();
+    if (code) {
+      if (l.startsWith("```")) {
+        for (const g of code.join("\n").split(/\n\s*\n/)) {
+          const syntax: string[] = [];
+          let error: string | undefined;
+          let paths: string | undefined;
+          for (const x of g.split("\n")) {
+            if (/^#\s*Error:/i.test(x)) error = x.replace(/^#\s*Error:\s*/i, "");
+            else if (/^#\s*Ruta:/i.test(x)) paths = x.replace(/^#\s*Ruta:\s*/i, "");
+            else syntax.push(x);
+          }
+          if (syntax.join("").trim()) t.commands.push({ syntax: syntax.join("\n").trim(), ...(error ? { error } : {}), ...(paths ? { paths } : {}) });
+        }
+        code = null;
+      } else code.push(raw);
+      continue;
+    }
+    if (l.startsWith("```")) code = [];
+    else if (/^\*\*Mnemotecnia:\*\*/.test(l)) {
+      const m = l.replace(/^\*\*Mnemotecnia:\*\*\s*/, "");
+      if (real(m)) t.mnemonic = m;
+    } else if (/^\*\*[^*]+\*\*$/.test(l)) {
+      const name = l.slice(2, -2).trim();
+      sec = /^en 30 segundos$/i.test(name) ? "thirty" : /^conceptos clave$/i.test(name) ? "concepts" : /^trampas/i.test(name) ? "traps" : /^comandos/i.test(name) ? "cmd" : "table";
+      if (sec === "table") t.tables.push((table = { title: name, headers: [], rows: [] }));
+    } else if (l.startsWith("|") && sec === "table" && table) {
+      const cells = l.replace(/^\||\|$/g, "").split("|").map((c) => c.trim());
+      if (cells.every((c) => /^:?-+:?$/.test(c))) continue;
+      if (!table.headers.length) table.headers = cells;
+      else table.rows.push(cells);
+    } else if (/^[-*]\s+/.test(l)) {
+      const item = l.replace(/^[-*]\s+/, "");
+      if (!real(item)) continue;
+      if (sec === "thirty") t.inThirty.push(item);
+      else if (sec === "concepts") t.concepts.push(item);
+      else if (sec === "traps") t.traps.push(item);
+    }
+  }
+  t.tables = t.tables.filter((x) => x.headers.length);
+  return t;
+}
+
+/**
+ * Lee el Markdown de `reportToMarkdown` (editado a mano) y devuelve un informe SIN normalizar.
+ * Ignora lo derivado (plan de ataque, total, relleno «NO ESTÁ EN LAS FUENTES»); una etiqueta desconocida cuenta como ⚪.
+ */
+export function parseReportMarkdown(md: string): ReportDoc {
+  const all = md.replace(/\r\n?/g, "\n").split("\n");
+  let title = "";
+  const secs: Record<string, string[]> = {};
+  let key = "";
+  let fence = false;
+  for (const l of all) {
+    let m: RegExpMatchArray | null;
+    if (l.trim().startsWith("```")) fence = !fence;
+    if (fence || l.trim().startsWith("```")) {
+      if (key) secs[key].push(l);
+    } else if ((m = l.match(/^#\s+(.+)$/))) title ||= m[1].trim();
+    else if ((m = l.match(/^##\s+(\d)\./))) secs[(key = m[1])] = [];
+    else if (/^##\s/.test(l)) key = "";
+    else if (key) secs[key].push(l);
+  }
+  const map: ReportDoc["map"] = [];
+  for (const l of secs["0"] ?? []) {
+    const m = l.trim().match(/^[-*]\s*(🔴|🟡|⚪)?\s*(.+?)(?:\s*\([^)]*\))?\s*·\s*(\d+)\s*min/u);
+    if (m) map.push({ topic: m[2].trim(), tag: TAG_BY_EMOJI[m[1] ?? ""] ?? "grey", minutes: Number(m[3]) });
+  }
+  const topics: Topic[] = [];
+  let head: string | null = null;
+  let body: string[] = [];
+  const endTopic = () => {
+    if (head !== null && head.replace(TAG_RE, "").trim()) topics.push(parseTopic(head, body));
+    head = null;
+    body = [];
+  };
+  for (const l of secs["2"] ?? []) {
+    const m = l.match(/^###\s+(.+)$/);
+    if (m) {
+      endTopic();
+      head = m[1];
+    } else if (head !== null) body.push(l);
+  }
+  endTopic();
+  const cheatSheet: ReportDoc["cheatSheet"] = [];
+  for (const l of secs["3"] ?? []) {
+    const m = l.trim().match(/^\*\*(.+?):\*\*\s*(.*)$/);
+    if (m) {
+      const terms = m[2].split("·").map((x) => x.trim()).filter(real);
+      if (terms.length) cheatSheet.push({ group: m[1], terms });
+    }
+  }
+  const selfTest: ReportDoc["selfTest"] = [];
+  const sols: string[][] = [];
+  let inSols = false;
+  let solIdx = -1;
+  let curTest: ReportDoc["selfTest"][number] | null = null;
+  for (const raw of secs["4"] ?? []) {
+    const l = raw.trim();
+    let m: RegExpMatchArray | null;
+    if (/^###\s+soluciones/i.test(l)) inSols = true;
+    else if (!inSols && (m = l.match(/^###\s+(.+)$/))) selfTest.push((curTest = { topic: unNum(m[1]), recall: [], exercise: "", solutions: [] }));
+    else if (inSols && (m = l.match(/^\*\*(\d+)\.\s*[^*]*\*\*$/))) {
+      solIdx = Number(m[1]) - 1;
+      sols[solIdx] = [];
+    } else if (inSols && solIdx >= 0 && /^[-*]\s+/.test(l)) {
+      const item = l.replace(/^[-*]\s+/, "");
+      if (real(item)) sols[solIdx].push(item);
+    } else if (!inSols && curTest) {
+      if ((m = l.match(/^\*\*Ejercicio:\*\*\s*(.*)$/))) curTest.exercise = m[1];
+      else if ((m = l.match(/^\d+\.\s+(.+)$/))) curTest.recall.push(m[1]);
+    }
+  }
+  selfTest.forEach((s, i) => (s.solutions = sols[i] ?? []));
+  const lastTen = (secs["5"] ?? []).map((l) => l.trim().replace(/^(\d+\.|[-*])\s+/, "")).filter((x) => x && real(x) && !/^Sin temas/i.test(x));
+  return { title, map, topics, cheatSheet, selfTest: selfTest.filter((s) => s.recall.length || s.exercise), lastTen };
+}
+
 // ---------------------------------------------------------------- prompt
 
 export const REPORT_SYSTEM = `Eres un tutor que prepara un INFORME DE ESTUDIO para una persona con TDAH que necesita alta retención, en español.

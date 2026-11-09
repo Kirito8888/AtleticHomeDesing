@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { fromMarkdown } from "@/lib/study/adhd-format";
 import { attackPlan, buildReportPrompt, fakeReport, NOT_IN_SOURCES, normalizeReport, REPORT_SYSTEM, type ReportDoc, reportToMarkdown, wordCount } from "@/lib/study/adhd-report";
 
 const LONG = "El **protocolo SSH** usa el puerto **22** para cifrar sesiones remotas entre cliente y servidor mediante criptografía asimétrica y simétrica combinadas siempre";
@@ -101,5 +102,37 @@ describe("fakeReport", () => {
     const r = fakeReport("La glucólisis ocurre en el citoplasma. Produce 2 ATP netos. Si hay oxígeno entra en la mitocondria.");
     expect(reportToMarkdown(r)).toContain("## 5. Últimos 10 minutos");
     expect(r.selfTest[0].recall).toHaveLength(3);
+  });
+});
+
+describe("parseReportMarkdown vía fromMarkdown (editar antes de guardar)", () => {
+  const base = normalizeReport(wall("x"));
+  const md = reportToMarkdown(base);
+  it("ida y vuelta: el informe sin editar queda igual", () => {
+    expect(fromMarkdown(md, { mode: "report", doc: base })).toEqual({ mode: "report", doc: base });
+  });
+  it("la ida y vuelta de la IA simulada también", () => {
+    const d = { mode: "report" as const, doc: fakeReport("Uno dos tres. Cuatro cinco seis. Siete ocho nueve. Diez once doce. Trece catorce quince.") };
+    expect(fromMarkdown(reportToMarkdown(d.doc), d)).toEqual(d);
+  });
+  it("una viñeta editada con más de 15 palabras se recorta y el plan de ataque editado se ignora", () => {
+    const edited = md.replace("- **a** x", `- ${LONG} ${LONG}`).replace(/## 1\. Plan de ataque[\s\S]*?(?=## 2)/, "## 1. Plan de ataque\n\n1. basura · 999 min\n\n");
+    const out = fromMarkdown(edited, { mode: "report", doc: base });
+    if (out?.mode !== "report") throw new Error("modo");
+    for (const t of out.doc.topics) for (const c of t.concepts) expect(wordCount(c)).toBeLessThanOrEqual(15);
+    expect(out.doc.map.some((m) => m.minutes === 999)).toBe(false);
+  });
+  it("un tema nuevo con etiqueta rara cuenta como ⚪ y entra en el mapa", () => {
+    const out = fromMarkdown(`${md}`.replace("## 3.", "### ❓ Nuevo\n\n**Conceptos clave**\n\n- **uno**\n\n## 3."), { mode: "report", doc: base });
+    if (out?.mode !== "report") throw new Error("modo");
+    const t = out.doc.topics.find((x) => x.name === "Nuevo");
+    expect(t?.tag).toBe("grey");
+    expect(out.doc.map.some((m) => m.topic === "Nuevo")).toBe(true);
+  });
+  it("los comandos y las tablas sobreviven", () => {
+    const out = fromMarkdown(md, { mode: "report", doc: base });
+    if (out?.mode !== "report") throw new Error("modo");
+    expect(out.doc.topics[0].commands[0]).toMatchObject({ error: "Connection refused", paths: "/etc/ssh/sshd_config" });
+    expect(out.doc.topics[0].tables).toHaveLength(1);
   });
 });

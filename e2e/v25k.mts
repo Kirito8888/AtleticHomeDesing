@@ -172,6 +172,55 @@ await page.waitForTimeout(500);
 if (docCount() !== before) errors.push("cancelar el guardado del informe creó un apunte");
 log("informe TDAH: 6 secciones, viñetas ≤ 15 palabras, sin desborde, nada se guarda sin confirmar");
 
+// 6 · N1: editar antes de guardar (resumen e informe); lo guardado lleva mi texto y respeta los límites
+const chunks = (like: string) => Number(psql(`select count(*) from "DocumentChunk" c join "StudyDocument" d on d.id=c."documentId" where d."userId"='${uid}' and c.content like '%${like}%'`));
+const MARK = "FraseEditadaPorLaAtleta";
+const WALL = Array.from({ length: 12 }, (_, i) => `Oración larga numero ${i} que repite palabras para formar un muro de texto sin fin`).join(". ") + ".";
+await page.getByRole("tab", { name: "Resumir" }).click();
+await page.getByRole("radiogroup", { name: "Formato" }).getByRole("radio", { name: "Resumen TDAH" }).click();
+await page.getByRole("radio", { name: "Texto", exact: true }).click();
+await page.fill("#adapt-text", NOTES);
+await page.getByRole("button", { name: "Generar" }).click();
+await page.getByTestId("adapt-summary").waitFor();
+const editBtn = page.getByRole("button", { name: "Editar" });
+await minH(editBtn, "«Editar»");
+await editBtn.click();
+const ta = page.locator("#adapt-edit");
+await ta.waitFor();
+const md0 = await ta.inputValue();
+await ta.fill(`${md0}\n\n## Mi sección\n\n${MARK}. ${WALL}\n`);
+await noOverflow("edición");
+await page.getByRole("button", { name: "Vista previa" }).click();
+await page.getByTestId("adapt-summary").getByText(MARK).first().waitFor();
+const prevBlocks = await page.getByTestId("adapt-summary").locator("[data-block]").allTextContents();
+if (prevBlocks.some((b) => b.length > 120)) errors.push("la vista previa editada tiene bloques > 120 caracteres");
+const n0 = docCount();
+await page.getByRole("button", { name: "Guardar" }).click();
+await page.getByRole("alertdialog").getByRole("button", { name: "Guardar" }).click();
+await toast(/Guardado en Apuntes/);
+if (docCount() !== n0 + 1) errors.push("guardar el resumen editado no creó un apunte");
+if (chunks(MARK) < 1) errors.push("el apunte guardado no contiene el texto editado");
+log("resumen editado: «Editar» → «Vista previa» → guardar; el apunte lleva mi texto y bloques ≤ 120");
+
+await page.getByRole("radiogroup", { name: "Formato" }).getByRole("radio", { name: "Informe TDAH" }).click();
+await page.getByRole("button", { name: "Generar" }).click();
+await page.getByTestId("adapt-report").waitFor();
+await page.getByRole("button", { name: "Editar" }).click();
+const ta2 = page.locator("#adapt-edit");
+const rmd = await ta2.inputValue();
+await ta2.fill(rmd.replace(/(## 5\. Últimos 10 minutos\n\n)/, `$11. **${MARK}** ${"palabra ".repeat(30)}\n`));
+await page.getByRole("button", { name: "Vista previa" }).click();
+await page.getByTestId("adapt-report").waitFor();
+const n1 = docCount();
+await page.getByRole("button", { name: "Guardar" }).click();
+await page.getByRole("alertdialog").getByRole("button", { name: "Guardar" }).click();
+await toast(/Guardado en Apuntes/);
+if (docCount() !== n1 + 1) errors.push("guardar el informe editado no creó un apunte");
+if (chunks(MARK) < 2) errors.push("el informe guardado no contiene el texto editado");
+const longLine = psql(`select count(*) from "DocumentChunk" c join "StudyDocument" d on d.id=c."documentId" where d."userId"='${uid}' and c.content like '%${MARK}%${"palabra ".repeat(20)}%'`);
+if (longLine !== "0") errors.push("el repaso final editado no se recortó a 15 palabras");
+log("informe editado: se guarda con mi texto y la viñeta larga se recorta");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));
