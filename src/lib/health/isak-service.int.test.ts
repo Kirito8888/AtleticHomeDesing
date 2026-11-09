@@ -31,7 +31,13 @@ describe.skipIf(!HAS_DB)("composición corporal ISAK (BD real)", () => {
     await svc.saveBodyComposition(a, input);
     const raw = await prisma.bodyComposition.findMany({ where: { userId: a } });
     expect(raw).toHaveLength(1);
-    expect(raw[0].data).not.toMatch(/triceps|weightKg|somatotype|masses|62|168/);
+    // Texto cifrado (base64): se comprueba el formato del sobre y que no haya JSON ni nombres de campo,
+    // nunca cifras sueltas (62 o 168 aparecerían por azar en el base64 y harían el test intermitente).
+    expect(raw[0].data.startsWith("v1:")).toBe(true);
+    expect(() => JSON.parse(raw[0].data)).toThrow();
+    expect(raw[0].data).not.toMatch(/triceps|weightKg|somatotype|masses/);
+    const { openJson } = await import("@/lib/security/data-key");
+    expect(openJson<{ input: { weightKg: number } }>(raw[0].data).input.weightKg).toBe(62);
     const list = await svc.listBodyComposition(a);
     expect(list[0]).toMatchObject({ date: "2026-11-09", source: "manual" });
     expect(list[0].input.weightKg).toBe(62);
