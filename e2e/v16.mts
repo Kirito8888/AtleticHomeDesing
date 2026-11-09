@@ -243,7 +243,7 @@ await toast(/1 días importados/);
 log("Apple Health: sueño y FC en reposo leídos en el navegador");
 
 await page.getByRole("button", { name: "Añadir molestia" }).click();
-await page.getByRole("group", { name: "Toca la zona" }).getByRole("button", { name: "Hombro" }).click({ position: { x: 3, y: 3 } });
+await page.getByRole("group", { name: "Toca la zona" }).getByRole("button", { name: "Hombro" }).locator("[data-hit]").first().click(); // un lado (v2.8.x: un path por lado)
 if ((await page.locator("#inj-area").inputValue()) !== "SHOULDER") errors.push("mapa del dolor: no eligió la zona");
 log("mapa corporal del dolor");
 

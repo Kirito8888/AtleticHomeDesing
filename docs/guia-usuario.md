@@ -527,7 +527,7 @@ Además:
 - **Antropometría:** perímetros y pliegues con tendencia.
 - **Citas y suplementos:** citas de fisio o médico con aviso la tarde anterior; suplementos con lote y «comprobado en la lista oficial». La app no dice si algo está permitido: compruébalo siempre. Desde aquí creas el **enlace para tu fisio**.
 - **Importar de Apple Health:** en el iPhone, Salud → tu foto → Exportar todos los datos; descomprime y elige `export.xml`. Se lee en el móvil y solo se envían sueño y FC en reposo por día.
-- **Mapa del dolor:** toca la zona en la silueta al anotar una molestia o una sensación.
+- **Mapa del dolor:** toca la zona en la silueta (delante y detrás) al anotar una molestia o una sensación. En «Sensaciones al terminar» el color indica cuánto duele: ámbar = leve (1–3), naranja = moderado (4–6), rojo = alto (7–8) y rojo intenso = muy alto (9–10).
 
 **Salud de la mujer** (cifrado; ni la IA ni tu entrenadora lo ven)
 - **Tu patrón:** con 3 ciclos registrados, compara tu rendimiento en días con y sin síntomas. Si la diferencia puede ser casualidad, lo dice.
