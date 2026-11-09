@@ -29,7 +29,10 @@ export interface DocItem {
 
 const STATUS = { PENDING: "Pendiente", PROCESSING: "Procesando", EMBEDDED: "Listo", FAILED: "Error" } as const;
 
-export function DocumentsPanel({ docs, aiEnabled, modules }: { docs: DocItem[]; aiEnabled: boolean; modules: { id: string; name: string }[] }) {
+type Live = Pick<DocItem, "status" | "error" | "chunks" | "flashcards">;
+const RUNNING = (st: DocItem["status"]) => st === "PENDING" || st === "PROCESSING";
+
+export function DocumentsPanel({ docs: serverDocs, aiEnabled, modules }: { docs: DocItem[]; aiEnabled: boolean; modules: { id: string; name: string }[] }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   // v1.8 · llegado desde «Compartir»: queda elegido, falta pulsar «Subir»
@@ -45,14 +48,44 @@ export function DocumentsPanel({ docs, aiEnabled, modules }: { docs: DocItem[]; 
   const [moduleId, setModuleId] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
 
-  // El proceso va en segundo plano: mientras haya documentos en cola o en curso,
-  // se refresca la lista cada 3 s (se para sola al terminar).
-  const inProgress = docs.some((d) => d.status === "PENDING" || d.status === "PROCESSING");
+  // v2.8.0 B4 (O9) · El proceso va en segundo plano: mientras haya apuntes en cola o en curso se sondea un
+  // endpoint ligero (1 consulta) cada 3 s y solo se repinta la fila que cambia. La página entera se refresca
+  // UNA vez cuando alguno termina (cuota, mazos…), no en cada sondeo.
+  const [live, setLive] = useState<Record<string, Live>>({});
+  const [seenDocs, setSeenDocs] = useState(serverDocs);
+  if (seenDocs !== serverDocs) {
+    setSeenDocs(serverDocs); // datos nuevos del servidor: lo sondeado deja de valer
+    setLive({});
+  }
+  const docs = serverDocs.map((d) => (live[d.id] ? { ...d, ...live[d.id] } : d));
+  const runningIds = docs.filter((d) => RUNNING(d.status)).map((d) => d.id).join(",");
   useEffect(() => {
-    if (!inProgress) return;
-    const id = setInterval(() => router.refresh(), 3000);
-    return () => clearInterval(id);
-  }, [inProgress, router]);
+    if (!runningIds) return;
+    let stop = false;
+    const tick = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const r = await api<Array<{ id: string } & Live>>(`/api/ai/documents/status?ids=${runningIds}`);
+        if (stop) return;
+        const next: Record<string, Live> = {};
+        for (const x of r) next[x.id] = { status: x.status, error: x.error, chunks: x.chunks, flashcards: x.flashcards };
+        setLive((cur) => {
+          const changed = Object.entries(next).some(([id, v]) => !cur[id] || cur[id].status !== v.status || cur[id].chunks !== v.chunks || cur[id].flashcards !== v.flashcards || cur[id].error !== v.error);
+          return changed ? { ...cur, ...next } : cur;
+        });
+        // Terminó alguno (o ya no existe): un único refresco completo
+        const ids = runningIds.split(",");
+        if (ids.some((id) => !next[id] || !RUNNING(next[id].status))) router.refresh();
+      } catch {
+        /* un fallo de red puntual no corta el seguimiento */
+      }
+    };
+    const id = setInterval(() => void tick(), 3000);
+    return () => {
+      stop = true;
+      clearInterval(id);
+    };
+  }, [runningIds, router]);
 
   async function upload(e: React.FormEvent) {
     e.preventDefault();

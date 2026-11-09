@@ -102,6 +102,30 @@ export async function subscriptionAlerts(userId: string, today: string) {
   };
 }
 
+/**
+ * v2.8.0 B4 (O8) · Subidas de precio ya cobradas de varias personas a la vez (resumen diario):
+ * 2 consultas en total en vez de 3 por persona. Mismo resultado que `subscriptionAlerts(...).charged`.
+ */
+export async function chargedAlertsByUser(userIds: string[], today: string) {
+  const out = new Map<string, ReturnType<typeof priceAlerts>>();
+  if (!userIds.length) return out;
+  const [subs, txs] = await Promise.all([
+    prisma.subscription.findMany({ where: { userId: { in: userIds } }, select: { id: true, userId: true, name: true, amountCents: true, isActive: true } }),
+    prisma.financialTransaction.findMany({ where: { userId: { in: userIds }, kind: "EXPENSE", date: { gte: addDays(dateOnly(today), -60) } }, select: { id: true, userId: true, subscriptionId: true, description: true, payee: true, date: true, ...postingsSel } }),
+  ]);
+  const subsBy = new Map<string, typeof subs>();
+  for (const s of subs) subsBy.set(s.userId, [...(subsBy.get(s.userId) ?? []), s]);
+  const txsBy = new Map<string, typeof txs>();
+  for (const t of txs) txsBy.set(t.userId, [...(txsBy.get(t.userId) ?? []), t]);
+  for (const id of userIds) {
+    const mine = subsBy.get(id);
+    if (!mine) continue; // sin suscripciones no hay nada que comparar
+    const charges = (txsBy.get(id) ?? []).map((t) => ({ id: t.id, subscriptionId: t.subscriptionId, description: t.description, payee: t.payee, date: toIsoDay(t.date), amountCents: moneyCents(t) }));
+    out.set(id, priceAlerts(mine, charges, today));
+  }
+  return out;
+}
+
 export async function markPriceChangeSeen(userId: string, id: string) {
   const { count } = await prisma.subscriptionPriceChange.updateMany({ where: { id, subscription: { userId } }, data: { seenAt: new Date() } });
   if (!count) throw new ApiError(404, "Aviso no encontrado");
