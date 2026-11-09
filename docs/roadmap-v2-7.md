@@ -71,7 +71,7 @@ Los asigna la usuaria; ninguno cambia el esquema.
 | B3 | **O5** extracto bancario en lote (hoy ~6 consultas por línea) | Extracto de 200 líneas con consultas casi constantes; mismas categorías y duplicados | Integración nueva; E2E `v20d` o la de finanzas que cubra el extracto |
 | B4 | **S1** el texto libre de la IA no cita la recuperación si el ámbito la oculta | Test que falla si aparece dato de recuperación con el ámbito cerrado | `scope-isolation.int.test.ts` ampliado; E2E `v25e`/`security` |
 
-## v2.8.0 · Estudio sin fricción (UI/UX)
+## v2.8.0 · Estudio sin fricción (UI/UX) — **CERRADA (09/11/2026)**: B1–B4 fusionados, sin migración
 - **Objetivo para la atleta:** corregir lo que genera la IA antes de guardarlo, convertirlo en tarjetas y no perder el hilo en el Modo Juego.
 - **Alcance funcional:** N1, N2, N5; O9 y el resumen diario (O8) para que `/study` no repinte cada 3 s.
 - **BD:** **sin migración** (N2 usa `Flashcard`/mazos existentes; si al diseñarlo hace falta un campo, se mueve a v2.9 [Suponiendo]).

@@ -2,6 +2,22 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v2.8.0 — Estudio sin fricción (09/11/2026)
+
+Sin migraciones de base de datos ni cambios en el esquema. Pasos para el servidor en [`docs/migracion-v2-7-a-v2-8.md`](docs/migracion-v2-7-a-v2-8.md).
+
+**Estudio**
+- **Editar antes de guardar (N1):** el resultado de **Resumir** y el del **Informe** se pueden corregir antes de guardarlo como apunte; al guardar se vuelve a imponer el formato TDAH y los límites.
+- **Flashcards desde Resumir y desde el paquete de tema (N2):** eliges el mazo, ves cuántas tarjetas son nuevas y cuántas duplicadas y confirmas; nada se crea sin confirmar y no se duplican anversos ya existentes.
+- **Modo Juego (N5):** «Reiniciar partida» (con confirmación) borra el progreso en el navegador y en el servidor, y el tutorial «Cómo se juega» se puede abrir cuando quieras.
+
+**Rendimiento (O8, O9)**
+- **Sondeo ligero de `/study` (O9):** mientras se procesan apuntes ya no se repinta la página entera cada 3 s; `GET /api/ai/documents/status` hace **1 consulta** (máx. 50 apuntes propios), solo con la pestaña visible, y se refresca la página una sola vez al terminar.
+- **Resumen diario en lote (O8):** el aviso diario consulta las alertas de cargos con **3 consultas fijas** para todas las personas (antes 1 + 3 por persona: 19 con 6 personas, 64 con 21).
+
+**Pruebas y operaciones**
+- Se incorpora `e2e:noeval` a `e2e.sh all`; sin cambios de interfaz ni de IA aparte de lo anterior.
+
 ## v2.7.0 — IA local y optimizaciones de backend e IA (06/11/2026)
 
 Sin migraciones de base de datos. Detalle para el servidor en [`docs/migracion-v2-6-a-v2-7.md`](docs/migracion-v2-6-a-v2-7.md).

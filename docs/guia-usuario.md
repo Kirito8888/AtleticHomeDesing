@@ -582,3 +582,9 @@ Desde la v2.3 la página va ordenada en grupos con un índice arriba; las opcion
 - **Actividad reciente:** inicios de sesión, cambios de contraseña, 2FA… (se guarda 180 días).
 - **Entrenador / atletas:** invita a tu entrenador y elige qué puede ver (carga, sesiones, recuperación, planificación, informes) y si puede planificarte.
 - **Tus datos:** descargar todo en JSON, CSV de entrenos y finanzas, y **borrar la cuenta** (definitivo).
+
+## Novedades de v2.8 (Estudio)
+- **Resumir e Informe:** puedes corregir el texto antes de guardarlo; al guardar se mantiene el formato corto para TDAH.
+- **Flashcards desde Resumir y desde el paquete de tema:** elige el mazo, mira cuántas tarjetas son nuevas y cuántas ya existían, y confirma. Las repetidas no se duplican.
+- **Modo Juego:** «Reiniciar partida» (pide confirmación) y «Cómo se juega» para ver el tutorial cuando quieras.
+- **Apuntes en proceso:** la lista se actualiza sola sin recargar toda la página.
