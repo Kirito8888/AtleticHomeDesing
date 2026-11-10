@@ -8,6 +8,7 @@ import { Chips } from "@/components/form/chips";
 import { SourcePicker, useSource } from "@/components/study/source-picker";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
+import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { MicroSteps } from "@/lib/study/micro-steps";
 import {
@@ -24,15 +25,22 @@ import {
   startStep,
   tick,
 } from "@/lib/study/micro-timer";
+import { MICRO_KEY as KEY, microSessionFromSaved, type SavedMicro } from "@/lib/study/study-history";
+import type { MicroSessionView } from "@/lib/study/study-history-service";
 
-const KEY = "atlenza.study.microRun";
 interface Saved {
   steps: MicroSteps;
   selected: number;
   preset: string;
   done: number[];
   run: MicroRun | null;
+  /** v2.9 · uuid de la sesión (idempotencia en la BD), marca de «ya subida» y hora en que se terminó. */
+  key?: string;
+  syncedKey?: string;
+  completedAt?: number;
 }
+const newKey = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `k${Date.now()}${Math.random().toString(36).slice(2)}`);
+const day = (iso: string) => formatDateTime(iso);
 const presetKey = (p: { focus: number; rest: number }) => `${p.focus}/${p.rest}`;
 const mmss = (ms: number) => {
   const s = Math.ceil(ms / 1000);
@@ -91,7 +99,7 @@ function MicroCountdown({ run }: { run: MicroRun }) {
  * Fraccionador + temporizador de micro-intervalos. Los pasos viven en el cliente (y en localStorage
  * para sobrevivir a una recarga): no se guarda nada en apuntes ni flashcards.
  */
-export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string; title: string }>; aiEnabled: boolean }) {
+export function MicroStepsPanel({ docs, aiEnabled, history }: { docs: Array<{ id: string; title: string }>; aiEnabled: boolean; history: MicroSessionView[] }) {
   const src = useSource(docs);
   const [busy, setBusy] = useState(false);
   const [steps, setSteps] = useState<MicroSteps | null>(null);
@@ -99,6 +107,13 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
   const [preset, setPreset] = useState(presetKey(PRESETS[1]));
   const [done, setDone] = useState<number[]>([]);
   const [run, setRun] = useState<MicroRun | null>(null);
+  const [key, setKey] = useState<string | undefined>();
+  const [syncedKey, setSyncedKey] = useState<string | undefined>();
+  const [completedAt, setCompletedAt] = useState<number | undefined>();
+  const [sessions, setSessions] = useState<MicroSessionView[]>(history);
+  const [hideImport, setHideImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   // Recupera el estado tras recargar (fuera del render para no romper la hidratación)
   useEffect(() => {
@@ -110,14 +125,44 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
         setPreset(v.preset);
         setDone(v.done ?? []);
         setRun(v.run);
+        setKey(v.key);
+        setSyncedKey(v.syncedKey);
+        setCompletedAt(v.completedAt);
       }
     }, 0);
     return () => clearTimeout(id);
   }, []);
 
   useEffect(() => {
-    if (steps) store({ steps, selected, preset, done, run });
-  }, [steps, selected, preset, done, run]);
+    if (steps) store({ steps, selected, preset, done, run, key, syncedKey, completedAt });
+  }, [steps, selected, preset, done, run, key, syncedKey, completedAt]);
+
+  const savedNow: SavedMicro | null = steps ? { steps, preset, done, key, syncedKey, completedAt } : null;
+
+  /** Sube una sesión terminada; solo con el 200 se marca como sincronizada (si falla, queda local y se reintenta al reabrir). */
+  async function upload(input: NonNullable<ReturnType<typeof microSessionFromSaved>>): Promise<boolean> {
+    try {
+      const r = await api<{ sessions: MicroSessionView[] }>("/api/study/micro-sessions", { body: { ...input, completedAt: input.completedAt.toISOString() } });
+      setSessions(r.sessions);
+      setCompletedAt(input.completedAt.getTime());
+      setSyncedKey(input.clientKey);
+      return true;
+    } catch (err) {
+      toast.error(`No se pudo guardar la sesión en el servidor (queda en este dispositivo): ${(err as Error).message}`);
+      return false;
+    }
+  }
+
+  // Sesión terminada y aún no subida: sin `key` es de una versión anterior; con `key` es que la subida automática falló.
+  // Se ofrece importarla (nunca se borra nada local) y se oculta mientras la subida automática está en curso.
+  const legacy = !hideImport && !syncing ? microSessionFromSaved(savedNow) : null;
+  const legacyPending = legacy && !sessions.some((x) => x.clientKey === legacy.clientKey) ? legacy : null;
+  async function importLegacy() {
+    if (!legacyPending) return;
+    setImporting(true);
+    if (await upload(legacyPending)) toast.success("Sesión importada");
+    setImporting(false);
+  }
 
   useEffect(() => {
     if (!run) return;
@@ -139,6 +184,9 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
     try {
       const r = await api<MicroSteps>("/api/ai/study/chunk", { body: { source: src.source } });
       setSteps({ title: r.title, steps: r.steps });
+      setKey(newKey());
+      setSyncedKey(undefined);
+      setCompletedAt(undefined);
       setSelected(0);
       setDone([]);
       setRun(null);
@@ -156,6 +204,12 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
     const n = fn(run);
     setDone(n.done);
     setRun(n);
+    // Al terminar el último paso se sube solo (una vez); el 200 marca la sesión como sincronizada.
+    const input = steps && key ? microSessionFromSaved({ steps, preset, done: n.done, key, syncedKey, completedAt: Date.now() }) : null;
+    if (input) {
+      setSyncing(true);
+      void upload(input).finally(() => setSyncing(false));
+    }
   };
   const exit = () => {
     setSelected(run?.stepIndex ?? selected);
@@ -163,6 +217,9 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
   };
   const discard = () => {
     setSteps(null);
+    setKey(undefined);
+    setSyncedKey(undefined);
+    setCompletedAt(undefined);
     setDone([]);
     setRun(null);
     store(null);
@@ -222,6 +279,19 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
 
   return (
     <div className="grid gap-4">
+      {legacyPending ? (
+        <div role="status" data-testid="micro-import" className="grid gap-2 rounded-lg border border-dashed p-3 text-sm">
+          <p>Tienes una sesión terminada («{legacyPending.title}») guardada solo en este dispositivo. ¿La subes para verla también en tus otros dispositivos?</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button type="button" className="min-h-11" disabled={importing} onClick={importLegacy}>
+              {importing ? "Importando…" : "Importar"}
+            </Button>
+            <Button type="button" variant="outline" className="min-h-11" onClick={() => setHideImport(true)}>
+              Ahora no
+            </Button>
+          </div>
+        </div>
+      ) : null}
       {steps ? (
         <div className="grid gap-3 rounded-lg border p-3">
           <h3 className="text-lg font-semibold">{steps.title}</h3>
@@ -267,6 +337,21 @@ export function MicroStepsPanel({ docs, aiEnabled }: { docs: Array<{ id: string;
         </Button>
         {!aiEnabled ? <p className="text-xs text-muted-foreground">Necesitas la IA activada en Ajustes para dividir.</p> : null}
       </form>
+      {sessions.length ? (
+        <section aria-label="Sesiones completadas" data-testid="micro-history" className="grid gap-1.5">
+          <h3 className="text-sm font-medium">Sesiones completadas</h3>
+          <ul className="grid gap-1.5">
+            {sessions.slice(0, 10).map((x) => (
+              <li key={x.id} className="grid gap-0.5 rounded-lg border p-2 text-sm">
+                <span className="break-words font-medium">{x.title}</span>
+                <span suppressHydrationWarning className="text-xs text-muted-foreground">
+                  {day(x.completedAt)} · {x.stepsDone}/{x.stepsTotal} pasos · {x.focusMin}/{x.restMin} min
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

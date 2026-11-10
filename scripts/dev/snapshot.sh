@@ -23,6 +23,8 @@ if [ "$1" = "--before" ] && [ -n "$2" ]; then
       while read -r t c; do psql "$ROOT/atlenza_snap" -qc "alter table if exists \"$t\" drop column if exists \"$c\" cascade"; done
     # Índices creados sobre tablas previas (los de tablas nuevas caen con su tabla); admite IF NOT EXISTS
     grep -oE '^CREATE (UNIQUE )?INDEX (IF NOT EXISTS )?"[A-Za-z0-9_]*"' $F | cut -d'"' -f2 | while read -r i; do psql "$ROOT/atlenza_snap" -qc "drop index if exists \"$i\""; done
+    # Extensiones que crea la migración (p. ej. pg_trgm en v2.9): sin esto regen-mig no volvería a emitir CREATE EXTENSION
+    grep -oE '^CREATE EXTENSION (IF NOT EXISTS )?"[A-Za-z0-9_]*"' $F | cut -d'"' -f2 | while read -r e; do psql "$ROOT/atlenza_snap" -qc "drop extension if exists \"$e\" cascade"; done
     psql "$ROOT/atlenza_snap" -qc "delete from \"_prisma_migrations\" where migration_name='$M'"
   done
   pg_dump -Fc "$ROOT/atlenza_snap" > $OUT
