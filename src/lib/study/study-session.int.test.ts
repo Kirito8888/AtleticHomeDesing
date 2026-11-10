@@ -1,8 +1,9 @@
 // Integración con BD real: anotar un bloque de estudio del temporizador (idempotencia, módulo, plan).
 import { beforeAll, describe, expect, it } from "vitest";
 
-import { prisma } from "@/lib/prisma";
-import { logStudySession } from "@/lib/study/study-session-service";
+const HAS_DB = Boolean(process.env.DATABASE_URL);
+let prisma: typeof import("@/lib/prisma").prisma;
+let logStudySession: typeof import("@/lib/study/study-session-service").logStudySession;
 
 const D = "2030-03-04";
 let uid = "";
@@ -10,8 +11,10 @@ let other = "";
 let mod = "";
 let foreign = "";
 
-describe("logStudySession", () => {
+describe.skipIf(!HAS_DB)("logStudySession", () => {
   beforeAll(async () => {
+    prisma = (await import("@/lib/prisma")).prisma;
+    logStudySession = (await import("@/lib/study/study-session-service")).logStudySession;
     const mk = (email: string) => prisma.user.create({ data: { email, name: "t" }, select: { id: true } });
     const stamp = Date.now();
     uid = (await mk(`ss-a-${stamp}@test.local`)).id;
