@@ -5,6 +5,7 @@ import { ApiError } from "@/lib/api";
 import { dateOnly } from "@/lib/dates";
 import { cycleLogSchema, cycleSettingsSchema } from "@/lib/health/cycle";
 import { logCycleDay, saveCycleSettings } from "@/lib/health/cycle-service";
+import { saveBodyComposition } from "@/lib/health/isak-service";
 import { addHealthLog, saveWomenSettings } from "@/lib/health/women-service";
 import { prisma } from "@/lib/prisma";
 import { prefsSchema } from "@/lib/rules/prefs";
@@ -263,6 +264,12 @@ export async function restoreExport(userId: string, data: unknown) {
       } catch {
         skipped.push("bienestar");
       }
+    }
+    for (const b of arr(get(data, "recovery", "bodyComposition"))) {
+      await saveBodyComposition(userId, get(b, "input"), get(b, "source") === "import" ? "import" : "manual").then(
+        () => add("composición corporal"),
+        () => skipped.push("composición corporal"),
+      );
     }
     const wh = get(data, "recovery", "womenHealth");
     if (get(wh, "settings")) await saveWomenSettings(userId, get(wh, "settings")).catch(() => skipped.push("ajustes de salud de la mujer"));

@@ -11,6 +11,7 @@ import { getCycle } from "@/lib/health/cycle-service";
 import { prisma } from "@/lib/prisma";
 import { dataKeyConfigured, openJson } from "@/lib/security/data-key";
 import { type AuditContext, recordEvent } from "@/lib/security/audit";
+import { listBodyComposition } from "@/lib/health/isak-service";
 import { getWomen } from "@/lib/health/women-service";
 import { recordConsent } from "@/lib/privacy/service";
 import { toIsoDay } from "@/lib/dates";
@@ -192,12 +193,13 @@ export async function exportAccount(userId: string) {
   // v1.7: llaves de acceso (solo nombre y fechas), consentimientos, derechos, rutinas, bienestar (descifrado),
   // fotos y justificantes (solo metadatos: los ficheros cifrados no van en el JSON), plan de comidas,
   // tomas de suplementos, sudoración, trabajos, presupuesto de temporada y cambios de precio
-  const [passkeys, consents, privacyRequests, routines, wellbeing, injuryPhotos, mealPlan, supplementLogs, sweatTests, assignments, seasonBudgets, receipts, priceChanges] = await Promise.all([
+  const [passkeys, consents, privacyRequests, routines, wellbeing, bodyComposition, injuryPhotos, mealPlan, supplementLogs, sweatTests, assignments, seasonBudgets, receipts, priceChanges] = await Promise.all([
     prisma.passkey.findMany({ where, select: { name: true, createdAt: true, lastUsedAt: true, backedUp: true } }),
     prisma.consent.findMany({ where, orderBy: { createdAt: "asc" }, omit: { userId: true } }),
     prisma.privacyRequest.findMany({ where, orderBy: { createdAt: "asc" }, omit: { userId: true } }),
     prisma.routineProfile.findMany({ where, include: { tests: { orderBy: { date: "asc" } } } }),
     dataKeyConfigured() ? listWellbeing(userId, toIsoDay(new Date()), 36500) : Promise.resolve(null),
+    dataKeyConfigured() ? listBodyComposition(userId) : Promise.resolve(null),
     prisma.injuryPhoto.findMany({ where, select: { id: true, injuryId: true, mime: true, takenOn: true, createdAt: true } }),
     prisma.mealPlanEntry.findMany({ where, orderBy: { date: "asc" }, include: { recipe: { select: { name: true } } } }),
     prisma.supplementLog.findMany({ where, orderBy: { date: "asc" }, select: { supplementId: true, date: true, supplement: { select: { name: true } } } }),
@@ -256,6 +258,7 @@ export async function exportAccount(userId: string) {
       healthReports,
       safety: { contacts: safetyContactsOut, trips: safetyTripsOut },
       wellbeing,
+      bodyComposition: bodyComposition?.map((r) => ({ date: r.date, source: r.source, input: r.input })) ?? null,
       injuryPhotos,
       supplementLogs: supplementLogs.map((l) => ({ supplementId: l.supplementId, supplement: l.supplement.name, date: l.date })),
     },
