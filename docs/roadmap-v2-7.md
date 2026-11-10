@@ -1,6 +1,6 @@
 # Roadmap v2.7+ · propuesta para autorizar
 
-> **Propuesta, no compromiso.** Base: v2.6.0 (03/11/2026); **v2.7.0 publicada y desplegada el 07/11/2026**. Cruza `docs/analisis-competencia-feedback.md` (IDs N/O/C/S) con el Plan de Optimización de `docs/estado.md`.
+> **Propuesta, no compromiso.** Base: v2.6.0 (03/11/2026); **v2.7.0 publicada y desplegada el 07/11/2026; v2.8.0 cerrada el 09/11 y v2.9.0 el 10/11**. Cruza `docs/analisis-competencia-feedback.md` (IDs N/O/C/S) con el Plan de Optimización de `docs/estado.md`.
 > Los números de versión y qué entra en cada una los decide la usuaria; Claude no empieza nada sin autorización. Solo documentación: no cambia código, esquema ni paquetes.
 > Confianza: [Seguro] comprobado en el repo · [Probable] inferencia sólida · [Suponiendo] hueco sin prueba.
 
@@ -84,7 +84,8 @@ Los asigna la usuaria; ninguno cambia el esquema.
 | B3 | **N5** reiniciar partida (con `confirmDialog`) y tutorial «Cómo se juega» | Reinicio borra local y servidor (`QuestProgress`); el tutorial se ve una vez | `quest.test.ts`, `quest-progress.int.test.ts`; E2E `quest` |
 | B4 | **O9** endpoint de estado para el sondeo de `/study` + **O8** resumen diario sin consulta por elemento | Sin `router.refresh()` cada 3 s; consultas medidas | Integración con contador; E2E `v26pack`, `v25m` |
 
-## v2.9.0 · Datos entre dispositivos e índices (la migración)
+## v2.9.0 · Datos entre dispositivos e índices (la migración) — **CERRADA (10/11/2026)**: A, B y B1–B4 fusionados (PR #154–#159), migración `20270701080000_v2_9_features`
+- **Resultado (cierre):** [Seguro] O13 entró (`pg_trgm` disponible en `pgvector/pgvector:pg17`); **O14 no** (nada medido que lo justifique). Fuera de este roadmap entraron v2.9 A y B (composición corporal ISAK cifrada, en la misma migración) y dos mejoras sin esquema (plantillas de tomas, mapa corporal). El «migración idempotente» de B1 se cumple a nivel de Prisma (se aplica una vez), **no** a nivel SQL: salvo la extensión, no lleva `IF NOT EXISTS`. B4 retiró el Pomodoro (se pierden los focos de 45/50 min). Detalle en `CHANGELOG.md` y `docs/migracion-v2-8-a-v2-9.md`.
 - **Objetivo para la atleta:** que autoevaluaciones y micro-pasos la sigan entre móvil y escritorio, y que el estudio cuente en su plan del día.
 - **Alcance funcional:** N3, N4 (un solo temporizador que anota tiempo: absorbe el Pomodoro de `/study/focus` o lo enlaza).
 - **Optimizaciones técnicas:** O10, O11, O13 (y O14 solo lo que salga de medir).
