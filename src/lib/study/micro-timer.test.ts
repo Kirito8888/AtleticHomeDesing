@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { beginFocus, clampPreset, completeStep, intervalProgress, isFinished, pause, remainingMs, resume, startStep, stepsProgress, tick } from "@/lib/study/micro-timer";
+import { beginFocus, blockKey, clampPreset, focusElapsedMin, focusLogged, MIN_LOG_MIN, completeStep, intervalProgress, isFinished, pause, remainingMs, resume, startStep, stepsProgress, tick } from "@/lib/study/micro-timer";
 
 const P = { focus: 15, rest: 3 };
 const T0 = 1_000_000;
@@ -46,5 +46,27 @@ describe("micro-timer", () => {
   it("acota los presets", () => {
     expect(clampPreset({ focus: 90, rest: 0 })).toEqual({ focus: 30, rest: 3 });
     expect(clampPreset({ focus: 1, rest: 99 })).toEqual({ focus: 5, rest: 10 });
+  });
+  it("minutos de foco cumplidos: enteros, sin contar la pausa ni el descanso", () => {
+    const r = startStep(0, P, T0);
+    expect(focusElapsedMin(r, T0 + 30_000)).toBe(0);
+    expect(focusElapsedMin(r, T0 + 3.9 * MIN)).toBe(MIN_LOG_MIN * 3);
+    const p = pause(r, T0 + 5 * MIN);
+    expect(focusElapsedMin(p, T0 + 99 * MIN)).toBe(5);
+    expect(focusElapsedMin(r, T0 + 99 * MIN)).toBe(15);
+    expect(focusElapsedMin(tick(r, T0 + 15 * MIN), T0 + 16 * MIN)).toBe(0);
+  });
+  it("el evento de anotar solo salta en foco → descanso", () => {
+    const f = startStep(0, P, T0);
+    expect(focusLogged(f, tick(f, T0 + MIN))).toBeNull();
+    const rest = tick(f, T0 + 15 * MIN);
+    expect(focusLogged(f, rest)).toBe(15);
+    expect(focusLogged(rest, tick(rest, T0 + 18 * MIN))).toBeNull();
+  });
+  it("la clave del bloque es estable y distingue pasos e inicios", () => {
+    const a = startStep(1, P, T0);
+    expect(blockKey("s", a)).toBe(blockKey("s", pause(a, T0 + MIN)));
+    expect(blockKey("s", a)).not.toBe(blockKey("s", startStep(1, P, T0 + 1)));
+    expect(blockKey("s", a)).not.toBe(blockKey("s", startStep(2, P, T0)));
   });
 });

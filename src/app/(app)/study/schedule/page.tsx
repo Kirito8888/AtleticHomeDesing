@@ -106,8 +106,8 @@ export default async function SchedulePage() {
               Planificación
             </Link>
             . Para estudiar con temporizador, usa el{" "}
-            <Link href="/study/focus" className="underline underline-offset-2">
-              pomodoro
+            <Link href="/study?tab=steps" className="underline underline-offset-2">
+              temporizador de foco
             </Link>
             .
           </p>

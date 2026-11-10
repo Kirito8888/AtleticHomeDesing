@@ -63,7 +63,7 @@ export async function upcomingExamClashes(userId: string, today: string, days = 
   return { slots, clashes, nextExam };
 }
 
-/** Asignaturas que ya usas (horario y estudio), para el selector del pomodoro. */
+/** Asignaturas que ya usas (horario y estudio), para el selector de asignatura del temporizador. */
 export async function knownSubjects(userId: string): Promise<string[]> {
   const [a, b] = await Promise.all([
     prisma.classSlot.findMany({ where: { userId }, distinct: ["subject"], select: { subject: true } }),

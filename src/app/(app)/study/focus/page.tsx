@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
-import { DeleteStudy, Pomodoro } from "@/components/study/pomodoro";
+import { DeleteStudy, ManualStudy } from "@/components/study/study-log";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
@@ -14,7 +14,7 @@ import { todayBlocks } from "@/lib/study/exam-plan-service";
 import { knownSubjects } from "@/lib/study/schedule-service";
 import { focusStats } from "@/lib/study/coursework-service";
 
-export const metadata = { title: "Pomodoro · Atlenza" };
+export const metadata = { title: "Horas de estudio · Atlenza" };
 
 const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} h ${m % 60 ? `${m % 60} min` : ""}`.trim() : `${m} min`);
 
@@ -34,11 +34,19 @@ export default async function FocusPage({ searchParams }: PageProps<"/study/focu
 
   return (
     <>
-      <PageHeader title="Pomodoro" description="Estudia por bloques; cada bloque terminado se anota en su asignatura" />
+      <PageHeader
+        title="Horas de estudio"
+        description="Cada bloque de foco terminado se anota en su asignatura"
+        action={
+          <Button asChild size="sm">
+            <Link href="/study?tab=steps">Empezar a estudiar</Link>
+          </Button>
+        }
+      />
       <div className="grid gap-4 lg:grid-cols-[20rem_1fr]">
         <Card className="h-fit gap-3 py-4">
           <CardContent className="px-4">
-            <Pomodoro subjects={subjects} />
+            <ManualStudy subjects={subjects} />
             {plan.length ? (
               <div className="mt-4 grid gap-1 border-t pt-3 text-sm" aria-label="Hoy toca">
                 <p className="font-medium">
@@ -134,7 +142,7 @@ export default async function FocusPage({ searchParams }: PageProps<"/study/focu
               </p>
             </>
           ) : (
-            <p className="text-muted-foreground">Usa el pomodoro unos días y aquí verás en qué franja rindes más.</p>
+            <p className="text-muted-foreground">Usa el temporizador de Estudio unos días y aquí verás en qué franja rindes más.</p>
           )}
         </CardContent>
       </Card>

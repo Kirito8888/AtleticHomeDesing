@@ -49,8 +49,8 @@ export default async function ExamsPage() {
           horario
         </Link>
         ; los bloques se tachan solos con el{" "}
-        <Link href="/study/focus" className="underline underline-offset-2">
-          pomodoro
+        <Link href="/study?tab=steps" className="underline underline-offset-2">
+          temporizador de foco
         </Link>
         .
       </p>

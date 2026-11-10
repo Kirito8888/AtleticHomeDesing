@@ -417,7 +417,7 @@ await shot("07-trips");
 log("viaje de competición con presupuesto, gasto enlazado y reembolso; plazo con aviso");
 
 const manifest = (await (await page.request.get(B + "/manifest.webmanifest")).json()) as { shortcuts?: Array<{ url: string }> };
-if (!manifest.shortcuts?.some((x) => x.url === "/study/focus")) errors.push("manifest sin el acceso directo al pomodoro");
+if (!manifest.shortcuts?.some((x) => x.url === "/study?tab=steps")) errors.push("manifest sin el acceso directo a Estudiar");
 log("accesos directos de la app");
 
 await browser.close();

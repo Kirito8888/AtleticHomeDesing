@@ -42,6 +42,12 @@ const uid = psql(`select id from "User" where email='${email}'`);
 const writes = () =>
   psql(`select (select count(*) from "StudyDocument" where "userId"='${uid}') || '/' || (select count(*) from "Flashcard" f join "FlashcardDeck" d on d.id=f."deckId" where d."userId"='${uid}')`);
 
+const studied = () => psql(`select coalesce(sum(minutes),0) || '/' || count(*) from "StudySession" where "userId"='${uid}'`);
+const waitStudied = async (want: string) => {
+  for (let t = 0; t < 40 && studied() !== want; t++) await new Promise((r) => setTimeout(r, 250));
+  if (studied() !== want) errors.push(`StudySession: esperaba ${want} (min/filas) y hay ${studied()}`);
+};
+
 const NOTES =
   "La glucólisis es la vía que convierte la glucosa en piruvato y ocurre en el citoplasma de la célula. Produce 2 ATP netos por molécula de glucosa. " +
   "Si hay oxígeno, el piruvato entra en la mitocondria para seguir oxidándose. Si no lo hay, se convierte en lactato para regenerar NAD+ y la vía puede continuar. " +
@@ -77,6 +83,11 @@ await list.getByRole("radio").nth(1).click();
 const presets = page.getByRole("radiogroup", { name: "Intervalo" });
 for (const l of ["10/2 min", "15/3 min", "20/5 min"]) await minH(presets.getByRole("radio", { name: l }), `preset ${l}`);
 await presets.getByRole("radio", { name: "15/3 min" }).click();
+// v2.9 B4 · sin asignatura no se puede empezar; con ella, el foco se anota en StudySession
+await page.getByRole("button", { name: "Empezar este paso" }).click();
+await page.getByText("Elige la asignatura para anotar el tiempo").waitFor();
+if (await page.getByTestId("micro-focus").count()) errors.push("arrancó sin asignatura");
+await page.fill("#micro-subject", "Bioquímica");
 await minH(page.getByRole("button", { name: "Empezar este paso" }), "«Empezar este paso»");
 await page.getByRole("button", { name: "Empezar este paso" }).click();
 
@@ -103,6 +114,7 @@ if (!(await focus.getByRole("timer").innerText()).startsWith("14:")) errors.push
 await focus.getByRole("button", { name: "Reanudar" }).click();
 await page.clock.fastForward(14 * 60_000 + 1000);
 await focus.getByText("Descanso").first().waitFor();
+await waitStudied("15/1"); // v2.9 B4 · foco completo → 15 min en StudySession
 await page.clock.fastForward(3 * 60_000 + 1000);
 await focus.getByRole("button", { name: "Empezar" }).waitFor();
 log("pausa/reanudar, foco → descanso → espera");
@@ -120,6 +132,28 @@ await list.waitFor();
 await noOverflow("lista tras salir");
 if (writes() !== before) errors.push(`se escribió en apuntes/flashcards: ${before} → ${writes()}`);
 log("«Paso hecho» avanza; no se guardó nada en apuntes ni flashcards");
+
+// 6b · v2.9 B4: salir a mitad del foco ofrece anotar el tiempo real; menos de 1 min no ofrece nada
+await page.getByRole("button", { name: "Empezar este paso" }).click();
+await page.getByTestId("micro-focus").waitFor();
+await page.clock.fastForward(3 * 60_000 + 1000);
+await page.getByText("11:").first().waitFor();
+await page.getByTestId("micro-focus").getByRole("button", { name: "Salir" }).click();
+await page.getByTestId("micro-exit-ask").getByText(/Llevas 3 min de foco/).waitFor();
+await page.getByTestId("micro-exit-ask").getByRole("button", { name: "No anotar" }).click();
+await list.waitFor();
+if (studied() !== "15/1") errors.push(`«No anotar» escribió en StudySession: ${studied()}`);
+await page.getByRole("button", { name: "Empezar este paso" }).click();
+await page.clock.fastForward(2 * 60_000 + 1000);
+await page.getByTestId("micro-focus").getByRole("button", { name: "Salir" }).click();
+await page.getByTestId("micro-exit-ask").getByRole("button", { name: "Anotar 2 min" }).click();
+await list.waitFor();
+await waitStudied("17/2");
+await page.getByRole("button", { name: "Empezar este paso" }).click();
+await page.getByTestId("micro-focus").getByRole("button", { name: "Salir" }).click();
+await list.waitFor();
+if (await page.getByTestId("micro-exit-ask").count()) errors.push("ofrece anotar con < 1 min");
+log("StudySession: foco completo anotado, salida a mitad con confirmación, < 1 min sin oferta");
 
 // 7 · v2.9 N3: terminar todos los pasos guarda la sesión en la BD y se ve desde otro dispositivo
 const sessions = () => Number(psql(`select count(*) from "StudyMicroSession" where "userId"='${uid}'`));
@@ -195,6 +229,21 @@ log("terminar los pasos guarda la sesión en la BD");
   await c.close();
   log("importación: a medias no se ofrece, un fallo no pierde nada local, una sola vez");
 }
+
+// 8 · v2.9 B4: «Foco libre» arranca sin IA y /study/focus ya no tiene reloj duplicado
+await page.fill("#micro-subject", "Redes");
+await page.getByRole("button", { name: "Foco libre (sin IA)" }).click();
+await page.getByTestId("micro-focus").waitFor();
+await page.clock.fastForward(15 * 60_000 + 1000);
+await page.getByTestId("micro-focus").getByText("Descanso").first().waitFor();
+await waitStudied("32/3");
+if (Number(psql(`select count(*) from "StudySession" where "userId"='${uid}' and "clientKey" is not null`)) !== 3) errors.push("las anotaciones del temporizador deben llevar clave");
+if (sessions() !== 2) errors.push("el foco libre no debe crear sesiones en el histórico");
+await page.goto(B + "/study/focus");
+await page.getByRole("link", { name: "Empezar a estudiar" }).waitFor();
+if (await page.getByRole("button", { name: "Empezar pomodoro" }).count()) errors.push("sigue el Pomodoro duplicado");
+await noOverflow("/study/focus");
+log("foco libre sin IA anota en StudySession; /study/focus sin Pomodoro");
 
 await browser.close();
 if (errors.length) {

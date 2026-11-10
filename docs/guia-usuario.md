@@ -198,7 +198,7 @@ Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Pri
 - **Coach semanal:** un informe de tu semana de entrenamiento. Tus lesiones no se envían a la IA.
 - **Pregunta a tus datos:** «¿cuánto he lanzado este mes?». Se envía un resumen numérico de tus entrenos (nunca salud, ciclo ni notas).
 - **Horario y exámenes:** clases semanales (con fecha de fin del cuatrimestre) y exámenes. Si un entreno planificado cae el día de un examen o la víspera, te avisa.
-- **Pomodoro:** elige asignatura y duración; cada bloque terminado se anota solo. Gráfica de la semana y horas por asignatura. Sin temporizador, «Anotar» a mano.
+- **Horas de estudio (`/study/focus`):** gráfica de la semana y horas por asignatura. El temporizador es uno solo, en Estudio → «Pasos»: pon la asignatura y empieza un paso (o «Foco libre», sin IA); cada bloque de foco terminado se anota solo, y si sales a mitad con ≥ 1 min te ofrece anotar lo real. Sin temporizador, «Anotar» a mano.
 
 ## Paquete de estudio por tema (novedad de la v2.6)
 
@@ -485,7 +485,7 @@ Además:
 **Atlenza IA (estudio)**
 - **Flashcards:** «Crear tarjetas a mano (sin IA)»; pega varias como `pregunta | respuesta`.
 - **Trabajos y entregas:** avisos («en 2 días y sin empezar»), estado, nota y media ponderada.
-- **Pomodoro:** «Cuándo te concentras mejor», con tus franjas de los últimos 60 días.
+- **Horas de estudio:** «Cuándo te concentras mejor», con tus franjas de los últimos 60 días.
 
 **Finanzas**
 - **Presupuesto de la temporada:**
@@ -546,7 +546,7 @@ Además:
 - **Comida del día de competición:** en el modo competición, lo que toca ahora sale resaltado. «Editar» cambia la plantilla para todas.
 
 **Atlenza IA → Exámenes y notas**
-- **Plan hasta el examen:** pon las horas que quieres para cada examen (salen del horario) y pulsa «Generar plan de estudio». Reparte bloques descontando clases y días de entreno; la víspera, solo esa asignatura. Si no da tiempo, te dice cuánto falta. Cada pomodoro tacha los bloques del día de esa asignatura.
+- **Plan hasta el examen:** pon las horas que quieres para cada examen (salen del horario) y pulsa «Generar plan de estudio». Reparte bloques descontando clases y días de entreno; la víspera, solo esa asignatura. Si no da tiempo, te dice cuánto falta. Cada bloque de foco anotado tacha los bloques del día de esa asignatura.
 - **Notas y créditos:** media ponderada, créditos aprobados y pendientes.
 
 **Finanzas → Viajes y plazos**
@@ -556,7 +556,7 @@ Además:
 **Ajustes**
 - **Calendario:** «Incluir mis clases y exámenes» (solo la asignatura).
 - **Restaurar una exportación:** solo en una cuenta vacía. Entran entrenos, recuperación, salud (se vuelve a cifrar), calendario, comidas, recetas, estudio y plazos. No entran finanzas, viajes, apuntes, planes importados ni vínculos.
-- **Accesos directos:** mantén pulsado el icono de la app para ir a Sesión, Agua, Pomodoro o Hábitos.
+- **Accesos directos:** mantén pulsado el icono de la app para ir a Sesión, Agua, Estudiar o Hábitos.
 
 **Si eres entrenador/a:** en Mis atletas tienes la comparativa (carga 7 días, cumplimiento 14 días, mejor marca 30 días; cada dato solo si te dieron ese permiso) y «Comentar varias sesiones a la vez».
 
