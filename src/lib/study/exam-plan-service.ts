@@ -39,7 +39,8 @@ export async function examPlanView(userId: string, today: string) {
 /**
  * (Re)genera los bloques sugeridos desde hoy: borra los pendientes de hoy en adelante y
  * reparte lo que falta (objetivo − bloques ya hechos). Los hechos y los pasados se quedan.
- * Solo toca StudyPlanBlock: nunca el plan de entrenamiento.
+ * Solo toca StudyPlanBlock: nunca el plan de entrenamiento. Los bloques de la ruta de una
+ * asignatura (`moduleId`, v2.9) no se borran: sus minutos se descuentan de la capacidad del día.
  */
 export async function generateExamPlan(userId: string, today: string, hours: Record<string, number>) {
   const prefs = await getPrefs(userId);
@@ -49,20 +50,24 @@ export async function generateExamPlan(userId: string, today: string, hours: Rec
   const slots = await listSlots(userId);
   const exams = slots.filter((s) => s.kind === "EXAM" && s.date && s.date > today);
   const last = exams.reduce((a, e) => (e.date! > a ? e.date! : a), today);
-  const [done, sessions] = await Promise.all([
+  const [done, sessions, routeBlocks] = await Promise.all([
     prisma.studyPlanBlock.groupBy({ by: ["examId"], where: { userId, done: true }, _sum: { minutes: true } }),
     prisma.trainingSession.findMany({ where: { userId, status: { not: "SKIPPED" }, date: { gte: from, lte: dateOnly(last) } }, select: { date: true } }),
+    prisma.studyPlanBlock.findMany({ where: { userId, moduleId: { not: null }, date: { gte: from, lte: dateOnly(last) } }, select: { date: true, minutes: true } }),
   ]);
   const trainingDays = new Set(sessions.map((s) => toIsoDay(s.date)));
+  const routeMin = new Map<string, number>();
+  for (const b of routeBlocks) routeMin.set(toIsoDay(b.date), (routeMin.get(toIsoDay(b.date)) ?? 0) + b.minutes);
   const doneMin = new Map(done.map((d) => [d.examId, d._sum.minutes ?? 0]));
   const plan = planStudy({
     today,
     blockMin: prefs.studyBlockMin,
-    capacity: (day) => dayCapacity({ dailyMin: prefs.studyDailyMin, classMin: classMinutes(slots, day), training: trainingDays.has(day), trainingCutMin: prefs.studyTrainingCutMin }),
+    capacity: (day) =>
+      dayCapacity({ dailyMin: prefs.studyDailyMin, classMin: classMinutes(slots, day), training: trainingDays.has(day), trainingCutMin: prefs.studyTrainingCutMin }) - (routeMin.get(day) ?? 0),
     exams: exams.map((e) => ({ id: e.id, subject: e.subject, date: e.date!, minutes: Math.max(0, Math.round((target[e.id] ?? prefs.studyHoursPerExam) * 60) - (doneMin.get(e.id) ?? 0)) })),
   });
   await prisma.$transaction([
-    prisma.studyPlanBlock.deleteMany({ where: { userId, done: false, date: { gte: from } } }),
+    prisma.studyPlanBlock.deleteMany({ where: { userId, moduleId: null, done: false, date: { gte: from } } }),
     prisma.studyPlanBlock.createMany({ data: plan.blocks.map((b) => ({ userId, examId: b.examId, subject: b.subject, date: dateOnly(b.date), minutes: b.minutes })) }),
   ]);
   return { blocks: plan.blocks.length, shortfall: plan.shortfall };

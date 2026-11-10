@@ -1,6 +1,10 @@
--- Composición corporal ISAK (cifrada) · índices O10, O11 y O13 (pg_trgm) · histórico de autoevaluación y micro-pasos
+-- Composición corporal ISAK (cifrada) · índices O10, O11 y O13 (pg_trgm) · histórico de autoevaluación y micro-pasos · bloques de la ruta (StudyPlanBlock.moduleId/topicId)
 -- CreateExtension
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+
+-- AlterTable
+ALTER TABLE "StudyPlanBlock" ADD COLUMN     "moduleId" TEXT,
+ADD COLUMN     "topicId" TEXT;
 
 -- CreateTable
 CREATE TABLE "StudySelfTestAttempt" (
@@ -78,6 +82,12 @@ CREATE INDEX "SessionComment_athleteId_idx" ON "SessionComment"("athleteId");
 -- CreateIndex
 CREATE INDEX "SessionComment_authorId_idx" ON "SessionComment"("authorId");
 
+-- CreateIndex
+CREATE INDEX "StudyPlanBlock_moduleId_idx" ON "StudyPlanBlock"("moduleId");
+
+-- CreateIndex
+CREATE INDEX "StudyPlanBlock_topicId_idx" ON "StudyPlanBlock"("topicId");
+
 -- AddForeignKey
 ALTER TABLE "StudySelfTestAttempt" ADD CONSTRAINT "StudySelfTestAttempt_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -89,4 +99,10 @@ ALTER TABLE "StudyMicroSession" ADD CONSTRAINT "StudyMicroSession_userId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "BodyComposition" ADD CONSTRAINT "BodyComposition_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StudyPlanBlock" ADD CONSTRAINT "StudyPlanBlock_moduleId_fkey" FOREIGN KEY ("moduleId") REFERENCES "StudyModule"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StudyPlanBlock" ADD CONSTRAINT "StudyPlanBlock_topicId_fkey" FOREIGN KEY ("topicId") REFERENCES "StudyTopic"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 

@@ -1318,11 +1318,12 @@ model StudyModule {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  documents StudyDocument[]
-  topics    StudyTopic[]
-  progress  QuestProgress[]
-  selfTests StudySelfTestAttempt[]
+  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents  StudyDocument[]
+  topics     StudyTopic[]
+  progress   QuestProgress[]
+  selfTests  StudySelfTestAttempt[]
+  planBlocks StudyPlanBlock[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -1341,10 +1342,11 @@ model StudyTopic {
   documentId String?
   createdAt  DateTime @default(now())
 
-  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  module   StudyModule     @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  document StudyDocument?  @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  pack     StudyTopicPack?
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module     StudyModule      @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  document   StudyDocument?   @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  pack       StudyTopicPack?
+  planBlocks StudyPlanBlock[]
 
   @@index([moduleId])
   @@index([userId])
@@ -2313,15 +2315,23 @@ model StudyPlanBlock {
   id        String   @id @default(cuid())
   userId    String
   examId    String? // ClassSlot EXAM
+  /// v2.9 · Bloque de la ruta priorizada de una asignatura (null = del planificador de exámenes).
+  moduleId  String?
+  /// v2.9 · Tema de la ruta que cubre este bloque.
+  topicId   String?
   subject   String
   date      DateTime @db.Date
   minutes   Int
   done      Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module StudyModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  topic  StudyTopic?  @relation(fields: [topicId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
+  @@index([moduleId])
+  @@index([topicId])
 }
 
 model Grade {
