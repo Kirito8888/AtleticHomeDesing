@@ -1,3 +1,4 @@
+import { CompositionEvolution, MassBreakdown, Somatochart } from "@/components/nutrition/body-composition-charts";
 import { BodyCompositionImport } from "@/components/nutrition/body-composition-import";
 import { BodyCompositionCard, BodyCompositionForm, BodyCompositionHistory } from "@/components/nutrition/body-composition";
 import { PageHeader } from "@/components/page-header";
@@ -23,10 +24,20 @@ export default async function CompositionPage() {
     listBodyComposition(user.id),
     prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { sex: true, heightCm: true, bodyWeightKg: true } }),
   ]);
+  const points = records.map((r) => ({ id: r.id, date: r.date, weightKg: r.input.weightKg, somatotype: r.result.somatotype, masses: r.result.masses }));
   return (
     <>
       <PageHeader title="Composición corporal" description="Somatotipo (Heath-Carter) y 4 masas (grasa, músculo, hueso, residual) a partir de tus medidas ISAK. Se guarda cifrado y no lo ve la IA ni tu entrenadora." />
       <div className="grid gap-4">
+        <BodyCompositionCard title="Somatocarta">
+          <Somatochart points={points} />
+        </BodyCompositionCard>
+        <BodyCompositionCard title="Las 4 masas">
+          <MassBreakdown points={points} />
+        </BodyCompositionCard>
+        <BodyCompositionCard title="Evolución">
+          <CompositionEvolution points={points} />
+        </BodyCompositionCard>
         <BodyCompositionCard title="Nueva medición">
           <BodyCompositionForm defaults={{ sex: profile?.sex === "MALE" ? "M" : "F", heightCm: profile?.heightCm ?? undefined, weightKg: profile?.bodyWeightKg ?? undefined }} />
         </BodyCompositionCard>
