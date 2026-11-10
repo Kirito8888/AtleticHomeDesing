@@ -156,6 +156,7 @@ En el calendario o en Inicio, toca una competición:
 - **Plantillas de comidas habituales** (desayuno, comida, merienda, cena…): ★ en una toma guarda sus alimentos y cantidades con el nombre que quieras; otro día, un toque en la plantilla la añade a su toma, o «Cargar plantilla» en cualquier toma la vuelca allí. Si repites nombre, se sustituye (te avisa). Y **repetir una comida de ayer** con un toque.
 - El objetivo del día se ajusta si es día de entreno (también cuenta una sesión planificada).
 - **Hidratos según el día:** en **Ajustes → Objetivo nutricional**, pon los gramos de hidratos para día de lanzamientos, de gimnasio y sin entreno (los de tu plantilla). El día muestra cuál aplica.
+- **Composición corporal** (`/nutrition/composition`, desde «Cocina»): registra una medición ISAK (pliegues, perímetros, diámetros) a mano o importando CSV/JSON con vista previa. Calcula el somatotipo (somatocarta con tu trayectoria) y las 4 masas en kg y %, con la evolución en una gráfica y una tabla. Se guarda **cifrado**, **no va a la IA** y **tu entrenadora no lo ve**.
 - **Agua:** vasos con un toque; el objetivo sube los días con sesión y con calor (Ajustes → Agua).
 
 ## Finanzas
@@ -229,9 +230,10 @@ Tu progreso del juego se guarda en tu cuenta: lo ves igual desde el móvil y el 
 
 **Estudio** (`/study`)
 - **Resumir:** elige un apunte, un tema o pega un texto, y pide «Resumen TDAH», «Esquema visual» o «Informe TDAH». No se guarda nada hasta que pulsas «Guardar» y confirmas (siempre como apunte nuevo). Si algo no está en tus apuntes, lo dice en vez de inventarlo.
-- **Pasos:** divide un tema en 4–6 micro-pasos de 5–15 min con un temporizador (10/2, 15/3, 20/5). Verás solo el paso actual. No suma horas de estudio.
+- **Pasos:** divide un tema en 4–6 micro-pasos de 5–15 min con un temporizador (10/2, 15/3, 20/5 o 25/5). Verás solo el paso actual. Elige la asignatura antes de empezar: cada bloque de foco terminado **suma a tus horas de estudio**. «Foco libre (sin IA)» usa el mismo temporizador sin generar pasos. Tus sesiones de pasos se guardan en tu cuenta (las ves en el móvil y en el ordenador).
 - **Asignaturas:** agrupa apuntes y temas, pon la fecha del examen y la prioridad de cada tema (🔴 🟡 ⚪). Con el «Modo preparación» la lista se ordena según los días que quedan y marca lo que no llega.
-- **Evaluar nivel** (dentro de una asignatura): test de 6, 8 o 12 preguntas sobre tus apuntes, con soluciones citadas y una nota estimada /10 que te dice qué falta para el 10.
+- **Evaluar nivel** (dentro de una asignatura): test de 6, 8 o 12 preguntas sobre tus apuntes, con soluciones citadas y una nota estimada /10 que te dice qué falta para el 10. Tus intentos se guardan en tu cuenta («Último intento» y «Tus intentos»); si tenías resultados solo en este dispositivo, te ofrece importarlos una vez.
+- **Planificar en el calendario** (dentro de una asignatura): convierte la ruta priorizada en bloques de estudio por día hasta el examen, respetando entrenos y clases. Es un borrador: cambia día o minutos, quita bloques y solo «Aceptar e incorporar al plan» lo guarda. Lo ves en Planificación → «Estudio del día».
 - **Manual PDF:** genera un manual A4 de recetas con índice y pestañas de color; se descarga, no se guarda.
 - **Espacio:** hasta 5 GB de apuntes; una barra en «Apuntes» muestra cuánto llevas.
 

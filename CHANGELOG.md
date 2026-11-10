@@ -2,6 +2,27 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v2.9.0 — Datos entre dispositivos e índices (10/11/2026)
+
+**Una migración aditiva:** `20270701080000_v2_9_features` (extensión `pg_trgm`, 3 tablas nuevas, columnas opcionales e índices; sin `DROP` ni cambios de tipo). Se aplica una vez con `prisma migrate deploy` (lo hace `update.sh`). Pasos para el servidor en [`docs/migracion-v2-8-a-v2-9.md`](docs/migracion-v2-8-a-v2-9.md).
+
+**Composición corporal (ISAK)**
+- **Registro (v2.9 A):** `/nutrition/composition` (enlazada desde «Cocina») guarda mediciones ISAK a mano o importando CSV/JSON con vista previa; somatotipo Heath-Carter y 4 masas (De Rose-Guimarães) calculados siempre en el servidor. Tabla `BodyComposition` **cifrada**; nunca va a la IA, al coach, al informe semanal ni al `.ics` (lo vigila `isak-isolation.test.ts`).
+- **Gráficas (v2.9 B):** somatocarta con trayectoria, desglose de las 4 masas con variación frente a la medición anterior y evolución de peso/grasa/músculo con tabla alternativa.
+
+**Estudio**
+- **Histórico en tu cuenta (B2, N3):** los intentos de «Evaluar nivel» y las sesiones de micro-pasos terminadas se guardan en la BD (`StudySelfTestAttempt`, `StudyMicroSession`) y se ven igual en el móvil y en el ordenador. Lo que había solo en el navegador se importa una vez y no se borra hasta que el servidor confirma; reenviar no duplica.
+- **Ruta priorizada → plan del día (B3, N4):** «Planificar en el calendario» en la asignatura reparte la ruta en bloques de estudio (`StudyPlanBlock` con asignatura y tema) respetando entrenos, clases y lo ya planificado. Siempre borrador + «Aceptar e incorporar al plan»; `/planning?day=…` muestra «Estudio del día».
+- **Un solo temporizador (B4):** el de micro-pasos anota cada foco terminado como `StudySession` de la asignatura (sin duplicar si se reintenta; cola local si falla la red) y añade «Foco libre (sin IA)». Se retira el Pomodoro: `/study/focus` pasa a «Horas de estudio» y el atajo del manifest es «Estudiar». Los focos de 45/50 min ya no existen (máximo 30).
+
+**Rendimiento (B1: O10, O11, O13)**
+- Índices en `SessionComment(athleteId)` y `(authorId)`, `SecurityEvent(createdAt)`, `NotificationLog(sentAt)` y GIN trigram en `FoodProduct(name)` y `(brand)`. `EXPLAIN ANALYZE` sobre una BD temporal con **datos sintéticos** (no de producción): comentarios 4,6 → 0,2 ms; purga de `SecurityEvent` 10,2 → 0,06 ms; purga de `NotificationLog` 15,8 → 0,02 ms; búsqueda local de alimentos 82 → 0,3 ms. Con las tablas reales, aún pequeñas, Postgres puede seguir eligiendo el escaneo secuencial.
+
+**También en esta versión**
+- Nutrición: plantillas de tomas habituales por toma (Sheet de guardado y «Cargar plantilla»).
+- Entreno: mapa corporal de molestias rediseñado (silueta anatómica, escala de dolor, un área por lado).
+- Operaciones: `snapshot.sh --before` quita también las extensiones que crea la migración (sin eso la prueba habría ocultado el `CREATE EXTENSION`); los tests de límite por IP esperan al corte de la ventana.
+
 ## v2.8.0 — Estudio sin fricción (09/11/2026)
 
 Sin migraciones de base de datos ni cambios en el esquema. Pasos para el servidor en [`docs/migracion-v2-7-a-v2-8.md`](docs/migracion-v2-7-a-v2-8.md).
