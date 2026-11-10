@@ -11,7 +11,7 @@ import { TaskList, type TaskItem } from "@/components/planning/task-list";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
-import { addDays, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
+import { addDays, dateOnly, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { SESSION_TYPE_LABEL, capitalizeFirst, formatDate, formatNum } from "@/lib/format";
 import { sessionHeadline } from "@/lib/training/disciplines";
 import { agendaForDay, tasksDuePerDay } from "@/lib/planning/agenda";
@@ -94,6 +94,14 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
       })
     : null;
   const daySlots = selectedDay ? slotsOnDay(slots, selectedDay) : [];
+  // v2.9 · N4 · Bloques de estudio del día (los del plan de exámenes y los de la ruta de cada asignatura)
+  const dayStudy = selectedDay
+    ? await prisma.studyPlanBlock.findMany({
+        where: { userId: user.id, date: dateOnly(selectedDay) },
+        orderBy: [{ subject: "asc" }, { createdAt: "asc" }],
+        select: { id: true, subject: true, minutes: true, done: true, moduleId: true, topic: { select: { name: true } } },
+      })
+    : [];
 
   const days: Date[] = [];
   for (let d = gridStart; d <= gridEnd; d = addDays(d, 1)) days.push(d);
@@ -279,6 +287,18 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                 ))}
               </ul>
             ) : null}
+            {dayStudy.length ? (
+              <ul className="grid gap-1" aria-label="Estudio del día">
+                {dayStudy.map((b) => (
+                  <li key={b.id} className={b.done ? "text-muted-foreground line-through" : undefined}>
+                    <Link href={b.moduleId ? `/study/modules/${b.moduleId}` : "/study/plan"} className="underline-offset-4 hover:underline">
+                      Estudio · {b.subject}
+                      {b.topic ? ` · ${b.topic.name}` : ""} · <span className="tabular-nums">{formatNum(b.minutes)} min</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {agenda.tasks.length ? (
               <ul className="grid gap-1" aria-label="Tareas que vencen">
                 {agenda.tasks.map((t) => (
@@ -286,7 +306,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                 ))}
               </ul>
             ) : null}
-            {!agenda.sessions.length && !agenda.events.length && !agenda.tasks.length && !daySlots.length ? (
+            {!agenda.sessions.length && !agenda.events.length && !agenda.tasks.length && !daySlots.length && !dayStudy.length ? (
               <p className="text-muted-foreground">Nada planificado este día.</p>
             ) : null}
           </CardContent>

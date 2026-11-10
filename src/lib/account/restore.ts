@@ -169,6 +169,7 @@ export async function restoreExport(userId: string, data: unknown) {
     );
   }
   // Clases y exámenes: se guardan los ids nuevos para enlazar los bloques del plan de estudio
+  // (las asignaturas y temas no se restauran: los bloques de su ruta vuelven sin moduleId/topicId)
   const slotMap = new Map<string, string>();
   for (const r of arr(get(data, "study", "classSlots"))) {
     const created = await prisma.classSlot.create({ data: { ...pick(r, Prisma.ClassSlotScalarFieldEnum), userId } as never, select: { id: true } }).catch(() => null);
@@ -179,7 +180,7 @@ export async function restoreExport(userId: string, data: unknown) {
   }
   for (const r of arr(get(data, "study", "planBlocks"))) {
     await prisma.studyPlanBlock
-      .create({ data: { ...pick(r, Prisma.StudyPlanBlockScalarFieldEnum, ["examId"]), examId: slotMap.get(String(r.examId)) ?? null, userId } as never })
+      .create({ data: { ...pick(r, Prisma.StudyPlanBlockScalarFieldEnum, ["examId", "moduleId", "topicId"]), examId: slotMap.get(String(r.examId)) ?? null, userId } as never })
       .then(() => add("plan de estudio"), () => skipped.push("plan de estudio"));
   }
   // Rutinas de prehabilitación con sus días

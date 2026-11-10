@@ -116,6 +116,35 @@ await done.click();
 await waitOrder(["Seguro largo", "Apuntes tema 5", "Probable", "Secundario", "Seguro corto"], "hecho al final");
 log("tema hecho al final de la ruta");
 
+// 6b · v2.9 N4 · «Planificar en el calendario»: borrador sin escribir, retoque, aceptar y verlo en /planning
+const routeBlocks = () => Number(psql(`select count(*) from "StudyPlanBlock" where "userId"='${uid}' and "moduleId" is not null`));
+const planBtn = page.getByRole("button", { name: "Planificar en el calendario" });
+await minH(planBtn, "«Planificar en el calendario»");
+await planBtn.click();
+await page.getByRole("heading", { name: "Borrador del plan" }).waitFor();
+if (routeBlocks() !== 0) errors.push("el borrador ha escrito bloques antes de aceptar");
+const firstBlock = page.locator("[data-block]").first();
+const firstTopic = await firstBlock.getAttribute("data-block");
+if (firstTopic !== "Seguro largo") errors.push(`el primer bloque debería ser el primero de la ruta, no «${firstTopic}»`);
+await firstBlock.getByLabel(/Minutos de/).fill("25");
+await noOverflow("borrador del plan");
+await page.screenshot({ path: `${out}/v25m-borrador.png`, fullPage: true });
+const acceptBtn = page.getByRole("button", { name: "Aceptar e incorporar al plan" });
+await minH(acceptBtn, "«Aceptar e incorporar al plan»");
+await acceptBtn.click();
+const seeLink = page.getByRole("link", { name: "Ver en Planificación" });
+await seeLink.waitFor();
+if (routeBlocks() < 1) errors.push("al aceptar no se han creado bloques");
+if (psql(`select count(*) from "StudyPlanBlock" where "userId"='${uid}' and minutes=25 and "topicId" is not null`) !== "1") errors.push("no se guardó el retoque de minutos (25)");
+await seeLink.click();
+const studyList = page.getByRole("list", { name: "Estudio del día" });
+await studyList.waitFor();
+if (!(await studyList.innerText()).includes("Bioquímica · Seguro largo")) errors.push("el bloque no aparece en el día de /planning");
+await noOverflow("/planning con estudio del día");
+await page.screenshot({ path: `${out}/v25m-planning.png`, fullPage: true });
+log("borrador → retoque → aceptar → bloques en /planning");
+await page.goBack();
+
 // 7 · volver a /study y verla en la lista; el selector de subida ofrece la asignatura
 await page.goto(B + "/study?tab=modules");
 await page.getByText("Bioquímica").first().waitFor();

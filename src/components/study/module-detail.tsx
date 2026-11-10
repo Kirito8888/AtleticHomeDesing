@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { TAG_EMOJI, TAG_LABEL, type Tag } from "@/lib/study/adhd-report";
 
 import { PackSection } from "./pack/pack-section";
+import { RoutePlan } from "./route-plan";
 import { daysLabel } from "./modules-panel";
 import type { ExamFormat } from "@/lib/study/exam-format";
 
@@ -190,6 +191,8 @@ export function ModuleDetail({ data }: { data: ModuleDetailData }) {
           </Button>
         </form>
       </section>
+
+      <RoutePlan moduleId={data.id} />
 
       <PackSection moduleId={data.id} moduleName={data.name} topics={data.topics.map((t) => ({ id: t.id, name: t.name }))} documents={data.documents} initialPacks={data.packs} examFormat={data.examFormat} examFormatSet={data.examFormatSet} />
 

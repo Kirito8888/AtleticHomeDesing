@@ -21,7 +21,7 @@ export async function weekAll(userId: string, weekStart: Date): Promise<WeekItem
     prisma.trainingSession.findMany({ where: { userId, date: range }, select: { id: true, date: true, type: true, title: true, status: true, startedAt: true } }),
     prisma.classSlot.findMany({ where: { userId, kind: "CLASS" }, select: { subject: true, weekday: true, startMin: true, validFrom: true, validTo: true, location: true } }),
     prisma.classSlot.findMany({ where: { userId, kind: "EXAM", date: range }, select: { subject: true, date: true, startMin: true, location: true } }),
-    prisma.studyPlanBlock.findMany({ where: { userId, date: range }, select: { subject: true, date: true, minutes: true, done: true } }),
+    prisma.studyPlanBlock.findMany({ where: { userId, date: range }, select: { subject: true, date: true, minutes: true, done: true, moduleId: true, topic: { select: { name: true } } } }),
     prisma.assignment.findMany({ where: { userId, dueOn: range }, select: { subject: true, title: true, dueOn: true, status: true } }),
     prisma.appointment.findMany({ where: { userId, at: { gte: weekStart, lt: endTs } }, select: { kind: true, at: true, place: true } }),
     prisma.calendarEvent.findMany({ where: { userId, startAt: { gte: weekStart, lt: endTs }, type: { in: ["COMPETITION", "TIME_TRIAL", "TEST_1RM", "OTHER"] } }, select: { id: true, type: true, title: true, startAt: true, allDay: true } }),
@@ -41,7 +41,7 @@ export async function weekAll(userId: string, weekStart: Date): Promise<WeekItem
       ws,
     ).map((c) => ({ ...c, href: "/study/schedule" })),
     ...exams.map((e) => ({ date: toIsoDay(e.date!), min: e.startMin, kind: "exam" as const, title: `${e.subject}${e.location ? ` · ${e.location}` : ""}`, href: "/study/exams" })),
-    ...blocks.map((b) => ({ date: toIsoDay(b.date), min: null, kind: "study" as const, title: `${b.subject} · ${b.minutes} min`, href: "/study/plan", done: b.done })),
+    ...blocks.map((b) => ({ date: toIsoDay(b.date), min: null, kind: "study" as const, title: `${b.subject}${b.topic ? ` · ${b.topic.name}` : ""} · ${b.minutes} min`, href: b.moduleId ? `/study/modules/${b.moduleId}` : "/study/plan", done: b.done })),
     ...assignments.map((a) => ({ date: toIsoDay(a.dueOn), min: null, kind: "assignment" as const, title: `${a.title} (${a.subject})`, href: "/study/assignments", done: a.status === "DONE" })),
     ...appts.map((a) => ({ date: madridDay(a.at), min: madridMin(a.at), kind: "appointment" as const, title: `${APPOINTMENT_LABEL[a.kind as keyof typeof APPOINTMENT_LABEL] ?? "Cita"}${a.place ? ` · ${a.place}` : ""}`, href: "/recovery/health" })),
     ...events.map((e) => ({
