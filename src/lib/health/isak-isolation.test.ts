@@ -34,6 +34,8 @@ describe("aislamiento de la composición corporal", () => {
         "src/lib/account/service.ts",
         "src/lib/security/rotate.ts",
         "src/app/(app)/nutrition/composition/page.tsx",
+        "src/components/nutrition/body-composition-charts.tsx",
+        "src/components/nutrition/composition-evolution-chart.tsx",
         "src/components/nutrition/body-composition-import.tsx",
         "src/components/nutrition/body-composition.tsx",
       ].sort(),

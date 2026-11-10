@@ -80,6 +80,19 @@ await page.getByRole("alertdialog").getByRole("button", { name: "Importar", exac
 await page.getByRole("cell", { name: "2026-10-01", exact: true }).waitFor();
 log("importar CSV: vista previa, confirmación e histórico");
 
+// 4b · Bloque B: somatocarta, 4 masas y evolución con 2 mediciones
+const chart = page.getByRole("img", { name: /^Somatocarta: 2 mediciones/ });
+await chart.waitFor();
+if ((await page.getByTestId("punto-somato").count()) !== 2) errors.push("la somatocarta debe tener 2 puntos");
+if ((await page.getByTestId("trayectoria").count()) !== 1) errors.push("falta la trayectoria entre mediciones");
+if (!/variación frente al/.test(await page.locator("caption", { hasText: "variación frente al" }).innerText())) errors.push("falta la variación frente a la previa");
+await page.getByText("Ver datos de la evolución").click();
+await page.getByRole("cell", { name: "75", exact: true }).first().waitFor();
+await page.locator(".recharts-wrapper").first().waitFor();
+await page.getByRole("button", { name: "Porcentaje" }).click();
+await page.locator(".recharts-wrapper").first().waitFor();
+log("somatocarta (2 puntos + trayectoria), 4 masas con variación y evolución");
+
 // 5 · Borrar una medición
 await page.getByRole("button", { name: "Borrar la medición del 2026-10-01" }).click();
 await page.getByRole("alertdialog").getByRole("button", { name: "Borrar", exact: true }).click();
@@ -89,6 +102,14 @@ log("borrado confirmado");
 const w = await page.evaluate(() => document.documentElement.scrollWidth);
 if (w > 392) errors.push(`desborda en horizontal (${w}px)`);
 errors.push(...(await a11y(page, "/nutrition/composition")));
+
+// Tema oscuro: sin desbordes ni fallos de accesibilidad en las gráficas
+await page.emulateMedia({ colorScheme: "dark" });
+await page.evaluate(() => document.documentElement.classList.add("dark"));
+await page.getByRole("img", { name: /^Somatocarta/ }).waitFor();
+const wd = await page.evaluate(() => document.documentElement.scrollWidth);
+if (wd > 392) errors.push(`desborda en oscuro (${wd}px)`);
+errors.push(...(await a11y(page, "/nutrition/composition (oscuro)")));
 
 await browser.close();
 if (errors.length) {
