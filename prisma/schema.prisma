@@ -1324,6 +1324,7 @@ model StudyModule {
   progress   QuestProgress[]
   selfTests  StudySelfTestAttempt[]
   planBlocks StudyPlanBlock[]
+  studySessions StudySession[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -2035,10 +2036,17 @@ model StudySession {
   date      DateTime @db.Date
   minutes   Int
   createdAt DateTime @default(now())
+  /// v2.9 · Asignatura (módulo) en curso al anotar; null = anotado solo por nombre.
+  moduleId  String?
+  /// v2.9 · Idempotencia del temporizador (sesión:paso:inicio); null = anotado a mano.
+  clientKey String?
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module StudyModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
 
+  @@unique([userId, clientKey])
   @@index([userId, date])
+  @@index([moduleId])
 }
 
 model Habit {

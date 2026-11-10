@@ -1,23 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pause, Play, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Chips } from "@/components/form/chips";
+import { Chips, Field } from "@/components/form/chips";
 import { SourcePicker, useSource } from "@/components/study/source-picker";
+import { useFocusLog } from "@/components/study/use-focus-log";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { api } from "@/lib/client-api";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { MicroSteps } from "@/lib/study/micro-steps";
 import {
   beginFocus,
+  blockKey,
   completeStep,
+  focusElapsedMin,
+  focusLogged,
   intervalProgress,
   isFinished,
   isPaused,
   type MicroRun,
+  MIN_LOG_MIN,
   pause,
   PRESETS,
   remainingMs,
@@ -38,6 +44,9 @@ interface Saved {
   key?: string;
   syncedKey?: string;
   completedAt?: number;
+  /** v2.9 · asignatura a la que se anota el foco y «Foco libre» (sin IA, no genera sesión en el histórico). */
+  subject?: string;
+  free?: boolean;
 }
 const newKey = () => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `k${Date.now()}${Math.random().toString(36).slice(2)}`);
 const day = (iso: string) => formatDateTime(iso);
@@ -99,8 +108,21 @@ function MicroCountdown({ run }: { run: MicroRun }) {
  * Fraccionador + temporizador de micro-intervalos. Los pasos viven en el cliente (y en localStorage
  * para sobrevivir a una recarga): no se guarda nada en apuntes ni flashcards.
  */
-export function MicroStepsPanel({ docs, aiEnabled, history }: { docs: Array<{ id: string; title: string }>; aiEnabled: boolean; history: MicroSessionView[] }) {
+export function MicroStepsPanel({
+  docs,
+  aiEnabled,
+  history,
+  subjects,
+  modules,
+}: {
+  docs: Array<{ id: string; title: string; subject?: string | null }>;
+  aiEnabled: boolean;
+  history: MicroSessionView[];
+  subjects: string[];
+  modules: Array<{ id: string; name: string }>;
+}) {
   const src = useSource(docs);
+  const logFocus = useFocusLog();
   const [busy, setBusy] = useState(false);
   const [steps, setSteps] = useState<MicroSteps | null>(null);
   const [selected, setSelected] = useState(0);
@@ -114,6 +136,19 @@ export function MicroStepsPanel({ docs, aiEnabled, history }: { docs: Array<{ id
   const [hideImport, setHideImport] = useState(false);
   const [importing, setImporting] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [free, setFree] = useState(false);
+  /** Minutos de foco pendientes de confirmar al salir a mitad de un bloque. */
+  const [askExit, setAskExit] = useState<number | null>(null);
+  const runRef = useRef<MicroRun | null>(null);
+  const suggested = (src.kind === "document" ? docs.find((d) => d.id === src.documentId)?.subject?.trim() : "") || "";
+  const effSubject = subject.trim() || suggested;
+  const moduleOf = (name: string) => modules.find((m) => m.name.toLowerCase() === name.toLowerCase())?.id;
+  const record = (minutes: number, k: string) => {
+    const name = effSubject;
+    if (!name || minutes < MIN_LOG_MIN) return Promise.resolve(false);
+    return logFocus({ subject: name, moduleId: moduleOf(name), minutes, clientKey: k });
+  };
 
   // Recupera el estado tras recargar (fuera del render para no romper la hidratación)
   useEffect(() => {
@@ -128,16 +163,18 @@ export function MicroStepsPanel({ docs, aiEnabled, history }: { docs: Array<{ id
         setKey(v.key);
         setSyncedKey(v.syncedKey);
         setCompletedAt(v.completedAt);
+        setSubject(v.subject ?? "");
+        setFree(Boolean(v.free));
       }
     }, 0);
     return () => clearTimeout(id);
   }, []);
 
   useEffect(() => {
-    if (steps) store({ steps, selected, preset, done, run, key, syncedKey, completedAt });
-  }, [steps, selected, preset, done, run, key, syncedKey, completedAt]);
+    if (steps) store({ steps, selected, preset, done, run, key, syncedKey, completedAt, subject, free });
+  }, [steps, selected, preset, done, run, key, syncedKey, completedAt, subject, free]);
 
-  const savedNow: SavedMicro | null = steps ? { steps, preset, done, key, syncedKey, completedAt } : null;
+  const savedNow: SavedMicro | null = steps && !free ? { steps, preset, done, key, syncedKey, completedAt } : null;
 
   /** Sube una sesión terminada; solo con el 200 se marca como sincronizada (si falla, queda local y se reintenta al reabrir). */
   async function upload(input: NonNullable<ReturnType<typeof microSessionFromSaved>>): Promise<boolean> {
@@ -165,18 +202,26 @@ export function MicroStepsPanel({ docs, aiEnabled, history }: { docs: Array<{ id
   }
 
   useEffect(() => {
+    runRef.current = run;
+  }, [run]);
+
+  // Reloj del tramo: cuando el foco vence se anota solo (una vez por bloque: la clave lo hace idempotente).
+  useEffect(() => {
     if (!run) return;
     const id = setInterval(() => {
-      const t = Date.now();
-      setRun((r) => {
-        if (!r) return r;
-        const next = tick(r, t);
-        if (next !== r) navigator.vibrate?.([300, 150, 300]);
-        return next;
-      });
+      const prev = runRef.current;
+      if (!prev) return;
+      const next = tick(prev, Date.now());
+      if (next === prev) return;
+      runRef.current = next;
+      setRun(next);
+      navigator.vibrate?.([300, 150, 300]);
+      const m = focusLogged(prev, next);
+      if (m != null) void record(m, blockKey(key ?? "m", prev));
     }, 1000);
     return () => clearInterval(id);
-  }, [run]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, key, effSubject]);
 
   async function split(e: React.FormEvent) {
     e.preventDefault();
@@ -184,6 +229,7 @@ export function MicroStepsPanel({ docs, aiEnabled, history }: { docs: Array<{ id
     try {
       const r = await api<MicroSteps>("/api/ai/study/chunk", { body: { source: src.source } });
       setSteps({ title: r.title, steps: r.steps });
+      setFree(false);
       setKey(newKey());
       setSyncedKey(undefined);
       setCompletedAt(undefined);
@@ -205,18 +251,53 @@ export function MicroStepsPanel({ docs, aiEnabled, history }: { docs: Array<{ id
     setDone(n.done);
     setRun(n);
     // Al terminar el último paso se sube solo (una vez); el 200 marca la sesión como sincronizada.
-    const input = steps && key ? microSessionFromSaved({ steps, preset, done: n.done, key, syncedKey, completedAt: Date.now() }) : null;
+    const input = steps && key && !free ? microSessionFromSaved({ steps, preset, done: n.done, key, syncedKey, completedAt: Date.now() }) : null;
     if (input) {
       setSyncing(true);
       void upload(input).finally(() => setSyncing(false));
     }
   };
-  const exit = () => {
+  const leave = () => {
+    setAskExit(null);
     setSelected(run?.stepIndex ?? selected);
     setRun(null);
   };
+  /** Salir a mitad de un foco con ≥ 1 min cumplido: ofrece anotar lo real (nunca sin preguntar). */
+  const exit = () => {
+    const m = run ? focusElapsedMin(run, Date.now()) : 0;
+    if (run && m >= MIN_LOG_MIN) setAskExit(m);
+    else leave();
+  };
+  const exitAndLog = async () => {
+    if (run && askExit) await record(askExit, blockKey(key ?? "m", run));
+    leave();
+  };
+  /** «Paso hecho» en pleno foco: el tiempo real del bloque se anota solo. */
+  const stepDone = () => {
+    if (run?.phase === "focus") void record(focusElapsedMin(run, Date.now()), blockKey(key ?? "m", run));
+    go((r) => completeStep(r, total));
+  };
+  const needSubject = () => {
+    if (!effSubject) toast.error("Elige la asignatura para anotar el tiempo");
+    else setSubject(effSubject);
+    return effSubject;
+  };
+  /** Foco sin IA: un único paso con la asignatura (no entra en el histórico de sesiones). */
+  const startFree = () => {
+    const name = needSubject();
+    if (!name) return;
+    setSteps({ title: `Foco libre · ${name}`, steps: [{ n: 1, action: `Estudiar ${name}`, minutes: p.focus }] });
+    setFree(true);
+    setKey(newKey());
+    setSyncedKey(undefined);
+    setCompletedAt(undefined);
+    setSelected(0);
+    setDone([]);
+    setRun(startStep(0, p, Date.now(), []));
+  };
   const discard = () => {
     setSteps(null);
+    setFree(false);
     setKey(undefined);
     setSyncedKey(undefined);
     setCompletedAt(undefined);
@@ -232,7 +313,7 @@ export function MicroStepsPanel({ docs, aiEnabled, history }: { docs: Array<{ id
       return (
         <div className="grid gap-4 rounded-lg border p-4 text-center" data-testid="micro-focus">
           <p className="text-lg font-semibold">Terminaste los {total} pasos</p>
-          <Button type="button" className="min-h-11" onClick={exit}>
+          <Button type="button" className="min-h-11" onClick={leave}>
             Volver a los pasos
           </Button>
         </div>
@@ -265,20 +346,49 @@ export function MicroStepsPanel({ docs, aiEnabled, history }: { docs: Array<{ id
             )}
           </>
         )}
-        <div className="grid grid-cols-2 gap-2">
-          <Button type="button" className="min-h-11" onClick={() => go((r) => completeStep(r, total))}>
-            Paso hecho
-          </Button>
-          <Button type="button" variant="ghost" className="min-h-11" onClick={exit}>
-            <X /> Salir
-          </Button>
-        </div>
+        {askExit ? (
+          <div role="alert" data-testid="micro-exit-ask" className="grid gap-2 rounded-md border border-dashed p-3 text-sm">
+            <p>
+              Llevas {askExit} min de foco. ¿Los anoto en {effSubject || "tu asignatura"}?
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" className="min-h-11" onClick={exitAndLog}>
+                Anotar {askExit} min
+              </Button>
+              <Button type="button" variant="outline" className="min-h-11" onClick={leave}>
+                No anotar
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <Button type="button" className="min-h-11" onClick={stepDone}>
+              Paso hecho
+            </Button>
+            <Button type="button" variant="ghost" className="min-h-11" onClick={exit}>
+              <X /> Salir
+            </Button>
+          </div>
+        )}
       </div>
     );
   }
 
   return (
     <div className="grid gap-4">
+      <div className="grid gap-2 rounded-lg border p-3">
+        <Field label="Asignatura (se le anota el tiempo de foco)" htmlFor="micro-subject">
+          <Input id="micro-subject" list="micro-subjects" value={subject} placeholder={suggested} maxLength={80} onChange={(e) => setSubject(e.target.value)} />
+          <datalist id="micro-subjects">
+            {[...new Set([...modules.map((m) => m.name), ...subjects])].map((n) => (
+              <option key={n} value={n} />
+            ))}
+          </datalist>
+        </Field>
+        <Button type="button" variant="outline" className="min-h-11" onClick={startFree}>
+          <Play /> Foco libre (sin IA)
+        </Button>
+      </div>
       {legacyPending ? (
         <div role="status" data-testid="micro-import" className="grid gap-2 rounded-lg border border-dashed p-3 text-sm">
           <p>Tienes una sesión terminada («{legacyPending.title}») guardada solo en este dispositivo. ¿La subes para verla también en tus otros dispositivos?</p>
@@ -320,7 +430,7 @@ export function MicroStepsPanel({ docs, aiEnabled, history }: { docs: Array<{ id
             })}
           </div>
           <Chips label="Intervalo" value={preset} onChange={(v) => v && setPreset(v)} options={PRESETS.map((x) => ({ value: presetKey(x), label: `${x.focus}/${x.rest} min` }))} />
-          <Button type="button" size="lg" className="min-h-11" onClick={() => setRun(startStep(selected, p, Date.now(), done))}>
+          <Button type="button" size="lg" className="min-h-11" onClick={() => needSubject() && setRun(startStep(selected, p, Date.now(), done))}>
             <Play /> Empezar este paso
           </Button>
           <Button type="button" variant="ghost" className="min-h-11" onClick={discard}>

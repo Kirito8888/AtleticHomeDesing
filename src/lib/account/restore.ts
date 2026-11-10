@@ -119,7 +119,7 @@ export async function restoreExport(userId: string, data: unknown) {
     ["comidas", get(data, "nutrition", "entries"), Prisma.MacrosScalarFieldEnum, (d) => prisma.macros.create({ data: { ...d, foodProductId: null, customName: (d.customName as string | null) ?? "Alimento (restaurado)" } as never })],
     ["objetivos de nutrición", get(data, "nutrition", "goals"), Prisma.NutritionGoalScalarFieldEnum, (d) => prisma.nutritionGoal.create({ data: d as never })],
     ["agua", get(data, "nutrition", "hydration"), Prisma.HydrationLogScalarFieldEnum, (d) => prisma.hydrationLog.create({ data: d as never })],
-    ["bloques de estudio", get(data, "study", "sessions"), Prisma.StudySessionScalarFieldEnum, (d) => prisma.studySession.create({ data: d as never })],
+    ["bloques de estudio", get(data, "study", "sessions"), Prisma.StudySessionScalarFieldEnum, (d) => prisma.studySession.create({ data: { ...d, moduleId: null, clientKey: null } as never })],
     // v1.6
     ["mínimas", get(data, "training", "minimums"), Prisma.MinimumScalarFieldEnum, (d) => prisma.minimum.create({ data: d as never })],
     ["semanas tipo", get(data, "training", "weekTemplates"), Prisma.WeekTemplateScalarFieldEnum, (d) => prisma.weekTemplate.create({ data: d as never })],

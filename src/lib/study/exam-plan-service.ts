@@ -73,7 +73,7 @@ export async function generateExamPlan(userId: string, today: string, hours: Rec
   return { blocks: plan.blocks.length, shortfall: plan.shortfall };
 }
 
-/** Tras un pomodoro: tacha en orden los bloques del día de esa asignatura que ya cubren los minutos estudiados. */
+/** Tras anotar un bloque de foco: tacha en orden los bloques del día de esa asignatura que ya cubren los minutos estudiados. */
 export async function tickStudyBlocks(userId: string, subject: string, day: string) {
   const date = dateOnly(day);
   const [blocks, studied] = await Promise.all([
@@ -90,7 +90,7 @@ export async function setBlockDone(userId: string, id: string, done: boolean) {
   if (!count) throw new ApiError(404, "Bloque no encontrado");
 }
 
-/** Bloques de estudio de hoy (para el pomodoro). */
+/** Bloques de estudio de hoy (para «Hoy toca»). */
 export async function todayBlocks(userId: string, today: string) {
   return prisma.studyPlanBlock.findMany({ where: { userId, date: dateOnly(today) }, orderBy: { subject: "asc" }, select: { id: true, subject: true, minutes: true, done: true } });
 }

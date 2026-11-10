@@ -86,6 +86,9 @@ export const studySessionSchema = z.object({
   subject: z.string().trim().min(1).max(80),
   minutes: z.number().int().min(1).max(600),
   date: isoDate,
+  /** v2.9 · asignatura (módulo) y clave de idempotencia del temporizador. */
+  moduleId: z.string().trim().min(1).max(40).optional(),
+  clientKey: z.string().trim().min(1).max(120).optional(),
 });
 
 /** Minutos por día (lunes→domingo) y por asignatura de la semana que empieza en `weekStart`. */

@@ -258,15 +258,14 @@ log("horario: examen y clase; aviso de entreno el día del examen");
 
 await go(B + "/study/focus");
 await page.getByLabel("Asignatura").fill("Cálculo");
-await page.getByRole("button", { name: "Empezar pomodoro" }).click();
-await page.getByRole("timer").getByText(/Concentración · Cálculo/).waitFor();
-await page.getByRole("button", { name: /Terminar ahora/ }).click();
+if (await page.getByRole("button", { name: "Empezar pomodoro" }).count()) errors.push("sigue el Pomodoro duplicado en /study/focus");
+await page.getByRole("link", { name: "Empezar a estudiar" }).waitFor();
 await page.getByLabel("¿Estudiaste sin temporizador? Minutos").fill("45");
 await page.getByRole("button", { name: "Anotar", exact: true }).click();
-await toast(/Estudio anotado/);
+await toast(/45 min de Cálculo anotados/);
 await page.getByLabel("Horas por asignatura").getByText("45 min").waitFor();
 await noOverflow("/study/focus");
-log("pomodoro y horas de estudio por asignatura");
+log("horas de estudio por asignatura (anotado a mano) y enlace al temporizador único");
 
 await go(B + "/");
 await page.getByLabel("Nuevo hábito").fill("Estiramientos");

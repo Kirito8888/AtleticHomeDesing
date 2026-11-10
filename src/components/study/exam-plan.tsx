@@ -67,7 +67,7 @@ export function ExamPlanForm({ exams }: { exams: Exam[] }) {
   );
 }
 
-/** Bloques por día con su casilla (el pomodoro también los tacha solo). */
+/** Bloques por día con su casilla (el temporizador de foco también los tacha solo). */
 export function StudyBlocks({ blocks: initial }: { blocks: Array<{ id: string; subject: string; date: string; minutes: number; done: boolean }> }) {
   const [blocks, setBlocks] = useState(initial);
   const [seen, setSeen] = useState(initial);

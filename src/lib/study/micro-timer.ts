@@ -11,6 +11,7 @@ export const PRESETS: readonly Preset[] = [
   { focus: 10, rest: 2 },
   { focus: 15, rest: 3 },
   { focus: 20, rest: 5 },
+  { focus: 25, rest: 5 },
 ];
 
 /** Acota el preset: foco 5–30 min y descanso 1–10 (valores no numéricos → 15 y 3). */
@@ -29,6 +30,8 @@ export interface MicroRun {
   pausedLeftMs: number | null;
   preset: Preset;
   done: number[];
+  /** v2.9 · Inicio del bloque de foco (ms epoch); identifica el bloque al anotarlo. Ausente en estados antiguos. */
+  startedAt?: number;
 }
 
 const MIN = 60_000;
@@ -42,7 +45,7 @@ const total = (r: MicroRun) => (r.phase === "rest" ? r.preset.rest : r.preset.fo
  */
 export function startStep(stepIndex: number, preset: Preset, now: number, done: number[] = []): MicroRun {
   const p = clampPreset(preset);
-  return { phase: "focus", stepIndex, endAt: now + p.focus * MIN, pausedLeftMs: null, preset: p, done };
+  return { phase: "focus", stepIndex, endAt: now + p.focus * MIN, pausedLeftMs: null, preset: p, done, startedAt: now };
 }
 
 /** Milisegundos que quedan del tramo: 0 en espera, lo guardado en pausa, o `endAt − now` sin bajar de 0. */
@@ -97,3 +100,20 @@ export function beginFocus(r: MicroRun, now: number): MicroRun {
 export const stepsProgress = (r: MicroRun, totalSteps: number) => (totalSteps ? r.done.length / totalSteps : 0);
 /** Todos los pasos hechos (falso si no hay pasos). */
 export const isFinished = (r: MicroRun, totalSteps: number) => totalSteps > 0 && r.done.length >= totalSteps;
+
+/** v2.9 · Mínimo de minutos enteros para ofrecer o hacer la anotación en `StudySession`. */
+export const MIN_LOG_MIN = 1;
+
+/** Minutos enteros de foco ya cumplidos en el bloque en curso (0 en descanso o espera; la pausa no cuenta). */
+export function focusElapsedMin(r: MicroRun, now: number): number {
+  if (r.phase !== "focus") return 0;
+  return Math.max(0, Math.min(r.preset.focus, Math.floor((r.preset.focus * MIN - remainingMs(r, now)) / MIN)));
+}
+
+/** Evento «bloque terminado»: minutos del foco completo si pasar de `prev` a `next` es foco → descanso; si no, null. */
+export function focusLogged(prev: MicroRun, next: MicroRun): number | null {
+  return prev.phase === "focus" && next.phase === "rest" ? prev.preset.focus : null;
+}
+
+/** Clave estable del bloque (idempotencia en la BD): sesión + paso + inicio del foco. */
+export const blockKey = (sessionKey: string, r: MicroRun) => `${sessionKey}:${r.stepIndex}:${r.startedAt ?? 0}`;

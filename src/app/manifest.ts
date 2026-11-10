@@ -34,7 +34,7 @@ export default function manifest(): MetadataRoute.Manifest {
     shortcuts: [
       { name: "Registrar sesión", short_name: "Sesión", url: "/training/new", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
       { name: "Agua", short_name: "Agua", url: "/nutrition#agua", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
-      { name: "Pomodoro", short_name: "Pomodoro", url: "/study/focus", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "Estudiar", short_name: "Estudiar", url: "/study?tab=steps", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
       { name: "Hábitos de hoy", short_name: "Hábitos", url: "/#habitos", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
     ],
   };
