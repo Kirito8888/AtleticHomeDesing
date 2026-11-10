@@ -8,6 +8,7 @@ import { ModulesPanel } from "@/components/study/modules-panel";
 import { StorageMeter } from "@/components/study/storage-meter";
 import { studyStorageUsage } from "@/lib/ai/rag";
 import { listModules } from "@/lib/study/modules-service";
+import { listMicroSessions } from "@/lib/study/study-history-service";
 import { today } from "@/lib/dates";
 import { DocumentsPanel } from "@/components/study/documents-panel";
 import { publicDocError } from "@/lib/ai/doc-error";
@@ -25,7 +26,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   const user = await pageUser();
   const { tab } = await searchParams;
   const aiConfigured = await aiAvailable(user.id);
-  const [me, docs, threads, decks, reports, storage, modules] = await Promise.all([
+  const [me, docs, threads, decks, reports, storage, modules, microSessions] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { aiConsentAt: true } }),
     prisma.studyDocument.findMany({
       where: { userId: user.id },
@@ -37,6 +38,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
     prisma.coachReport.findMany({ where: { userId: user.id }, orderBy: { weekStart: "desc" }, take: 8 }),
     studyStorageUsage(user.id),
     listModules(user.id, toIsoDay(today())),
+    listMicroSessions(user.id),
   ]);
   const aiConsent = me.aiConsentAt != null;
   const aiEnabled = aiConfigured && aiConsent;
@@ -128,7 +130,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
           <AdaptPanel aiEnabled={aiEnabled || process.env.LIFEOS_FAKE_AI === "1"} docs={docs.filter((d) => d.status === "EMBEDDED").map((d) => ({ id: d.id, title: d.title, moduleName: modules.find((m) => m.id === d.moduleId)?.name ?? null }))} />
         </TabsContent>
         <TabsContent value="steps">
-          <MicroStepsPanel aiEnabled={aiEnabled || process.env.LIFEOS_FAKE_AI === "1"} docs={docs.filter((d) => d.status === "EMBEDDED").map((d) => ({ id: d.id, title: d.title }))} />
+          <MicroStepsPanel history={microSessions} aiEnabled={aiEnabled || process.env.LIFEOS_FAKE_AI === "1"} docs={docs.filter((d) => d.status === "EMBEDDED").map((d) => ({ id: d.id, title: d.title }))} />
         </TabsContent>
         <TabsContent value="manual">
           <ManualPanel aiEnabled={aiEnabled || process.env.LIFEOS_FAKE_AI === "1"} docs={docs.filter((d) => d.status === "EMBEDDED").map((d) => ({ id: d.id, title: d.title }))} />

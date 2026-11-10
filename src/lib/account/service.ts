@@ -157,7 +157,7 @@ export async function exportAccount(userId: string) {
     prisma.physioProtocolShare.findMany({ where: { athleteId: userId }, include: { protocol: { select: { title: true, phases: true } } } }),
   ]);
   // v1.5: tests físicos, vuelta por fases, agua, horario, estudio, hábitos, material y comentarios
-  const [testResults, fvSeries, returnProtocols, hydration, classSlots, studySessions, habits, equipment, sessionComments] = await Promise.all([
+  const [testResults, fvSeries, returnProtocols, hydration, classSlots, studySessions, habits, equipment, sessionComments, selfTestAttempts, microSessions] = await Promise.all([
     prisma.testResult.findMany({ where, orderBy: { date: "asc" } }),
     prisma.fvSeries.findMany({ where, orderBy: { date: "asc" } }),
     prisma.returnProtocol.findMany({ where }),
@@ -168,6 +168,8 @@ export async function exportAccount(userId: string) {
     prisma.equipment.findMany({ where }),
     // Los de sus sesiones (de quien sea) y los que escribió en sesiones de sus atletas
     prisma.sessionComment.findMany({ where: { OR: [{ athleteId: userId }, { authorId: userId }] }, orderBy: { createdAt: "asc" }, include: { author: { select: { name: true, email: true } } } }),
+    prisma.studySelfTestAttempt.findMany({ where, orderBy: { takenAt: "asc" }, omit: { userId: true } }),
+    prisma.studyMicroSession.findMany({ where, orderBy: { completedAt: "asc" }, omit: { userId: true } }),
   ]);
   // v1.6: jabalina, prehab, antropometría, salud (suplementos, citas, enlaces, «entreno sola»), cocina, estudio, viajes y plazos
   const [minimums, weekTemplates, prehabRoutines, bodyMeasures, supplements, appointments, healthReports, safetyContacts, safetyTrips, recipes, shopping, studyPlanBlocks, grades, trips, deadlines] = await Promise.all([
@@ -277,7 +279,7 @@ export async function exportAccount(userId: string) {
       categoryRules: categoryRules.map((r) => ({ pattern: r.pattern, category: r.category.name, createdAt: r.createdAt })),
     },
     nutrition: { ownFoods, entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration, recipes, shopping, mealPlan: mealPlan.map(({ recipe, ...m }) => ({ ...m, recipeName: recipe.name })), sweatTests },
-    study: { documents: studyDocuments, chatThreads, flashcardDecks, flashcardReviews, classSlots, sessions: studySessions, habits, planBlocks: studyPlanBlocks, grades, assignments },
+    study: { documents: studyDocuments, chatThreads, flashcardDecks, flashcardReviews, classSlots, sessions: studySessions, habits, planBlocks: studyPlanBlocks, grades, assignments, selfTestAttempts, microSessions },
     coach: { reports: coachReports, links: coachLinks, sharedReports },
     clubs: { memberships: clubMemberships },
     training21: { referenceCurves, physioProtocols, physioReceived },

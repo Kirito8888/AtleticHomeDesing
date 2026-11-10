@@ -91,6 +91,8 @@ model User {
   studyTopics            StudyTopic[]
   studyTopicPacks        StudyTopicPack[]
   questProgress          QuestProgress[]
+  selfTestAttempts       StudySelfTestAttempt[]
+  microSessions          StudyMicroSession[]
   chatThreads            ChatThread[]
   flashcardDecks         FlashcardDeck[]
   flashcardShares        FlashcardDeckShare[]
@@ -1320,6 +1322,7 @@ model StudyModule {
   documents StudyDocument[]
   topics    StudyTopic[]
   progress  QuestProgress[]
+  selfTests StudySelfTestAttempt[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -1384,6 +1387,49 @@ model QuestProgress {
   module StudyModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
 
   @@unique([userId, moduleId])
+}
+
+/// v2.9 · Intento de autoevaluación («Evaluar nivel») de una asignatura. Antes solo el último, en localStorage.
+/// `takenAt` es la hora del intento en el cliente: con (userId, moduleId, takenAt) únicos, reenviar o reimportar no duplica.
+/// `answers` ([{ topic, tag, score }]) y `questions` son null en los intentos importados de localStorage (`imported`).
+model StudySelfTestAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  moduleId  String
+  takenAt   DateTime
+  score     Float
+  label     String
+  questions Int?
+  weak      Json
+  answers   Json?
+  imported  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module StudyModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId, takenAt])
+}
+
+/// v2.9 · Sesión de micro-pasos completada. `clientKey` (uuid del cliente, o «legacy:<hash>» al importar) la hace idempotente.
+model StudyMicroSession {
+  id          String   @id @default(cuid())
+  userId      String
+  clientKey   String
+  title       String
+  steps       Json
+  stepsDone   Int
+  stepsTotal  Int
+  focusMin    Int
+  restMin     Int
+  completedAt DateTime
+  imported    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clientKey])
+  @@index([userId, completedAt])
 }
 
 /// Fragmento vectorizado. `embedding` se escribe/lee con SQL crudo

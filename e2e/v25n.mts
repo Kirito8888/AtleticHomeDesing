@@ -124,9 +124,53 @@ await page.reload();
 await page.getByText(/Último intento/).waitFor();
 log("último intento recordado");
 
+// 6b · v2.9 N3: el intento queda en la BD (no solo en este dispositivo) y la copia local se borró tras el 200
+const attemptsDb = () => Number(psql(`select count(*) from "StudySelfTestAttempt" where "userId"='${uid}' and "moduleId"='${mid}'`));
+for (let t = 0; t < 40 && attemptsDb() < 1; t++) await new Promise((r) => setTimeout(r, 250));
+if (attemptsDb() !== 1) errors.push(`esperaba 1 intento en la BD y hay ${attemptsDb()}`);
+const row = psql(`select score || '|' || questions || '|' || imported from "StudySelfTestAttempt" where "userId"='${uid}' and "moduleId"='${mid}'`);
+if (row !== `10|${total}|false`) errors.push(`intento guardado ${row}, esperaba 10|${total}|false`);
+if (await page.evaluate((k) => localStorage.getItem(k), `atlenza.study.selfTest.${mid}`)) errors.push("la copia local sigue tras el 200");
+await page.getByTestId("st-history").waitFor();
+log("intento en la BD con respuestas y copia local retirada tras el 200");
+
+// 6c · otro dispositivo (misma cuenta, sin localStorage) ve el histórico; y se importa lo que solo había en local
+{
+  const c2 = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "es-ES", hasTouch: true, isMobile: true, storageState: await ctx.storageState(), extraHTTPHeaders: { "x-forwarded-for": "198.51.100.184" } });
+  const p2 = await c2.newPage();
+  p2.on("pageerror", (e) => errors.push(`pageerror otro dispositivo: ${e.message}`));
+  await p2.goto(`${B}/study/modules/${mid}/test`);
+  await p2.getByTestId("st-history").waitFor();
+  if (!(await p2.getByTestId("st-history").innerText()).includes("Lista para el 10")) errors.push("el otro dispositivo no ve el intento");
+  if (await p2.getByTestId("st-import").count()) errors.push("se ofrece importar sin datos locales");
+  const key = `atlenza.study.selfTest.${mid}`;
+  await p2.evaluate((k) => localStorage.setItem(k, JSON.stringify({ score: 4.5, label: "Falta base", weak: ["Glucólisis"], at: "2026-10-01T09:00:00.000Z" })), key);
+  await p2.reload();
+  await p2.getByTestId("st-import").waitFor();
+  const imp = p2.getByTestId("st-import").getByRole("button", { name: "Importar" });
+  if (((await imp.boundingBox())?.height ?? 0) < 43.5) errors.push("«Importar» mide < 44 px");
+  await p2.route("**/api/study/self-test-history/**", (r) => (r.request().method() === "POST" ? r.fulfill({ status: 500, contentType: "application/json", body: "{}" }) : r.continue()));
+  await imp.click();
+  await p2.waitForTimeout(800);
+  if (!(await p2.evaluate((k) => localStorage.getItem(k), key))) errors.push("se borró lo local tras un guardado fallido");
+  if (attemptsDb() !== 1) errors.push("el guardado fallido escribió en la BD");
+  await p2.unroute("**/api/study/self-test-history/**");
+  await imp.click();
+  await p2.getByTestId("st-import").waitFor({ state: "detached" });
+  if (attemptsDb() !== 2) errors.push(`tras importar esperaba 2 intentos y hay ${attemptsDb()}`);
+  if (await p2.evaluate((k) => localStorage.getItem(k), key)) errors.push("la copia local sigue tras el 200 de la importación");
+  const imported = psql(`select imported || '|' || coalesce(questions::text,'null') from "StudySelfTestAttempt" where "userId"='${uid}' and score=4.5`);
+  if (imported !== "true|null") errors.push(`intento importado ${imported}`);
+  if (!(await p2.getByTestId("st-history").innerText()).includes("Falta base")) errors.push("el intento importado no aparece en la lista");
+  await c2.close();
+  log("otro dispositivo ve el histórico; lo local se importa sin pérdida (un fallo no borra nada)");
+}
+
 // 7 · asignatura ajena: 404
 const status = await page.evaluate(async () => (await fetch("/api/ai/study/self-test", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ moduleId: "no-existe" }) })).status);
 if (status !== 404) errors.push(`asignatura inexistente devolvió ${status}`);
+const hs = await page.evaluate(async () => (await fetch("/api/study/self-test-history/no-existe")).status);
+if (hs !== 404) errors.push(`histórico de asignatura inexistente devolvió ${hs}`);
 
 await browser.close();
 if (errors.length) {

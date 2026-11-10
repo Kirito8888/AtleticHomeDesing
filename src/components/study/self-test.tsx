@@ -9,25 +9,22 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
-import { formatDec } from "@/lib/format";
+import { formatDateTime, formatDec } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { type Tag, TAG_EMOJI, TAG_LABEL } from "@/lib/study/adhd-report";
 import { type Answered, estimateLevel, type Score, TEST_COUNTS, type TestQuestion } from "@/lib/study/self-test";
+import { attemptFromLegacy, type SelfTestAttemptInput, selfTestKey } from "@/lib/study/study-history";
+import type { SelfTestAttemptView } from "@/lib/study/study-history-service";
 
-export const selfTestKey = (moduleId: string) => `atlenza.study.selfTest.${moduleId}`;
-export interface LastAttempt {
-  score: number;
-  label: string;
-  weak: string[];
-  at: string;
-}
-function parseLast(raw: string | null): LastAttempt | null {
+export { selfTestKey };
+function parseLocal(raw: string | null): SelfTestAttemptInput | null {
   try {
-    return raw ? (JSON.parse(raw) as LastAttempt) : null;
+    return raw ? attemptFromLegacy(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
 }
+const day = (iso: string) => formatDateTime(iso);
 
 type Phase = "intro" | "quiz" | "grade" | "result";
 const GRADES: { label: string; score: Score }[] = [
@@ -38,7 +35,7 @@ const GRADES: { label: string; score: Score }[] = [
 const fmt = (n: number) => formatDec(n, 1);
 
 /** v2.5 · «Evaluar nivel»: test paso a paso sobre los apuntes de la asignatura, con soluciones y nota estimada. */
-export function SelfTest({ moduleId, topics }: { moduleId: string; topics: { name: string; tag: Tag; done: boolean }[] }) {
+export function SelfTest({ moduleId, topics, history }: { moduleId: string; topics: { name: string; tag: Tag; done: boolean }[]; history: SelfTestAttemptView[] }) {
   const [phase, setPhase] = useState<Phase>("intro");
   const [count, setCount] = useState<number>(8);
   const [busy, setBusy] = useState(false);
@@ -59,7 +56,36 @@ export function SelfTest({ moduleId, topics }: { moduleId: string; topics: { nam
     },
     () => null,
   );
-  const last = useMemo(() => parseLast(lastRaw), [lastRaw]);
+  const local = useMemo(() => parseLocal(lastRaw), [lastRaw]);
+  const [attempts, setAttempts] = useState<SelfTestAttemptView[]>(history);
+  const [hideImport, setHideImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  // Resultado que solo existe en este dispositivo: aún no está en la BD (mismo instante = ya subido).
+  const pending = local && !attempts.some((a) => new Date(a.takenAt).getTime() === local.takenAt.getTime()) ? local : null;
+  const last = attempts[0] ?? (pending ? { score: pending.score, label: pending.label, weak: pending.weak } : null);
+
+  /** Sube intentos a la BD; la copia local solo se borra con el 200 (si falla, queda para reintentar). */
+  async function persist(inputs: SelfTestAttemptInput[]): Promise<boolean> {
+    try {
+      const r = await api<{ attempts: SelfTestAttemptView[] }>(`/api/study/self-test-history/${moduleId}`, { body: { attempts: inputs } });
+      setAttempts(r.attempts);
+      try {
+        localStorage.removeItem(selfTestKey(moduleId));
+      } catch {
+        /* sin almacenamiento */
+      }
+      return true;
+    } catch (err) {
+      toast.error(`No se pudo guardar en el servidor (queda en este dispositivo): ${(err as Error).message}`);
+      return false;
+    }
+  }
+  async function importLocal() {
+    if (!pending) return;
+    setImporting(true);
+    if (await persist([pending])) toast.success("Resultado importado");
+    setImporting(false);
+  }
 
   async function start(weak: string[]) {
     setBusy(true);
@@ -92,12 +118,17 @@ export function SelfTest({ moduleId, topics }: { moduleId: string; topics: { nam
   }
   function conclude() {
     const l = estimateLevel(answered(), topics);
+    const at = new Date().toISOString();
+    const weak = l.gaps.map((g) => g.topic);
     try {
-      localStorage.setItem(selfTestKey(moduleId), JSON.stringify({ score: l.score, label: l.label, weak: l.gaps.map((g) => g.topic), at: new Date().toISOString() } satisfies LastAttempt));
+      // Bandeja de salida: se escribe antes de subir y solo se borra con el 200.
+      localStorage.setItem(selfTestKey(moduleId), JSON.stringify({ score: l.score, label: l.label, weak, at }));
     } catch {
       /* sin almacenamiento: el resultado se ve igual */
     }
     setPhase("result");
+    const attempt = attemptFromLegacy({ score: l.score, label: l.label, weak, at });
+    if (attempt) void persist([{ ...attempt, imported: false, questions: qs.length, answers: answered().map((a) => ({ topic: a.topic, tag: a.tag, score: a.score })) }]);
   }
 
   if (phase === "intro")
@@ -106,11 +137,43 @@ export function SelfTest({ moduleId, topics }: { moduleId: string; topics: { nam
         <p className="text-sm text-muted-foreground">
           Un test redactado sobre tus apuntes, con más preguntas de lo que marcaste 🔴 «cae seguro». Al terminar ves las soluciones y qué te falta para el 10. No se guarda nada en el plan.
         </p>
+        {pending && !hideImport ? (
+          <div role="status" data-testid="st-import" className="grid gap-2 rounded-lg border border-dashed p-3 text-sm">
+            <p>
+              Hay un resultado guardado solo en este dispositivo ({fmt(pending.score)} · {pending.label}). ¿Lo subes para verlo también en tus otros dispositivos?
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button className="min-h-11" disabled={importing} onClick={importLocal}>
+                {importing ? "Importando…" : "Importar"}
+              </Button>
+              <Button variant="outline" className="min-h-11" onClick={() => setHideImport(true)}>
+                Ahora no
+              </Button>
+            </div>
+          </div>
+        ) : null}
         {last ? (
           <p role="status" className="rounded-lg border p-3 text-sm">
             Último intento: <strong>{fmt(last.score)}</strong> · {last.label}
             {last.weak.length ? ` · se reforzará: ${last.weak.slice(0, 3).join(", ")}` : ""}
           </p>
+        ) : null}
+        {attempts.length ? (
+          <section aria-label="Tus intentos" data-testid="st-history" className="grid gap-1.5">
+            <h2 className="text-sm font-medium">Tus intentos</h2>
+            <ul className="grid gap-1.5">
+              {attempts.slice(0, 10).map((a) => (
+                <li key={a.id} className="flex items-center justify-between gap-2 rounded-lg border p-2 text-sm">
+                  <span suppressHydrationWarning className="text-muted-foreground">
+                    {day(a.takenAt)}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-right">
+                    <strong>{fmt(a.score)}</strong> · {a.label}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
         <div className="grid gap-1.5">
           <span id="st-count" className="text-sm font-medium">

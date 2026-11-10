@@ -121,6 +121,81 @@ await noOverflow("lista tras salir");
 if (writes() !== before) errors.push(`se escribió en apuntes/flashcards: ${before} → ${writes()}`);
 log("«Paso hecho» avanza; no se guardó nada en apuntes ni flashcards");
 
+// 7 · v2.9 N3: terminar todos los pasos guarda la sesión en la BD y se ve desde otro dispositivo
+const sessions = () => Number(psql(`select count(*) from "StudyMicroSession" where "userId"='${uid}'`));
+const state = await ctx.storageState();
+const device = async () => {
+  const c = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "es-ES", hasTouch: true, isMobile: true, storageState: state, extraHTTPHeaders: { "x-forwarded-for": "198.51.100.182" } });
+  const p = await c.newPage();
+  p.on("pageerror", (e) => errors.push(`pageerror otro dispositivo: ${e.message}`));
+  await p.goto(B + "/study?tab=steps");
+  await p.getByRole("tab", { name: "Pasos" }).and(p.locator('[aria-selected="true"]')).waitFor();
+  await p.waitForLoadState("networkidle");
+  return { c, p };
+};
+if (sessions() !== 0) errors.push("había sesiones antes de terminar");
+await page.getByRole("button", { name: "Empezar este paso" }).click();
+for (let k = 0; k < n; k++) {
+  if (await page.getByText(/Terminaste los/).count()) break;
+  await page.getByTestId("micro-focus").getByRole("button", { name: "Paso hecho" }).click();
+}
+await page.getByText(`Terminaste los ${n} pasos`).waitFor();
+for (let t = 0; t < 40 && sessions() < 1; t++) await new Promise((r) => setTimeout(r, 250));
+if (sessions() !== 1) errors.push(`esperaba 1 sesión en la BD y hay ${sessions()}`);
+const row = psql(`select "stepsDone" || '/' || "stepsTotal" || '|' || imported || '|' || "focusMin" from "StudyMicroSession" where "userId"='${uid}'`);
+if (row !== `${n}/${n}|false|15`) errors.push(`sesión guardada ${row}, esperaba ${n}/${n}|false|15`);
+await page.getByRole("button", { name: "Volver a los pasos" }).click();
+await page.getByTestId("micro-history").waitFor();
+log("terminar los pasos guarda la sesión en la BD");
+{
+  const { c, p } = await device();
+  await p.getByTestId("micro-history").waitFor();
+  if (!(await p.getByTestId("micro-history").innerText()).includes(`${n}/${n} pasos`)) errors.push("el otro dispositivo no ve la sesión completada");
+  if (await p.getByTestId("micro-import").count()) errors.push("el otro dispositivo ofrece importar algo que no tiene");
+  await c.close();
+  log("la sesión se ve desde otro dispositivo");
+}
+
+// 8 · importación de lo que había en localStorage: solo lo terminado, una vez, sin borrar nada local antes del 200
+{
+  const { c, p } = await device();
+  const legacy = (done: number[]) => ({
+    steps: { title: "Sesión antigua", steps: [1, 2, 3].map((k) => ({ n: k, action: `Paso ${k}`, minutes: 10 })) },
+    selected: 0,
+    preset: "10/2",
+    done,
+    run: null,
+  });
+  // a medias: no se ofrece
+  await p.evaluate((v) => localStorage.setItem("atlenza.study.microRun", JSON.stringify(v)), legacy([0, 1]));
+  await p.reload();
+  await p.getByRole("tab", { name: "Pasos" }).and(p.locator('[aria-selected="true"]')).waitFor();
+  await p.getByText("Sesión antigua").first().waitFor();
+  if (await p.getByTestId("micro-import").count()) errors.push("se ofrece importar una sesión a medias");
+  // terminada: se ofrece; si el guardado falla, no se pierde nada local
+  await p.evaluate((v) => localStorage.setItem("atlenza.study.microRun", JSON.stringify(v)), legacy([0, 1, 2]));
+  await p.reload();
+  await p.getByTestId("micro-import").waitFor();
+  await minH(p.getByRole("button", { name: "Importar" }), "«Importar»");
+  await p.route("**/api/study/micro-sessions", (r) => (r.request().method() === "POST" ? r.fulfill({ status: 500, contentType: "application/json", body: "{}" }) : r.continue()));
+  await p.getByRole("button", { name: "Importar" }).click();
+  await p.waitForTimeout(800);
+  if (!(await p.evaluate(() => localStorage.getItem("atlenza.study.microRun")))) errors.push("se borró lo local tras un guardado fallido");
+  if (sessions() !== 1) errors.push("el guardado fallido escribió en la BD");
+  await p.unroute("**/api/study/micro-sessions");
+  await p.getByTestId("micro-import").getByRole("button", { name: "Importar" }).click();
+  await p.getByTestId("micro-history").getByText("Sesión antigua").waitFor();
+  if (sessions() !== 2) errors.push(`tras importar esperaba 2 sesiones y hay ${sessions()}`);
+  await p.reload();
+  await p.getByRole("tab", { name: "Pasos" }).and(p.locator('[aria-selected="true"]')).waitFor();
+  await p.getByTestId("micro-history").waitFor();
+  if (await p.getByTestId("micro-import").count()) errors.push("se vuelve a ofrecer lo ya importado");
+  if (sessions() !== 2) errors.push("importar dos veces duplicó");
+  if ((await p.evaluate(() => document.documentElement.scrollWidth)) > 392) errors.push("histórico de micro-pasos: desborda en horizontal");
+  await c.close();
+  log("importación: a medias no se ofrece, un fallo no pierde nada local, una sola vez");
+}
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));

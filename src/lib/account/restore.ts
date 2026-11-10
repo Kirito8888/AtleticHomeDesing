@@ -131,6 +131,8 @@ export async function restoreExport(userId: string, data: unknown) {
     // v1.7
     ["pruebas de sudoración", get(data, "nutrition", "sweatTests"), Prisma.SweatTestScalarFieldEnum, (d) => prisma.sweatTest.create({ data: d as never })],
     ["trabajos y entregas", get(data, "study", "assignments"), Prisma.AssignmentScalarFieldEnum, (d) => prisma.assignment.create({ data: d as never })],
+    // v2.9 (los intentos de autoevaluación dependen de las asignaturas, que no se restauran: solo van en la exportación)
+    ["sesiones de micro-pasos", get(data, "study", "microSessions"), Prisma.StudyMicroSessionScalarFieldEnum, (d) => prisma.studyMicroSession.create({ data: d as never })],
     ["presupuestos de temporada", get(data, "finance", "seasonBudgets"), Prisma.SeasonBudgetScalarFieldEnum, (d) => prisma.seasonBudget.create({ data: d as never })],
   ];
   // Suplementos y recetas: se guardan los ids nuevos para enlazar tomas y plan de comidas (v1.7)
