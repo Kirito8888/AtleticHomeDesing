@@ -17,7 +17,7 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
-  extensions = [vector]
+  extensions = [vector, pg_trgm]
 }
 
 // =============================================================================
@@ -246,6 +246,8 @@ model SecurityEvent {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  // v2.9 · O11: la purga del scheduler filtra solo por fecha
+  @@index([createdAt])
 }
 
 model Account {
@@ -1199,6 +1201,9 @@ model FoodProduct {
   @@index([name])
   @@index([brand])
   @@index([ownerId])
+  // v2.9 · O13: la búsqueda local usa ILIKE '%palabra%' (pg_trgm)
+  @@index([name(ops: raw("gin_trgm_ops"))], map: "FoodProduct_name_trgm_idx", type: Gin)
+  @@index([brand(ops: raw("gin_trgm_ops"))], map: "FoodProduct_brand_trgm_idx", type: Gin)
 }
 
 enum MealType {
@@ -1843,6 +1848,8 @@ model NotificationLog {
 
   @@unique([userId, key])
   @@index([snoozeUntil])
+  // v2.9 · O11: la purga del scheduler filtra solo por fecha
+  @@index([sentAt])
 }
 
 /// Cómo leer el extracto de un banco (columnas, formato de fecha y de importe).
@@ -2060,6 +2067,9 @@ model SessionComment {
   author  User @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
   @@index([sessionId, createdAt])
+  // v2.9 · O10: borrados en cascada y exportación («mis comentarios») sin recorrer la tabla
+  @@index([athleteId])
+  @@index([authorId])
 }
 
 /// Copias de seguridad hechas por el servicio "backup" (lo escribe deploy/backup/backup.sh con psql).
