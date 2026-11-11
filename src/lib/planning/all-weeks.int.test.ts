@@ -1,6 +1,8 @@
 // Integración con BD real (v2.10 B3 · N7): aplicar un cambio a todas las semanas con vista previa y huella.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { testStamp } from "@/test/stamp";
+
 import { routineAnswersSchema } from "@/lib/routine/questionnaire";
 
 import type { PlanBlock } from "./plan-import/types";
@@ -23,8 +25,8 @@ describe.skipIf(!HAS_DB)("N7 · todas las semanas (BD real)", () => {
   beforeAll(async () => {
     prisma = (await import("@/lib/prisma")).prisma;
     mp = await import("./manual-plan");
-    userId = (await prisma.user.create({ data: { email: `aw-${Date.now()}@test.dev` } })).id;
-    otherId = (await prisma.user.create({ data: { email: `aw2-${Date.now()}@test.dev` } })).id;
+    userId = (await prisma.user.create({ data: { email: `aw-${testStamp()}@test.dev` } })).id;
+    otherId = (await prisma.user.create({ data: { email: `aw2-${testStamp()}@test.dev` } })).id;
     await (await import("@/lib/routine/service")).createRoutine(userId, answers, "2026-10-09");
     mesoId = (await prisma.planMeso.findFirstOrThrow({ where: { userId } })).id;
   });

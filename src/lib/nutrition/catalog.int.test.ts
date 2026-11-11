@@ -1,6 +1,7 @@
 // Integración (v1.10): catálogo local desde OpenFoodFacts (cliente simulado), búsqueda local primero,
 // alimentos propios aislados por usuario y micronutrientes de cada toma.
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 vi.mock("@/auth", () => ({ auth: async () => null }));
 
@@ -10,7 +11,7 @@ describe.skipIf(!HAS_DB)("catálogo de alimentos v1.10 (BD real)", () => {
   let prisma: typeof import("@/lib/prisma").prisma;
   let sync: typeof import("./catalog-sync");
   let svc: typeof import("./service");
-  const t = Date.now();
+  const t = testStamp();
   const brand = `marca-test-${t}`;
   let a: string;
   let b: string;

@@ -1,5 +1,6 @@
 // Rendimiento B5 · el panel del club hace las mismas consultas con 5 que con 20 atletas, y lee lo mismo que resolveAthleteId.
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 vi.mock("@/auth", () => ({ auth: async () => null }));
 
@@ -29,7 +30,7 @@ describe.skipIf(!HAS_DB)("panel del club en lote (BD real)", () => {
   let prisma: typeof import("@/lib/prisma").prisma;
   let panel: typeof import("./club-panel");
   let session: typeof import("@/lib/auth/session");
-  const t = Date.now();
+  const t = testStamp();
   const orgs: string[] = [];
   let seq = 0;
   let coach: { id: string; role: "COACH" };

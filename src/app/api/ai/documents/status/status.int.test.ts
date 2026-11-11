@@ -1,6 +1,7 @@
 // v2.8.0 B4 · O9 · estado ligero de apuntes para el sondeo de /study: una consulta, solo lo propio, tope de ids.
 import { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 let current = { id: "", role: "ATHLETE" as const };
 vi.mock("@/auth", () => ({ auth: async () => null }));
@@ -30,7 +31,7 @@ const HAS_DB = Boolean(process.env.DATABASE_URL);
 describe.skipIf(!HAS_DB)("GET /api/ai/documents/status (BD real)", () => {
   let prisma: typeof import("@/lib/prisma").prisma;
   let GET: typeof import("./route").GET;
-  const t = Date.now();
+  const t = testStamp();
   let me = "";
   let other = "";
   const mine: string[] = [];

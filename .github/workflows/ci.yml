@@ -91,7 +91,7 @@ jobs:
       - run: npm ci
       - run: npx prisma migrate deploy && npx prisma db seed
       # v1.10 · OCR (Tesseract y pdftoppm) para sus tests y las E2E
-      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils
+      - run: sh scripts/ci/apt-install.sh tesseract-ocr tesseract-ocr-spa poppler-utils
       # Con DATABASE_URL se ejecutan también los tests de integración (*.int.test.ts: ingesta, pg-boss, push, extractos y plan importado)
       - run: npm test
       - run: npm run build
@@ -187,7 +187,7 @@ jobs:
       - run: npm ci
       - run: npx prisma migrate deploy && npx prisma db seed
       # ffmpeg: v21b genera los clips de vídeo sintéticos
-      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils ffmpeg
+      - run: sh scripts/ci/apt-install.sh tesseract-ocr tesseract-ocr-spa poppler-utils ffmpeg
       - run: npm run build
       - name: Preparar el servidor standalone
         run: cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/
@@ -230,7 +230,7 @@ jobs:
           sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json && sudo systemctl restart docker
       - name: Entorno de prueba (.env.production efímero y clave age)
         run: |
-          sudo apt-get update -q && sudo apt-get install -y -q age postgresql-client
+          sh scripts/ci/apt-install.sh age postgresql-client
           age-keygen -o /tmp/age.key 2> /tmp/age.pub
           cat > .env.production <<EOF
           POSTGRES_USER=lifeos

@@ -1,5 +1,6 @@
 // Integración con BD real (v2.0 A): clubes, consentimiento de la atleta, permisos y cuotas.
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 vi.mock("@/auth", () => ({ auth: async () => null }));
 
@@ -10,7 +11,7 @@ describe.skipIf(!HAS_DB)("clubes y cuotas v2.0 (BD real)", () => {
   let svc: typeof import("./service");
   let session: typeof import("@/lib/auth/session");
   let panel: typeof import("./club-panel");
-  const t = Date.now();
+  const t = testStamp();
   const u: Record<string, { id: string; role: "ATHLETE" | "COACH" | "ADMIN" }> = {};
   let orgId: string;
   const mail = (k: string) => `${k}-${t}@test.dev`;

@@ -5,6 +5,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 vi.mock("@/auth", () => ({ auth: async () => null }));
 vi.mock("@/lib/jobs/queue", () => ({ enqueueIngest: async () => undefined }));
@@ -20,7 +21,7 @@ describe.skipIf(!HAS_DB)("IA en Nutrición v1.10 (BD real, proveedor simulado)",
   let userId: string;
   let reply = "{}";
   const bodies: Array<Record<string, unknown>> = [];
-  const t = Date.now();
+  const t = testStamp();
 
   beforeAll(async () => {
     server = createServer((req, res) => {

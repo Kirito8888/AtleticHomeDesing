@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 const h = vi.hoisted(() => ({ user: null as null | { id: string; role: string } }));
 vi.mock("@/auth", () => ({ auth: async () => (h.user ? { user: h.user } : null) }));
@@ -10,7 +11,7 @@ vi.mock("@/auth", () => ({ auth: async () => (h.user ? { user: h.user } : null) 
 process.env.ALLOW_REGISTRATION = "true";
 process.env.AUTH_URL = "http://app.test";
 const HAS_DB = Boolean(process.env.DATABASE_URL);
-const t = Date.now();
+const t = testStamp();
 const req = (url: string, method: string, body?: unknown, headers: Record<string, string> = {}) =>
   new NextRequest(`http://app.test${url}`, { method, body: body === undefined ? undefined : JSON.stringify(body), headers: { "content-type": "application/json", "x-forwarded-for": `203.0.113.${(t % 200) + 1}`, ...headers } });
 
