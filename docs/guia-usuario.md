@@ -153,7 +153,7 @@ En el calendario o en Inicio, toca una competición:
 ## Nutrición
 
 - **Buscar alimentos** (OpenFoodFacts) o **escanear el código de barras** con la cámara.
-- **Plantillas de comidas habituales** (desayuno, comida, merienda, cena…): ★ en una toma guarda sus alimentos y cantidades con el nombre que quieras; otro día, un toque en la plantilla la añade a su toma, o «Cargar plantilla» en cualquier toma la vuelca allí. Si repites nombre, se sustituye (te avisa). Y **repetir una comida de ayer** con un toque.
+- **Menús de comidas** (desayuno, comida, merienda, cena…): ★ en una toma guarda sus alimentos y cantidades con el nombre que quieras (p. ej. «Menú L-V desayuno»); otro día, un toque en el menú lo añade a su toma, «Cargar menú» (icono de lista) lo vuelca en cualquier toma, y en **«+ Alimento» → pestaña «Menús»** eliges toma y menú aunque ese día no tengas nada registrado. Si repites nombre, se sustituye (te avisa). Y **repetir una comida de ayer** con un toque.
 - El objetivo del día se ajusta si es día de entreno (también cuenta una sesión planificada).
 - **Hidratos según el día:** en **Ajustes → Objetivo nutricional**, pon los gramos de hidratos para día de lanzamientos, de gimnasio y sin entreno (los de tu plantilla). El día muestra cuál aplica.
 - **Composición corporal** (`/nutrition/composition`, desde «Cocina»): registra una medición ISAK (pliegues, perímetros, diámetros) a mano o importando CSV/JSON con vista previa. Calcula el somatotipo (somatocarta con tu trayectoria) y las 4 masas en kg y %, con la evolución en una gráfica y una tabla. Se guarda **cifrado**, **no va a la IA** y **tu entrenadora no lo ve**.

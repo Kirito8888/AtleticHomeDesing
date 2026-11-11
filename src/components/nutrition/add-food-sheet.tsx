@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Field } from "@/components/form/chips";
 import { Stepper } from "@/components/form/stepper";
 import { BarcodeScanner } from "@/components/nutrition/barcode-scanner";
+import { sortForMeal, type MealTemplateSummary } from "@/components/nutrition/meal-shortcuts";
 import { MEAL_LABEL, defaultMeal } from "@/components/nutrition/meals";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,7 +41,7 @@ function useDebounced<T>(value: T, ms: number) {
   return v;
 }
 
-export function AddFoodSheet({ date }: { date: string }) {
+export function AddFoodSheet({ date, menus = [] }: { date: string; menus?: MealTemplateSummary[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [meal, setMeal] = useState<string>(defaultMeal);
@@ -52,6 +53,21 @@ export function AddFoodSheet({ date }: { date: string }) {
   const [picked, setPicked] = useState<Food | null>(null);
   const [grams, setGrams] = useState<number | null>(100);
   const [busy, setBusy] = useState(false);
+  const sortedMenus = sortForMeal(menus, meal);
+
+  async function loadMenu(m: MealTemplateSummary) {
+    setBusy(true);
+    try {
+      await api(`/api/nutrition/meal-templates/${m.id}/apply`, { body: { date, mealType: meal } });
+      toast.success(`«${m.name}» cargado en ${MEAL_LABEL[meal as keyof typeof MEAL_LABEL].toLowerCase()}`);
+      setOpen(false);
+      router.refresh();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     if (q.length < 2) return;
@@ -153,12 +169,39 @@ export function AddFoodSheet({ date }: { date: string }) {
             </div>
           </div>
         ) : (
-          <Tabs defaultValue="search">
+          <Tabs defaultValue={menus.length ? "menus" : "search"}>
             <TabsList>
+              <TabsTrigger value="menus">Menús</TabsTrigger>
               <TabsTrigger value="search">Buscar</TabsTrigger>
               <TabsTrigger value="scan">Escanear</TabsTrigger>
               <TabsTrigger value="manual">Manual</TabsTrigger>
             </TabsList>
+            <TabsContent value="menus" className="grid gap-2">
+              {sortedMenus.length ? (
+                <ul className="grid gap-2">
+                  {sortedMenus.map((m) => (
+                    <li key={m.id}>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => void loadMenu(m)}
+                        className="grid w-full gap-0.5 rounded-md border p-3 text-left text-sm hover:bg-accent disabled:opacity-50"
+                      >
+                        <span className="font-medium">
+                          {m.name} · {m.kcal} kcal
+                        </span>
+                        <span className="truncate text-xs text-muted-foreground">
+                          {m.mealType ? `${MEAL_LABEL[m.mealType]} · ` : ""}
+                          {m.foods.join(", ")}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">Aún no tienes menús. Pulsa ★ en una toma para guardar sus alimentos con un nombre.</p>
+              )}
+            </TabsContent>
             <TabsContent value="search" className="grid gap-2">
               <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />

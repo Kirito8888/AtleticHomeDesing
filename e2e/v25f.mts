@@ -115,7 +115,7 @@ for (const path of ["/", "/settings", "/finance"]) {
 }
 log("fechas y cifras en formato español");
 
-// 7 · Plantillas de comidas en Nutrición: guardar con Sheet (sin diálogo nativo), cargar en otra toma
+// 7 · Menús de comidas en Nutrición: guardar con Sheet (sin diálogo nativo), cargar en otra toma y desde «+ Alimento» en un día vacío
 {
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
   const r = await page.request.post(B + "/api/nutrition/entries", {
@@ -123,20 +123,31 @@ log("fechas y cifras en formato español");
   });
   if (!r.ok()) errors.push(`no se pudo crear la toma: ${r.status()}`);
   await page.goto(B + "/nutrition");
-  await page.getByRole("button", { name: "Guardar desayuno como plantilla" }).click();
-  await page.getByLabel("Nombre de la plantilla").waitFor();
-  errors.push(...(await a11y(page, "guardar plantilla")));
-  await page.getByRole("button", { name: "Guardar plantilla" }).click();
-  await page.getByText("«Desayuno habitual» guardada en plantillas").first().waitFor();
-  await page.getByRole("button", { name: "Cargar plantilla en desayuno" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: /^Desayuno habitual ·/ }).waitFor();
-  errors.push(...(await a11y(page, "cargar plantilla")));
-  await page.getByRole("dialog").getByRole("button", { name: /^Desayuno habitual ·/ }).click();
-  await page.getByText("«Desayuno habitual» añadida a desayuno").first().waitFor();
+  await page.getByRole("button", { name: "Guardar desayuno como menú" }).click();
+  await page.getByLabel("Nombre del menú").waitFor();
+  errors.push(...(await a11y(page, "guardar menú")));
+  await page.getByRole("button", { name: "Guardar menú" }).click();
+  await page.getByText("«Menú desayuno» guardado en menús").first().waitFor();
+  await page.getByRole("button", { name: "Cargar menú en desayuno" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Menú desayuno ·/ }).waitFor();
+  errors.push(...(await a11y(page, "cargar menú")));
+  await page.getByRole("dialog").getByRole("button", { name: /^Menú desayuno ·/ }).click();
+  await page.getByText("«Menú desayuno» cargado en desayuno").first().waitFor();
   await page.waitForFunction(() => document.body.innerText.split("Tostada").length - 1 >= 2);
   await noOverflow("/nutrition");
+  // Otro día (sin registros): «+ Alimento» → toma Cena → pestaña Menús → un toque vuelca todo.
+  const empty = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date(Date.now() + 5 * 864e5));
+  await page.goto(`${B}/nutrition?date=${empty}`);
+  await page.getByRole("button", { name: /Alimento/ }).first().click();
+  await page.getByRole("dialog").getByLabel("Comida").selectOption("DINNER");
+  await page.getByRole("tab", { name: "Menús" }).click();
+  errors.push(...(await a11y(page, "menús en añadir alimento")));
+  await page.getByRole("dialog").getByRole("button", { name: /^Menú desayuno ·/ }).click();
+  await page.getByText("«Menú desayuno» cargado en cena").first().waitFor();
+  await page.waitForFunction(() => document.body.innerText.includes("Tostada"));
+  await noOverflow("/nutrition");
 }
-log("plantillas de comidas: guardar y cargar sin diálogo nativo");
+log("menús de comidas: guardar, cargar en una toma y desde «+ Alimento» en un día vacío");
 
 await browser.close();
 if (errors.length) {
