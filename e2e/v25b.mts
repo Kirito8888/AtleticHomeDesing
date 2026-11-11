@@ -98,6 +98,45 @@ await page.locator("summary", { hasText: "Por qué estas series" }).first().clic
 await page.locator('a[href^="https://doi.org/10."]').first().waitFor();
 log("edición del borrador conservando justificación y citas");
 
+// N7 · «Aplicar a todas las semanas»: vista previa, cancelar (no escribe) y aceptar
+await page.goto(mesoUrl);
+const fuerza = page.getByRole("link", { name: /Fuerza A/ });
+const nA = await fuerza.count();
+if (nA < 2) errors.push("la rutina no tiene Fuerza A en varias semanas");
+const hrefs = await fuerza.evaluateAll((els) => els.map((e) => (e as HTMLAnchorElement).href));
+const snap = async () => (await Promise.all(hrefs.map(async (h) => (await page.request.get(h)).text()))).join("|").replace(/<script[\s\S]*?<\/script>/g, "").replace(/<[^>]*>/g, " ");
+const lastBefore = await snap();
+await page.goto(mesoUrl);
+await fuerza.first().click();
+await page.getByRole("link", { name: "Editar este día" }).click();
+await page.waitForURL(/\/edit$/);
+const editUrl = page.url();
+await page.getByLabel("Series 1", { exact: true }).fill("6 × 5");
+await page.getByTestId("all-weeks-0").check();
+const review = page.getByRole("button", { name: "Revisar cambios en todas las semanas" });
+await review.click();
+const prev = page.getByTestId("all-weeks-preview");
+await prev.waitFor();
+await prev.getByText(/Semana \d+/).first().waitFor();
+await prev.getByText("→").first().waitFor();
+await noOverflow("/planning/plan/[id]/edit (vista previa)");
+await page.screenshot({ path: `${out}/v25b-all-weeks.png`, fullPage: true });
+await prev.getByRole("button", { name: "Cancelar" }).click();
+await review.waitFor();
+if ((await snap()) !== lastBefore) errors.push("la vista previa/cancelar cambió otra semana");
+await page.goto(editUrl);
+await page.getByLabel("Series 1", { exact: true }).fill("6 × 5");
+await page.getByTestId("all-weeks-0").check();
+await review.click();
+await prev.waitFor();
+await prev.getByRole("button", { name: "Aceptar y guardar" }).click();
+await page.waitForURL(/\/planning\/meso\//);
+if ((await snap()) === lastBefore) errors.push("«Aceptar» no cambió las otras semanas");
+await page.goto(hrefs[1]);
+await page.locator("summary", { hasText: "Por qué estas series" }).first().click();
+await page.locator('a[href^="https://doi.org/10."]').first().waitFor();
+log("N7: vista previa, cancelar no escribe, aceptar aplica a todas las semanas y conserva citas");
+
 // solo se activa con confirmación
 await page.goto(mesoUrl);
 await page.getByRole("button", { name: "Activar en mis entrenamientos" }).click();

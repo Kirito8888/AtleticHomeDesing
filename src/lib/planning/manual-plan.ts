@@ -8,6 +8,7 @@ import { addDays, dateOnly, isoDate, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { rebaseBasis, setsOfRow } from "@/lib/training/prescription";
 
+import { planAllWeeks, rowChange, type RowChange } from "./all-weeks";
 import { materialize } from "./plan-import/service";
 import type { PlanBlock, PlanRow } from "./plan-import/types";
 
@@ -130,6 +131,51 @@ export async function updateManualDay(userId: string, dayId: string, input: z.in
   await prisma.planDay.update({ where: { id: d.id }, data: { title: input.title, durationMin: input.durationMin, type: input.type, content: json(content) } });
   if (d.meso.status === "ACTIVE") await rematerialize(userId, d.meso.id);
   return { ok: true };
+}
+
+export const allWeeksSchema = z.object({
+  day: manualDaySchema,
+  /** Nombres de los ejercicios (sin renombrar) cuyos cambios se llevan a las demás semanas. */
+  exercises: z.array(z.string().trim().min(1).max(120)).min(1).max(40),
+  dryRun: z.boolean(),
+  fingerprint: z.string().max(64).optional(),
+});
+
+/** N7 · Cambios de las filas elegidas respecto a lo guardado, y días de las demás semanas a los que llegarían. */
+async function allWeeksPlan(userId: string, dayId: string, input: z.infer<typeof allWeeksSchema>) {
+  const d = await ownDay(userId, dayId);
+  const saved = (d.content as PlanBlock[]).flatMap((b) => (b.kind === "table" ? b.rows : []));
+  const changes: Array<{ exercise: string; change: RowChange }> = [];
+  for (const name of new Set(input.exercises)) {
+    const before = saved.find((r) => r.exercise === name);
+    const after = input.day.rows.find((r) => r.exercise === name);
+    const change = before && after ? rowChange(before, after) : null;
+    if (change) changes.push({ exercise: name, change });
+  }
+  const days = await prisma.planDay.findMany({ where: { userId, mesoId: d.meso.id }, select: { id: true, week: true, date: true, content: true, sessionId: true } });
+  const ids = days.flatMap((x) => (x.sessionId ? [x.sessionId] : []));
+  const done = new Set((await prisma.trainingSession.findMany({ where: { userId, status: "COMPLETED", id: { in: ids } }, select: { id: true } })).map((s) => s.id));
+  return { d, plan: planAllWeeks({ id: d.id, date: d.date }, days, changes, done), changes: changes.length };
+}
+
+/** Vista previa (no escribe): días afectados con el antes → después de cada fila. */
+export async function previewAllWeeks(userId: string, dayId: string, input: z.infer<typeof allWeeksSchema>) {
+  const { plan, changes } = await allWeeksPlan(userId, dayId, input);
+  return { changes, fingerprint: plan.fingerprint, items: plan.items.map((i) => ({ dayId: i.dayId, week: i.week, date: i.date, exercise: i.exercise, before: i.before, after: i.after })) };
+}
+
+/** Confirmación: guarda el día y las demás semanas en una transacción; 409 si esas semanas cambiaron tras la vista previa. */
+export async function applyAllWeeks(userId: string, dayId: string, input: z.infer<typeof allWeeksSchema>) {
+  const { d, plan } = await allWeeksPlan(userId, dayId, input);
+  if (!input.fingerprint || input.fingerprint !== plan.fingerprint) throw new ApiError(409, "El plan cambió desde la vista previa. Vuelve a revisarla.");
+  const content = d.meso.source === "ROUTINE" ? routineDayContent(d.content as PlanBlock[], input.day) : dayContent(input.day);
+  const byDay = new Map(plan.items.map((i) => [i.dayId, i.content]));
+  await prisma.$transaction([
+    prisma.planDay.update({ where: { id: d.id }, data: { title: input.day.title, durationMin: input.day.durationMin, type: input.day.type, content: json(content) } }),
+    ...[...byDay].map(([id, c]) => prisma.planDay.update({ where: { id }, data: { content: json(c) } })),
+  ]);
+  if (d.meso.status === "ACTIVE") await rematerialize(userId, d.meso.id);
+  return { ok: true, days: byDay.size };
 }
 
 /** Copia los días de una semana en la siguiente (mismo día de la semana), sustituyendo lo que hubiera. */

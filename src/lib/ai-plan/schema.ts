@@ -23,6 +23,8 @@ export const aiExerciseSchema = z.object({
   /** Zonas que carga de forma importante (para respetar sus molestias). */
   areas: z.array(z.enum(keys(BODY_AREAS))).max(4),
   alternatives: z.array(alternativeSchema).max(3),
+  /** Ids de `CITATIONS` en los que se basa la dosis (los desconocidos se descartan al expandir). */
+  refs: z.array(z.string().max(30)).max(4).optional(),
 });
 
 const daySchema = z.object({

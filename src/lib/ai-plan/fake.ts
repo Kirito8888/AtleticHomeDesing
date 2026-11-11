@@ -49,6 +49,7 @@ function exercise(e: LibEntry, sets: number, allowed: Set<string>, r: PlanReques
     equipment: e.equipment,
     patterns: e.patterns,
     areas: e.areas,
+    refs: r.goal === "fuerza" ? ["acsm2009", "ralston2017"] : ["acsm2009", "schoenfeld2021"],
     alternatives: alts.filter((a) => a !== e && fits(a, allowed, r)).slice(0, 3).map((a) => ({ name: a.name, equipment: a.equipment })),
   };
 }
