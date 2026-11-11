@@ -87,7 +87,7 @@ log("«Hecha» arranca el descanso de 90 s; pausar, +30 s y terminar no pierden 
 // Se guarda solo lo marcado.
 await page.getByRole("textbox", { name: "Peso serie 1" }).fill("82,5");
 await page.getByRole("button", { name: /^Guardar sesión$/ }).click();
-await page.waitForURL(/\/training\/[a-z0-9]+$/);
+await page.waitForURL(/\/training\/(?!new$)[a-z0-9]+$/);
 const sessions = (await (await page.request.get(`${B}/api/training/sessions?from=${day}&to=${new Date().toISOString().slice(0, 10)}`)).json()) as Array<{ id: string; date: string }>;
 const today = sessions.find((x) => x.id !== prevId);
 if (!today) throw new Error("no aparece la sesión nueva");

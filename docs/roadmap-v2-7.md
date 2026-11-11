@@ -1,6 +1,6 @@
 # Roadmap v2.7+ · propuesta para autorizar
 
-> **Propuesta, no compromiso.** Base: v2.6.0 (03/11/2026); **v2.7.0 publicada y desplegada el 07/11/2026; v2.8.0 cerrada el 09/11 y v2.9.0 el 10/11**. Cruza `docs/analisis-competencia-feedback.md` (IDs N/O/C/S) con el Plan de Optimización de `docs/estado.md`.
+> **Propuesta, no compromiso.** Base: v2.6.0 (03/11/2026); **v2.7.0 publicada y desplegada el 07/11/2026; v2.8.0 cerrada el 09/11, v2.9.0 el 10/11 y v2.10.0 el 11/11**. Cruza `docs/analisis-competencia-feedback.md` (IDs N/O/C/S) con el Plan de Optimización de `docs/estado.md`.
 > Los números de versión y qué entra en cada una los decide la usuaria; Claude no empieza nada sin autorización. Solo documentación: no cambia código, esquema ni paquetes.
 > Confianza: [Seguro] comprobado en el repo · [Probable] inferencia sólida · [Suponiendo] hueco sin prueba.
 
@@ -99,7 +99,8 @@ Los asigna la usuaria; ninguno cambia el esquema.
 | B3 | **N4** ruta priorizada → bloques del día (`StudyPlanBlock`), siempre como borrador + aceptar | Acepto la ruta y aparecen bloques en el plan | Integración nueva; E2E `v25m` + nueva |
 | B4 | Temporizador único que anota el tiempo como `StudySession` (retira el duplicado) | Una sesión de foco suma minutos al estudio | `micro-timer.test.ts`; E2E `v25l` |
 
-## v2.10.0 · Entreno
+## v2.10.0 · Entreno — **CERRADA (11/11/2026)**: B1–B3 fusionados (PR #161, #162, #164), sin migración
+- **Resultado (cierre):** N8, N9 y N7 entraron como se planearon. Fuera de este roadmap entraron dos mejoras de Nutrición (menús por toma, PR #164; recientes/habituales, PR #165) y un arreglo de CI (PR #163). B2 corrigió además una fuga de ámbito en `GET /api/training/pmc`. Detalle en `CHANGELOG.md`.
 - **Objetivo para la atleta:** registrar series con menos toques y entender por qué su carga y su disposición son las que son.
 - **Alcance funcional:** N8, N9, N7. **Optimización técnica:** ninguna propia.
 - **BD:** **sin migración.**

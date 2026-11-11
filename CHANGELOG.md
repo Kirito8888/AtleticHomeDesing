@@ -2,6 +2,22 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v2.10.0 — Entreno (11/11/2026)
+
+**Sin migraciones ni cambios de esquema** (la última sigue siendo `20270701080000_v2_9_features`). Pasos para el servidor en [`docs/migracion-v2-9-a-v2-10.md`](docs/migracion-v2-9-a-v2-10.md).
+
+**Entreno**
+- **Precarga y descanso automático en fuerza (B1, N8):** al añadir un ejercicio salen las series de su última sesión completada como referencia; no se guardan hasta pulsar «Hecha». «Hecha» arranca el descanso con el de esa serie (15–600 s) o con tu preferencia.
+- **Frases explicativas (B2, N9):** una línea que explica la disposición (readiness) y el PMC en `/recovery`, Inicio y `/training/performance`, sin IA y sin citar ciclo ni composición corporal. Arreglo de ámbito: `GET /api/training/pmc` sin permiso de recuperación ya no devuelve VFC, sueño, FC en reposo ni agujetas.
+- **Editar todas las semanas y citas en la IA de planificación (B3, N7):** «Aplicar a todas las semanas» en el editor de día, con vista previa y confirmación (las series viajan como diferencia, se saltan días con sesión hecha, 409 si cambiaron tras la vista previa). El prompt de `/planning/ai` incluye dosis por objetivo y nivel con citas con DOI; el plan solo cita lo que la IA citó.
+
+**Nutrición**
+- **Menús con nombre por toma:** pestaña «Menús» en «+ Alimento» (primero los de la toma elegida); reutiliza las plantillas de v2.9, solo cambia el vocabulario.
+- **Recientes / Habituales:** accesos rápidos a los alimentos más usados en 30 días, con tu cantidad habitual. Sin esquema ni ruta nueva.
+
+**También en esta versión**
+- CI: imagen fijada a `ubuntu-24.04` (ubuntu-latest pasó a 26.04 y `apt` no resolvía) y `scripts/ci/apt-install.sh` con reintentos. Tests de integración: sufijo `testStamp()` en vez de `Date.now()` (carreras entre ficheros en paralelo).
+
 ## v2.9.0 — Datos entre dispositivos e índices (10/11/2026)
 
 **Una migración aditiva:** `20270701080000_v2_9_features` (extensión `pg_trgm`, 3 tablas nuevas, columnas opcionales e índices; sin `DROP` ni cambios de tipo). Se aplica una vez con `prisma migrate deploy` (lo hace `update.sh`). Pasos para el servidor en [`docs/migracion-v2-8-a-v2-9.md`](docs/migracion-v2-8-a-v2-9.md).
