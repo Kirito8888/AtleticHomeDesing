@@ -19,6 +19,7 @@ import { prisma } from "@/lib/prisma";
 import { dataKeyConfigured } from "@/lib/security/data-key";
 import { listInjuries } from "@/lib/recovery/injuries";
 import { listInjuryPhotos } from "@/lib/recovery/wellbeing-service";
+import { explainReadiness, PART_LABEL } from "@/lib/training/explain";
 import { READINESS_WEIGHTS, type ReadinessComponent } from "@/lib/training/readiness";
 import { womenEnabled } from "@/lib/health/women-service";
 import { readProtocol } from "@/lib/recovery/protocol-service";
@@ -30,15 +31,6 @@ import { dailySrpe, fosterWeek } from "@/lib/training/load-metrics";
 import { type FatigueZone, zoneTrend } from "@/lib/training/zone-fatigue";
 
 export const metadata = { title: "Recuperación · Atlenza" };
-
-const PART_LABEL: Record<ReadinessComponent, string> = {
-  hrv: "VFC vs tu línea base",
-  tsb: "Forma (TSB)",
-  sleep: "Sueño",
-  rhr: "FC reposo vs línea base",
-  doms: "Agujetas",
-  wellness: "Bienestar",
-};
 
 export default async function RecoveryPage() {
   const user = await pageUser();
@@ -210,6 +202,9 @@ export default async function RecoveryPage() {
                     <span className="text-5xl font-semibold tabular-nums">{Math.round(todayRow.readinessScore)}</span>
                     <StatusLabel status={status}>{parts.label ? READINESS_LABEL[parts.label] : ""}</StatusLabel>
                   </div>
+                  <p data-testid="readiness-why" className="text-xs text-muted-foreground">
+                    {explainReadiness({ score: todayRow.readinessScore, label: parts.label, parts, usedWeight: parts.usedWeight })}
+                  </p>
                   <ul className="grid gap-2">
                     {(Object.keys(READINESS_WEIGHTS) as ReadinessComponent[])
                       .filter((k) => parts[k] != null)

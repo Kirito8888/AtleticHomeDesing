@@ -121,6 +121,37 @@ for (const p of ["/safety", "/glance", "/review", "/study/exam", "/study/exams"]
 }
 log("rutas existentes conservadas");
 
+// 7 · N9: una frase de una línea en la tarjeta de readiness y en el PMC (reglas puras, sin IA)
+{
+  const day = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  const s = await page.request.post(B + "/api/training/sessions", { data: { date: day, type: "MIXED", status: "COMPLETED", durationSec: 3600, sessionRpe: 7 } });
+  if (!s.ok()) errors.push(`N9: crear sesión ${s.status()}`);
+  const rec = await page.request.post(B + "/api/recovery", { data: { date: today, sleepHours: 5, sleepQuality: 2, doms: 7, fatigue: 4, stress: 4, mood: 2 } });
+  if (!rec.ok()) errors.push(`N9: crear recuperación ${rec.status()} ${(await rec.text()).slice(0, 120)}`);
+  const why = async (path: string, id: "readiness-why" | "pmc-why") => {
+    await page.goto(B + path);
+    await settle();
+    const el = page.getByTestId(id).first();
+    if (!(await el.count())) {
+      errors.push(`N9: ${path} no tiene ${id}`);
+      return;
+    }
+    const t = (await el.innerText()).trim();
+    if (!t || t.length > 120 || t.includes("\n")) errors.push(`N9: ${path} ${id} no es una línea corta: «${t}»`);
+    if (id === "pmc-why" && /sueño|VFC|readiness|agujetas|bienestar/i.test(t)) errors.push(`N9: ${path} pmc-why cita recuperación: «${t}»`);
+    await noOverflow(path);
+    return t;
+  };
+  const r1 = await why("/recovery", "readiness-why");
+  await why("/", "readiness-why");
+  await why("/", "pmc-why");
+  const p1 = await why("/training/performance", "pmc-why");
+  const api = (await (await page.request.get(B + "/api/training/pmc?days=14")).json()) as { explanation?: string | null };
+  if (!api.explanation) errors.push("N9: la API del PMC no devuelve explanation");
+  log("frases de readiness y PMC:", r1, "|", p1);
+}
+
 await browser.close();
 if (errors.length) {
   console.error(errors.join("\n"));

@@ -7,6 +7,7 @@ import { OfflineDayCache } from "@/components/offline-day-cache";
 import { RuleAlerts } from "@/components/rules/rule-alerts";
 import { HabitsCard } from "@/components/study/habits-card";
 import { Stat } from "@/components/stat";
+import { explainPmc, explainReadiness } from "@/lib/training/explain";
 import { readinessStatus, StatusLabel, tsbStatus } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,7 +57,8 @@ export default async function DashboardPage() {
   const off = (m: string) => (prefs.hiddenModules as readonly string[]).includes(m);
   const readiness = d.recovery?.readinessScore ?? null;
   const rStatus = readinessStatus(readiness);
-  const label = (d.recovery?.readinessParts as { label?: keyof typeof READINESS_LABEL } | null)?.label;
+  const rParts = (d.recovery?.readinessParts ?? {}) as Parameters<typeof explainReadiness>[0]["parts"] & { label?: keyof typeof READINESS_LABEL; usedWeight?: number };
+  const label = rParts.label;
   const cur = d.perf.current;
   const goal = d.nutrition.goal;
   const totals = d.nutrition.totals as Record<string, number>;
@@ -158,9 +160,14 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Widget hide={off("recovery")} title="Readiness" icon={HeartPulse} href="/recovery">
           {readiness != null && rStatus ? (
-            <div className="flex items-end justify-between gap-2">
-              <div className="text-5xl font-semibold tabular-nums">{Math.round(readiness)}</div>
-              <StatusLabel status={rStatus}>{label ? READINESS_LABEL[label] : ""}</StatusLabel>
+            <div className="grid gap-2">
+              <div className="flex items-end justify-between gap-2">
+                <div className="text-5xl font-semibold tabular-nums">{Math.round(readiness)}</div>
+                <StatusLabel status={rStatus}>{label ? READINESS_LABEL[label] : ""}</StatusLabel>
+              </div>
+              <p data-testid="readiness-why" className="text-xs text-muted-foreground">
+                {explainReadiness({ score: readiness, label, parts: rParts, usedWeight: rParts.usedWeight })}
+              </p>
             </div>
           ) : (
             <EmptyState icon={HeartPulse} title="Aún no has registrado sueño y VFC hoy" text="Con ellos calculamos tu readiness." action={{ href: "/recovery", label: "Registrar recuperación" }} />
@@ -176,8 +183,7 @@ export default async function DashboardPage() {
                 <Stat label="Forma" value={formatNum(cur.tsb)} swatch="--series-3" />
               </div>
               <StatusLabel status={tsbStatus(cur.tsb)} className="text-xs">
-                {cur.tsb < -25 ? "Fatiga alta acumulada" : cur.tsb < -10 ? "Bloque de carga" : "Fresco"}
-                {cur.acwr != null ? ` · ACWR ${formatNum(cur.acwr, 2)}` : ""}
+                <span data-testid="pmc-why">{explainPmc(cur)}</span>
               </StatusLabel>
             </div>
           ) : (

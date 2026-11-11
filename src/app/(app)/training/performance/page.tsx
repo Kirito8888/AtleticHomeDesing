@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { Stat } from "@/components/stat";
 import { StatusLabel, tsbStatus } from "@/components/status";
+import { explainPmc } from "@/lib/training/explain";
 import { AttemptsScatter, E1rmChart, MarksChart, PmcCharts } from "@/components/charts/lazy";
 import { SeasonGoals } from "@/components/training/season-goals";
 import type { PmcPoint } from "@/components/training/pmc-charts";
@@ -213,6 +214,9 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
             />
             <Stat label="ACWR" value={cur.acwr != null ? formatNum(cur.acwr, 2) : "—"} hint={cur.acwr == null ? "Necesita 28 días" : "Zona 0,8–1,3"} />
             <Stat className="col-span-2 sm:col-span-1" label="Rampa CTL (7 d)" value={cur.rampRate != null ? formatNum(cur.rampRate) : "—"} hint="> 5–8 = agresiva" />
+            <p data-testid="pmc-why" className="col-span-full text-xs text-muted-foreground">
+              {explainPmc(cur)}
+            </p>
           </CardContent>
         </Card>
       ) : null}
