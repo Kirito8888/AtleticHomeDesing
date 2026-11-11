@@ -16,7 +16,7 @@ permissions:
 jobs:
   check:
     name: Lint, tipos, tests y build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,7 +38,7 @@ jobs:
 
   semgrep:
     name: Análisis estático (Semgrep)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       # Desde PyPI (sin imagen de Docker Hub) y con versión fija
@@ -53,7 +53,7 @@ jobs:
 
   e2e:
     name: E2E (UI + seguridad)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: check
     env:
       DATABASE_URL: postgresql://lifeos:lifeos@localhost:5432/lifeos?schema=public
@@ -152,7 +152,7 @@ jobs:
   # Corre todas aunque una falle y al final rompe si alguna falló (resumen OK/FALLA por suite).
   e2e-extra:
     name: E2E (suites v2.x)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: check
     env:
       DATABASE_URL: postgresql://lifeos:lifeos@localhost:5432/lifeos?schema=public
@@ -217,7 +217,7 @@ jobs:
 
   docker:
     name: Stack Docker (healthcheck, copias y update.sh)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: check
     steps:
       - uses: actions/checkout@v4
