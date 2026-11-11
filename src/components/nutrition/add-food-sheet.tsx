@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/client-api";
 import { sendOrQueue } from "@/lib/offline/outbox";
 import { formatNum } from "@/lib/format";
+import { sortRecentsForMeal, type RecentFood } from "@/lib/nutrition/recent-foods-rank";
 
 interface Food {
   id: string;
@@ -41,7 +42,7 @@ function useDebounced<T>(value: T, ms: number) {
   return v;
 }
 
-export function AddFoodSheet({ date, menus = [] }: { date: string; menus?: MealTemplateSummary[] }) {
+export function AddFoodSheet({ date, menus = [], recents = [] }: { date: string; menus?: MealTemplateSummary[]; recents?: RecentFood[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [meal, setMeal] = useState<string>(defaultMeal);
@@ -51,9 +52,12 @@ export function AddFoodSheet({ date, menus = [] }: { date: string; menus?: MealT
   const [warning, setWarning] = useState<string | null>(null);
   const [searching, setSearching] = useState(false);
   const [picked, setPicked] = useState<Food | null>(null);
+  // Alimento reciente manual (sin producto): se reescala por gramo al confirmar.
+  const [custom, setCustom] = useState<RecentFood | null>(null);
   const [grams, setGrams] = useState<number | null>(100);
   const [busy, setBusy] = useState(false);
   const sortedMenus = sortForMeal(menus, meal);
+  const sortedRecents = sortRecentsForMeal(recents, meal);
 
   async function loadMenu(m: MealTemplateSummary) {
     setBusy(true);
@@ -89,8 +93,31 @@ export function AddFoodSheet({ date, menus = [] }: { date: string; menus?: MealT
   }, [q]);
 
   const pick = (f: Food) => {
+    setCustom(null);
     setPicked(f);
     setGrams(f.servingSizeG ?? 100);
+  };
+
+  /** Un toque en un reciente: precarga su cantidad habitual en la ficha de confirmación. */
+  const pickRecent = (r: RecentFood) => {
+    setGrams(r.usualG);
+    if (r.product) {
+      setCustom(null);
+      setPicked({ id: r.product.id, name: r.name, brand: r.brand, barcode: null, servingSizeG: r.product.servingSizeG, kcalPer100g: r.product.kcalPer100g, proteinPer100g: r.product.proteinPer100g, carbsPer100g: r.product.carbsPer100g, fatPer100g: r.product.fatPer100g, nutriScore: r.product.nutriScore });
+    } else if (r.perGram) {
+      setCustom(r);
+      setPicked({ id: r.key, name: r.name, brand: null, barcode: null, servingSizeG: null, kcalPer100g: r.perGram.kcal * 100, proteinPer100g: r.perGram.proteinG * 100, carbsPer100g: r.perGram.carbsG * 100, fatPer100g: r.perGram.fatG * 100, nutriScore: null });
+    }
+  };
+
+  const confirmPicked = () => {
+    if (!picked || !grams) return;
+    if (custom?.perGram) {
+      const g = custom.perGram;
+      const r1 = (x: number) => Math.round(x * grams * 10) / 10;
+      return add({ customName: custom.name, quantityG: grams, kcal: r1(g.kcal), proteinG: r1(g.proteinG), carbsG: r1(g.carbsG), fatG: r1(g.fatG), ...(g.fiberG != null ? { fiberG: r1(g.fiberG) } : {}) });
+    }
+    return add({ foodProductId: picked.id, quantityG: grams });
   };
 
   const onCode = useCallback(async (code: string) => {
@@ -109,6 +136,7 @@ export function AddFoodSheet({ date, menus = [] }: { date: string; menus?: MealT
       const r = await sendOrQueue("/api/nutrition/entries", { date, mealType: meal, ...body }, `Comida: ${String(body.customName ?? picked?.name ?? "alimento")}`);
       toast.success(r === "queued" ? "Sin conexión: se añadirá al volver la cobertura" : "Añadido");
       setPicked(null);
+      setCustom(null);
       setOpen(false);
       if (r === "sent") router.refresh();
     } catch (e) {
@@ -121,7 +149,7 @@ export function AddFoodSheet({ date, menus = [] }: { date: string; menus?: MealT
   const f = (k: FormData, n: string) => Number(String(k.get(n) ?? "0").replace(",", ".")) || 0;
 
   return (
-    <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) setPicked(null); }}>
+    <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setPicked(null); setCustom(null); } }}>
       <SheetTrigger asChild>
         <Button size="sm">
           <Plus /> Alimento
@@ -147,7 +175,7 @@ export function AddFoodSheet({ date, menus = [] }: { date: string; menus?: MealT
             <div>
               <div className="font-semibold">{picked.name}</div>
               <div className="text-xs text-muted-foreground">
-                {picked.brand ?? "—"} · {formatNum(picked.kcalPer100g)} kcal/100 g{picked.nutriScore ? ` · Nutri-Score ${picked.nutriScore}` : ""}
+                {picked.brand ?? (custom ? "Manual" : "—")} · {formatNum(picked.kcalPer100g)} kcal/100 g{picked.nutriScore ? ` · Nutri-Score ${picked.nutriScore}` : ""}
               </div>
             </div>
             <Field label="Cantidad">
@@ -160,16 +188,16 @@ export function AddFoodSheet({ date, menus = [] }: { date: string; menus?: MealT
               </p>
             ) : null}
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" onClick={() => setPicked(null)}>
+              <Button variant="outline" onClick={() => { setPicked(null); setCustom(null); }}>
                 Volver
               </Button>
-              <Button disabled={!grams || busy} onClick={() => add({ foodProductId: picked.id, quantityG: grams })}>
+              <Button disabled={!grams || busy} onClick={() => void confirmPicked()}>
                 Añadir
               </Button>
             </div>
           </div>
         ) : (
-          <Tabs defaultValue={menus.length ? "menus" : "search"}>
+          <Tabs defaultValue={recents.length ? "search" : menus.length ? "menus" : "search"}>
             <TabsList>
               <TabsTrigger value="menus">Menús</TabsTrigger>
               <TabsTrigger value="search">Buscar</TabsTrigger>
@@ -203,6 +231,32 @@ export function AddFoodSheet({ date, menus = [] }: { date: string; menus?: MealT
               )}
             </TabsContent>
             <TabsContent value="search" className="grid gap-2">
+              {sortedRecents.length && query.trim().length < 2 ? (
+                <section aria-labelledby="recientes-titulo" className="grid gap-1">
+                  <h3 id="recientes-titulo" className="text-sm font-semibold">
+                    Recientes / Habituales
+                  </h3>
+                  <ul className="grid gap-1">
+                    {sortedRecents.map((r) => (
+                      <li key={r.key}>
+                        <button
+                          type="button"
+                          onClick={() => pickRecent(r)}
+                          className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md border px-2 py-2 text-left hover:bg-accent"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium">{r.name}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{r.brand ?? (r.product ? "—" : "Manual")}</span>
+                          </span>
+                          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                            {formatNum(r.usualG)} g · {r.kcal} kcal
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
               <div className="relative">
                 <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input className="pl-8" placeholder="p.ej. hacendado yogur griego" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Buscar alimento" />
