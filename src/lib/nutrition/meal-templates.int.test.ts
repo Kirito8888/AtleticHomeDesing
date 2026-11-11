@@ -2,6 +2,8 @@
 // Datos sintéticos.
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
+import { testStamp } from "@/test/stamp";
+
 vi.mock("@/auth", () => ({ auth: async () => null }));
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
@@ -17,7 +19,7 @@ describe.skipIf(!HAS_DB)("plantillas de comidas (BD real)", () => {
   beforeAll(async () => {
     prisma = (await import("@/lib/prisma")).prisma;
     svc = await import("./meal-templates");
-    const t = Date.now();
+    const t = testStamp();
     userId = (await prisma.user.create({ data: { email: `mt1-${t}@test.dev` } })).id;
     other = (await prisma.user.create({ data: { email: `mt2-${t}@test.dev` } })).id;
     const food = (customName: string, quantityG: number, kcal: number) => ({
@@ -70,6 +72,17 @@ describe.skipIf(!HAS_DB)("plantillas de comidas (BD real)", () => {
       { mealType: "SNACK", customName: "Avena", quantityG: 60, kcal: 230 },
       { mealType: "SNACK", customName: "Leche", quantityG: 250, kcal: 120 },
     ]);
+  });
+
+  it("un menú cargado en un día y una toma vacíos deja los mismos totales que el original; cargarlo dos veces duplica", async () => {
+    const [tpl] = await svc.listMealTemplates(userId);
+    const FAR = "2026-10-20";
+    const sum = (day: string) =>
+      prisma.macros.aggregate({ where: { userId, date: new Date(`${day}T00:00:00Z`) }, _sum: { kcal: true, proteinG: true, carbsG: true, fatG: true } });
+    await svc.applyMealTemplate(userId, tpl.id, FAR, "DINNER");
+    expect((await sum(FAR))._sum).toEqual((await sum(DAY))._sum);
+    await svc.applyMealTemplate(userId, tpl.id, FAR, "DINNER");
+    expect((await sum(FAR))._sum.kcal).toBe(700);
   });
 
   it("no se puede cargar la plantilla de otra usuaria", async () => {

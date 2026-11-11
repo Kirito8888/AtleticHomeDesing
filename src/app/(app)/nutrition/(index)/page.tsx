@@ -40,7 +40,7 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
 
   return (
     <>
-      <PageHeader title="Nutrición" action={<AddFoodSheet date={date} />} />
+      <PageHeader title="Nutrición" action={<AddFoodSheet date={date} menus={favorites} />} />
       <div className="mb-4 flex items-center justify-between">
         <Button asChild variant="ghost" size="icon" aria-label="Día anterior">
           <Link href={`?date=${prev}`}>

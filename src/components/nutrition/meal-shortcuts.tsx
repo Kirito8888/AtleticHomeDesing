@@ -54,7 +54,12 @@ export function groupByMeal(templates: MealTemplateSummary[]) {
   return groups;
 }
 
-/** Atajos: repetir comidas de ayer y cargar plantillas (comidas habituales) por toma en un toque. */
+/** Ordena los menús para una toma: primero los guardados en esa toma, luego el resto (orden estable). */
+export function sortForMeal(templates: MealTemplateSummary[], mealType: string) {
+  return [...templates.filter((t) => t.mealType === mealType), ...templates.filter((t) => t.mealType !== mealType)];
+}
+
+/** Atajos: repetir comidas de ayer y cargar menús (comidas habituales) por toma en un toque. */
 export function MealShortcuts({
   date,
   yesterday,
@@ -92,10 +97,10 @@ export function MealShortcuts({
         </section>
       ) : null}
       {favorites.length ? (
-        <section aria-label="Plantillas de comidas" className="grid gap-1.5">
-          <h2 className="text-xs font-medium text-muted-foreground">Plantillas · un toque las añade a su toma</h2>
+        <section aria-label="Menús de comidas" className="grid gap-1.5">
+          <h2 className="text-xs font-medium text-muted-foreground">Menús · un toque los añade a su toma</h2>
           {groupByMeal(favorites).map((g) => (
-            <div key={g.key} role="group" aria-label={`Plantillas de ${g.label.toLowerCase()}`} className="flex flex-wrap items-center gap-1.5">
+            <div key={g.key} role="group" aria-label={`Menús de ${g.label.toLowerCase()}`} className="flex flex-wrap items-center gap-1.5">
               <span className="w-full text-xs text-muted-foreground">{g.label}</span>
               {g.items.map((f) => (
                 <span key={f.id} className="inline-flex items-center rounded-md border text-sm">
@@ -104,17 +109,17 @@ export function MealShortcuts({
                     disabled={busy}
                     title={f.foods.join(", ")}
                     className="flex min-h-9 items-center gap-1.5 py-1.5 pr-1 pl-3"
-                    onClick={() => run(() => api(`/api/nutrition/meal-templates/${f.id}/apply`, { body: { date } }), `«${f.name}» añadida`)}
+                    onClick={() => run(() => api(`/api/nutrition/meal-templates/${f.id}/apply`, { body: { date } }), `«${f.name}» cargado`)}
                   >
                     <Star className="size-3.5 fill-current text-amber-500" /> {f.name} · {f.kcal} kcal
                   </button>
                   <button
                     type="button"
-                    aria-label={`Borrar plantilla ${f.name}`}
+                    aria-label={`Borrar menú ${f.name}`}
                     className="p-1.5 text-muted-foreground hover:text-foreground"
                     onClick={async () => {
-                      if (await confirmDialog({ title: `¿Borrar la plantilla «${f.name}»?`, description: "Lo ya registrado no cambia.", confirmLabel: "Borrar", destructive: true })) {
-                        void run(() => api(`/api/nutrition/meal-templates/${f.id}`, { method: "DELETE" }), "Plantilla borrada");
+                      if (await confirmDialog({ title: `¿Borrar el menú «${f.name}»?`, description: "Lo ya registrado no cambia.", confirmLabel: "Borrar", destructive: true })) {
+                        void run(() => api(`/api/nutrition/meal-templates/${f.id}`, { method: "DELETE" }), "Menú borrado");
                       }
                     }}
                   >
@@ -130,42 +135,42 @@ export function MealShortcuts({
   );
 }
 
-/** Botón ★ de cada toma del día: guarda sus alimentos y cantidades como plantilla habitual. */
+/** Botón ★ de cada toma del día: guarda sus alimentos y cantidades como menú con nombre propio. */
 export function SaveMealFavorite({ date, mealType, existing = [] }: { date: string; mealType: Meal; existing?: string[] }) {
   const { busy, run } = useRun();
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState(`${MEAL_LABEL[mealType]} habitual`);
+  const [name, setName] = useState(`Menú ${MEAL_LABEL[mealType].toLowerCase()}`);
   const clean = name.trim();
   const replaces = existing.includes(clean);
   const label = MEAL_LABEL[mealType].toLowerCase();
   return (
-    <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (o) setName(`${MEAL_LABEL[mealType]} habitual`); }}>
+    <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (o) setName(`Menú ${MEAL_LABEL[mealType].toLowerCase()}`); }}>
       <SheetTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" className="size-7" aria-label={`Guardar ${label} como plantilla`}>
+        <Button type="button" variant="ghost" size="icon" className="size-7" aria-label={`Guardar ${label} como menú`}>
           <Star className="size-4" />
         </Button>
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>Guardar {label} como plantilla</SheetTitle>
-          <SheetDescription>Se guardan los alimentos y cantidades de esta toma. Otro día la cargas en un toque.</SheetDescription>
+          <SheetTitle>Guardar {label} como menú</SheetTitle>
+          <SheetDescription>Se guardan los alimentos y cantidades de esta toma. Otro día lo cargas en un toque, aquí o desde «Alimento».</SheetDescription>
         </SheetHeader>
         <form
           className="grid gap-3 px-4 pb-4"
           onSubmit={async (e) => {
             e.preventDefault();
             if (!clean) return;
-            const ok = await run(() => api("/api/nutrition/meal-templates", { body: { name: clean, date, mealType } }), `«${clean}» guardada en plantillas`);
+            const ok = await run(() => api("/api/nutrition/meal-templates", { body: { name: clean, date, mealType } }), `«${clean}» guardado en menús`);
             if (ok) setOpen(false);
           }}
         >
           <div className="grid gap-1.5">
-            <Label htmlFor={`tpl-name-${mealType}`}>Nombre de la plantilla</Label>
+            <Label htmlFor={`tpl-name-${mealType}`}>Nombre del menú</Label>
             <Input id={`tpl-name-${mealType}`} value={name} maxLength={80} onChange={(e) => setName(e.target.value)} autoComplete="off" />
-            {replaces ? <p className="text-xs text-amber-600 dark:text-amber-400">Ya tienes una plantilla con ese nombre: se sustituirá.</p> : null}
+            {replaces ? <p className="text-xs text-amber-600 dark:text-amber-400">Ya tienes un menú con ese nombre: se sustituirá.</p> : null}
           </div>
           <Button type="submit" disabled={busy || !clean}>
-            {replaces ? "Sustituir" : "Guardar plantilla"}
+            {replaces ? "Sustituir" : "Guardar menú"}
           </Button>
         </form>
       </SheetContent>
@@ -173,23 +178,23 @@ export function SaveMealFavorite({ date, mealType, existing = [] }: { date: stri
   );
 }
 
-/** «Cargar plantilla» en una toma: vuelca cualquier plantilla en esta toma (primero las suyas). */
+/** «Cargar menú» en una toma: vuelca cualquier menú en esta toma (primero los suyos). */
 export function LoadTemplate({ date, mealType, templates }: { date: string; mealType: Meal; templates: MealTemplateSummary[] }) {
   const { busy, run } = useRun();
   const [open, setOpen] = useState(false);
   if (!templates.length) return null;
   const label = MEAL_LABEL[mealType].toLowerCase();
-  const sorted = [...templates.filter((t) => t.mealType === mealType), ...templates.filter((t) => t.mealType !== mealType)];
+  const sorted = sortForMeal(templates, mealType);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" className="size-7" aria-label={`Cargar plantilla en ${label}`}>
+        <Button type="button" variant="ghost" size="icon" className="size-7" aria-label={`Cargar menú en ${label}`}>
           <ListPlus className="size-4" />
         </Button>
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>Cargar plantilla en {label}</SheetTitle>
+          <SheetTitle>Cargar menú en {label}</SheetTitle>
           <SheetDescription>Sus alimentos se añaden a esta toma con las mismas cantidades.</SheetDescription>
         </SheetHeader>
         <ul className="grid gap-2 overflow-y-auto px-4 pb-4">
@@ -202,7 +207,7 @@ export function LoadTemplate({ date, mealType, templates }: { date: string; meal
                 onClick={async () => {
                   const ok = await run(
                     () => api(`/api/nutrition/meal-templates/${t.id}/apply`, { body: { date, mealType } }),
-                    `«${t.name}» añadida a ${label}`,
+                    `«${t.name}» cargado en ${label}`,
                   );
                   if (ok) setOpen(false);
                 }}
