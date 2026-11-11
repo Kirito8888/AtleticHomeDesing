@@ -212,6 +212,14 @@ Dentro de una asignatura (`/study/modules/…`), sección **Resumen y web de est
 
 Tu progreso del juego se guarda en tu cuenta: lo ves igual desde el móvil y el ordenador.
 
+## Novedades de la v2.10
+
+- **Fuerza:** al añadir un ejercicio ves las series de la última vez como referencia (no cuentan hasta pulsar «Hecha»); «Hecha» arranca el descanso de esa serie.
+- **Por qué:** bajo la disposición y el PMC hay una frase que explica el valor de hoy.
+- **Planificación:** en el editor de día de un plan propio, marca los ejercicios y «Aplicar a todas las semanas»: ves antes y después, y solo «Aceptar y guardar» escribe. Los días con sesión hecha no se tocan.
+- **Plan con IA:** las recomendaciones de dosis llevan citas con DOI.
+- **Nutrición:** «+ Alimento» tiene «Menús» (tus combinaciones guardadas, primero las de la toma) y «Recientes / Habituales» con tu cantidad de siempre.
+
 ## Novedades de la v2.7
 
 - **Apuntes en Word (DOCX)**, hasta 15 MB. Si el documento tiene contraseña o está dañado, se rechaza al subirlo: quítale la contraseña o guárdalo de nuevo.
