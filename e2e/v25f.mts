@@ -149,6 +149,26 @@ log("fechas y cifras en formato español");
 }
 log("menús de comidas: guardar, cargar en una toma y desde «+ Alimento» en un día vacío");
 
+// 8 · Recientes / Habituales: en un día vacío, «+ Alimento» lista lo ya consumido y un toque precarga su cantidad habitual
+{
+  const empty = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date(Date.now() + 8 * 864e5));
+  await page.goto(`${B}/nutrition?date=${empty}`);
+  await page.getByRole("button", { name: /Alimento/ }).first().click();
+  const dlg = page.getByRole("dialog");
+  await dlg.getByRole("heading", { name: "Recientes / Habituales" }).waitFor();
+  errors.push(...(await a11y(page, "recientes en añadir alimento")));
+  const recent = dlg.getByRole("button", { name: /^Tostada/ });
+  await minH(recent, "reciente «Tostada»");
+  await recent.click();
+  const qty = await dlg.getByRole("textbox", { name: "Cantidad en gramos" }).inputValue();
+  if (!/^80(,0+)?$/.test(qty)) errors.push(`el reciente no precarga la cantidad habitual (80 g): «${qty}»`);
+  await dlg.getByRole("button", { name: "Añadir", exact: true }).click();
+  await page.getByText("Añadido").first().waitFor();
+  await page.waitForFunction(() => document.body.innerText.includes("Tostada"));
+  await noOverflow("/nutrition recientes");
+}
+log("recientes: lista en «+ Alimento» y alta con la cantidad habitual en un toque");
+
 await browser.close();
 if (errors.length) {
   console.error(errors.join("\n"));

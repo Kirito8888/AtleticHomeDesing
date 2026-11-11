@@ -15,6 +15,7 @@ import { pageUser } from "@/lib/auth/page";
 import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
 import { capitalizeFirst, formatDate, formatNum } from "@/lib/format";
 import { listMealTemplates, mealsOfPreviousDay } from "@/lib/nutrition/meal-templates";
+import { recentFoods } from "@/lib/nutrition/recent-foods";
 import { getDay } from "@/lib/nutrition/service";
 import { CARB_DAY_LABEL } from "@/lib/nutrition/carbs";
 import { WaterCard } from "@/components/nutrition/water-card";
@@ -27,11 +28,12 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
   const showIron = await womenEnabled(user.id);
   const { date: raw } = await searchParams;
   const date = typeof raw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : toIsoDay(today());
-  const [day, yesterday, favorites, water] = await Promise.all([
+  const [day, yesterday, favorites, water, recents] = await Promise.all([
     getDay(user.id, date),
     mealsOfPreviousDay(user.id, date),
     listMealTemplates(user.id),
     hydrationDay(user.id, date),
+    recentFoods(user.id),
   ]);
   const totals = day.totals as Record<"kcal" | "proteinG" | "carbsG" | "fatG", number>;
   const prev = toIsoDay(addDays(dateOnly(date), -1));
@@ -40,7 +42,7 @@ export default async function NutritionPage({ searchParams }: PageProps<"/nutrit
 
   return (
     <>
-      <PageHeader title="Nutrición" action={<AddFoodSheet date={date} menus={favorites} />} />
+      <PageHeader title="Nutrición" action={<AddFoodSheet date={date} menus={favorites} recents={recents} />} />
       <div className="mb-4 flex items-center justify-between">
         <Button asChild variant="ghost" size="icon" aria-label="Día anterior">
           <Link href={`?date=${prev}`}>
