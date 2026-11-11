@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Pause, Play, RotateCcw, Timer } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { adjust, formatRest, idle, pause, remainingMs, REST_PRESETS, resume, start, tick, type RestTimer as State } from "@/lib/training/rest-timer";
+import { adjust, formatRest, idle, pause, remainingMs, REST_PRESETS, restFor, resume, start, tick, type RestTimer as State } from "@/lib/training/rest-timer";
 import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "lifeos.restSec";
@@ -104,7 +104,7 @@ function useWakeLock(active: boolean) {
  * completa una serie ("Repetir serie") y arranca el descanso.
  * En iPhone no hay vibración (Safari no implementa navigator.vibrate): solo pitido y pantalla.
  */
-export function RestTimer({ autoStart }: { autoStart: number }) {
+export function RestTimer({ autoStart }: { autoStart: { n: number; sec?: number | null } }) {
   const preferred = usePreferredRest();
   const [state, setState] = useState<State>(() => idle(DEFAULT_REST));
   const [now, setNow] = useState(() => Date.now());
@@ -121,14 +121,15 @@ export function RestTimer({ autoStart }: { autoStart: number }) {
   };
 
   // Arranque automático al completar una serie (el primer valor, 0, no cuenta).
-  const lastSignal = useRef(autoStart);
+  const lastSignal = useRef(autoStart.n);
   useEffect(() => {
-    if (autoStart !== lastSignal.current) {
-      lastSignal.current = autoStart;
-      begin();
+    if (autoStart.n !== lastSignal.current) {
+      lastSignal.current = autoStart.n;
+      // Descanso prescrito/registrado de la serie; sin él, la preferencia (o el en curso).
+      begin(autoStart.sec != null ? restFor(autoStart.sec, preferred) : undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo reacciona a la señal
-  }, [autoStart]);
+  }, [autoStart.n]);
 
   useEffect(() => {
     if (state.status !== "running") return;

@@ -268,6 +268,8 @@ log("citas, suplementos y enlace para el fisio");
 await go(B + "/training/new");
 await page.getByLabel("Buscar ejercicio").fill("sentadilla tr");
 await page.getByRole("button", { name: /Sentadilla trasera/ }).click();
+// v2.10: las series precargadas de la sesión anterior son referencia; hay que marcar una «Hecha» para que se guarde
+await page.getByRole("button", { name: "Hecha serie 1" }).click();
 await ctx.setOffline(true);
 await page.fill("#minutes", "30");
 await radio("RPE de la sesión", "5").click();

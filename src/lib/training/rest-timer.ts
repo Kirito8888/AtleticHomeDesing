@@ -54,3 +54,8 @@ export function formatRest(ms: number): string {
   const s = Math.ceil(ms / 1000);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
+
+/** Descanso de una serie: el prescrito/registrado (acotado a 15–600 s) o la preferencia de la atleta. */
+export function restFor(restSec: number | null | undefined, preferredSec: number): number {
+  return restSec != null && Number.isFinite(restSec) && restSec > 0 ? Math.min(600, Math.max(15, Math.round(restSec))) : preferredSec;
+}

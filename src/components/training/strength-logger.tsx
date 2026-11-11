@@ -6,8 +6,9 @@ import { Copy, Dumbbell, Plus, Trash2 } from "lucide-react";
 import { Stepper } from "@/components/form/stepper";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { formatNum } from "@/lib/format";
+import { formatDate, formatNum } from "@/lib/format";
 import { suggestKg } from "@/lib/training/autoreg";
+import { type PreviousByExercise, prefillSets, summarizePrevious } from "@/lib/training/previous-sets";
 import { estimateOneRm, repsInReserve, tonnageKg } from "@/lib/training/strength";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,12 @@ export interface SetRow {
   planReps?: number | null;
   planRir?: number | null;
   suggestedKg?: number | null;
+  /** v2.10 · precargada desde la sesión anterior: referencia que NO se guarda hasta marcarla «Hecha». */
+  pending?: boolean;
+  /** v2.10 · marcada «Hecha» (arranca el descanso). */
+  done?: boolean;
+  /** v2.10 · lo que se hizo la última vez (solo lectura). */
+  prev?: { kg: number; reps: number };
   /**
    * v1.9 · Datos de la serie que el formulario no muestra (al editar una sesión ya guardada):
    * se devuelven tal cual para no perderlos. El RIR solo se conserva si no cambia el RPE.
@@ -62,15 +69,16 @@ const RPE_OPTIONS = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 let keySeq = 0;
 const newKey = () => `b${++keySeq}`;
 
-export function newBlock(exerciseId: string): ExerciseBlock {
-  return { key: newKey(), exerciseId, sets: [{ reps: 5, weightKg: 20, rpe: null, isWarmup: true }] };
+export function newBlock(exerciseId: string, previous?: PreviousByExercise): ExerciseBlock {
+  const pre = prefillSets(previous?.[exerciseId]);
+  return { key: newKey(), exerciseId, sets: pre ?? [{ reps: 5, weightKg: 20, rpe: null, isWarmup: true }] };
 }
 
 /** Convierte los bloques en las series que espera la API (excluye filas incompletas). */
 export function blocksToSets(blocks: ExerciseBlock[]) {
   return blocks.flatMap((b) =>
     b.sets
-      .filter((s) => s.reps != null && s.reps > 0)
+      .filter((s) => !s.pending && s.reps != null && s.reps > 0)
       .map((s) => ({ exerciseId: b.exerciseId, reps: s.reps!, weightKg: s.weightKg ?? 0, rpe: s.rpe, isWarmup: s.isWarmup, ...(s.velocityMs ? { velocityMs: s.velocityMs } : {}), ...(s.suggestedKg ? { suggestedKg: s.suggestedKg } : {}), ...keptFields(s) })),
   );
 }
@@ -116,6 +124,7 @@ export function StrengthLogger({
   bodyWeightKg,
   onSetCompleted,
   autoreg,
+  previous,
 }: {
   exercises: ExerciseOption[];
   blocks: ExerciseBlock[];
@@ -123,8 +132,10 @@ export function StrengthLogger({
   bodyWeightKg: number | null;
   /** v1.6 · kg del día: tope, paso de discos y perfiles carga-velocidad. Sin él no se sugiere nada. */
   autoreg?: AutoregContext;
-  /** Se llama al pulsar "Repetir serie" (= serie terminada): arranca el descanso. */
-  onSetCompleted?: () => void;
+  /** v2.10 · última sesión completada por ejercicio (precarga como referencia). */
+  previous?: PreviousByExercise;
+  /** Se llama al marcar «Hecha» o pulsar "Repetir serie" (= serie terminada): arranca el descanso (restSec prescrito, si lo hay). */
+  onSetCompleted?: (restSec?: number | null) => void;
 }) {
   const byId = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
 
@@ -177,14 +188,33 @@ export function StrengthLogger({
               </div>
             </div>
 
+            {previous?.[block.exerciseId] ? (
+              <p className="text-xs text-muted-foreground" data-testid="prev-summary">
+                Anterior ({formatDate(previous[block.exerciseId].date, { day: "numeric", month: "short" })}): {summarizePrevious(previous[block.exerciseId], (n) => formatNum(n, 2))} kg×reps
+              </p>
+            ) : null}
+
             {block.sets.map((s, i) => (
-              <div key={i} className={cn("grid gap-2 rounded-md p-2", s.isWarmup ? "bg-muted/60" : "bg-transparent")}>
+              <div key={i} className={cn("grid gap-2 rounded-md p-2", s.isWarmup ? "bg-muted/60" : "bg-transparent", s.pending && "border border-dashed", s.done && "border border-primary/40")}>
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span className="font-medium">
                     Serie {i + 1}
                     {s.isWarmup ? " · calentamiento" : ""}
+                    {s.pending ? " · de la sesión anterior (sin marcar no se guarda)" : ""}
                   </span>
                   <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className={cn("rounded border px-2 py-1 text-foreground max-md:min-h-11", s.done && "border-primary bg-primary text-primary-foreground")}
+                      aria-pressed={!!s.done}
+                      aria-label={`Hecha serie ${i + 1}`}
+                      onClick={() => {
+                        setField(block.key, i, { done: !s.done, pending: false });
+                        if (!s.done) onSetCompleted?.(s.keep?.restSec);
+                      }}
+                    >
+                      {s.done ? "Hecha ✓" : "Hecha"}
+                    </button>
                     <button
                       type="button"
                       className={cn("rounded border px-2 py-1", s.isWarmup && "border-primary text-foreground")}
@@ -279,9 +309,9 @@ export function StrengthLogger({
               onClick={() => {
                 update(block.key, (b) => {
                   const last = b.sets.at(-1);
-                  return { ...b, sets: [...b.sets, last ? { ...last, isWarmup: false } : { reps: 5, weightKg: 20, rpe: null, isWarmup: false }] };
+                  return { ...b, sets: [...b.sets, last ? { ...last, isWarmup: false, pending: false, done: false, prev: undefined } : { reps: 5, weightKg: 20, rpe: null, isWarmup: false }] };
                 });
-                onSetCompleted?.();
+                onSetCompleted?.(block.sets.at(-1)?.keep?.restSec);
               }}
             >
               <Copy /> Repetir serie
@@ -290,7 +320,7 @@ export function StrengthLogger({
         );
       })}
 
-      <ExercisePicker exercises={exercises} onPick={(id) => onChange([...blocks, newBlock(id)])} />
+      <ExercisePicker exercises={exercises} onPick={(id) => onChange([...blocks, newBlock(id, previous)])} />
 
       {sets.length ? (
         <p className="text-sm text-muted-foreground">

@@ -20,6 +20,7 @@ import { api } from "@/lib/client-api";
 import { enqueue, isNetworkError } from "@/lib/offline/outbox";
 import { formatNum } from "@/lib/format";
 import { disciplineForTrack } from "@/lib/training/disciplines";
+import type { PreviousByExercise } from "@/lib/training/previous-sets";
 import type { FormKind as Kind, SessionFormInitial } from "@/lib/training/form-initial";
 
 const RPE = Array.from({ length: 10 }, (_, i) => ({ value: i + 1, label: String(i + 1) }));
@@ -58,6 +59,7 @@ export function SessionForm({
   sessionId,
   autoreg,
   eventDefaults,
+  previous,
 }: {
   exercises: ExerciseOption[];
   defaultDate: string;
@@ -71,6 +73,8 @@ export function SessionForm({
   autoreg?: AutoregContext;
   /** v2.1 · valores iniciales según la prueba del perfil (sin ellos, los de siempre). */
   eventDefaults?: EventDefaults;
+  /** v2.10 · última sesión completada por ejercicio (precarga como referencia). */
+  previous?: PreviousByExercise;
 }) {
   const router = useRouter();
   const [clientId] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `c${Date.now()}${Math.random().toString(36).slice(2, 10)}`));
@@ -89,9 +93,10 @@ export function SessionForm({
   const [technical, setTechnical] = useState<TechnicalState>(initial?.technical ?? technicalFor(eventDefaults));
   const [track, setTrack] = useState<TrackState>(initial?.track ?? trackFor(eventDefaults));
   const [saving, setSaving] = useState(false);
-  const [restSignal, setRestSignal] = useState(0);
+  const [restSignal, setRestSignal] = useState<{ n: number; sec?: number | null }>({ n: 0 });
 
   const [templateName, setTemplateName] = useState("");
+  const pendingCount = blocks.reduce((n, b) => n + b.sets.filter((x) => x.pending).length, 0);
 
   /** Cuerpo de la API a partir del formulario, o un mensaje si falta algo. */
   function buildBody(): Record<string, unknown> | string {
@@ -219,7 +224,8 @@ export function SessionForm({
             blocks={blocks}
             onChange={setBlocks}
             bodyWeightKg={bodyWeightKg}
-            onSetCompleted={() => setRestSignal((n) => n + 1)}
+            onSetCompleted={(sec) => setRestSignal((r) => ({ n: r.n + 1, sec }))}
+            previous={previous}
             autoreg={autoreg}
           />
         </TabsContent>
@@ -301,6 +307,12 @@ export function SessionForm({
           </Button>
         </div>
       </details>
+
+      {pendingCount ? (
+        <p role="status" className="rounded-md border border-dashed p-3 text-sm text-muted-foreground" data-testid="pending-warning">
+          {pendingCount === 1 ? "1 serie de referencia sin marcar «Hecha» no se guardará." : `${pendingCount} series de referencia sin marcar «Hecha» no se guardarán.`}
+        </p>
+      ) : null}
 
       <div className="sticky bottom-20 z-10 md:bottom-4">
         <Button type="submit" size="lg" className="h-12 w-full text-base shadow-lg" disabled={saving}>
