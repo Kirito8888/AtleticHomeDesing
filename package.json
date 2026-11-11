@@ -41,6 +41,7 @@
     "e2e:v25m": "tsx e2e/v25m.mts",
     "e2e:v25n": "tsx e2e/v25n.mts",
     "e2e:v29a": "tsx e2e/v29a.mts",
+    "e2e:v210a": "tsx e2e/v210a.mts",
     "e2e:noeval": "tsx e2e/no-eval.mts",
     "e2e:v25o": "tsx e2e/v25o.mts",
     "budget": "node scripts/bundle-budget.mjs",

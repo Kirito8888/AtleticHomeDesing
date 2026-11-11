@@ -15,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { sessionToFormInitial, templateToFormInitial } from "@/lib/training/form-initial";
 import { exerciseOptions, formSessionInclude } from "@/lib/training/session-queries";
 import { defaultsFor } from "@/lib/training/disciplines";
+import { lastSetsByExercise } from "@/lib/training/previous-sets-service";
 import { autoregContext } from "@/lib/training/rm-service";
 
 export const metadata = { title: "Nueva sesión · Atlenza" };
@@ -23,7 +24,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
   const user = await pageUser();
   const autoreg = await autoregContext(user.id);
   const { type, repeat, template } = await searchParams;
-  const [exercises, profile, lastStrength, templates, library] = await Promise.all([
+  const [exercises, profile, lastStrength, templates, library, previous] = await Promise.all([
     exerciseOptions(user.id),
     prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { bodyWeightKg: true, primaryDiscipline: true, primaryEvent: true } }),
     prisma.trainingSession.findFirst({
@@ -33,6 +34,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
     }),
     prisma.sessionTemplate.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true, payload: true, shared: true } }),
     sharedFromCoaches(user.id),
+    lastSetsByExercise(user.id),
   ]);
   const todayIso = toIsoDay(today());
   // "Repetir": mismas series y pesos que la última sesión de fuerza, con fecha de hoy.
@@ -87,6 +89,7 @@ export default async function NewSessionPage({ searchParams }: PageProps<"/train
         initialType={initialType}
         initial={initial}
         autoreg={autoreg}
+        previous={previous}
         eventDefaults={{ modality: defaults.modality, technicalEvent: defaults.technicalEvent, profileDiscipline: profile?.primaryDiscipline ?? null }}
       />
     </>

@@ -9,6 +9,7 @@ import { planDayForSession } from "@/lib/planning/plan-import/service";
 import { prisma } from "@/lib/prisma";
 import { dayView } from "@/lib/ai-plan/day-view";
 import { planToBlocks } from "@/lib/training/plan-to-form";
+import { lastSetsByExercise } from "@/lib/training/previous-sets-service";
 import { autoregContext, rmContext } from "@/lib/training/rm-service";
 import { isEditableType, sessionToFormInitial } from "@/lib/training/form-initial";
 import { exerciseOptions, formSessionInclude } from "@/lib/training/session-queries";
@@ -19,10 +20,11 @@ export default async function EditSessionPage({ params }: PageProps<"/training/[
   const user = await pageUser();
   const autoreg = await autoregContext(user.id);
   const { id } = await params;
-  const [session, exercises, profile] = await Promise.all([
+  const [session, exercises, profile, previous] = await Promise.all([
     prisma.trainingSession.findFirst({ where: { id, userId: user.id }, include: formSessionInclude }),
     exerciseOptions(user.id),
     prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { bodyWeightKg: true } }),
+    lastSetsByExercise(user.id, { excludeSessionId: id }),
   ]);
   // Una sesión planificada de cualquier tipo (p. ej. MIXED del plan importado) se puede registrar como hecha.
   const planned = session?.status === "PLANNED";
@@ -70,6 +72,7 @@ export default async function EditSessionPage({ params }: PageProps<"/training/[
         initial={initial}
         sessionId={session.id}
         autoreg={autoreg}
+        previous={previous}
       />
     </>
   );

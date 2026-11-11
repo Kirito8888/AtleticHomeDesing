@@ -8,6 +8,7 @@ import { type EventDefaults, SessionForm } from "@/components/training/session-f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
+import type { PreviousByExercise } from "@/lib/training/previous-sets";
 import type { FormKind, SessionFormInitial } from "@/lib/training/form-initial";
 
 type Draft = { durationMin: number | null; rpe: number | null; blocks: Array<{ exerciseId: string; exercise: string; sets: number; reps: number; kg: number | null; rir: number | null }>; unmatched: string[]; source: string };
@@ -27,7 +28,7 @@ type SpeechCtor = new () => {
  * Formulario de sesión con «Dictar»: el navegador transcribe (el audio no sale
  * del móvil), el texto se convierte en un borrador y se revisa antes de guardar.
  */
-export function VoiceSessionForm(props: { exercises: ExerciseOption[]; defaultDate: string; bodyWeightKg: number | null; initialType: FormKind; initial?: SessionFormInitial; formKey: string; autoreg?: AutoregContext; eventDefaults?: EventDefaults }) {
+export function VoiceSessionForm(props: { exercises: ExerciseOption[]; defaultDate: string; bodyWeightKg: number | null; initialType: FormKind; initial?: SessionFormInitial; formKey: string; autoreg?: AutoregContext; eventDefaults?: EventDefaults; previous?: PreviousByExercise }) {
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -101,7 +102,7 @@ export function VoiceSessionForm(props: { exercises: ExerciseOption[]; defaultDa
           <p className="text-xs text-muted-foreground">El audio lo transcribe tu navegador. Al servidor solo llega el texto; si tienes la IA activada, tu IA lo convierte, y si no, la app lo interpreta sola.</p>
         </div>
       </details>
-      <SessionForm key={key} exercises={props.exercises} defaultDate={props.defaultDate} bodyWeightKg={props.bodyWeightKg} initialType={props.initialType} initial={initial} autoreg={props.autoreg} eventDefaults={props.eventDefaults} />
+      <SessionForm key={key} exercises={props.exercises} defaultDate={props.defaultDate} bodyWeightKg={props.bodyWeightKg} initialType={props.initialType} initial={initial} autoreg={props.autoreg} eventDefaults={props.eventDefaults} previous={props.previous} />
     </>
   );
 }
