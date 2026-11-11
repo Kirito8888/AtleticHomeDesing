@@ -1,5 +1,6 @@
 // Integración (v1.10): Telegram por usuario con BD real y la API del bot simulada.
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 vi.mock("@/auth", () => ({ auth: async () => null }));
 
@@ -11,7 +12,7 @@ describe.skipIf(!HAS_DB)("Telegram por usuario (BD real, bot simulado)", () => {
   let link: typeof import("./link");
   let push: typeof import("@/lib/push/service");
   let userId: string;
-  const t = Date.now();
+  const t = testStamp();
   const sent: Array<{ chat_id: string; text: string }> = [];
   const polls: Array<{ offset: number }> = [];
   let updates: unknown[] = [];

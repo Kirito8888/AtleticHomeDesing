@@ -6,6 +6,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 import { z } from "zod";
 
 vi.mock("@/auth", () => ({ auth: async () => null }));
@@ -26,7 +27,7 @@ describe.skipIf(!HAS_DB)("IA propia por usuario (BD real y proveedor simulado)",
   let base: string;
   let userId: string;
   const seen: Seen[] = [];
-  const t = Date.now();
+  const t = testStamp();
 
   beforeAll(async () => {
     server = createServer((req, res) => {

@@ -74,6 +74,7 @@ export function ManualDayEditor({
   initial,
   exercises,
   showNotes = true,
+  allWeeks = false,
 }: {
   dayId: string;
   backHref: string;
@@ -81,10 +82,38 @@ export function ManualDayEditor({
   exercises: string[];
   /** Borrador de rutina: las notas (calentamiento, dónde, por qué) no se editan aquí. */
   showNotes?: boolean;
+  /** El plan tiene el mismo día en otras semanas: se ofrece «Aplicar a todas las semanas». */
+  allWeeks?: boolean;
 }) {
   const router = useRouter();
   const [v, setV] = useState(initial);
   const [busy, setBusy] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [preview, setPreview] = useState<{ fingerprint: string; changes: number; items: Array<{ dayId: string; week: number; date: string; exercise: string; before: string; after: string }> } | null>(null);
+  const originals = new Set(initial.rows.map((r) => r.exercise));
+  const body = () => ({ day: { ...v, rows: v.rows.filter((r) => r.exercise.trim()) }, exercises: picked.filter((n) => v.rows.some((r) => r.exercise === n)) });
+  async function review() {
+    setBusy(true);
+    try {
+      setPreview(await api(`/api/planning/manual/day/${dayId}/all-weeks`, { method: "POST", body: { ...body(), dryRun: true } }));
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+    setBusy(false);
+  }
+  async function accept() {
+    if (!preview) return;
+    setBusy(true);
+    try {
+      await api(`/api/planning/manual/day/${dayId}/all-weeks`, { method: "POST", body: { ...body(), dryRun: false, fingerprint: preview.fingerprint } });
+      toast.success("Día guardado y cambios aplicados a todas las semanas");
+      router.push(backHref);
+      router.refresh();
+    } catch (e) {
+      toast.error((e as Error).message);
+      setBusy(false);
+    }
+  }
   const setRow = (i: number, p: Partial<Row>) => setV((c) => ({ ...c, rows: c.rows.map((r, j) => (j === i ? { ...r, ...p } : r)) }));
   async function save() {
     setBusy(true);
@@ -143,6 +172,12 @@ export function ManualDayEditor({
               <Input aria-label={`Descanso ${i + 1}`} value={r.rest} onChange={(e) => setRow(i, { rest: e.target.value })} placeholder="2′" />
             </div>
             <Input aria-label={`Cómo ${i + 1}`} value={r.how} onChange={(e) => setRow(i, { how: e.target.value })} placeholder="Cómo lo hago (opcional)" />
+            {allWeeks && originals.has(r.exercise) ? (
+              <label className="flex min-h-11 items-center gap-2 text-sm">
+                <input type="checkbox" className="size-5" data-testid={`all-weeks-${i}`} checked={picked.includes(r.exercise)} onChange={(e) => { setPreview(null); setPicked((c) => (e.target.checked ? [...c, r.exercise] : c.filter((n) => n !== r.exercise))); }} />
+                Aplicar a todas las semanas
+              </label>
+            ) : null}
           </div>
         ))}
         <Button type="button" variant="outline" size="sm" className="justify-self-start" disabled={v.rows.length >= 40} onClick={() => setV({ ...v, rows: [...v.rows, { exercise: "", sets: "", load: "", rir: "", rest: "", how: "" }] })}>
@@ -150,9 +185,32 @@ export function ManualDayEditor({
         </Button>
         <p className="text-xs text-muted-foreground">Usa «3 × 5» en series y «80 %» en carga: así salen los kg con tu tabla de RM y el registro llega precargado.</p>
       </div>
-      <Button type="button" disabled={busy || !v.title.trim()} onClick={save}>
-        Guardar día
-      </Button>
+      {preview ? (
+        <div className="grid gap-2 rounded-md border border-primary/40 p-3" data-testid="all-weeks-preview">
+          <p className="text-sm font-medium">Vista previa: {preview.items.length === 0 ? "ningún otro día cambiaría" : `${preview.items.length} cambio${preview.items.length === 1 ? "" : "s"} en ${new Set(preview.items.map((i) => i.dayId)).size} día(s) de otras semanas`}</p>
+          <p className="text-xs text-muted-foreground">Las series se suman o restan respecto a cada semana (la progresión se conserva); el resto se sustituye. Nada se guarda hasta aceptar.</p>
+          <ul className="grid gap-1 text-sm">
+            {preview.items.map((i) => (
+              <li key={`${i.dayId}-${i.exercise}`}>
+                <strong>Semana {i.week}</strong> · {i.date} · {i.exercise}: {i.before} → {i.after}
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" disabled={busy || !v.title.trim()} onClick={accept}>
+              Aceptar y guardar
+            </Button>
+            <Button type="button" variant="outline" disabled={busy} onClick={() => setPreview(null)}>
+              Cancelar
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button type="button" disabled={busy || !v.title.trim()} onClick={picked.length ? review : save}>
+          {picked.length ? "Revisar cambios en todas las semanas" : "Guardar día"}
+        </Button>
+      )}
+      {allWeeks ? <p className="text-xs text-muted-foreground">«Aplicar a todas las semanas» lleva series, repeticiones, carga, RIR y descanso al mismo día de las demás semanas; no cambia nombres de ejercicio.</p> : null}
     </div>
   );
 }

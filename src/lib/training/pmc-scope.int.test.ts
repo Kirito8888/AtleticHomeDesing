@@ -2,6 +2,7 @@
 // y la frase del PMC (solo carga) se entrega a quien ve la carga.
 import { NextRequest } from "next/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 let current: { id: string; role: "ATHLETE" | "COACH" } = { id: "", role: "ATHLETE" };
 vi.mock("@/auth", () => ({ auth: async () => null }));
@@ -17,7 +18,7 @@ describe.skipIf(!HAS_DB)("PMC y ámbito RECOVERY (BD real)", () => {
   let athlete: string;
   let coachLoad: string;
   let coachAll: string;
-  const t = Date.now();
+  const t = testStamp();
   const d = new Date();
   const recent = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - 1));
   const req = (url: string) => new NextRequest(`http://localhost${url}`);

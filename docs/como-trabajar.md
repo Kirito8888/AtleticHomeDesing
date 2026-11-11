@@ -58,3 +58,6 @@ Instrucciones, ficheros que adjuntar y refresco tras cada versión: `docs/gemini
 
 ## Tras cerrar una versión (v2.9.0 incluida)
 Cuando fusiones el PR de cierre: despliega con `update.sh` y **resube los adjuntos del Gem** (`CLAUDE.md`, `docs/estado.md`, `docs/como-trabajar.md`), porque son una copia (`docs/gemini-gem.md`).
+
+- **Tests de integración:** el sufijo único de los emails/datos es `testStamp()` (`src/test/stamp.ts`), nunca `Date.now()`: dos ficheros en paralelo pueden coincidir en el milisegundo y borrarse los datos entre sí.
+- **CI:** los workflows usan `runs-on: ubuntu-24.04` fijo, no `ubuntu-latest`: cuando GitHub cambia la imagen por defecto la CI puede romperse sin tocar el código (pasó con ubuntu-26.04 el 11/11/2026).

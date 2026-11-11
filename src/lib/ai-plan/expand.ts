@@ -79,7 +79,7 @@ export function expandAiPlan(plan: AiPlan, r: PlanRequest, code: string): Expand
     }
   }
   // Referencias de las pautas usadas (solo rutinas con `basis`); los ids desconocidos se ignoran
-  const refs = citationsFor(plan.phases.flatMap((p) => p.days.flatMap((d) => d.exercises.flatMap((e) => (e as AiExerciseWithBasis).basis?.refs ?? []))));
+  const refs = citationsFor(plan.phases.flatMap((p) => p.days.flatMap((d) => d.exercises.flatMap((e) => (e as AiExerciseWithBasis).basis?.refs ?? e.refs ?? []))));
   const first = days[0]?.date ?? r.startDate;
   const last = days.at(-1)?.date ?? r.startDate;
   return {
@@ -109,6 +109,12 @@ function dayBlocks(d: AiDay, exercises: AiExercise[], where: string | null, focu
   return blocks;
 }
 
+/** Citas que la IA declaró para el ejercicio (solo ids conocidos); sin ninguna, no hay `basis`. */
+function aiBasis(e: AiExercise): { basis?: { why: string; refs: string[] } } {
+  const refs = citationsFor(e.refs ?? []).map((c) => c.id);
+  return refs.length ? { basis: { why: "Dosis propuesta por la IA siguiendo las pautas de referencia citadas.", refs } } : {};
+}
+
 export function toRow(e: AiExerciseWithBasis): PlanRow {
   return {
     exercise: e.name,
@@ -120,7 +126,7 @@ export function toRow(e: AiExerciseWithBasis): PlanRow {
     ramp: false,
     equipment: e.equipment,
     alternatives: e.alternatives,
-    ...(e.basis ? { basis: e.basis } : {}),
+    ...(e.basis ? { basis: e.basis } : aiBasis(e)),
   };
 }
 

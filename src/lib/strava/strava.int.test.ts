@@ -4,6 +4,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 vi.mock("@/auth", () => ({ auth: async () => null }));
 
@@ -15,7 +16,7 @@ describe.skipIf(!HAS_DB)("Strava v1.10 (BD real, API simulada)", () => {
   let dataAi: typeof import("@/lib/ai/data-ai");
   let server: Server;
   let userId: string;
-  const t = Date.now();
+  const t = testStamp();
   const calls: string[] = [];
   let access = "acc-1";
   const day = (d: number) => new Date(Date.UTC(2026, 9, d, 7, 30)).toISOString().replace(".000", "");

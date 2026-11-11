@@ -152,3 +152,19 @@ describe("P2-5 · la prueba de la atleta", () => {
     expect(["throws", "jumps", "sprint", "endurance", "combined", "other"].map((f) => disciplineForFamily(f as never))).toEqual(["lanzamientos", "saltos", "velocidad", "fondo", "general", "general"]);
   });
 });
+
+describe("N7 · citas en el prompt de la IA", () => {
+  it("PLAN_SYSTEM lleva las pautas con ids y DOI, y no datos personales", async () => {
+    const { PLAN_SYSTEM } = await import("./prompt");
+    expect(PLAN_SYSTEM).toMatch(/Pautas de referencia/);
+    expect(PLAN_SYSTEM).toMatch(/\[acsm2009, ralston2017/);
+    expect(PLAN_SYSTEM).toMatch(/doi:10\.1249\/MSS\.0b013e3181915670/);
+    expect(PLAN_SYSTEM).not.toMatch(/@|ciclo|menstru/i);
+  });
+  it("las citas de la IA pasan a la fila; los ids desconocidos se descartan", async () => {
+    const { toRow } = await import("./expand");
+    const e = { ...fakeAiPlan(base()).phases[0].days[0].exercises[0], refs: ["acsm2009", "inventada"] };
+    expect(toRow(e).basis?.refs).toEqual(["acsm2009"]);
+    expect(toRow({ ...e, refs: ["inventada"] }).basis).toBeUndefined();
+  });
+});

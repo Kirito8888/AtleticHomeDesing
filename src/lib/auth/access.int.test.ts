@@ -1,5 +1,6 @@
 // Integración con BD real (v1.9): invitaciones de un solo uso, condiciones, suspensión y contraseña nueva sin email.
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 vi.mock("@/auth", () => ({ auth: async () => null }));
 
@@ -10,7 +11,7 @@ describe.skipIf(!HAS_DB)("acceso solo con permiso v1.9 (BD real)", () => {
   let access: typeof import("./access");
   let adminId: string;
   let userId: string;
-  const t = Date.now();
+  const t = testStamp();
 
   beforeAll(async () => {
     vi.resetModules();

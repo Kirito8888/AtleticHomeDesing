@@ -21,6 +21,7 @@ export default async function EditManualDayPage({ params }: PageProps<"/planning
   const notes = blocks.filter((b) => b.kind === "text").map((b) => (b as { text: string }).text).join("\n\n");
   const rows = blocks.flatMap((b) => (b.kind === "table" ? b.rows : [])).map((r) => ({ exercise: r.exercise, sets: r.sets, load: r.load, rir: r.rir, rest: r.rest, how: r.how }));
   const exercises = await exerciseOptions(user.id);
+  const sameWeekday = d.date ? (await prisma.planDay.findMany({ where: { mesoId: d.mesoId, id: { not: d.id } }, select: { date: true } })).filter((x) => x.date && x.date.getUTCDay() === d.date!.getUTCDay()).length : 0;
   return (
     <>
       <PageHeader title={d.title} description={d.date ? formatDate(d.date, { weekday: "long", day: "numeric", month: "long" }) : ""} />
@@ -30,6 +31,7 @@ export default async function EditManualDayPage({ params }: PageProps<"/planning
         initial={{ title: d.title, durationMin: d.durationMin, type: d.type as "STRENGTH" | "TECHNICAL" | "TRACK" | "MIXED", notes, rows }}
         exercises={exercises.map((e) => e.name)}
         showNotes={!routine}
+        allWeeks={sameWeekday > 0}
       />
     </>
   );

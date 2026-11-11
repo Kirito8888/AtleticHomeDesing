@@ -1,4 +1,5 @@
 import { EVENTS } from "@/lib/training/disciplines";
+import { CITATIONS, formatCitation, PRESCRIPTION, type PrescriptionGoal, restLabel } from "@/lib/training/prescription";
 
 import {
   AGE_BANDS,
@@ -23,6 +24,25 @@ import {
  * ni nombre, ni email, ni fechas exactas, ni datos del ciclo menstrual (la
  * adaptación al ciclo se hace en local eligiendo la «versión suave» del día).
  */
+const range = (r: readonly [number, number]) => `${r[0]}-${r[1]}`;
+const GOAL_NAME: Record<PrescriptionGoal, string> = { fuerza: "fuerza", hipertrofia: "hipertrofia y salud general", resistencia_muscular: "resistencia muscular" };
+
+/**
+ * N7 · Pautas de referencia (solo lectura de `PRESCRIPTION` y `CITATIONS`; ninguna fórmula cambia): dosis por objetivo y nivel
+ * con los ids de las citas que la respaldan y el catálogo con DOI. Texto fijo: sin datos de la usuaria.
+ */
+export function guidelinesText(): string {
+  const used = new Set<string>();
+  const rules = (Object.keys(PRESCRIPTION) as PrescriptionGoal[]).flatMap((g) =>
+    (Object.keys(PRESCRIPTION[g]) as Array<keyof (typeof PRESCRIPTION)[PrescriptionGoal]>).map((lvl) => {
+      const r = PRESCRIPTION[g][lvl];
+      r.refs.forEach((x) => used.add(x));
+      return `- ${GOAL_NAME[g]}, ${lvl}: ${range(r.weeklySets)} series semanales por grupo muscular, ${range(r.reps)} repeticiones, ${r.rir}, descanso ${restLabel(r.restSec)} [${r.refs.join(", ")}]`;
+    }),
+  );
+  return ["Pautas de referencia (dosis habitual por objetivo y nivel; entre corchetes, ids de cita):", ...rules, "Citas:", ...CITATIONS.filter((c) => used.has(c.id)).map((c) => `- ${c.id}: ${formatCitation(c)}`)].join("\n");
+}
+
 export const PLAN_SYSTEM = `Eres un preparador físico titulado que diseña planes de entrenamiento seguros y progresivos en español de España.
 Reglas obligatorias:
 - Responde SOLO con el JSON del esquema. Nombres de ejercicio claros y comunes en español.
@@ -35,7 +55,10 @@ Reglas obligatorias:
 - Fases ("phases"): suma de semanas = semanas pedidas. Si son 6 o más semanas, incluye una semana de descarga (deload=true) como mucho cada 4 semanas. "progression": +1 para subir volumen poco a poco, 0 mantener, -1 bajar (taper).
 - Si hay competición objetivo, la semana anterior baja el volumen (taper) y mantiene la intensidad.
 - La intensidad, en RPE o RIR (p. ej. "RIR 2") o con una descripción breve; usa %RM solo si es avanzado.
-- No des consejos médicos ni nutricionales.`;
+- Fundamenta series, repeticiones, RIR y descanso de los ejercicios de fuerza en las pautas de referencia de abajo y, en "refs" de cada ejercicio, pon los ids de las citas en que te basas (máximo 4). Usa SOLO ids de la lista; si no aplica ninguna, deja "refs" vacío. No inventes citas, autores ni DOI.
+- No des consejos médicos ni nutricionales.
+
+${guidelinesText()}`;
 
 export function buildPlanPrompt(r: PlanRequest, feedback?: string[]): string {
   const days = r.weekdays.map((wd) => {

@@ -16,7 +16,7 @@ permissions:
 jobs:
   check:
     name: Lint, tipos, tests y build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,7 +38,7 @@ jobs:
 
   semgrep:
     name: Análisis estático (Semgrep)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       # Desde PyPI (sin imagen de Docker Hub) y con versión fija
@@ -53,7 +53,7 @@ jobs:
 
   e2e:
     name: E2E (UI + seguridad)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: check
     env:
       DATABASE_URL: postgresql://lifeos:lifeos@localhost:5432/lifeos?schema=public
@@ -91,7 +91,7 @@ jobs:
       - run: npm ci
       - run: npx prisma migrate deploy && npx prisma db seed
       # v1.10 · OCR (Tesseract y pdftoppm) para sus tests y las E2E
-      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils
+      - run: sh scripts/ci/apt-install.sh tesseract-ocr tesseract-ocr-spa poppler-utils
       # Con DATABASE_URL se ejecutan también los tests de integración (*.int.test.ts: ingesta, pg-boss, push, extractos y plan importado)
       - run: npm test
       - run: npm run build
@@ -152,7 +152,7 @@ jobs:
   # Corre todas aunque una falle y al final rompe si alguna falló (resumen OK/FALLA por suite).
   e2e-extra:
     name: E2E (suites v2.x)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: check
     env:
       DATABASE_URL: postgresql://lifeos:lifeos@localhost:5432/lifeos?schema=public
@@ -187,7 +187,7 @@ jobs:
       - run: npm ci
       - run: npx prisma migrate deploy && npx prisma db seed
       # ffmpeg: v21b genera los clips de vídeo sintéticos
-      - run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends tesseract-ocr tesseract-ocr-spa poppler-utils ffmpeg
+      - run: sh scripts/ci/apt-install.sh tesseract-ocr tesseract-ocr-spa poppler-utils ffmpeg
       - run: npm run build
       - name: Preparar el servidor standalone
         run: cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/
@@ -217,7 +217,7 @@ jobs:
 
   docker:
     name: Stack Docker (healthcheck, copias y update.sh)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: check
     steps:
       - uses: actions/checkout@v4
@@ -230,7 +230,7 @@ jobs:
           sudo mv /etc/docker/daemon.json.new /etc/docker/daemon.json && sudo systemctl restart docker
       - name: Entorno de prueba (.env.production efímero y clave age)
         run: |
-          sudo apt-get update -q && sudo apt-get install -y -q age postgresql-client
+          sh scripts/ci/apt-install.sh age postgresql-client
           age-keygen -o /tmp/age.key 2> /tmp/age.pub
           cat > .env.production <<EOF
           POSTGRES_USER=lifeos

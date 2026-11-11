@@ -1,5 +1,6 @@
 // Integración con BD real (v2.0 B): copiar a varios atletas solo a quienes tienen canPlan; la previsualización no escribe.
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 vi.mock("@/auth", () => ({ auth: async () => null }));
 
@@ -8,7 +9,7 @@ const HAS_DB = Boolean(process.env.DATABASE_URL);
 describe.skipIf(!HAS_DB)("planificar varios atletas v2.0 (BD real)", () => {
   let prisma: typeof import("@/lib/prisma").prisma;
   let svc: typeof import("./multi-plan");
-  const t = Date.now();
+  const t = testStamp();
   const u: Record<string, string> = {};
   let tplId: string;
   const mail = (k: string) => `${k}-${t}@test.dev`;

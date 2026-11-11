@@ -3,6 +3,7 @@
 import { randomBytes } from "node:crypto";
 
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 vi.mock("@/auth", () => ({ auth: async () => null }));
 
@@ -42,7 +43,7 @@ const iso = (d: number) => `2026-10-${String(d).padStart(2, "0")}`;
 describe.skipIf(!HAS_DB)("O4 · carga una vez y readiness en lote (BD real)", () => {
   let prisma: typeof import("@/lib/prisma").prisma;
   let training: typeof import("./service");
-  const t = Date.now();
+  const t = testStamp();
   let seq = 0;
 
   async function user(tag: string) {

@@ -1,5 +1,6 @@
 // v2.8.0 B4 · O8 · el resumen diario hace las mismas lecturas con 5 que con 20 personas (sin consulta por persona).
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { testStamp } from "@/test/stamp";
 
 vi.mock("@/auth", () => ({ auth: async () => null }));
 
@@ -37,7 +38,7 @@ describe.skipIf(!HAS_DB)("resumen diario en lote (BD real)", () => {
   let prisma: typeof import("@/lib/prisma").prisma;
   let sched: typeof import("./scheduler");
   let dates: typeof import("@/lib/dates");
-  const t = Date.now();
+  const t = testStamp();
   let seq = 0;
   let withData = "";
 

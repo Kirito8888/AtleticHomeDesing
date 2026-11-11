@@ -95,6 +95,12 @@ if (await panel.count()) errors.push("la propuesta reaparece tras aplicar");
 if ((await week2()) !== after) errors.push("el plan cambió tras recargar");
 await noOverflow("/planning/meso (tras aplicar)");
 
+// N7: el plan con IA enseña las citas con DOI en «Referencias»
+await page.goto(`${B}/planning/meso/${gen.code}`);
+await page.locator("summary", { hasText: "Referencias" }).click();
+await page.getByText(/doi:10\.\d+\//).first().waitFor();
+log("el plan con IA muestra sus referencias con DOI");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));
