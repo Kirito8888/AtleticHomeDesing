@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Check, ClipboardCheck, FileText, Gamepad2, Plus, Trash2 } from "lucide-react";
+import { Check, ClipboardCheck, FileText, Gamepad2, Plus, SquareTerminal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Field } from "@/components/form/chips";
@@ -98,6 +98,11 @@ export function ModuleDetail({ data }: { data: ModuleDetailData }) {
         <Button asChild variant="outline" className="min-h-11">
           <Link href={`/study/modules/${data.id}/test`}>
             <ClipboardCheck /> Evaluar nivel
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="min-h-11">
+          <Link href={`/study/modules/${data.id}/practice`}>
+            <SquareTerminal /> Practicar
           </Link>
         </Button>
       </div>
