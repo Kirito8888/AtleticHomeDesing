@@ -1,25 +1,19 @@
 import Link from "next/link";
-import { Wallet } from "lucide-react";
 
-import { EmptyState } from "@/components/empty-state";
-import { TransactionRow } from "@/components/finance/transaction-row";
+import { FinanceHistoryZone } from "@/components/finance/history-zone";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { pageUser } from "@/lib/auth/page";
-import { toIsoDay } from "@/lib/dates";
+import { ensureBasicCategories } from "@/lib/finance/service";
+import { historyView, HISTORY_PAGE, parseHistoryParams } from "@/lib/finance/history-view";
 import { moneySummary } from "@/lib/finance/balances";
-import { ensureBasicCategories, listAccounts, listTransactions } from "@/lib/finance/service";
-import { formatEur, formatMonth } from "@/lib/format";
-import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Historial · Finanzas · Atlenza" };
 
-const PAGE = 100;
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
-const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+const PAGE = HISTORY_PAGE;
 
 type Params = { kind?: string; account?: string; month?: string; from?: string; to?: string; limit?: string };
 
@@ -35,39 +29,15 @@ export default async function FinanceHistoryPage({ searchParams }: PageProps<"/f
   const user = await pageUser();
   const sp = await searchParams;
   await ensureBasicCategories(user.id);
-  const [accounts, categories] = await Promise.all([
-    listAccounts(user.id),
-    prisma.financialCategory.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true, kind: true } }),
-  ]);
-  const { money, netCents } = moneySummary(accounts);
-
-  const kind = one(sp.kind) === "expense" ? "EXPENSE" : one(sp.kind) === "income" ? "INCOME" : undefined;
+  const view = await historyView(user.id, { kind: one(sp.kind), account: one(sp.account), month: one(sp.month), from: one(sp.from), to: one(sp.to), limit: one(sp.limit) });
+  const { money } = moneySummary(view.accounts);
+  const { kind, month, limit } = parseHistoryParams({ kind: one(sp.kind), month: one(sp.month), limit: one(sp.limit) });
   const accountId = money.find((a) => a.id === one(sp.account))?.id;
-  const monthRaw = one(sp.month);
-  const month = monthRaw && MONTH.test(monthRaw) ? monthRaw : undefined;
   const fromRaw = one(sp.from);
   const toRaw = one(sp.to);
-  let from = fromRaw && DAY.test(fromRaw) ? fromRaw : undefined;
-  let to = toRaw && DAY.test(toRaw) ? toRaw : undefined;
-  if (month && !from && !to) {
-    const [y, m] = month.split("-").map(Number);
-    from = `${month}-01`;
-    to = toIsoDay(new Date(Date.UTC(y, m, 0)));
-  }
-  const limit = Math.min(Math.max(Number(one(sp.limit)) || PAGE, PAGE), 1000);
-
-  const rows = await listTransactions(user.id, { accountId, kind, from, to, limit: limit + 1 });
-  const more = rows.length > limit;
-  const shown = rows.slice(0, limit);
-  const filtered = Boolean(kind || accountId || from || to);
+  const filtered = view.filtered;
   const current: Params = { kind: one(sp.kind), account: accountId, month, from: fromRaw, to: toRaw };
-  const shownAccount = money.find((a) => a.id === accountId);
-
-  const groups = new Map<string, typeof shown>();
-  for (const t of shown) {
-    const key = toIsoDay(t.date).slice(0, 7);
-    groups.set(key, [...(groups.get(key) ?? []), t]);
-  }
+  const zoneQuery = new URLSearchParams(Object.entries({ kind: one(sp.kind), account: accountId, month: one(sp.month), from: fromRaw, to: toRaw, limit: one(sp.limit) }).filter((e): e is [string, string] => Boolean(e[1]))).toString();
 
   const chips: Array<{ label: string; value?: string }> = [{ label: "Todos" }, { label: "Gastos", value: "expense" }, { label: "Ingresos", value: "income" }];
 
@@ -81,11 +51,6 @@ export default async function FinanceHistoryPage({ searchParams }: PageProps<"/f
           </Button>
         }
       />
-
-      <section aria-label="Saldo" className="mb-3">
-        <p className="text-sm text-muted-foreground">{shownAccount ? shownAccount.name : "Balance total"}</p>
-        <p className="text-2xl font-semibold tabular-nums">{formatEur(shownAccount ? shownAccount.balanceCents : netCents)}</p>
-      </section>
 
       <nav aria-label="Tipo de movimiento" className="mb-3 flex flex-wrap gap-1.5">
         {chips.map((c) => {
@@ -148,32 +113,7 @@ export default async function FinanceHistoryPage({ searchParams }: PageProps<"/f
         </div>
       </form>
 
-      {shown.length ? (
-        <div className="grid gap-4">
-          {[...groups.entries()].map(([key, list]) => (
-            <section key={key} aria-label={formatMonth(key, "long")}>
-              <h2 className="mb-2 text-sm font-medium capitalize">{formatMonth(key, "long")}</h2>
-              <ul className="grid gap-3">
-                {list.map((t) => (
-                  <TransactionRow key={t.id} t={t} accounts={accounts} categories={categories} />
-                ))}
-              </ul>
-            </section>
-          ))}
-          {more ? (
-            <Button asChild variant="outline" className="h-11">
-              <Link href={href({ ...current, limit: String(limit + PAGE) })}>Mostrar más</Link>
-            </Button>
-          ) : null}
-        </div>
-      ) : (
-        <EmptyState
-          icon={Wallet}
-          title={filtered ? "Ningún movimiento con estos filtros" : "Aún no hay movimientos"}
-          text={filtered ? "Prueba con otro mes, cuenta o tipo." : "Anota un gasto o un ingreso desde Finanzas."}
-          action={filtered ? { href: "/finance/history", label: "Quitar filtros" } : { href: "/finance", label: "Ir a Finanzas" }}
-        />
-      )}
+      <FinanceHistoryZone initial={view} query={zoneQuery} moreHref={href({ ...current, limit: String(limit + PAGE) })} />
     </>
   );
 }

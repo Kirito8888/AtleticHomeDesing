@@ -12,7 +12,7 @@ export const maxDuration = 120;
  * - Entrada: JSON `manualRequestSchema` (origen de los apuntes: asignatura, apunte o tema).
  * - Salida: `200 application/pdf` (descarga `manual-practico-<slug>.pdf`, `no-store`). No se guarda nada en BD.
  * - Errores: 400 cuerpo no válido · 401 sin sesión · 403 origen no permitido, condiciones sin aceptar, IA sin consentimiento o tratamiento limitado ·
- *   404/409/422 apuntes inexistentes o sin procesar · 429 límite `aiGenerate` (10/h) · 503 IA sin configurar o sin Chromium en el servidor.
+ *   404/409/422 apuntes inexistentes o sin procesar · 429 límite `aiGenerate` (10/h) · 503 IA sin configurar, sin Chromium o generador de PDF saturado (1 a la vez, máx. 3 en espera, 45 s de cola).
  * - Aislamiento: los apuntes se leen siempre con el `userId` de la sesión; nunca hay acceso por entrenadora.
  */
 export const POST = route(async (req) => {

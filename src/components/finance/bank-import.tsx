@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FileUp } from "lucide-react";
 import { toast } from "sonner";
 
+import { useZoneRefresh } from "@/components/zone-refresh";
 import { Field } from "@/components/form/chips";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ function findHeader(rows: string[][]): number {
 }
 
 export function BankImport({ accounts, profiles }: { accounts: Array<{ id: string; name: string }>; profiles: ImportProfile[] }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
@@ -123,7 +123,7 @@ export function BankImport({ accounts, profiles }: { accounts: Array<{ id: strin
         setOpen(false);
         setPreview(null);
         setFile(null);
-        router.refresh();
+        refresh();
       }
     } catch (e) {
       toast.error((e as Error).message);

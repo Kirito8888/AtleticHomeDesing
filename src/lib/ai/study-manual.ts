@@ -4,7 +4,7 @@ import { MAX_SOURCE_CHARS } from "@/lib/ai/flashcards";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { generateJson } from "@/lib/ai/llm";
 import { loadSource } from "@/lib/ai/study-adapt";
-import { buildManualPdf } from "@/lib/study/pdf-render";
+import { assertPdfCapacity, buildManualPdf } from "@/lib/study/pdf-render";
 import { buildManualPrompt, fakeManual, type Manual, manualAiSchema, type ManualRequest, normalizeManual } from "@/lib/study/practical-manual";
 
 const fakeAi = () => process.env.LIFEOS_FAKE_AI === "1";
@@ -21,6 +21,7 @@ export async function generateManual(userId: string, req: ManualRequest): Promis
 }
 
 export async function generateManualPdf(userId: string, req: ManualRequest): Promise<{ pdf: Uint8Array; title: string }> {
+  assertPdfCapacity(); // antes de gastar una generación de IA que luego diera 503
   const m = await generateManual(userId, req);
   return { pdf: await buildManualPdf(m), title: m.title };
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { useZoneRefresh } from "@/components/zone-refresh";
 import { MEAL_LABEL } from "@/components/nutrition/meals";
 import { OcrFill } from "@/components/ocr-fill";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ type Item = { name: string; grams: number; match: { id: string; name: string; br
 
 /** v1.10 · Comida desde una foto (IA del usuario): propone alimentos y gramos; confirmas antes de anotar. */
 export function FoodPhoto({ date }: { date: string }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [items, setItems] = useState<Item[] | null>(null);
   const [meal, setMeal] = useState("LUNCH");
   const [busy, setBusy] = useState(false);
@@ -64,7 +64,7 @@ export function FoodPhoto({ date }: { date: string }) {
                   for (const it of ok) await api("/api/nutrition/entries", { body: { date, mealType: meal, foodProductId: it.match!.id, quantityG: it.grams } });
                   toast.success(`${ok.length} alimentos anotados`);
                   setItems(null);
-                  router.refresh();
+                  refresh();
                 } catch (e) {
                   toast.error((e as Error).message);
                 } finally {
@@ -88,7 +88,7 @@ type Draft = { days: Array<{ date: string; meals: Array<{ mealType: keyof typeof
 
 /** v1.10 · Propuesta de la semana con tus recetas (IA): la revisas y aceptas los días que quieras. */
 export function PlanSuggest({ weekStart }: { weekStart: string }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [draft, setDraft] = useState<Draft | null>(null);
   const [keep, setKeep] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -146,7 +146,7 @@ export function PlanSuggest({ weekStart }: { weekStart: string }) {
                   const r = await api<{ added: number }>("/api/nutrition/plan/accept", { body: { entries } });
                   toast.success(`${r.added} comidas añadidas al plan`);
                   setDraft(null);
-                  router.refresh();
+                  refresh();
                 })
               }
             >

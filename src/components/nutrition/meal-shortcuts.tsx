@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ListPlus, Repeat, Star, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { useZoneRefresh } from "@/components/zone-refresh";
 import { MEAL_LABEL } from "@/components/nutrition/meals";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ type Meal = keyof typeof MEAL_LABEL;
 export type MealTemplateSummary = { id: string; name: string; mealType: Meal | null; items: number; kcal: number; foods: string[] };
 
 function useRun() {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [busy, setBusy] = useState(false);
   return {
     busy,
@@ -28,7 +28,7 @@ function useRun() {
       try {
         await fn();
         toast.success(ok);
-        router.refresh();
+        refresh();
         return true;
       } catch (e) {
         toast.error((e as Error).message);

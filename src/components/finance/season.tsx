@@ -1,10 +1,10 @@
 "use client";
 
 import { Paperclip } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useZoneRefresh } from "@/components/zone-refresh";
 import { Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +18,7 @@ const toEur = (c: number | undefined) => (c ? String(c / 100).replace(".", ",") 
 
 /** 25 · Presupuesto de la temporada: por concepto y coste medio por competición. */
 export function SeasonBudgetForm({ season, lines, perCompetitionCents }: { season: number; lines: Partial<Record<SeasonLine, number>>; perCompetitionCents: number }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const keys = Object.keys(SEASON_LINES) as SeasonLine[];
   const [v, setV] = useState<Record<string, string>>({ ...Object.fromEntries(keys.map((k) => [k, toEur(lines[k])])), perComp: toEur(perCompetitionCents) });
   const [busy, setBusy] = useState(false);
@@ -31,7 +31,7 @@ export function SeasonBudgetForm({ season, lines, perCompetitionCents }: { seaso
         try {
           await api("/api/finance/season-budget", { method: "PUT", body: { season, lines: Object.fromEntries(keys.map((k) => [k, toCents(v[k])])), perCompetitionCents: toCents(v.perComp) } });
           toast.success("Presupuesto guardado");
-          router.refresh();
+          refresh();
         } catch (err) {
           toast.error((err as Error).message);
         } finally {
@@ -58,7 +58,7 @@ export function SeasonBudgetForm({ season, lines, perCompetitionCents }: { seaso
 
 /** 26 · Justificantes de un movimiento: adjuntar (cifrado) y abrir. */
 export function Receipts({ transactionId, receipts }: { transactionId: string; receipts: Array<{ id: string; mime: string }> }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   // v1.8 · justificante llegado desde «Compartir»
@@ -71,7 +71,7 @@ export function Receipts({ transactionId, receipts }: { transactionId: string; r
       form.set("file", f);
       await api(`/api/finance/transactions/${transactionId}/receipts`, { form });
       toast.success("Justificante guardado (cifrado)");
-      router.refresh();
+      refresh();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -109,12 +109,12 @@ export function Receipts({ transactionId, receipts }: { transactionId: string; r
 
 /** 27 · Avisos de subida de precio y cambiar el importe guardado. */
 export function PriceAlerts({ charged, edited }: { charged: Array<{ subscriptionId: string; name: string; storedCents: number; chargedCents: number; date: string; pct: number }>; edited: Array<{ id: string; name: string; fromCents: number; toCents: number; pct: number }> }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   async function run(fn: () => Promise<unknown>, ok: string) {
     try {
       await fn();
       toast.success(ok);
-      router.refresh();
+      refresh();
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -147,7 +147,7 @@ export function PriceAlerts({ charged, edited }: { charged: Array<{ subscription
 }
 
 export function SubscriptionAmount({ id, name, amountCents }: { id: string; name: string; amountCents: number }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [open, setOpen] = useState(false);
   const [v, setV] = useState(toEur(amountCents));
   if (!open)
@@ -164,7 +164,7 @@ export function SubscriptionAmount({ id, name, amountCents }: { id: string; name
         try {
           await api(`/api/finance/subscriptions/${id}`, { method: "PATCH", body: { amountCents: toCents(v) } });
           setOpen(false);
-          router.refresh();
+          refresh();
         } catch (err) {
           toast.error((err as Error).message);
         }

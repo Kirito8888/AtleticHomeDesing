@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 
+import { useZoneRefresh } from "@/components/zone-refresh";
 import { Field } from "@/components/form/chips";
 import { Stepper } from "@/components/form/stepper";
 import { BarcodeScanner } from "@/components/nutrition/barcode-scanner";
@@ -43,7 +43,7 @@ function useDebounced<T>(value: T, ms: number) {
 }
 
 export function AddFoodSheet({ date, menus = [], recents = [] }: { date: string; menus?: MealTemplateSummary[]; recents?: RecentFood[] }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [open, setOpen] = useState(false);
   const [meal, setMeal] = useState<string>(defaultMeal);
   const [query, setQuery] = useState("");
@@ -65,7 +65,7 @@ export function AddFoodSheet({ date, menus = [], recents = [] }: { date: string;
       await api(`/api/nutrition/meal-templates/${m.id}/apply`, { body: { date, mealType: meal } });
       toast.success(`«${m.name}» cargado en ${MEAL_LABEL[meal as keyof typeof MEAL_LABEL].toLowerCase()}`);
       setOpen(false);
-      router.refresh();
+      refresh();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -138,7 +138,7 @@ export function AddFoodSheet({ date, menus = [], recents = [] }: { date: string;
       setPicked(null);
       setCustom(null);
       setOpen(false);
-      if (r === "sent") router.refresh();
+      if (r === "sent") refresh();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

@@ -2,13 +2,15 @@ import { CategorizeTx } from "@/components/finance/categorize";
 import { DeleteTransaction, EditTransaction, SportToggle, type AccountOpt, type CategoryOpt } from "@/components/finance/finance-forms";
 import { EditSplit, EditTransfer } from "@/components/finance/edit-lines";
 import { Receipts } from "@/components/finance/season";
-import { toIsoDay } from "@/lib/dates";
 import { formatDate, formatEur } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+const isoDay = (d: Date | string) => (typeof d === "string" ? d.slice(0, 10) : d.toISOString().slice(0, 10));
+
 interface Tx {
   id: string;
-  date: Date;
+  /** `Date` desde el servidor; texto ISO cuando la zona se recarga por JSON. */
+  date: Date | string;
   kind: string;
   description: string;
   sport: boolean;
@@ -30,7 +32,7 @@ export function TransactionRow({ t, accounts, categories }: { t: Tx; accounts: A
   const isMoney = (p: Tx["postings"][number]) => p.account.type === "ASSET" || p.account.type === "LIABILITY";
   const lineTx = {
     id: t.id,
-    date: toIsoDay(t.date),
+    date: isoDay(t.date),
     description: t.description,
     sport: t.sport,
     eventId: t.eventId,
@@ -47,7 +49,7 @@ export function TransactionRow({ t, accounts, categories }: { t: Tx; accounts: A
           {formatEur(amount)}
         </span>
       </div>
-      <div className="truncate text-xs text-muted-foreground">{[formatDate(t.date), label, moneyLeg?.account.name].filter(Boolean).join(" · ")}</div>
+      <div className="truncate text-xs text-muted-foreground">{[formatDate(isoDay(t.date)), label, moneyLeg?.account.name].filter(Boolean).join(" · ")}</div>
       <div className="flex flex-wrap items-center">
         {!archived && simple && !cat ? <CategorizeTx id={t.id} description={t.description} categories={categories.filter((c) => c.kind === t.kind)} /> : null}
         {t.kind === "EXPENSE" ? <Receipts transactionId={t.id} receipts={t.receipts} /> : null}
@@ -60,7 +62,7 @@ export function TransactionRow({ t, accounts, categories }: { t: Tx; accounts: A
             tx={{
               id: t.id,
               kind: t.kind as "EXPENSE" | "INCOME",
-              date: toIsoDay(t.date),
+              date: isoDay(t.date),
               description: t.description,
               amountCents: Math.abs(moneyLeg.amountCents),
               accountId: moneyLeg.accountId,

@@ -1,16 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { useZoneRefresh } from "@/components/zone-refresh";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { api } from "@/lib/client-api";
 
 /** v1.8 · Poner categoría a un movimiento sin ella, con «aplicar a los parecidos» (aprende la regla). */
 export function CategorizeTx({ id, description, categories }: { id: string; description: string; categories: Array<{ id: string; name: string }> }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [open, setOpen] = useState(false);
   const [cat, setCat] = useState("");
   const [similar, setSimilar] = useState(true);
@@ -47,7 +47,7 @@ export function CategorizeTx({ id, description, categories }: { id: string; desc
           try {
             const r = await api<{ pattern: string | null; applied: number }>(`/api/finance/transactions/${id}/category`, { method: "PUT", body: { categoryId: cat, similar } });
             toast.success(r.pattern ? `Regla «${r.pattern}» guardada · ${r.applied} movimiento${r.applied === 1 ? "" : "s"}` : "Categoría guardada");
-            router.refresh();
+            refresh();
           } catch (e) {
             toast.error((e as Error).message);
             setBusy(false);
@@ -62,7 +62,7 @@ export function CategorizeTx({ id, description, categories }: { id: string; desc
 
 /** Reglas aprendidas, con borrar. */
 export function CategoryRules({ rules }: { rules: Array<{ id: string; pattern: string; category: string }> }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   return (
     <ul className="grid gap-1 text-sm" aria-label="Reglas de categoría">
       {rules.map((r) => (
@@ -78,7 +78,7 @@ export function CategoryRules({ rules }: { rules: Array<{ id: string; pattern: s
             onClick={async () => {
               try {
                 await api(`/api/finance/category-rules/${r.id}`, { method: "DELETE" });
-                router.refresh();
+                refresh();
               } catch (e) {
                 toast.error((e as Error).message);
               }

@@ -23,6 +23,12 @@ const minH = async (loc: ReturnType<typeof page.locator>, what: string) => {
 const toast = (re: RegExp) => page.locator("[data-sonner-toast]", { hasText: re }).first().waitFor({ timeout: 8000 });
 const balance = () => page.getByRole("region", { name: "Balance total" });
 
+// v2.11 B3 · O16: las acciones recargan solo su zona (GET JSON), sin repintado global de Next (peticiones RSC)
+let rscCount = 0;
+page.on("request", (r) => {
+  if (r.headers()["rsc"] === "1") rscCount++;
+});
+
 const email = `v25i${Date.now()}@test.dev`;
 const out = execFileSync("npm", ["run", "-s", "user", "--", "create", email, "--name", "Atleta", "--role", "ATHLETE", "--accept-terms"], { encoding: "utf8" });
 const pw = out.match(/Contraseña: (\S+)/)?.[1];
@@ -102,11 +108,15 @@ await page.locator("li", { hasText: "Súper" }).first().getByText(/50,00\s€/).
 log("editar 20 → 50 €: balance 120 €");
 
 // 4 · Borrar el gasto con confirmación: balance 170 €
+await page.waitForLoadState("networkidle");
+rscCount = 0;
 await page.locator("li", { hasText: "Súper" }).first().getByRole("button", { name: "Borrar" }).click();
 await page.getByRole("alertdialog").getByRole("button", { name: "Borrar" }).click();
 await toast(/Movimiento borrado/);
 await saldo().getByText(/170,00\s€/).waitFor();
 if (await page.getByText("Súper").count()) errors.push("el gasto borrado sigue en el listado");
+await page.waitForTimeout(500);
+if (rscCount) errors.push(`borrar repintó la página entera (${rscCount} peticiones RSC)`);
 await noOverflow("/finance/history tras borrar");
 log("borrar con confirmación: balance 170 €");
 
