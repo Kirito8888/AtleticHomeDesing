@@ -104,6 +104,31 @@ if ((await again.getByRole("radio", { name: /Visa/ }).getAttribute("aria-checked
 await page.keyboard.press("Escape");
 log("ingreso en la tarjeta elegida, saldos por cuenta y última cuenta recordada");
 
+// 4c · Archivar la tarjeta (C4): avisa del saldo, sale de tarjetas y selector, el servidor rechaza apuntes, se reactiva
+const accountsApi = async () => (await (await page.request.get(B + "/api/finance/accounts")).json()) as Array<{ id: string; name: string; balanceCents: number; isArchived: boolean }>;
+const visaId = (await accountsApi()).find((x) => x.name === "Visa")!.id;
+await minH(cards.locator("li", { hasText: "Visa" }).getByRole("button", { name: "Archivar Visa" }), "«Archivar»");
+await cards.locator("li", { hasText: "Visa" }).getByRole("button", { name: "Archivar Visa" }).click();
+await page.getByRole("alertdialog").getByText(/Tiene 20,00\s€/).waitFor();
+await page.getByRole("alertdialog").getByRole("button", { name: "Archivar" }).click();
+await toast(/Cuenta archivada/);
+await cards.locator("li", { hasText: "Visa" }).waitFor({ state: "detached" });
+await balance().getByText(/140,00\s€/).first().waitFor();
+await page.getByRole("button", { name: "Movimiento", exact: true }).click();
+if (await page.getByRole("radiogroup", { name: "Desde" }).getByRole("radio", { name: /Visa/ }).count()) errors.push("la cuenta archivada sigue en el selector de movimientos");
+await page.keyboard.press("Escape");
+const blocked = await page.request.post(B + "/api/finance/transactions", { data: { mode: "simple", kind: "EXPENSE", date: "2026-10-05", description: "Intruso", amountCents: 100, moneyAccountId: visaId } });
+if (blocked.status() !== 409) errors.push(`apuntar en una archivada devolvió ${blocked.status()} (esperado 409)`);
+const summary = page.getByText(/Archivadas \(1\)/);
+await minH(summary, "«Archivadas»");
+await summary.click();
+await minH(page.getByRole("button", { name: "Reactivar Visa" }), "«Reactivar»");
+await noOverflow("/finance con una cuenta archivada");
+await page.getByRole("button", { name: "Reactivar Visa" }).click();
+await toast(/Cuenta reactivada/);
+await cards.locator("li", { hasText: "Visa" }).waitFor();
+log("archivar con aviso de saldo, 409 en servidor y reactivar");
+
 // 5 · Resto de secciones movidas, sin desborde
 await page.goto(B + "/finance/more");
 await page.getByText("Fondo de emergencia").first().waitFor();

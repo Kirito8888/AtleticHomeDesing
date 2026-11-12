@@ -1,5 +1,6 @@
 import { CategorizeTx } from "@/components/finance/categorize";
 import { DeleteTransaction, EditTransaction, SportToggle, type AccountOpt, type CategoryOpt } from "@/components/finance/finance-forms";
+import { EditSplit, EditTransfer } from "@/components/finance/edit-lines";
 import { Receipts } from "@/components/finance/season";
 import { toIsoDay } from "@/lib/dates";
 import { formatDate, formatEur } from "@/lib/format";
@@ -12,7 +13,7 @@ interface Tx {
   description: string;
   sport: boolean;
   eventId: string | null;
-  postings: Array<{ accountId: string; amountCents: number; categoryId: string | null; account: { name: string; type: string }; category: { name: string } | null }>;
+  postings: Array<{ id: string; accountId: string; amountCents: number; categoryId: string | null; memo: string | null; account: { name: string; type: string; isArchived: boolean }; category: { name: string } | null }>;
   receipts: Array<{ id: string; mime: string }>;
 }
 
@@ -25,6 +26,18 @@ export function TransactionRow({ t, accounts, categories }: { t: Tx; accounts: A
   const simple = t.kind === "EXPENSE" || t.kind === "INCOME";
   const label = t.kind === "TRANSFER" ? "Transferencia" : t.kind === "OPENING_BALANCE" ? "Saldo de apertura" : t.kind === "ADJUSTMENT" ? "Ajuste" : cat;
   const editable = simple && t.postings.length === 2 && moneyLeg && t.postings.some((p) => p !== moneyLeg && p.account.type !== "ASSET" && p.account.type !== "LIABILITY");
+  const archived = t.postings.some((p) => p.account.isArchived);
+  const isMoney = (p: Tx["postings"][number]) => p.account.type === "ASSET" || p.account.type === "LIABILITY";
+  const lineTx = {
+    id: t.id,
+    date: toIsoDay(t.date),
+    description: t.description,
+    sport: t.sport,
+    eventId: t.eventId,
+    lines: t.postings.map((p) => ({ id: p.id, accountId: p.accountId, amountCents: p.amountCents, categoryId: p.categoryId, memo: p.memo })),
+  };
+  const isTransfer = t.kind === "TRANSFER" && t.postings.length === 2 && t.postings.every(isMoney);
+  const isSplit = t.kind !== "OPENING_BALANCE" && !isTransfer && !editable && t.postings.length >= 2;
   return (
     <li className="grid gap-1 border-b pb-2 text-sm last:border-b-0">
       <div className="flex items-baseline justify-between gap-3">
@@ -36,10 +49,13 @@ export function TransactionRow({ t, accounts, categories }: { t: Tx; accounts: A
       </div>
       <div className="truncate text-xs text-muted-foreground">{[formatDate(t.date), label, moneyLeg?.account.name].filter(Boolean).join(" · ")}</div>
       <div className="flex flex-wrap items-center">
-        {simple && !cat ? <CategorizeTx id={t.id} description={t.description} categories={categories.filter((c) => c.kind === t.kind)} /> : null}
+        {!archived && simple && !cat ? <CategorizeTx id={t.id} description={t.description} categories={categories.filter((c) => c.kind === t.kind)} /> : null}
         {t.kind === "EXPENSE" ? <Receipts transactionId={t.id} receipts={t.receipts} /> : null}
-        {simple ? <SportToggle id={t.id} sport={t.sport} income={t.kind === "INCOME"} /> : null}
-        {editable && moneyLeg ? (
+        {!archived && simple ? <SportToggle id={t.id} sport={t.sport} income={t.kind === "INCOME"} /> : null}
+        {archived ? <span className="px-3 text-xs text-muted-foreground">Cuenta archivada</span> : null}
+        {!archived && isTransfer ? <EditTransfer tx={lineTx} accounts={accounts} /> : null}
+        {!archived && isSplit ? <EditSplit tx={lineTx} accounts={accounts} categories={categories} /> : null}
+        {!archived && editable && moneyLeg ? (
           <EditTransaction
             tx={{
               id: t.id,

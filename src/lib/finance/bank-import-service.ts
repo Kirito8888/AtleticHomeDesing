@@ -12,6 +12,7 @@ import { movementHashes } from "@/lib/finance/bank-import-hash";
 import { dateOnly } from "@/lib/dates";
 import { assertBalanced, buildSimplePostings, LedgerError, type PostingInput } from "@/lib/finance/ledger";
 import { ensureDefaultAccounts } from "@/lib/finance/service";
+import { archivedMessage } from "@/lib/finance/edit-lines";
 import { prisma } from "@/lib/prisma";
 import { loadRules, ruleCategory } from "@/lib/finance/category-rules-service";
 
@@ -29,9 +30,10 @@ export function decodeStatement(buf: Buffer): string {
 }
 
 async function moneyAccount(userId: string, accountId: string) {
-  const acc = await prisma.financialAccount.findFirst({ where: { id: accountId, userId }, select: { id: true, type: true, name: true } });
+  const acc = await prisma.financialAccount.findFirst({ where: { id: accountId, userId }, select: { id: true, type: true, name: true, isArchived: true } });
   if (!acc) throw new ApiError(404, "Cuenta no encontrada");
   if (acc.type !== "ASSET" && acc.type !== "LIABILITY") throw new ApiError(400, "Elige una cuenta bancaria o de tarjeta");
+  if (acc.isArchived) throw new ApiError(409, archivedMessage(acc.name));
   return acc;
 }
 

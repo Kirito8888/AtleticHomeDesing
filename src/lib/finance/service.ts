@@ -13,6 +13,7 @@ import {
   periodWindow,
   type PostingInput,
 } from "@/lib/finance/ledger";
+import { archivedMessage, assertTransferShape, LinesChangedError, planLineEdit, type LineInput } from "@/lib/finance/edit-lines";
 import { prisma } from "@/lib/prisma";
 import { sportBalance, sportReport } from "@/lib/finance/sport";
 
@@ -147,6 +148,14 @@ async function assertOwnership(userId: string, postings: PostingInput[]) {
   if (categories !== categoryIds.length) throw new ApiError(400, "Alguna categoría no existe o no es tuya");
 }
 
+type Db = Pick<typeof prisma, "financialAccount">;
+
+/** 409 si alguna de las cuentas está archivada: en ellas no se anota ni se edita nada (C4). */
+export async function assertActiveAccounts(userId: string, accountIds: string[], db: Db = prisma) {
+  const archived = await db.financialAccount.findFirst({ where: { userId, id: { in: accountIds }, isArchived: true }, select: { name: true } });
+  if (archived) throw new ApiError(409, archivedMessage(archived.name));
+}
+
 export async function createTransaction(
   userId: string,
   input: CreateTransactionInput,
@@ -177,6 +186,7 @@ export async function createTransaction(
     throw err;
   }
   await assertOwnership(userId, postings);
+  await assertActiveAccounts(userId, postings.map((p) => p.accountId));
   await assertOwnEvent(userId, input.eventId);
 
   return prisma.financialTransaction.create({
@@ -203,7 +213,7 @@ export async function createTransaction(
   });
 }
 
-export const updateTransactionSchema = z.object({
+const updateSimpleSchema = z.object({
   kind: z.enum(["EXPENSE", "INCOME"]),
   date: isoDate,
   description: z.string().trim().min(1).max(300),
@@ -214,19 +224,60 @@ export const updateTransactionSchema = z.object({
   ...sportFields,
 });
 
+/** Transferencias y asientos partidos: se reenvían las líneas que ya existen (mismos ids), con lo que se quiera cambiar. */
+const updateLinesSchema = z.object({
+  mode: z.literal("lines"),
+  date: isoDate,
+  description: z.string().trim().min(1).max(300),
+  payee: z.string().max(200).nullish(),
+  lines: z
+    .array(
+      z.object({
+        id: z.string(),
+        accountId: z.string(),
+        amountCents: z.number().int(),
+        categoryId: z.string().nullish(),
+        memo: z.string().max(200).nullish(),
+      }),
+    )
+    .min(2)
+    .max(50),
+  ...sportFields,
+});
+
+export const updateTransactionSchema = z.union([updateLinesSchema, updateSimpleSchema]);
+export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>;
+
 const isMoney = (type: string) => type === "ASSET" || type === "LIABILITY";
 
 /**
- * Edita un gasto o ingreso simple. Las líneas del asiento se reescriben en una sola transacción de BD:
+ * Edita un movimiento. Las líneas se reescriben en una sola transacción de BD:
  * los saldos se suman al leer, así que cuentas y consolidado quedan al día en el mismo instante.
+ * Gasto/ingreso simple: rama clásica. Transferencia o asiento partido: `mode: "lines"`.
  */
-export async function updateTransaction(userId: string, id: string, input: z.infer<typeof updateTransactionSchema>) {
-  const current = await prisma.financialTransaction.findFirst({ where: { id, userId }, include: { postings: { include: { account: { select: { type: true } } } } } });
+export async function updateTransaction(userId: string, id: string, input: UpdateTransactionInput) {
+  const current = await prisma.financialTransaction.findFirst({ where: { id, userId }, include: { postings: { include: { account: { select: { type: true, isArchived: true, name: true } } } } } });
   if (!current) throw new ApiError(404, "Transacción no encontrada");
-  const counterLeg = current.postings.find((p) => !isMoney(p.account.type));
-  if ((current.kind !== "EXPENSE" && current.kind !== "INCOME") || current.postings.length !== 2 || !counterLeg || current.postings.every((p) => !isMoney(p.account.type))) {
-    throw new ApiError(409, "Este movimiento no se edita aquí");
-  }
+  if (current.kind === "OPENING_BALANCE") throw new ApiError(409, "Una apertura de cuenta no se edita");
+  const archivedLeg = current.postings.find((p) => p.account.isArchived);
+  if (archivedLeg) throw new ApiError(409, archivedMessage(archivedLeg.account.name));
+  const isSimple =
+    (current.kind === "EXPENSE" || current.kind === "INCOME") &&
+    current.postings.length === 2 &&
+    current.postings.some((p) => !isMoney(p.account.type)) &&
+    current.postings.some((p) => isMoney(p.account.type));
+  if ("mode" in input) return updateLines(userId, current, isSimple, input);
+  if (!isSimple) throw new ApiError(409, "Este movimiento no se edita aquí");
+  return updateSimple(userId, id, current, input);
+}
+
+async function updateSimple(
+  userId: string,
+  id: string,
+  current: { kind: string; postings: Array<{ accountId: string; account: { type: string } }> },
+  input: z.infer<typeof updateSimpleSchema>,
+) {
+  const counterLeg = current.postings.find((p) => !isMoney(p.account.type))!;
   let counterAccountId = counterLeg.accountId;
   if (input.kind !== current.kind) {
     const defaults = await ensureDefaultAccounts(userId);
@@ -241,6 +292,7 @@ export async function updateTransaction(userId: string, id: string, input: z.inf
     throw err;
   }
   await assertOwnership(userId, postings);
+  await assertActiveAccounts(userId, postings.map((p) => p.accountId));
   await assertOwnEvent(userId, input.eventId);
   const [, updated] = await prisma.$transaction([
     prisma.posting.deleteMany({ where: { transactionId: id } }),
@@ -259,6 +311,67 @@ export async function updateTransaction(userId: string, id: string, input: z.inf
     }),
   ]);
   return updated;
+}
+
+async function updateLines(
+  userId: string,
+  current: { id: string; kind: string; postings: Array<{ id: string; accountId: string }> },
+  isSimple: boolean,
+  input: z.infer<typeof updateLinesSchema>,
+) {
+  if (isSimple) throw new ApiError(409, "Los gastos e ingresos simples se editan con importe y cuenta");
+  const lines: LineInput[] = input.lines.map((l) => ({ id: l.id, accountId: l.accountId, amountCents: l.amountCents, categoryId: l.categoryId ?? null, memo: l.memo ?? null }));
+  try {
+    planLineEdit(current.postings, lines);
+  } catch (err) {
+    if (err instanceof LinesChangedError) throw new ApiError(409, err.message);
+    if (err instanceof LedgerError) throw new ApiError(400, err.message);
+    throw err;
+  }
+  const accountIds = [...new Set(lines.map((l) => l.accountId))];
+  await assertOwnership(userId, lines);
+  await assertActiveAccounts(userId, accountIds);
+  await assertOwnEvent(userId, input.eventId);
+  if (current.kind === "TRANSFER") {
+    const types = new Map((await prisma.financialAccount.findMany({ where: { userId, id: { in: accountIds } }, select: { id: true, type: true } })).map((a) => [a.id, a.type]));
+    try {
+      assertTransferShape(lines, (aid) => types.get(aid));
+    } catch (err) {
+      if (err instanceof LedgerError) throw new ApiError(400, err.message);
+      throw err;
+    }
+  }
+  return prisma.$transaction(async (tx) => {
+    // Se vuelven a leer las líneas dentro de la transacción: si cambiaron entre medias, no se escribe nada.
+    const now = await tx.posting.findMany({ where: { transactionId: current.id }, select: { id: true } });
+    try {
+      planLineEdit(now, lines);
+    } catch (err) {
+      if (err instanceof LinesChangedError) throw new ApiError(409, "El movimiento cambió mientras lo editabas: recarga");
+      throw err;
+    }
+    for (const l of lines) {
+      await tx.posting.update({ where: { id: l.id }, data: { accountId: l.accountId, amountCents: l.amountCents, categoryId: l.categoryId ?? null, memo: l.memo ?? null } });
+    }
+    const updated = await tx.financialTransaction.update({
+      where: { id: current.id },
+      data: { date: dateOnly(input.date), description: input.description, payee: input.payee ?? null, sport: Boolean(input.sport) || Boolean(input.eventId), eventId: input.eventId ?? null },
+      include: { postings: true },
+    });
+    const sum = updated.postings.reduce((a, p) => a + p.amountCents, 0);
+    if (sum !== 0) throw new ApiError(400, `El asiento no cuadra: la suma es ${sum} céntimos`);
+    return updated;
+  });
+}
+
+/** Archiva o reactiva una cuenta de dinero. Sigue contando en el balance; solo deja de admitir apuntes. */
+export async function setAccountArchived(userId: string, id: string, isArchived: boolean) {
+  const acc = await prisma.financialAccount.findFirst({ where: { id, userId } });
+  if (!acc) throw new ApiError(404, "Cuenta no encontrada");
+  if (!isMoney(acc.type)) throw new ApiError(409, "Solo se archivan cuentas de dinero");
+  const updated = await prisma.financialAccount.update({ where: { id }, data: { isArchived } });
+  const sum = await prisma.posting.aggregate({ where: { accountId: id }, _sum: { amountCents: true } });
+  return { ...updated, balanceCents: sum._sum.amountCents ?? 0 };
 }
 
 export interface TransactionFilter {
@@ -280,7 +393,7 @@ export async function listTransactions(userId: string, f: TransactionFilter = {}
     },
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
     take: f.limit ?? 100,
-    include: { postings: { include: { account: { select: { name: true, type: true } }, category: { select: { name: true } } } }, receipts: { select: { id: true, mime: true } } },
+    include: { postings: { include: { account: { select: { name: true, type: true, isArchived: true } }, category: { select: { name: true } } } }, receipts: { select: { id: true, mime: true } } },
   });
 }
 
@@ -389,7 +502,7 @@ export async function spendingByCategory(userId: string, from: Date, to: Date) {
 export async function runDueSubscriptions(userId: string) {
   const now = today();
   const due = await prisma.subscription.findMany({
-    where: { userId, isActive: true, autoPost: true, nextChargeDate: { lte: now } },
+    where: { userId, isActive: true, autoPost: true, nextChargeDate: { lte: now }, account: { isArchived: false } },
   });
   const posted: Array<{ subscriptionId: string; date: string; transactionId: string }> = [];
   for (const sub of due) {

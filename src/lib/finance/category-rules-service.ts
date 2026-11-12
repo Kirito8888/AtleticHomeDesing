@@ -2,6 +2,7 @@ import "server-only";
 
 import { ApiError } from "@/lib/api";
 import { matchRule, normalizeText, patternFor } from "@/lib/finance/category-rules";
+import { assertActiveAccounts } from "@/lib/finance/service";
 import { prisma } from "@/lib/prisma";
 
 const COUNTER = { in: ["INCOME", "EXPENSE"] as ("INCOME" | "EXPENSE")[] };
@@ -18,6 +19,8 @@ export async function categorizeTransaction(userId: string, txId: string, catego
   if (!tx) throw new ApiError(404, "Movimiento no encontrado");
   if (!cat) throw new ApiError(400, "Categoría no encontrada");
   if (tx.kind !== cat.kind) throw new ApiError(400, cat.kind === "EXPENSE" ? "Es una categoría de gasto" : "Es una categoría de ingreso");
+  const legs = await prisma.posting.findMany({ where: { transactionId: tx.id }, select: { accountId: true } });
+  await assertActiveAccounts(userId, legs.map((l) => l.accountId));
   await prisma.posting.updateMany({ where: { transactionId: tx.id, account: { type: COUNTER } }, data: { categoryId } });
   if (!similar) return { pattern: null, applied: 1 };
 
@@ -25,7 +28,7 @@ export async function categorizeTransaction(userId: string, txId: string, catego
   if (!pattern) return { pattern: null, applied: 1 };
   await prisma.categoryRule.upsert({ where: { userId_pattern: { userId, pattern } }, create: { userId, pattern, categoryId }, update: { categoryId } });
   const candidates = await prisma.financialTransaction.findMany({
-    where: { userId, kind: tx.kind, id: { not: tx.id }, postings: { some: { categoryId: null, account: { type: COUNTER } } } },
+    where: { userId, kind: tx.kind, id: { not: tx.id }, postings: { some: { categoryId: null, account: { type: COUNTER } }, none: { account: { isArchived: true } } } },
     select: { id: true, description: true },
     take: 2000,
   });

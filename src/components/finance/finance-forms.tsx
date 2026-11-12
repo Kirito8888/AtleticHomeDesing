@@ -335,7 +335,7 @@ export function ManageFinance({ accounts, categories, today }: { accounts: Accou
   const [open, setOpen] = useState(false);
   const [autoPost, setAutoPost] = useState(true);
   const { busy, run } = useSubmit(() => setOpen(false));
-  const money = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
+  const money = accounts.filter((a) => (a.type === "ASSET" || a.type === "LIABILITY") && !a.isArchived);
   const expenseCats = categories.filter((c) => c.kind === "EXPENSE");
 
   return (
@@ -614,7 +614,7 @@ export function EditTransaction({ tx, accounts, categories }: { tx: EditableTx; 
   const [kind, setKind] = useState<"EXPENSE" | "INCOME">(tx.kind);
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const money = accounts.filter((a) => a.type === "ASSET" || a.type === "LIABILITY");
+  const money = accounts.filter((a) => (a.type === "ASSET" || a.type === "LIABILITY") && !a.isArchived);
   const cats = categories.filter((c) => c.kind === kind);
   // Valor de un <input>: coma decimal y sin separador de miles, como lo escribe la persona.
   // eslint-disable-next-line no-restricted-syntax
