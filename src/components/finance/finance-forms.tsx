@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { Plus, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useZoneRefresh } from "@/components/zone-refresh";
 import { Chips, Field } from "@/components/form/chips";
 import { AccountPicker, pickAccount } from "@/components/finance/account-picker";
 import { OcrFill } from "@/components/ocr-fill";
@@ -52,7 +52,7 @@ const saveLastAccount = (id: string) => {
 };
 
 function useSubmit(onDone: () => void) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [busy, setBusy] = useState(false);
   const run = async (url: string, body: Record<string, unknown>, ok: string) => {
     setBusy(true);
@@ -60,7 +60,7 @@ function useSubmit(onDone: () => void) {
       await api(url, { body });
       toast.success(ok);
       onDone();
-      router.refresh();
+      refresh();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -557,7 +557,7 @@ export function ManageFinance({ accounts, categories, today }: { accounts: Accou
 }
 
 export function RunSubscriptionsButton() {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   return (
     <Button
       size="sm"
@@ -566,7 +566,7 @@ export function RunSubscriptionsButton() {
         try {
           const r = await api<{ posted: unknown[] }>("/api/finance/subscriptions/run", { method: "POST" });
           toast.success(r.posted.length ? `${r.posted.length} cobro(s) contabilizado(s)` : "No hay cobros pendientes");
-          router.refresh();
+          refresh();
         } catch (e) {
           toast.error((e as Error).message);
         }
@@ -578,7 +578,7 @@ export function RunSubscriptionsButton() {
 }
 
 export function DeleteTransaction({ id }: { id: string }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   return (
     <button
       type="button"
@@ -587,8 +587,8 @@ export function DeleteTransaction({ id }: { id: string }) {
         if (!(await confirmDialog({ title: "¿Borrar el movimiento?", confirmLabel: "Borrar", destructive: true }))) return;
         try {
           const r = await api<{ trashId?: string }>(`/api/finance/transactions/${id}`, { method: "DELETE" });
-          trashedToast(r.trashId, "Movimiento borrado", () => router.refresh());
-          router.refresh();
+          trashedToast(r.trashId, "Movimiento borrado", () => refresh());
+          refresh();
         } catch (e) {
           toast.error((e as Error).message);
         }
@@ -601,7 +601,7 @@ export function DeleteTransaction({ id }: { id: string }) {
 
 /** Marca o desmarca un gasto o ingreso como deportivo. */
 export function SportToggle({ id, sport, income = false }: { id: string; sport: boolean; income?: boolean }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [busy, setBusy] = useState(false);
   return (
     <Button
@@ -616,7 +616,7 @@ export function SportToggle({ id, sport, income = false }: { id: string; sport: 
         setBusy(true);
         try {
           await api(`/api/finance/transactions/${id}`, { method: "PATCH", body: { sport: !sport, eventId: null } });
-          router.refresh();
+          refresh();
         } catch (err) {
           toast.error((err as Error).message);
         } finally {
@@ -645,7 +645,7 @@ export interface EditableTx {
 export function EditTransaction({ tx, accounts, categories }: { tx: EditableTx; accounts: AccountOpt[]; categories: CategoryOpt[] }) {
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<"EXPENSE" | "INCOME">(tx.kind);
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [busy, setBusy] = useState(false);
   const money = accounts.filter((a) => (a.type === "ASSET" || a.type === "LIABILITY") && !a.isArchived);
   const cats = categories.filter((c) => c.kind === kind);
@@ -694,7 +694,7 @@ export function EditTransaction({ tx, accounts, categories }: { tx: EditableTx; 
               });
               toast.success("Movimiento actualizado");
               setOpen(false);
-              router.refresh();
+              refresh();
             } catch (err) {
               toast.error((err as Error).message);
             } finally {

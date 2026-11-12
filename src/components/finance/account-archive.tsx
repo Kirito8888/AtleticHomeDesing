@@ -1,9 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { useZoneRefresh } from "@/components/zone-refresh";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { api } from "@/lib/client-api";
 import { formatEur } from "@/lib/format";
@@ -16,14 +16,14 @@ interface Acc {
 }
 
 function useArchive() {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [busy, setBusy] = useState(false);
   const set = async (id: string, isArchived: boolean, ok: string) => {
     setBusy(true);
     try {
       await api(`/api/finance/accounts/${id}`, { method: "PATCH", body: { isArchived } });
       toast.success(ok);
-      router.refresh();
+      refresh();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

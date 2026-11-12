@@ -1,9 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { useZoneRefresh } from "@/components/zone-refresh";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/client-api";
@@ -12,7 +12,7 @@ import { formatNum } from "@/lib/format";
 
 /** Agua del día con un toque (+250 / +500 ml). */
 export function WaterCard({ date, ml, target, hot, hasSession, maxTemp }: { date: string; ml: number; target: number; hot: boolean; hasSession: boolean; maxTemp: number | null }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [busy, setBusy] = useState(false);
   async function call(init: { method?: string; body?: unknown }, url = "/api/nutrition/water") {
     setBusy(true);
@@ -25,7 +25,7 @@ export function WaterCard({ date, ml, target, hot, hasSession, maxTemp }: { date
           return;
         }
       } else await api(url, init);
-      router.refresh();
+      refresh();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

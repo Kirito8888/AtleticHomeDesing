@@ -1,16 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 
+import { useZoneRefresh } from "@/components/zone-refresh";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
 import { trashedToast } from "@/lib/trash-client";
 
 export function DeleteEntry({ id, name }: { id: string; name: string }) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   return (
     <Button
       variant="ghost"
@@ -20,8 +20,8 @@ export function DeleteEntry({ id, name }: { id: string; name: string }) {
       onClick={async () => {
         try {
           const r = await api<{ trashId?: string }>(`/api/nutrition/entries/${id}`, { method: "DELETE" });
-          trashedToast(r.trashId, `${name} quitado`, () => router.refresh());
-          router.refresh();
+          trashedToast(r.trashId, `${name} quitado`, () => refresh());
+          refresh();
         } catch (e) {
           toast.error((e as Error).message);
         }

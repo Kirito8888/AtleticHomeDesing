@@ -23,6 +23,12 @@ const minH = async (loc: ReturnType<typeof page.locator>, what: string) => {
 const toast = (re: RegExp) => page.locator("[data-sonner-toast]", { hasText: re }).first().waitFor({ timeout: 8000 });
 const balance = () => page.getByRole("region", { name: "Balance total" });
 
+// v2.11 B3 · O16: las acciones recargan solo su zona (GET JSON), sin repintado global de Next (peticiones RSC)
+let rscCount = 0;
+page.on("request", (r) => {
+  if (r.headers()["rsc"] === "1") rscCount++;
+});
+
 const email = `v25h${Date.now()}@test.dev`;
 const out = execFileSync("npm", ["run", "-s", "user", "--", "create", email, "--name", "Atleta", "--role", "ATHLETE", "--accept-terms"], { encoding: "utf8" });
 const pw = out.match(/Contraseña: (\S+)/)?.[1];
@@ -63,6 +69,8 @@ await toast(/Movimiento guardado/);
 await balance().getByText(/150,00\s€/).first().waitFor();
 
 // 4 · Gasto 30 €
+await page.waitForLoadState("networkidle");
+rscCount = 0;
 await page.getByRole("button", { name: "Movimiento", exact: true }).click();
 await page.getByRole("radio", { name: "Gasto" }).click();
 await page.fill("#t-amount", "30");
@@ -73,6 +81,8 @@ await toast(/Movimiento guardado/);
 await balance().getByText(/120,00\s€/).first().waitFor();
 await page.getByRole("list", { name: "Cuentas" }).getByText(/120,00\s€/).waitFor();
 await page.getByRole("region", { name: "Últimos movimientos" }).getByText("Súper").waitFor();
+await page.waitForTimeout(500);
+if (rscCount) errors.push(`anotar un gasto repintó la página entera (${rscCount} peticiones RSC)`);
 await noOverflow("/finance con movimientos");
 log("100 + 50 − 30 = 120 € en balance y tarjeta");
 

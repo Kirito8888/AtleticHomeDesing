@@ -1,9 +1,9 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { useZoneRefresh } from "@/components/zone-refresh";
 import { Field } from "@/components/form/chips";
 import type { AccountOpt, CategoryOpt } from "@/components/finance/finance-forms";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ const parse = (v: string): number | null => {
 };
 
 function useSave(tx: Base, close: () => void) {
-  const router = useRouter();
+  const refresh = useZoneRefresh();
   const [busy, setBusy] = useState(false);
   const save = async (description: string, date: string, lines: EditableLine[]) => {
     setBusy(true);
@@ -54,7 +54,7 @@ function useSave(tx: Base, close: () => void) {
       });
       toast.success("Movimiento actualizado");
       close();
-      router.refresh();
+      refresh();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

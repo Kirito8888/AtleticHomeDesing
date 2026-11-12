@@ -67,6 +67,7 @@
     "e2e:v23c": "tsx e2e/v23c.mts",
     "e2e:v23d": "tsx e2e/v23d.mts",
     "e2e:v24a": "tsx e2e/v24a.mts",
+    "e2e:refresh-cost": "tsx e2e/refresh-cost.mts",
     "e2e:v24b": "tsx e2e/v24b.mts",
     "e2e:v24c": "tsx e2e/v24c.mts",
     "notices": "node scripts/third-party-notices.mjs"
