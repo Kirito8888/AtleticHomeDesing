@@ -18,6 +18,10 @@
 # (limpiando contenedores sobrantes) → espera al healthcheck. Si no queda "healthy",
 # vuelve al commit y a la imagen anteriores. Las migraciones son aditivas, así
 # que la versión anterior funciona con la BD ya migrada.
+#
+# Limpieza (solo tras una actualización correcta; scripts/ops/prune-after-update.sh): quita las etiquetas de imagen de CI
+# de commits viejos, las imágenes de Atlenza que ya no usa nadie y las copias pre-update antiguas (se conservan las
+# UPDATE_KEEP_BACKUPS últimas, 2 por defecto). No hace `docker image prune` global: no toca imágenes de otros proyectos.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -119,7 +123,12 @@ fi
 [ -s "$OUT" ] || die "La copia previa está vacía: no continúo"
 log "Copia previa: $OUT"
 
-# 2. Imagen actual → :previous
+# 2. Imagen actual → :previous (antes se anotan las imágenes de Atlenza que quedarán sin uso, para la limpieza final)
+OLD_IMAGE_IDS=""
+for ref in lifeos-web:previous lifeos-migrate:latest; do
+  old_id="$(docker image inspect -f '{{.Id}}' "$ref" 2>/dev/null || true)"
+  if [ -n "$old_id" ]; then OLD_IMAGE_IDS="$OLD_IMAGE_IDS $old_id"; fi
+done
 if docker image inspect lifeos-web:latest >/dev/null 2>&1; then
   docker image tag lifeos-web:latest lifeos-web:previous
   HAVE_PREVIOUS=1
@@ -206,5 +215,8 @@ if ! bash scripts/ops/check-backups.sh; then
   log "Aviso: las copias de seguridad no están al día (detalle arriba). La actualización ya está hecha."
 fi
 
-docker image prune -f >/dev/null || true
+# 10. Limpieza (solo lo de Atlenza; nunca revierte ni falla)
+KEEP_SHAS="$(git rev-parse HEAD) $PREV_COMMIT" OLD_IMAGE_IDS="$OLD_IMAGE_IDS" UPDATE_BACKUP_DIR="$BACKUP_DIR" ENV_FILE="$ENV_FILE" \
+  bash scripts/ops/prune-after-update.sh || log "Aviso: no se pudo completar la limpieza de imágenes y copias viejas (la actualización ya está hecha)."
+
 log "Actualizado correctamente a $(git log --oneline -1)"
