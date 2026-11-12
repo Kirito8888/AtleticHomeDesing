@@ -63,7 +63,15 @@ await minH(page.getByTestId("pr-generate"), "«Generar ejercicios»");
 await noOverflow("práctica (intro)");
 log("«Practicar» desde la asignatura; los apuntes subidos salen para elegir");
 
-// 2 · generar
+// 2 · generar (por defecto «Del profesor»; el cuerpo lleva modo y, tras «Nueva tanda», lo ya hecho)
+const bodies: Record<string, unknown>[] = [];
+await page.route("**/api/ai/study/practice", async (rt) => {
+  bodies.push(JSON.parse(rt.request().postData() ?? "{}"));
+  await rt.continue();
+});
+await minH(page.getByTestId("pr-mode-teacher"), "«Del profesor»");
+await minH(page.getByTestId("pr-mode-similar"), "«Nuevos parecidos»");
+if ((await page.getByTestId("pr-mode-teacher").getAttribute("aria-checked")) !== "true") errors.push("«Del profesor» no es el modo por defecto");
 await page.getByTestId("pr-generate").click();
 await page.getByTestId("pr-active").waitFor();
 if (!(await page.getByText(/Ejercicio 1 de 3/).count())) errors.push("no aparece «Ejercicio 1 de 3»");
@@ -103,6 +111,14 @@ log("la tanda persiste tras recargar");
 // 7 · solución esperada y nueva tanda
 await page.getByRole("button", { name: "Ver solución esperada" }).click();
 await page.getByTestId("pr-solution").waitFor();
+await page.getByTestId("pr-reset").click();
+await page.getByTestId("pr-generate").waitFor();
+await page.getByTestId("pr-mode-similar").click();
+await page.getByTestId("pr-generate").click();
+await page.getByTestId("pr-active").waitFor();
+if (bodies[0]?.mode !== "teacher" || (bodies[0]?.exclude as string[]).length !== 0) errors.push(`1.ª petición: ${JSON.stringify(bodies[0])}`);
+if (bodies[1]?.mode !== "similar" || (bodies[1]?.exclude as string[]).length < 3) errors.push(`2.ª petición sin lo ya hecho: ${JSON.stringify(bodies[1])}`);
+log("modo del profesor por defecto; la nueva tanda manda lo ya hecho");
 await page.getByTestId("pr-reset").click();
 await page.getByTestId("pr-generate").waitFor();
 

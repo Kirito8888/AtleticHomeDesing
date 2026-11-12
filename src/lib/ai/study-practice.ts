@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MAX_SOURCE_CHARS, sampleChunks } from "@/lib/ai/flashcards";
+import { MAX_SOURCE_CHARS } from "@/lib/ai/flashcards";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { generateJson } from "@/lib/ai/llm";
 import { ApiError } from "@/lib/api";
@@ -13,6 +13,7 @@ import {
   fakeReview,
   normalizeExercises,
   normalizeReview,
+  pickChunksForFocus,
   type PracticeExercise,
   type PracticeRequest,
   type PracticeReview,
@@ -32,14 +33,14 @@ export async function generatePractice(userId: string, req: PracticeRequest): Pr
   });
   const chunks = docs.flatMap((d) => d.chunks);
   if (!chunks.length) throw new ApiError(409, "No hay apuntes procesados para practicar. Mete o elige alguno.");
-  const sources = sampleChunks(chunks).map((c) => c.content).join("\n\n").slice(0, MAX_SOURCE_CHARS);
+  const sources = pickChunksForFocus(chunks, req.focus, MAX_SOURCE_CHARS).map((c) => c.content).join("\n\n").slice(0, MAX_SOURCE_CHARS);
 
   let raw;
   let model = "simulado";
   if (fakeAi()) raw = fakePractice(sources, req.count);
   else {
     await assertAiAllowed(userId);
-    const p = buildPracticePrompt({ moduleName: m.name, count: req.count, focus: req.focus, sources });
+    const p = buildPracticePrompt({ moduleName: m.name, count: req.count, focus: req.focus, mode: req.mode, exclude: req.exclude, sources });
     const r = await generateJson(practiceAiSchema, { userId, system: p.system, prompt: p.prompt, temperature: 0.4 });
     raw = r.data;
     model = r.model;

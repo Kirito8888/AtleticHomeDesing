@@ -14,12 +14,34 @@ import {
   MAX_ANSWER_CHARS,
   PRACTICE_COUNTS,
   type PracticeExercise,
+  MAX_DONE,
   practiceKey,
   type PracticeReview,
   type PracticeState,
   parsePracticeState,
   serializePracticeState,
 } from "@/lib/study/practice";
+
+const doneKey = (moduleId: string) => `${practiceKey(moduleId)}:done`;
+function readDone(moduleId: string): string[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(doneKey(moduleId)) ?? "[]");
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, MAX_DONE) : [];
+  } catch {
+    return [];
+  }
+}
+function writeDone(moduleId: string, titles: string[]) {
+  try {
+    localStorage.setItem(doneKey(moduleId), JSON.stringify(titles.slice(0, MAX_DONE)));
+  } catch {
+    /* sin almacenamiento */
+  }
+}
+const MODES = [
+  { id: "teacher", label: "Del profesor" },
+  { id: "similar", label: "Nuevos parecidos" },
+] as const;
 
 const VERDICT: Record<PracticeReview["verdict"], string> = { correct: "Correcto", partial: "Casi: hay fallos concretos", incorrect: "Todavía no" };
 const KIND: Record<LineKind, { label: string; cls: string; icon: typeof Check }> = {
@@ -46,6 +68,7 @@ export function Practice({ moduleId, documents }: { moduleId: string; documents:
   const st = override === "cleared" ? null : (override ?? saved);
 
   const [count, setCount] = useState<number>(3);
+  const [mode, setMode] = useState<"teacher" | "similar">("teacher");
   const [focus, setFocus] = useState("");
   const [picked, setPicked] = useState<string[]>(() => documents.map((d) => d.id));
   const [busy, setBusy] = useState(false);
@@ -66,7 +89,7 @@ export function Practice({ moduleId, documents }: { moduleId: string; documents:
     setBusy(true);
     try {
       const r = await api<{ exercises: PracticeExercise[] }>("/api/ai/study/practice", {
-        body: { moduleId, count, documentIds: picked.length === documents.length ? [] : picked, focus: focus.trim() || undefined },
+        body: { moduleId, count, mode, exclude: readDone(moduleId), documentIds: picked.length === documents.length ? [] : picked, focus: focus.trim() || undefined },
       });
       setShowSolution(false);
       commit(emptyPractice(r.exercises));
@@ -81,7 +104,7 @@ export function Practice({ moduleId, documents }: { moduleId: string; documents:
     return (
       <div className="grid gap-4">
         <p className="text-sm text-muted-foreground">
-          Ejercicios del mismo estilo que tus apuntes. Escribe tu código, pide pistas si te atascas y la IA lo corrige línea a línea. El código no se ejecuta en ningún sitio y no se guarda en el servidor.
+          Sube tus apuntes y hojas de ejercicios (PDF o Word) a la asignatura. Elige si quieres los ejercicios del profesor tal cual o nuevos del mismo estilo. Escribe tu código, pide pistas si te atascas y la IA lo corrige línea a línea. El código no se ejecuta en ningún sitio y no se guarda en el servidor.
         </p>
         {documents.length ? (
           <fieldset className="grid gap-1.5">
@@ -103,6 +126,26 @@ export function Practice({ moduleId, documents }: { moduleId: string; documents:
             Esta asignatura aún no tiene apuntes procesados. Sube tus apuntes y ejercicios de PHP en la asignatura y vuelve.
           </p>
         )}
+        <div className="grid gap-1.5">
+          <span id="pr-mode" className="text-sm font-medium">
+            Qué ejercicios
+          </span>
+          <div role="radiogroup" aria-labelledby="pr-mode" className="grid grid-cols-2 gap-2">
+            {MODES.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                role="radio"
+                aria-checked={mode === m.id}
+                onClick={() => setMode(m.id)}
+                data-testid={`pr-mode-${m.id}`}
+                className={cn("min-h-11 rounded-md border px-2 text-sm transition-colors", mode === m.id ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-accent")}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <label className="grid gap-1.5 text-sm font-medium">
           Tema (opcional)
           <input
@@ -153,7 +196,7 @@ export function Practice({ moduleId, documents }: { moduleId: string; documents:
     setReviewing(true);
     try {
       const r = await api<{ review: PracticeReview }>("/api/ai/study/practice/review", {
-        body: { moduleId, exercise: { title: ex.title, statement: ex.statement, solution: ex.solution, language: ex.language }, answer },
+        body: { moduleId, exercise: { title: ex.title, statement: ex.statement, solution: ex.solution, language: ex.language, evidence: ex.evidence.slice(0, 600) }, answer },
       });
       update({ reviews: { ...st!.reviews, [st!.i]: r.review } });
     } catch (err) {
@@ -264,6 +307,7 @@ export function Practice({ moduleId, documents }: { moduleId: string; documents:
         variant="ghost"
         className="min-h-11"
         onClick={() => {
+          writeDone(moduleId, [...st.exercises.map((e) => e.title), ...readDone(moduleId)].filter((t, k, a) => a.indexOf(t) === k));
           setShowSolution(false);
           commit(null);
         }}

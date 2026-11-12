@@ -35,6 +35,7 @@ describe.skipIf(!HAS_DB)("práctica guiada (BD real)", () => {
   let otherMod: string;
   let docA: string;
   let docB: string;
+  let bigMod: string;
   let otherDoc: string;
   const t = testStamp();
   const counts = async () => ({
@@ -51,6 +52,7 @@ describe.skipIf(!HAS_DB)("práctica guiada (BD real)", () => {
 
   beforeAll(async () => {
     process.env.AUTH_SECRET ??= "secreto-auth-de-prueba";
+    delete process.env.LIFEOS_FAKE_AI; // el mock de generateJson solo se usa sin IA simulada (el entorno local de las E2E la activa)
     prisma = (await import("@/lib/prisma")).prisma;
     gen = await import("@/app/api/ai/study/practice/route");
     rev = await import("@/app/api/ai/study/practice/review/route");
@@ -62,6 +64,12 @@ describe.skipIf(!HAS_DB)("práctica guiada (BD real)", () => {
     otherMod = (await prisma.studyModule.create({ data: { userId: other, name: "Ajena" } })).id;
     docA = await mkDoc(me, mod, "Arrays", "PHP arrays: Usa foreach para recorrer arrays en PHP.");
     docB = await mkDoc(me, mod, "Bucles", "Bucles while: SOLO-EN-DOCB repite mientras se cumpla.");
+    bigMod = (await prisma.studyModule.create({ data: { userId: me, name: "Grande" } })).id;
+    const big = await prisma.studyDocument.create({ data: { userId: me, moduleId: bigMod, title: "Grande", mimeType: "text/markdown", storagePath: "", sizeBytes: 10, status: "EMBEDDED", embedModel: "texto" } });
+    for (let i = 0; i < 60; i++) {
+      const content = i === 3 ? `Bucles: el bucle while repite mientras se cumpla la condición. ${"z".repeat(900)}` : `Relleno número ${i}. ${"y".repeat(900)}`;
+      await prisma.documentChunk.create({ data: { documentId: big.id, userId: me, chunkIndex: i, content } });
+    }
     otherDoc = await mkDoc(other, otherMod, "Ajeno", "SECRETO-AJENO");
   });
   afterAll(async () => {
@@ -80,6 +88,16 @@ describe.skipIf(!HAS_DB)("práctica guiada (BD real)", () => {
     expect(await counts()).toEqual(before);
     await gen.POST(post("practice", { moduleId: mod }), undefined as never);
     expect(seenPrompt).toMatch(/SOLO-EN-DOCB/);
+  });
+
+  it("modo por defecto «del profesor», ejercicios hechos en el prompt y fuentes por tema", async () => {
+    await gen.POST(post("practice", { moduleId: mod, exclude: ["Recorrer arrays"] }), undefined as never);
+    expect(seenPrompt).toMatch(/YA HECHOS[^]*Recorrer arrays/);
+    await gen.POST(post("practice", { moduleId: bigMod, focus: "bucles" }), undefined as never);
+    expect(seenPrompt).toMatch(/bucle while repite/);
+    expect(seenPrompt.length).toBeLessThan(45_000);
+    await gen.POST(post("practice", { moduleId: bigMod }), undefined as never);
+    expect(seenPrompt).not.toMatch(/bucle while repite/);
   });
 
   it("corrige: solo líneas reales, con el texto del servidor y sin escribir", async () => {
