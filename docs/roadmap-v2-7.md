@@ -1,6 +1,6 @@
 # Roadmap v2.7+ · propuesta para autorizar
 
-> **Propuesta, no compromiso.** Base: v2.6.0 (03/11/2026); **v2.7.0 publicada y desplegada el 07/11/2026; v2.8.0 cerrada el 09/11, v2.9.0 el 10/11 y v2.10.0 el 11/11**. Cruza `docs/analisis-competencia-feedback.md` (IDs N/O/C/S) con el Plan de Optimización de `docs/estado.md`.
+> **Propuesta, no compromiso.** Base: v2.6.0 (03/11/2026); **v2.7.0 publicada y desplegada el 07/11/2026; v2.8.0 cerrada el 09/11, v2.9.0 el 10/11, v2.10.0 el 11/11 y v2.11.0 el 12/11**. Cruza `docs/analisis-competencia-feedback.md` (IDs N/O/C/S) con el Plan de Optimización de `docs/estado.md`.
 > Los números de versión y qué entra en cada una los decide la usuaria; Claude no empieza nada sin autorización. Solo documentación: no cambia código, esquema ni paquetes.
 > Confianza: [Seguro] comprobado en el repo · [Probable] inferencia sólida · [Suponiendo] hueco sin prueba.
 
@@ -112,7 +112,8 @@ Los asigna la usuaria; ninguno cambia el esquema.
 | B2 | **N9** explicación de una línea en disposición y PMC | Cada métrica lleva su frase; sin salud cifrada nueva en pantallas ajenas | `health` tests; E2E `v25g` |
 | B3 | **N7** editar todas las semanas a la vez + citas en el prompt de `/planning/ai` | Cambio una serie en todas las semanas con borrador y aceptar | `prescription` tests; E2E `v25b`, `v25c` |
 
-## v2.11.0 · Finanzas y menores
+## v2.11.0 · Finanzas y menores — **CERRADA (12/11/2026)**: B1–B4-B fusionados (PR #169–#173), sin migración
+- **Resultado (cierre):** N6, N10, N11, C4, O16 (solo Finanzas y Nutrición), O17, O20–O23, O25, S2 y S3 hechos. **Omitidos con motivo:** O19 (con `LOCAL_AI_ONLY` no hay embeddings que paralelizar), O24 (prompts estáticos < 1 024 tokens), partes de O22/O23 (ver `docs/estado.md`). S8 (Node ≥ 24 de unpdf) sigue en vigilancia. Fuera del roadmap entró la Práctica guiada de ejercicios en Estudio.
 - **Objetivo para la atleta:** corregir cualquier movimiento y archivar cuentas sin riesgo.
 - **Alcance funcional:** N6, N10, N11. **Optimizaciones técnicas:** O17, O16 por zonas, O19–O25 restantes. Seguridad menor: S2, S3, S8.
 - **BD:** **sin migración** salvo que archivar cuentas exija un campo nuevo (hoy `isArchived` existe; comprobar). C4 va con N6.

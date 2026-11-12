@@ -2,6 +2,29 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v2.11.0 — Finanzas, práctica y optimizaciones (12/11/2026)
+
+**Sin migraciones ni cambios de esquema** (la última sigue siendo `20270701080000_v2_9_features`; `git diff -- prisma` vacío desde v2.10.0). Pasos para el servidor en [`docs/migracion-v2-10-a-v2-11.md`](docs/migracion-v2-10-a-v2-11.md).
+
+**Estudio**
+- **Práctica guiada de ejercicios:** `/study/modules/[id]/practice`. Genera 3 o 5 ejercicios solo desde tus apuntes (modo «Del profesor» o «Nuevos parecidos»), con pistas progresivas; «Corregir» da veredicto, comentario línea a línea y código corregido. No ejecuta código; la tanda vive en el navegador.
+- **Fecha de examen sugerida (B2, N11):** si la asignatura no tiene fecha, se propone el examen del horario que coincide por nombre; «Usar fecha» o «Ignorar».
+
+**Finanzas**
+- **Editar transferencias y asientos partidos (B1, N6):** cambia importes, cuentas, categorías y notas sin añadir ni quitar líneas; el asiento debe cuadrar (Σ = 0).
+- **Archivar cuentas (B1, C4):** el servidor rechaza (409) apuntes, ediciones e importaciones en cuentas archivadas; las suscripciones de esas cuentas se saltan. El saldo total sigue contándolas.
+- **Atajos de categorías (B2, N10):** hasta 6 chips por tipo con las categorías más usadas en 90 días.
+
+**Rendimiento y robustez**
+- **Cola de PDF acotada (B3, O17):** un turno, máx. 3 en espera y 45 s; si no, 503 «generador ocupado».
+- **Refresco por zonas (B3, O16):** Finanzas (inicio e historial) y Nutrición (día) recargan solo su zona con un `GET` JSON en vez del RSC global (p. ej. 7 → 0 peticiones RSC al añadir un gasto).
+- **B4-A:** el precaché del service worker solo guarda `/training/<id>` y `/planning/plan/<id>` (caché `lifeos-v4`, S2); prueba del alta de llaves de acceso (S3); `flushMetrics` incremental (720 → 0–1 sentencias, O21); muestreo de fragmentos en SQL (6 000 000 → 39 000 caracteres leídos, O20).
+- **B4-B:** presupuesto de temporada y viajes sumados en SQL (O22), vista previa de asignación en paralelo (O23), cuota de subida de apuntes sin carrera (O25).
+- **Omitidos con motivo:** O19 (sin embeddings con `LOCAL_AI_ONLY`), O24 (los prompts estáticos no llegan a los 1 024 tokens cacheables).
+
+**Cierre**
+- `fast-xml-parser` 5.11.2 → 5.12.0 (aviso de `npm audit`, GHSA-474x-hrwr-fgx4).
+
 ## v2.10.0 — Entreno (11/11/2026)
 
 **Sin migraciones ni cambios de esquema** (la última sigue siendo `20270701080000_v2_9_features`). Pasos para el servidor en [`docs/migracion-v2-9-a-v2-10.md`](docs/migracion-v2-9-a-v2-10.md).

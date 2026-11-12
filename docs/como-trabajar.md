@@ -56,7 +56,7 @@ Instrucciones, ficheros que adjuntar y refresco tras cada versión: `docs/gemini
 - Pedir versiones de 10 o más funcionalidades: mejor 3–4 por bloque.
 - Dar las decisiones a medias: si las pones en el primer mensaje, no hay rondas de preguntas.
 
-## Tras cerrar una versión (v2.10.0 incluida)
+## Tras cerrar una versión (v2.11.0 incluida)
 Cuando fusiones el PR de cierre: despliega con `update.sh` y **resube los adjuntos del Gem** (`CLAUDE.md`, `docs/estado.md`, `docs/como-trabajar.md`), porque son una copia (`docs/gemini-gem.md`).
 
 - **Tests de integración:** el sufijo único de los emails/datos es `testStamp()` (`src/test/stamp.ts`), nunca `Date.now()`: dos ficheros en paralelo pueden coincidir en el milisegundo y borrarse los datos entre sí.
