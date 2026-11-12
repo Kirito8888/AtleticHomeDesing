@@ -212,6 +212,13 @@ Dentro de una asignatura (`/study/modules/…`), sección **Resumen y web de est
 
 Tu progreso del juego se guarda en tu cuenta: lo ves igual desde el móvil y el ordenador.
 
+## Novedades de la v2.11
+
+- **Finanzas:** puedes editar una transferencia o un asiento partido (cambias importes, cuentas, categorías y notas; debe cuadrar). «Archivar» en cada cuenta la esconde y evita apuntes nuevos; aparece en «Archivadas» con «Reactivar». Al apuntar salen atajos con tus categorías más usadas.
+- **Práctica de ejercicios:** en una asignatura, «Practicar» genera ejercicios desde tus apuntes, con pistas; escribes el código y «Corregir» te dice qué línea falla. No ejecuta nada y no guarda cambios en tu plan.
+- **Examen:** si la asignatura no tiene fecha, Atlenza sugiere la del horario; tú decides («Usar fecha» / «Ignorar»).
+- **Más ágil:** Finanzas y Nutrición actualizan solo lo que cambia, sin recargar toda la página.
+
 ## Novedades de la v2.10
 
 - **Fuerza:** al añadir un ejercicio ves las series de la última vez como referencia (no cuentan hasta pulsar «Hecha»); «Hecha» arranca el descanso de esa serie.
