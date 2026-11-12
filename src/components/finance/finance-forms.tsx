@@ -89,11 +89,14 @@ function cents(f: FormData, k: string): number | null {
 export function QuickTransaction({
   accounts,
   categories,
+  frequent = { EXPENSE: [], INCOME: [] },
   today,
   competitions = [],
 }: {
   accounts: AccountOpt[];
   categories: CategoryOpt[];
+  /** Ids de las categorías más usadas (90 días), por tipo. */
+  frequent?: { EXPENSE: string[]; INCOME: string[] };
   today: string;
   competitions?: Array<{ id: string; title: string; date: string }>;
 }) {
@@ -106,6 +109,8 @@ export function QuickTransaction({
   // La elegida en esta sesión, si no la última guardada en el dispositivo, si no la primera.
   const accountId = pickAccount(money, chosen && money.some((a) => a.id === chosen) ? chosen : readLastAccount());
   const cats = categories.filter((c) => c.kind === (kind === "INCOME" ? "INCOME" : "EXPENSE"));
+  const [category, setCategory] = useState("");
+  const chipCats = (kind === "INCOME" ? frequent.INCOME : frequent.EXPENSE).flatMap((id) => cats.filter((c) => c.id === id));
   const formRef = useRef<HTMLFormElement>(null);
   // v1.10 · Rellenar desde la foto de un ticket (OCR del servidor): solo propone, se revisa antes de guardar
   const fillFromReceipt = (r: { amount: number | null; date: string | null; merchant: string | null; found: boolean }) => {
@@ -125,7 +130,13 @@ export function QuickTransaction({
   };
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    <Sheet
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (v) setCategory("");
+      }}
+    >
       <SheetTrigger asChild>
         <Button size="sm">
           <Plus /> Movimiento
@@ -176,7 +187,11 @@ export function QuickTransaction({
               <Chips
                 label="Tipo de movimiento"
                 value={kind}
-                onChange={(v) => v && setKind(v)}
+                onChange={(v) => {
+                  if (!v) return;
+                  setKind(v);
+                  setCategory("");
+                }}
                 className="grid grid-cols-2 [&_button]:h-11 [&_button]:rounded-md"
                 options={[
                   { value: "EXPENSE", label: "Gasto" },
@@ -214,7 +229,25 @@ export function QuickTransaction({
                 </Field>
               ) : (
                 <Field label="Categoría" htmlFor="t-cat">
-                  <Select id="t-cat" name="category" defaultValue="">
+                  {chipCats.length ? (
+                    <div role="group" aria-label="Categorías frecuentes" className="flex flex-wrap gap-2">
+                      {chipCats.map((c) => (
+                        <Button
+                          key={c.id}
+                          type="button"
+                          size="sm"
+                          variant={category === c.id ? "default" : "outline"}
+                          aria-pressed={category === c.id}
+                          data-testid="cat-chip"
+                          className="min-h-11"
+                          onClick={() => setCategory(category === c.id ? "" : c.id)}
+                        >
+                          {c.name}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <Select id="t-cat" name="category" value={category} onChange={(e) => setCategory(e.target.value)}>
                     <option value="">Sin categoría</option>
                     {cats.map((c) => (
                       <option key={c.id} value={c.id}>

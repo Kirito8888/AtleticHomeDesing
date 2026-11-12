@@ -120,7 +120,7 @@ Los asigna la usuaria; ninguno cambia el esquema.
 | Bloque | Contenido | Terminado = | Pruebas |
 |---|---|---|---|
 | B1 ✅ (12/11) | **N6 + C4** editar transferencias/asientos partidos; el servidor rechaza apuntes en cuentas archivadas; UI para archivar | Edito una transferencia y los saldos cuadran; apuntar en archivada → 409 | `accounts.int.test.ts`, `history.int.test.ts`; E2E `v25h`, `v25i` |
-| B2 | **N10** atajos de categorías + **N11** fecha de examen desde `ClassSlot` | Un toque para categorías frecuentes; sugerencia de fecha aceptable o ignorable | Tests nuevos; E2E `v25h`, `v25m` |
+| B2 ✅ (12/11) | **N10** atajos de categorías + **N11** fecha de examen desde `ClassSlot` | Un toque para categorías frecuentes; sugerencia de fecha aceptable o ignorable | Tests nuevos; E2E `v25h`, `v25m` |
 | B3 | **O17** cola de PDF + **O16** `router.refresh()` en las zonas más usadas (no los 162) | Dos PDF a la vez no se pisan; menos repintados medidos | `pdf-render.int.test.ts`; E2E `v25o` |
 | B4 | **O19–O25** (concurrencia de embeddings, muestreo en SQL, `flushMetrics`, sumas en JS, caché de prompts, cuota sin bloqueo) + **S2** acotar `PRECACHE_PATH` + **S3** `verifyRegistration` | Cada uno con prueba o medida; sin cambio de comportamiento | Unitarias + E2E `v25d`, `security` |
 

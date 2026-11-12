@@ -155,6 +155,32 @@ await page.goto(B + "/study");
 await page.getByLabel("Asignatura (módulo)").waitFor();
 log("lista de asignaturas con días restantes; subida con selector de asignatura");
 
+// 5 · Fecha de examen sugerida desde el horario (N11): aceptar o ignorar, solo se guarda al aceptar
+psql(`insert into "ClassSlot"(id,"userId",subject,kind,date,"startMin","endMin") values ('cs1${Date.now()}','${uid}','Química','EXAM','${inDays(10)}',540,600),('cs2${Date.now()}','${uid}','Bioquímica II','EXAM','${inDays(40)}',540,600)`);
+const createModule = async (name: string) => {
+  await page.goto(B + "/study?tab=modules");
+  await page.getByLabel("Nueva asignatura").fill(name);
+  await page.getByRole("button", { name: "Crear" }).click();
+  await page.waitForURL(/\/study\/modules\//);
+};
+await createModule("Física");
+const sug = page.getByTestId("exam-suggestion");
+await sug.waitFor();
+if (!(await sug.innerText()).includes("otra asignatura")) errors.push("la sugerencia sin coincidencia debe avisar de que es de otra asignatura");
+await minH(sug.getByRole("button", { name: "Usar fecha" }), "«Usar fecha»");
+await minH(sug.getByRole("button", { name: "Ignorar" }), "«Ignorar»");
+await noOverflow("sugerencia de examen");
+await sug.getByRole("button", { name: "Ignorar" }).click();
+await sug.waitFor({ state: "detached" });
+if (psql(`select count(*) from "StudyModule" where "userId"='${uid}' and name='Física' and "examDate" is not null`) !== "0") errors.push("«Ignorar» guardó una fecha");
+await createModule("Bioquímica II");
+await page.getByTestId("exam-suggestion").waitFor();
+await page.getByRole("button", { name: "Usar fecha" }).click();
+await page.getByTestId("exam-suggestion").waitFor({ state: "detached" });
+{ const got = psql(`select "examDate"::text from "StudyModule" where "userId"='${uid}' and name='Bioquímica II'`); if (got !== inDays(40)) errors.push(`«Usar fecha» no guardó la fecha del examen (${got} ≠ ${inDays(40)})`); }
+if ((await page.inputValue("#mod-exam")) !== inDays(40)) errors.push("el campo de fecha no muestra la fecha aceptada");
+log("fecha de examen sugerida desde el horario: ignorar no guarda, usar guarda");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));

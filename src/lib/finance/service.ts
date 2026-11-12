@@ -16,6 +16,7 @@ import {
 import { archivedMessage, assertTransferShape, LinesChangedError, planLineEdit, type LineInput } from "@/lib/finance/edit-lines";
 import { prisma } from "@/lib/prisma";
 import { sportBalance, sportReport } from "@/lib/finance/sport";
+import { FREQUENT_WINDOW_DAYS, topCategories } from "@/lib/finance/top-categories";
 
 const DEFAULT_ACCOUNTS: Array<{ name: string; type: FinancialAccountType }> = [
   { name: "Gastos", type: "EXPENSE" },
@@ -449,6 +450,18 @@ export async function budgetsStatus(userId: string, ref = today()) {
 }
 
 /** Flujo de caja mensual: ingresos, gastos y neto de los últimos N meses. */
+/** v2.11 B2 (N10) · Categorías más usadas en los últimos 90 días, por tipo (ids). */
+export async function frequentCategories(userId: string, todayIso: string) {
+  const rows = await prisma.posting.findMany({
+    where: {
+      categoryId: { not: null },
+      transaction: { userId, kind: { in: ["EXPENSE", "INCOME"] }, date: { gte: addDays(dateOnly(todayIso), -FREQUENT_WINDOW_DAYS) } },
+    },
+    select: { transactionId: true, category: { select: { id: true, name: true, kind: true } } },
+  });
+  return topCategories(rows.flatMap((r) => (r.category ? [{ transactionId: r.transactionId, categoryId: r.category.id, name: r.category.name, kind: r.category.kind }] : [])));
+}
+
 export async function cashflow(userId: string, months: number) {
   const now = today();
   const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));

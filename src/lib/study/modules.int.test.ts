@@ -70,4 +70,19 @@ describe.skipIf(!HAS_DB)("asignaturas de estudio (BD real)", () => {
     await expect(svc.assignDocument(userId, doc.id, m.id)).rejects.toMatchObject({ status: 404 });
     await expect(svc.deleteModule(otherId, m.id)).rejects.toMatchObject({ status: 404 });
   });
+
+  it("sugiere fecha desde el horario solo si no hay fecha (N11), sin guardarla", async () => {
+    const slot = (uid: string, subject: string, date: string, kind = "EXAM") =>
+      prisma.classSlot.create({ data: { userId: uid, subject, kind, date: kind === "EXAM" ? new Date(`${date}T00:00:00Z`) : null, weekday: kind === "CLASS" ? 1 : null, startMin: 540, endMin: 600 } });
+    await slot(userId, "Física", "2026-12-01");
+    await slot(userId, "Farmacología II", "2026-12-20");
+    await slot(userId, "Farmacología", "2026-12-10", "CLASS");
+    await slot(otherId, "Farmacología", "2026-12-02");
+    const m = await svc.createModule(userId, { name: "Farmacología" });
+    const v = await svc.moduleView(userId, m.id, "2026-11-12");
+    expect(v.examSuggestion).toEqual({ date: "2026-12-20", subject: "Farmacología II", matched: true });
+    expect(v.examDate).toBeNull(); // nada guardado
+    await svc.updateModule(userId, m.id, { examDate: "2026-12-20" });
+    expect((await svc.moduleView(userId, m.id, "2026-11-12")).examSuggestion).toBeNull();
+  });
 });

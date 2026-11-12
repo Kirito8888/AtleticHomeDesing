@@ -76,6 +76,24 @@ await page.getByRole("region", { name: "Últimos movimientos" }).getByText("Súp
 await noOverflow("/finance con movimientos");
 log("100 + 50 − 30 = 120 € en balance y tarjeta");
 
+// 4a · Atajos de categorías frecuentes (N10): un toque rellena solo la categoría
+await page.reload();
+await page.getByRole("button", { name: "Movimiento", exact: true }).click();
+await page.fill("#t-amount", "7");
+const chip = page.getByTestId("cat-chip").filter({ hasText: "Comida" });
+await chip.waitFor();
+await minH(chip, "chip de categoría");
+await chip.click();
+if ((await page.locator("#t-cat option:checked").innerText()) !== "Comida") errors.push("el chip no selecciona la categoría");
+if ((await page.inputValue("#t-amount")) !== "7") errors.push("el chip tocó el importe");
+if ((await chip.getAttribute("aria-pressed")) !== "true") errors.push("el chip no queda marcado");
+await page.getByRole("radio", { name: "Ingreso" }).click();
+if ((await page.inputValue("#t-cat")) !== "") errors.push("la categoría no se vació al cambiar de tipo");
+if (await page.getByTestId("cat-chip").filter({ hasText: "Comida" }).count()) errors.push("«Comida» no debe salir en ingresos");
+await noOverflow("registro rápido con atajos");
+await page.keyboard.press("Escape");
+log("atajos de categoría: un toque, importe intacto, separados por tipo");
+
 // 4b · Segunda cuenta (tarjeta) y selector de un toque
 await page.getByRole("button", { name: "Cuenta", exact: true }).click();
 await page.fill("#a-name", "Visa");
