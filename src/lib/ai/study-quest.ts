@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MAX_SOURCE_CHARS, sampleChunks } from "@/lib/ai/flashcards";
+import { loadSampledChunks, MAX_SOURCE_CHARS, sampleChunks } from "@/lib/ai/flashcards";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { generateJson } from "@/lib/ai/llm";
 import { MIN_SCORE, searchChunks } from "@/lib/ai/rag";
@@ -51,18 +51,19 @@ export async function generateQuest(userId: string, req: QuestRequest): Promise<
 
   const docs = await prisma.studyDocument.findMany({
     where: { userId, moduleId: m.id, status: "EMBEDDED" },
-    include: { chunks: { orderBy: { chunkIndex: "asc" }, select: { content: true } } },
+    select: { id: true },
   });
-  const all = docs.flatMap((d) => d.chunks);
-  if (!all.length) throw new ApiError(409, "Esta asignatura no tiene apuntes procesados. Sube alguno para jugar.");
+  const docIds = docs.map((d) => d.id);
+  if (!docIds.length || !(await prisma.documentChunk.findFirst({ where: { userId, documentId: { in: docIds } }, select: { id: true } }))) throw new ApiError(409, "Esta asignatura no tiene apuntes procesados. Sube alguno para jugar.");
 
-  let chunks = all;
+  let chunks: Array<{ content: string }> | null = null;
   if (topic) {
     const found = (await searchChunks(userId, topic.name, 12, docs.map((d) => d.id))).filter((c) => Number(c.score) >= MIN_SCORE);
     // Sin coincidencias claras, se reparte por todos los apuntes en vez de dejar el nivel vacío.
     if (found.length) chunks = found;
   }
-  const sources = sampleChunks(chunks).map((c) => c.content).join("\n\n").slice(0, MAX_SOURCE_CHARS);
+  // Sin tema (o sin coincidencias) se muestrea en la BD en vez de traer todos los apuntes (O20)
+  const sources = (chunks ? sampleChunks(chunks) : await loadSampledChunks(userId, docIds)).map((c) => c.content).join("\n\n").slice(0, MAX_SOURCE_CHARS);
 
   let raw;
   let model = "simulado";

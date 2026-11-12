@@ -31,6 +31,20 @@ describe.skipIf(!HAS_DB)("passkeys (BD real)", () => {
     return { id, rawId: id, type: "public-key" as const, clientExtensionResults: {}, response: { clientDataJSON: b64u(clientDataJSON), authenticatorData: b64u(authData), signature: b64u(signature) } };
   }
 
+  /** Respuesta de registro (attestation «none») de una llave nueva de software, con los mismos controles que un autenticador real. */
+  function attestation(challenge: string, opts: { origin?: string; rpID?: string; flags?: number; credential: string; type?: string }) {
+    const clientDataJSON = Buffer.from(JSON.stringify({ type: opts.type ?? "webauthn.create", challenge, origin: opts.origin ?? ORIGIN, crossOrigin: false }));
+    const jwk = publicKey.export({ format: "jwk" });
+    const cose = Buffer.from(isoCBOR.encode(new Map<number, number | Uint8Array>([[1, 2], [3, -7], [-1, 1], [-2, Buffer.from(jwk.x!, "base64url")], [-3, Buffer.from(jwk.y!, "base64url")]])));
+    const rawId = Buffer.from(opts.credential);
+    const idLen = Buffer.alloc(2);
+    idLen.writeUInt16BE(rawId.length);
+    const authData = Buffer.concat([createHash("sha256").update(opts.rpID ?? "atlenza.test").digest(), Buffer.from([opts.flags ?? 0x45]), Buffer.alloc(4), Buffer.alloc(16), idLen, rawId, cose]); // UP + UV + AT
+    const attestationObject = Buffer.from(isoCBOR.encode(new Map<string, unknown>([["fmt", "none"], ["attStmt", new Map()], ["authData", authData]]) as never));
+    const id = b64u(rawId);
+    return { id, rawId: id, type: "public-key" as const, clientExtensionResults: {}, response: { clientDataJSON: b64u(clientDataJSON), attestationObject: b64u(attestationObject), transports: ["internal" as const] } };
+  }
+
   beforeAll(async () => {
     process.env.AUTH_URL = ORIGIN;
     vi.resetModules();
@@ -123,5 +137,38 @@ describe.skipIf(!HAS_DB)("passkeys (BD real)", () => {
     await pk.deletePasskey(userA, id, { ip: "203.0.113.9" });
     expect(await prisma.passkey.count({ where: { id } })).toBe(0);
     expect(await prisma.securityEvent.count({ where: { userId: userA, type: "PASSKEY_REMOVED" } })).toBe(1);
+  });
+
+  it("registro (camino feliz): una llave válida se guarda con su clave pública, deja rastro y sirve para entrar", async () => {
+    const { challengeId, options } = await pk.registrationOptions(userB);
+    const cred = `nueva-${t}`;
+    const created = await pk.verifyRegistration(userB, { challengeId, name: "  Portátil  ", response: attestation(options.challenge, { credential: cred }) }, { ip: "203.0.113.9" });
+    const row = await prisma.passkey.findUniqueOrThrow({ where: { id: created.id } });
+    expect(row).toMatchObject({ userId: userB, credentialId: b64u(Buffer.from(cred)), counter: 0, name: "Portátil" });
+    expect(row.transports).toEqual(["internal"]);
+    const jwk = publicKey.export({ format: "jwk" });
+    expect(b64u(isoCBOR.decodeFirst<Map<number, Uint8Array>>(row.publicKey).get(-2)!)).toBe(jwk.x);
+    expect(await prisma.securityEvent.count({ where: { userId: userB, type: "PASSKEY_ADDED" } })).toBe(1);
+    // el reto se gastó: la misma respuesta no se repite
+    await expect(pk.verifyRegistration(userB, { challengeId, name: "otra", response: attestation(options.challenge, { credential: cred }) }, {})).rejects.toMatchObject({ status: 400 });
+    // y la llave recién creada inicia sesión como su dueña
+    const login = await pk.loginOptions();
+    expect(await pk.verifyLogin(login.challengeId, assertion(login.options.challenge, { counter: 1, id: b64u(Buffer.from(cred)) }))).toBe(userB);
+  });
+
+  it("registro estricto: otro origen, otro dominio, sin verificación de la persona, otro tipo o reto ajeno → 400 y nada se guarda", async () => {
+    const before = await prisma.passkey.count({ where: { userId: userB } });
+    const cases: Array<[string, (c: string) => ReturnType<typeof attestation>]> = [
+      ["origen", (c) => attestation(c, { credential: "x1", origin: "https://phishing.example" })],
+      ["dominio", (c) => attestation(c, { credential: "x2", rpID: "phishing.example" })],
+      ["sin UV", (c) => attestation(c, { credential: "x3", flags: 0x41 })],
+      ["tipo", (c) => attestation(c, { credential: "x4", type: "webauthn.get" })],
+      ["reto", () => attestation("otro-reto", { credential: "x5" })],
+    ];
+    for (const [label, make] of cases) {
+      const { challengeId, options } = await pk.registrationOptions(userB);
+      await expect(pk.verifyRegistration(userB, { challengeId, name: label, response: make(options.challenge) }, {}), label).rejects.toMatchObject({ status: 400 });
+    }
+    expect(await prisma.passkey.count({ where: { userId: userB } })).toBe(before);
   });
 });

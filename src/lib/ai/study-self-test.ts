@@ -1,6 +1,6 @@
 import "server-only";
 
-import { MAX_SOURCE_CHARS, sampleChunks } from "@/lib/ai/flashcards";
+import { loadSampledChunks, MAX_SOURCE_CHARS } from "@/lib/ai/flashcards";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { generateJson } from "@/lib/ai/llm";
 import { ApiError } from "@/lib/api";
@@ -21,16 +21,16 @@ export async function generateSelfTest(userId: string, req: SelfTestRequest): Pr
     prisma.studyTopic.findMany({ where: { moduleId: m.id, userId }, orderBy: [{ position: "asc" }, { createdAt: "asc" }] }),
     prisma.studyDocument.findMany({
       where: { userId, moduleId: m.id, status: "EMBEDDED" },
-      include: { chunks: { orderBy: { chunkIndex: "asc" }, select: { content: true } } },
+      select: { id: true },
     }),
   ]);
-  const chunks = docs.flatMap((d) => d.chunks);
-  if (!chunks.length) throw new ApiError(409, "Esta asignatura no tiene apuntes procesados. Mete alguno para evaluarte.");
+  const docIds = docs.map((d) => d.id);
+  if (!docIds.length || !(await prisma.documentChunk.findFirst({ where: { userId, documentId: { in: docIds } }, select: { id: true } }))) throw new ApiError(409, "Esta asignatura no tiene apuntes procesados. Mete alguno para evaluarte.");
   if (!topicRows.length) throw new ApiError(422, "Añade al menos un tema a la asignatura.");
   const topics = topicRows.map((t) => ({ name: t.name, tag: asTag(t.tag), done: t.done }));
   const left = daysLeft(toIsoDay(today()), m.examDate ? toIsoDay(m.examDate) : null);
   const mix = planMix({ topics, daysLeft: left, weak: req.weak, count: req.count });
-  const sources = sampleChunks(chunks).map((c) => c.content).join("\n\n").slice(0, MAX_SOURCE_CHARS);
+  const sources = (await loadSampledChunks(userId, docIds)).map((c) => c.content).join("\n\n").slice(0, MAX_SOURCE_CHARS);
 
   let raw;
   let model = "simulado";

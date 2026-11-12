@@ -1,5 +1,5 @@
 // Integración (v1.9): vigilancia interna con BD real y un Telegram simulado.
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const HAS_DB = Boolean(process.env.DATABASE_URL);
 
@@ -84,5 +84,78 @@ describe.skipIf(!HAS_DB)("vigilancia interna (BD real)", () => {
     expect(await telegram.sendAdminTelegram("x", async () => Promise.reject(new Error("fallo en https://api.telegram.org/bot123456:TEST-token-abcdefghijklmnopqrstuvw/x")))).toBe(false);
     expect(JSON.stringify(warn.mock.calls)).not.toContain("TEST-token");
     warn.mockRestore();
+  });
+});
+
+// v2.11 B4-A · O21: flushMetrics sube solo lo modificado, en una sentencia, y reintenta si falla.
+// Va en este fichero (no aparte) porque comparte tabla con la vigilancia, que la vacía: así corren en serie.
+describe.skipIf(!HAS_DB)("flushMetrics incremental (BD real)", () => {
+  let metrics: typeof import("./metrics");
+  let prisma: typeof import("@/lib/prisma").prisma;
+  const now = Date.UTC(2031, 5, 1, 12, 30, 20); // lejos de la ventana real: no mezcla con la vigilancia
+  const settle = () => new Promise((r) => setTimeout(r, 300));
+  const rows = (replica: string) => prisma.apiMetricMinute.findMany({ where: { replica }, orderBy: [{ minute: "asc" }, { route: "asc" }] });
+
+  beforeAll(async () => {
+    vi.resetModules();
+    metrics = await import("./metrics");
+    prisma = (await import("@/lib/prisma")).prisma;
+  });
+  beforeEach(async () => {
+    metrics.asReplica("replica-o21");
+    await prisma.apiMetricMinute.deleteMany({ where: { replica: "replica-o21" } });
+  });
+  afterAll(async () => {
+    await prisma.apiMetricMinute.deleteMany({ where: { replica: "replica-o21" } });
+  });
+
+  it("sube todo la primera vez, nada si no hay cambios y solo el minuto modificado después", async () => {
+    for (let m = 2; m >= 0; m--) for (const r of ["a", "b"]) metrics.recordRequest("GET", `/api/${r}`, m === 0 && r === "a" ? 500 : 200, 10 + m, now - m * 60_000);
+    await metrics.flushMetrics(now);
+    await settle(); // recordRequest sube en segundo plano al cambiar de minuto
+    const first = await rows("replica-o21");
+    expect(first).toHaveLength(6);
+    expect(first.find((x) => x.route === "GET /api/a" && x.minute.getTime() === Math.floor(now / 60_000) * 60_000)).toMatchObject({ count: 1, errors: 1, ms: [10] });
+
+    // Se borra a mano lo subido: un segundo flush sin cambios NO lo vuelve a escribir
+    await prisma.apiMetricMinute.deleteMany({ where: { replica: "replica-o21" } });
+    await metrics.flushMetrics(now);
+    expect(await rows("replica-o21")).toHaveLength(0);
+
+    // Cambia una sola ruta/minuto: solo esa fila reaparece, con el total acumulado
+    metrics.recordRequest("GET", "/api/b", 200, 99, now);
+    await metrics.flushMetrics(now);
+    await settle(); // al cambiar de minuto recordRequest ya sube en segundo plano
+    const after = await rows("replica-o21");
+    expect(after).toHaveLength(1);
+    expect(after[0]).toMatchObject({ route: "GET /api/b", count: 2, errors: 0, ms: [10, 99] });
+  });
+
+  it("si la BD falla, lo pendiente se reintenta en el siguiente flush", async () => {
+    vi.resetModules();
+    const real = (await import("@/lib/prisma")).prisma;
+    let fail = true;
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: { $executeRaw: (...a: Parameters<typeof real.$executeRaw>) => (fail ? ((fail = false), Promise.reject(new Error("BD caída"))) : real.$executeRaw(...a)) },
+    }));
+    const m = await import("./metrics");
+    m.asReplica("replica-o21");
+    m.recordRequest("GET", "/api/c", 200, 7, now);
+    await expect(m.flushMetrics(now)).rejects.toThrow("BD caída");
+    expect(await rows("replica-o21")).toHaveLength(0);
+    await m.flushMetrics(now);
+    expect(await rows("replica-o21")).toMatchObject([{ route: "GET /api/c", count: 1 }]);
+    vi.doUnmock("@/lib/prisma");
+  });
+
+  it("lo que llega mientras se escribe no se pierde, y el minuto se guarda en UTC", async () => {
+    metrics.recordRequest("GET", "/api/d", 200, 5, now);
+    const flushing = metrics.flushMetrics(now);
+    metrics.recordRequest("GET", "/api/d", 200, 6, now); // durante el await
+    await flushing;
+    await metrics.flushMetrics(now);
+    const [row] = await rows("replica-o21");
+    expect(row.minute.toISOString()).toBe("2031-06-01T12:30:00.000Z");
+    expect(row.count).toBe(2);
   });
 });

@@ -1,15 +1,18 @@
 // Atlenza service worker — mínimo y conservador.
 // - /_next/static e /icons: cache-first (ficheros con hash, inmutables).
 // - Navegación: network-first; solo se guardan /offline y las páginas del plan del día
-//   (PRECACHE_PATH): nunca finanzas, salud ni el resto. Sin red, la copia o /offline.
+//   (PRECACHE_PATH: /training/<cuid> y /planning/plan/<cuid>): nunca finanzas, salud, el diario,
+//   «nueva sesión» ni ninguna otra subruta fija. Sin red, la copia o /offline.
 // - /api: nunca se cachea (datos personales y siempre frescos).
-const VERSION = "lifeos-v3";
+// v4 (v2.11 B4-A · S2): al activarse borra lifeos-v3-pages, que pudo guardar subrutas fijas.
+const VERSION = "lifeos-v4";
 const STATIC = `${VERSION}-static`;
 const PAGES = `${VERSION}-pages`;
 // v1.8 · Ficheros recibidos con «Compartir» (los recoge la página /share; ver src/lib/share.ts)
 const SHARE = "lifeos-share";
-// Únicas páginas que se guardan para verlas sin red (sesiones y días del plan).
-const PRECACHE_PATH = /^\/(training\/[A-Za-z0-9_-]{1,40}|planning\/plan\/[A-Za-z0-9_-]{1,40})$/;
+// Únicas páginas que se guardan para verlas sin red (sesiones y días del plan). Solo identificadores
+// con forma cuid (@default(cuid())): /training/diary, /training/new, /planning/plan/new… nunca casan.
+const PRECACHE_PATH = /^\/(training|planning\/plan)\/c[a-z0-9]{24}$/;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(PAGES).then((c) => c.add("/offline")));

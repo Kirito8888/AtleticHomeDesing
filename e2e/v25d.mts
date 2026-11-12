@@ -73,7 +73,7 @@ await page.goto(B + "/");
 await page.evaluate(() => navigator.serviceWorker.ready);
 await page.reload();
 await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 10000 });
-for (const p of ["/recovery/health", "/finance", "/recovery"]) {
+for (const p of ["/recovery/health", "/finance", "/recovery", "/training/diary", "/training/new"]) {
   await page.goto(B + p);
   await page.waitForLoadState("networkidle");
 }
@@ -83,7 +83,7 @@ const cached = await page.evaluate(async () => {
   for (const n of await caches.keys()) for (const r of await (await caches.open(n)).keys()) urls.push(new URL(r.url).pathname);
   return urls;
 });
-for (const p of ["/recovery/health", "/finance", "/recovery", "/"]) if (cached.includes(p)) errors.push(`el SW ha guardado ${p}`);
+for (const p of ["/recovery/health", "/finance", "/recovery", "/training/diary", "/training/new", "/"]) if (cached.includes(p)) errors.push(`el SW ha guardado ${p}`);
 if (!cached.includes("/offline")) errors.push("el SW no tiene /offline");
 log("caché del SW sin páginas privadas:", cached.join(", "));
 

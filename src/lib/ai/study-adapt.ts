@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 
-import { MAX_SOURCE_CHARS, sampleChunks } from "@/lib/ai/flashcards";
+import { loadSampledChunks, MAX_SOURCE_CHARS } from "@/lib/ai/flashcards";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { generateJson } from "@/lib/ai/llm";
 import { createDocumentFromText, MIN_SCORE, searchChunks } from "@/lib/ai/rag";
@@ -63,11 +63,11 @@ export async function loadSource(userId: string, source: AdaptRequest["source"])
   if (source.kind === "document") {
     const doc = await prisma.studyDocument.findFirst({
       where: { id: source.documentId, userId },
-      include: { chunks: { orderBy: { chunkIndex: "asc" }, select: { content: true } } },
+      include: { _count: { select: { chunks: true } } },
     });
     if (!doc) throw new ApiError(404, "Documento no encontrado");
-    if (doc.status !== "EMBEDDED" || !doc.chunks.length) throw new ApiError(409, "El documento aún no está procesado");
-    return { label: doc.title, text: sampleChunks(doc.chunks).map((c) => c.content).join("\n\n") };
+    if (doc.status !== "EMBEDDED" || !doc._count.chunks) throw new ApiError(409, "El documento aún no está procesado");
+    return { label: doc.title, text: (await loadSampledChunks(userId, [doc.id])).map((c) => c.content).join("\n\n") };
   }
   const found = (await searchChunks(userId, source.topic, 10)).filter((c) => c.score >= MIN_SCORE);
   if (!found.length) throw new ApiError(422, "No encuentro ese tema en tus apuntes. Prueba con otras palabras o pega el texto.");
