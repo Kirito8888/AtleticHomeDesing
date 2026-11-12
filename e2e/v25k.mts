@@ -42,6 +42,11 @@ const dbUrl = (process.env.DATABASE_URL ?? "").replace(/\?.*/, "");
 const psql = (sql: string) => execFileSync("psql", [dbUrl, "-Atqc", sql], { encoding: "utf8" }).trim();
 const uid = psql(`select id from "User" where email='${email}'`);
 const docCount = () => Number(psql(`select count(*) from "StudyDocument" where "userId"='${uid}'`));
+// El toast «Guardado en Apuntes» anterior puede seguir visible: se espera al apunte en la BD, no al toast.
+const waitDocs = async (want: number) => {
+  const t0 = Date.now();
+  while (Date.now() - t0 < 8000 && docCount() !== want) await page.waitForTimeout(200);
+};
 
 const NOTES =
   "La **glucólisis** es la vía que convierte la glucosa en piruvato y ocurre en el citoplasma de la célula. Produce 2 ATP netos por molécula de glucosa. " +
@@ -198,6 +203,7 @@ const n0 = docCount();
 await page.getByRole("button", { name: "Guardar" }).click();
 await page.getByRole("alertdialog").getByRole("button", { name: "Guardar" }).click();
 await toast(/Guardado en Apuntes/);
+await waitDocs(n0 + 1);
 if (docCount() !== n0 + 1) errors.push("guardar el resumen editado no creó un apunte");
 if (chunks(MARK) < 1) errors.push("el apunte guardado no contiene el texto editado");
 log("resumen editado: «Editar» → «Vista previa» → guardar; el apunte lleva mi texto y bloques ≤ 120");
@@ -215,6 +221,7 @@ const n1 = docCount();
 await page.getByRole("button", { name: "Guardar" }).click();
 await page.getByRole("alertdialog").getByRole("button", { name: "Guardar" }).click();
 await toast(/Guardado en Apuntes/);
+await waitDocs(n1 + 1);
 if (docCount() !== n1 + 1) errors.push("guardar el informe editado no creó un apunte");
 if (chunks(MARK) < 2) errors.push("el informe guardado no contiene el texto editado");
 const longLine = psql(`select count(*) from "DocumentChunk" c join "StudyDocument" d on d.id=c."documentId" where d."userId"='${uid}' and c.content like '%${MARK}%${"palabra ".repeat(20)}%'`);
