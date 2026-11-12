@@ -276,7 +276,29 @@ jobs:
             --label com.docker.compose.project=lifeos --label com.docker.compose.service=web \
             --label com.docker.compose.container-number=1 --label com.docker.compose.oneoff=False \
             lifeos-web:latest
+          # Limpieza posterior (scripts/ops/prune-after-update.sh): etiquetas de CI viejas, una imagen ajena sin etiqueta y copias previas
+          export WEB_IMAGE_REPO=local/lifeos-ci
+          head=$(git rev-parse HEAD)
+          docker tag lifeos-web:latest local/lifeos-ci:sha-viejo1
+          docker tag lifeos-web:latest local/lifeos-ci:sha-viejo2
+          docker tag lifeos-web:latest "local/lifeos-ci:sha-$head"
+          ajena=$(printf 'FROM scratch\nLABEL x=1\n' | docker build -q -t ajena:ci -)
+          printf 'FROM scratch\nLABEL x=2\n' | docker build -q -t ajena:ci - >/dev/null   # la 1.ª queda sin etiqueta
+          docker image inspect "$ajena" >/dev/null
+          mkdir -p backups-pre-update
+          for d in 01 02 03; do touch "backups-pre-update/pre-update-2000-01-${d}_0000.dump"; done
+          touch backups-pre-update/pre-v2-5.dump   # a mano: no se toca
           ./scripts/update.sh --no-pull
+          # Limpieza: solo queda la etiqueta del commit actual; lo ajeno, la vuelta atrás y las copias manuales siguen
+          test "$(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -c '^local/lifeos-ci:sha-')" = "1"
+          docker image inspect "local/lifeos-ci:sha-$head" >/dev/null
+          docker image inspect lifeos-web:previous >/dev/null
+          docker image inspect "$ajena" >/dev/null
+          test "$(ls backups-pre-update | grep -c '^pre-update-')" = "2"
+          test ! -e backups-pre-update/pre-update-2000-01-01_0000.dump
+          test ! -e backups-pre-update/pre-update-2000-01-02_0000.dump
+          test -e backups-pre-update/pre-update-2000-01-03_0000.dump
+          test -e backups-pre-update/pre-v2-5.dump
           test "$(docker ps -aq --filter label=com.docker.compose.project=lifeos --filter label=com.docker.compose.service=web | wc -l)" = "1"
           # Endurecimiento aplicado: solo lectura, sin capacidades y con límite de memoria
           id=$(docker compose --env-file .env.production ps -q web)
@@ -288,9 +310,11 @@ jobs:
           db=$(docker compose --env-file .env.production ps -q db)
           test "$(docker inspect -f '{{.HostConfig.Memory}}' "$db")" != "0"
           test "$(docker compose --env-file .env.production exec -T db psql -U lifeos -d lifeos -tAc 'show max_connections')" = "30"
+          touch backups-pre-update/pre-update-2000-02-01_0000.dump   # con 3 o más copias, una limpieza borraría la 2000-01-03
           if LIFEOS_SIMULATE_UNHEALTHY=1 UPDATE_HEALTH_TIMEOUT=30 ./scripts/update.sh --no-pull; then
             echo "la vuelta atrás debía terminar con error"; exit 1
           fi
+          test -e backups-pre-update/pre-update-2000-01-03_0000.dump   # al fallar no se limpia nada
           id=$(docker compose --env-file .env.production ps -q web)
           test "$(docker inspect -f '{{.State.Health.Status}}' "$id")" = "healthy"
       - if: failure()

@@ -289,6 +289,7 @@ Hace, en orden:
 7. Arranca la `web` nueva.
 8. Espera a que el healthcheck diga *healthy*.
 9. Actualiza el servicio de copias si está en marcha. **Si algo falla, vuelve sola a la versión anterior** y te dice qué mirar. Las migraciones son siempre aditivas, así que la versión anterior funciona con la BD ya migrada.
+10. **Limpieza, solo si todo ha ido bien** (`scripts/ops/prune-after-update.sh`): quita las etiquetas `sha-…` de imágenes de CI de commits viejos (se conservan el actual y el anterior), las imágenes de Atlenza que ya no usa nadie y las copias `pre-update-*` antiguas (se guardan las 2 últimas; `UPDATE_KEEP_BACKUPS=N` lo cambia). **No toca imágenes de otros proyectos** ni las copias hechas a mano, y no hace `docker image prune` global ni borra la caché de compilación. Para ver qué haría sin borrar: `bash scripts/ops/prune-after-update.sh --dry-run`. Para revisar el espacio: `docker system df`.
 
 A mano (equivalente, sin vuelta atrás automática):
 
