@@ -58,18 +58,38 @@ export function contentMatches(buf: Buffer, mime: string): boolean {
   }
 }
 
+type Db = Pick<typeof prisma, "$queryRaw">;
+
 /** Bytes de apuntes de la atleta. En SQL con bigint: la suma de varios `Int` puede pasar de 2³¹. */
-export async function studyStorageUsage(userId: string): Promise<{ used: number; limit: number }> {
-  const [row] = await prisma.$queryRaw<{ used: bigint }[]>`
+export async function studyStorageUsage(userId: string, db: Db = prisma): Promise<{ used: number; limit: number }> {
+  const [row] = await db.$queryRaw<{ used: bigint }[]>`
     SELECT COALESCE(SUM("sizeBytes"), 0)::bigint AS used FROM "StudyDocument" WHERE "userId" = ${userId}`;
   return { used: Number(row?.used ?? 0), limit: quotaLimit(env().UPLOAD_QUOTA_MB) };
 }
 
+function quotaError(used: number, limit: number) {
+  return new ApiError(413, `Superarías tu límite de ${formatBytes(limit)} de apuntes (usas ${formatBytes(used)}). Borra apuntes antiguos.`);
+}
+
 async function assertQuota(userId: string, incoming: number) {
   const { used, limit } = await studyStorageUsage(userId);
-  if (!checkQuota(used, incoming, limit).ok) {
-    throw new ApiError(413, `Superarías tu límite de ${formatBytes(limit)} de apuntes (usas ${formatBytes(used)}). Borra apuntes antiguos.`);
-  }
+  if (!checkQuota(used, incoming, limit).ok) throw quotaError(used, limit);
+}
+
+/**
+ * O25 · Comprueba la cuota y crea el documento en una misma transacción, con un candado por atleta
+ * (`pg_advisory_xact_lock`): dos subidas paralelas ya no leen la misma cifra y se pasan del tope.
+ * Otras atletas no se bloquean entre sí; el candado se suelta al terminar la transacción.
+ */
+async function createUnderQuota(userId: string, incoming: number, data: Prisma.StudyDocumentUncheckedCreateInput) {
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`study-quota:${userId}`}))`;
+    const { used, limit } = await studyStorageUsage(userId, tx);
+    if (!checkQuota(used, incoming, limit).ok) {
+      throw quotaError(used, limit);
+    }
+    return tx.studyDocument.create({ data });
+  });
 }
 
 async function extractPages(buf: Buffer, mime: string): Promise<string[]> {
@@ -127,17 +147,14 @@ export async function createDocumentFromUpload(userId: string, file: File, meta:
     }
   }
   if (!contentMatches(buf, mime)) throw new ApiError(415, "El contenido del fichero no corresponde a un PDF, PPTX, DOCX o texto UTF-8");
-  await assertQuota(userId, buf.length);
-  const doc = await prisma.studyDocument.create({
-    data: {
-      userId,
-      title: meta.title?.trim() || path.basename(file.name, path.extname(file.name)),
-      subject: meta.subject?.trim() || null,
-      mimeType: mime,
-      storagePath: "",
-      sizeBytes: buf.length,
-      status: "PENDING",
-    },
+  const doc = await createUnderQuota(userId, buf.length, {
+    userId,
+    title: meta.title?.trim() || path.basename(file.name, path.extname(file.name)),
+    subject: meta.subject?.trim() || null,
+    mimeType: mime,
+    storagePath: "",
+    sizeBytes: buf.length,
+    status: "PENDING",
   });
   try {
     // turbopackIgnore: ruta de datos en ejecución, no un fichero del proyecto (si no, el trazado
@@ -164,12 +181,12 @@ export async function createDocumentFromUpload(userId: string, file: File, meta:
  */
 export async function createDocumentFromText(userId: string, meta: { title: string; subject?: string | null; markdown: string }) {
   const buf = Buffer.from(meta.markdown, "utf8");
-  await assertQuota(userId, buf.length);
   const chunks = chunkDocument([meta.markdown]);
-  if (!chunks.length) throw new ApiError(422, "No hay contenido que guardar");
-  const doc = await prisma.studyDocument.create({
-    data: { userId, title: meta.title.slice(0, 200), subject: meta.subject?.trim() || null, mimeType: "text/markdown", storagePath: "", sizeBytes: buf.length, status: "PROCESSING" },
-  });
+  if (!chunks.length) {
+    await assertQuota(userId, buf.length); // misma prioridad de errores que antes: 413 antes que 422
+    throw new ApiError(422, "No hay contenido que guardar");
+  }
+  const doc = await createUnderQuota(userId, buf.length, { userId, title: meta.title.slice(0, 200), subject: meta.subject?.trim() || null, mimeType: "text/markdown", storagePath: "", sizeBytes: buf.length, status: "PROCESSING" });
   try {
     const dir = path.resolve(/* turbopackIgnore: true */ env().UPLOAD_DIR, userId);
     await mkdir(dir, { recursive: true });

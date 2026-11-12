@@ -55,3 +55,23 @@ describe.skipIf(!HAS_DB)("cuota de apuntes (BD real)", () => {
     await expect(rag.createDocumentFromText(over, { title: "Informe", markdown: "# Informe\n\nTexto" })).rejects.toMatchObject({ status: 413 });
   });
 });
+
+describe.skipIf(!HAS_DB)("cuota: subidas en paralelo (O25)", () => {
+  it("no se pasan del tope: solo caben las que caben", async () => {
+    const prisma = (await import("@/lib/prisma")).prisma;
+    const rag = await import("@/lib/ai/rag");
+    process.env.AUTH_SECRET ??= "secreto-auth-de-prueba";
+    const u = (await prisma.user.create({ data: { email: `q3-${Date.now()}@test.dev`, name: "C" } })).id;
+    try {
+      // Quedan 25 bytes libres; cada subida pesa 10 → caben 2 de 6 en paralelo
+      await seed(prisma, u, LIMIT - 25);
+      const f = () => new File(["0123456789"], "n.txt", { type: "text/plain" });
+      const res = await Promise.allSettled(Array.from({ length: 6 }, () => rag.createDocumentFromUpload(u, f(), {})));
+      expect(res.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+      expect(res.filter((r) => r.status === "rejected").every((r) => (r as PromiseRejectedResult).reason?.status === 413)).toBe(true);
+      expect((await rag.studyStorageUsage(u)).used).toBeLessThanOrEqual(LIMIT);
+    } finally {
+      await prisma.user.deleteMany({ where: { id: u } });
+    }
+  }, 60000);
+});

@@ -18,15 +18,21 @@ export async function listTrips(userId: string) {
   const [trips, txs] = await Promise.all([
     prisma.trip.findMany({ where: { userId }, orderBy: { startsOn: "desc" } }),
     prisma.financialTransaction.findMany({
-      where: { userId, tripId: { not: null } },
+      where: { userId, tripId: { not: null }, kind: "EXPENSE" },
       select: { id: true, tripId: true, date: true, description: true, kind: true, postings: { select: { amountCents: true, account: { select: { type: true } } } } },
       orderBy: { date: "asc" },
     }),
   ]);
   const eventIds = trips.flatMap((t) => (t.eventId ? [t.eventId] : []));
   const events = eventIds.length ? await prisma.calendarEvent.findMany({ where: { userId, id: { in: eventIds } }, select: { id: true, title: true } }) : [];
+  const byTrip = new Map<string, typeof txs>();
+  for (const x of txs) {
+    const list = byTrip.get(x.tripId!);
+    if (list) list.push(x);
+    else byTrip.set(x.tripId!, [x]);
+  }
   return trips.map((t) => {
-    const mine = txs.filter((x) => x.tripId === t.id && x.kind === "EXPENSE").map((x) => ({ id: x.id, date: toIsoDay(x.date), description: x.description, amountCents: moneyOut(x.postings) }));
+    const mine = (byTrip.get(t.id) ?? []).map((x) => ({ id: x.id, date: toIsoDay(x.date), description: x.description, amountCents: moneyOut(x.postings) }));
     return {
       id: t.id,
       name: t.name,

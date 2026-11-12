@@ -56,6 +56,26 @@ describe.skipIf(!HAS_DB)("finanzas y demo v1.7 (BD real)", () => {
     expect(v).toMatchObject({ plannedCents: 800_00, spentCents: 120_00, upcomingCompetitions: 1, calendarCents: 170_00 });
   });
 
+  it("O22 · gasto e ingreso deportivos sumados en SQL: tarjeta, ingreso, fuera de temporada y otra usuaria", async () => {
+    const { createTransaction } = await import("./service");
+    const u = other;
+    const bank = await prisma.financialAccount.create({ data: { userId: u, name: "Banco O22", type: "ASSET" } });
+    const card = await prisma.financialAccount.create({ data: { userId: u, name: "Tarjeta O22", type: "LIABILITY" } });
+    const mk = async (kind: "EXPENSE" | "INCOME", cents: number, date: string, acc: string, sport: boolean) => {
+      const tx = await createTransaction(u, { mode: "simple", kind, date, description: "x", amountCents: cents, moneyAccountId: acc, categoryId: null });
+      await prisma.financialTransaction.update({ where: { id: tx.id }, data: { sport } });
+    };
+    await mk("EXPENSE", 10_00, "2026-02-01", bank.id, true);
+    await mk("EXPENSE", 7_50, "2026-12-31", card.id, true); // último día de la temporada
+    await mk("INCOME", 40_00, "2026-05-01", bank.id, true);
+    await mk("EXPENSE", 99_00, "2026-06-01", bank.id, false); // no deportivo
+    await mk("EXPENSE", 99_00, "2025-12-31", bank.id, true); // otra temporada
+    await mk("EXPENSE", 99_00, "2027-01-01", bank.id, true); // otra temporada
+    await expense(userId, "Ajena", 55_00, "2026-04-01", { sport: true }); // de otra usuaria
+    const v = await svc.seasonBudgetView(u, 2026, "2026-10-10");
+    expect(v).toMatchObject({ spentCents: 17_50, incomeCents: 40_00 });
+  });
+
   it("justificantes: firma real, cifrados, solo su dueño, y se borran con el movimiento", async () => {
     const txId = await expense(userId, "Inscripción", 15_00, "2026-10-01");
     await expect(svc.addReceipt(userId, txId, Buffer.from("<html>"))).rejects.toThrow(/PDF/);
