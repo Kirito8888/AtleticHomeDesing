@@ -21,6 +21,8 @@ import { PackSection } from "./pack/pack-section";
 import { RoutePlan } from "./route-plan";
 import { daysLabel } from "./modules-panel";
 import type { ExamFormat } from "@/lib/study/exam-format";
+import type { ExamSuggestion } from "@/lib/study/exam-suggest";
+import { formatDate } from "@/lib/format";
 
 export interface DetailTopic {
   id: string;
@@ -36,6 +38,7 @@ export interface ModuleDetailData {
   id: string;
   name: string;
   examDate: string | null;
+  examSuggestion?: ExamSuggestion | null;
   daysLeft: number | null;
   prepMode: boolean;
   examFormat: ExamFormat;
@@ -58,6 +61,7 @@ export function ModuleDetail({ data }: { data: ModuleDetailData }) {
   const [tag, setTag] = useState<Tag>("yellow");
   const [minutes, setMinutes] = useState("30");
   const [pick, setPick] = useState("");
+  const [ignored, setIgnored] = useState(false);
 
   async function run(fn: () => Promise<unknown>, ok?: string) {
     setBusy(true);
@@ -78,8 +82,24 @@ export function ModuleDetail({ data }: { data: ModuleDetailData }) {
     <div className="grid gap-4">
       <div className="grid gap-3 rounded-lg border p-3">
         <Field label="Fecha del examen" htmlFor="mod-exam" hint={daysLabel(data.daysLeft)}>
-          <Input id="mod-exam" type="date" defaultValue={data.examDate ?? ""} disabled={busy} onChange={(e) => run(() => patch({ examDate: e.target.value || null }))} />
+          <Input key={data.examDate ?? "none"} id="mod-exam" type="date" defaultValue={data.examDate ?? ""} disabled={busy} onChange={(e) => run(() => patch({ examDate: e.target.value || null }))} />
         </Field>
+        {data.examSuggestion && !data.examDate && !ignored ? (
+          <div role="status" data-testid="exam-suggestion" className="grid gap-2 rounded-md border border-dashed p-3 text-sm">
+            <p>
+              {data.examSuggestion.matched ? "Tu horario tiene examen de " : "Próximo examen de tu horario, de otra asignatura: "}
+              <strong>{data.examSuggestion.subject}</strong> el <strong>{formatDate(data.examSuggestion.date)}</strong>.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" className="min-h-11" disabled={busy} onClick={() => run(() => patch({ examDate: data.examSuggestion!.date }), "Fecha de examen guardada")}>
+                Usar fecha
+              </Button>
+              <Button type="button" variant="outline" className="min-h-11" disabled={busy} onClick={() => setIgnored(true)}>
+                Ignorar
+              </Button>
+            </div>
+          </div>
+        ) : null}
         <label className="flex min-h-11 items-center justify-between gap-3 text-sm font-medium">
           <span>
             Modo preparación

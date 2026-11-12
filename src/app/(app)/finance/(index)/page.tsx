@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, today, toIsoDay } from "@/lib/dates";
 import { moneySummary } from "@/lib/finance/balances";
-import { cashflow, ensureBasicCategories, listAccounts } from "@/lib/finance/service";
+import { cashflow, ensureBasicCategories, frequentCategories, listAccounts } from "@/lib/finance/service";
 import { formatEur } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
@@ -22,7 +22,7 @@ export default async function FinancePage() {
   const user = await pageUser();
   const now = today();
   await ensureBasicCategories(user.id);
-  const [accounts, categories, flow, recent, importProfiles, competitions] = await Promise.all([
+  const [accounts, categories, flow, recent, importProfiles, competitions, frequent] = await Promise.all([
     listAccounts(user.id),
     prisma.financialCategory.findMany({ where: { userId: user.id }, orderBy: { name: "asc" }, select: { id: true, name: true, kind: true } }),
     cashflow(user.id, 1),
@@ -38,6 +38,7 @@ export default async function FinancePage() {
       orderBy: { startAt: "asc" },
       select: { id: true, title: true, startAt: true },
     }),
+    frequentCategories(user.id, toIsoDay(now)),
   ]);
   // El balance cuenta también las archivadas: archivar no hace desaparecer el dinero.
   const { money: allMoney, netCents } = moneySummary(accounts);
@@ -54,7 +55,7 @@ export default async function FinancePage() {
           <div className="flex gap-2">
             <NewAccount first={!money.length} />
             <div id="nuevo-movimiento" className="scroll-mt-20">
-              <QuickTransaction accounts={accounts} categories={categories} today={todayIso} competitions={competitions.map((c) => ({ id: c.id, title: c.title, date: toIsoDay(c.startAt) }))} />
+              <QuickTransaction accounts={accounts} categories={categories} frequent={frequent} today={todayIso} competitions={competitions.map((c) => ({ id: c.id, title: c.title, date: toIsoDay(c.startAt) }))} />
             </div>
           </div>
         }

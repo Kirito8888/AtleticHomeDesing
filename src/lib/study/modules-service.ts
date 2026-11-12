@@ -9,6 +9,7 @@ import { getPrefs } from "@/lib/rules/prefs-service";
 
 import type { Tag } from "./adhd-report";
 import { parseFormat } from "./exam-format";
+import { type ExamSuggestion, suggestExamDate } from "./exam-suggest";
 import { daysLeft, moduleSchema, prioritize, type RouteTopic, topicSchema } from "./study-route";
 
 type ModuleInput = z.infer<typeof moduleSchema>;
@@ -81,6 +82,12 @@ export async function moduleView(userId: string, id: string, today: string) {
     prisma.studyTopicPack.findMany({ where: { userId, topic: { moduleId: id } }, select: { topicId: true, status: true, summary: true, updatedAt: true } }),
   ]);
   const examDate = m.examDate ? toIsoDay(m.examDate) : null;
+  // N11 · solo se consulta el horario si la asignatura aún no tiene fecha; nunca se guarda sin aceptar.
+  let examSuggestion: ExamSuggestion | null = null;
+  if (!examDate) {
+    const slots = await prisma.classSlot.findMany({ where: { userId, kind: "EXAM", date: { gte: dateOnly(today) } }, select: { subject: true, date: true } });
+    examSuggestion = suggestExamDate(m.name, slots.flatMap((x) => (x.date ? [{ subject: x.subject, date: toIsoDay(x.date) }] : [])), today);
+  }
   const left = daysLeft(today, examDate);
   const list: RouteTopic[] = topics.map((t) => ({ id: t.id, name: t.name, tag: asTag(t.tag), minutes: t.minutes, done: t.done }));
   const ranked = prioritize({ topics: list, daysLeft: left, dailyMin: prefs.studyDailyMin });
@@ -88,6 +95,7 @@ export async function moduleView(userId: string, id: string, today: string) {
     id: m.id,
     name: m.name,
     examDate,
+    examSuggestion,
     daysLeft: left,
     prepMode: m.prepMode,
     /** Formato de examen elegido (o el de por defecto) y si ya lo ha respondido. */
