@@ -15,17 +15,36 @@ const moneyCents = (t: Posted) => Math.abs(t.postings.filter((p) => p.account.ty
 const postingsSel = { postings: { select: { amountCents: true, account: { select: { type: true } } } } } as const;
 
 // 25 · Presupuesto de temporada
+/**
+ * O22 · Gasto e ingreso deportivos de la temporada, sumados en SQL (antes se traían todos los movimientos con sus apuntes).
+ * Mismo cálculo que `moneyCents`: por movimiento, |suma de apuntes en cuentas de dinero (ASSET/LIABILITY)|; luego suma por tipo.
+ */
+async function seasonMoneyTotals(userId: string, from: Date, to: Date): Promise<{ spentCents: number; incomeCents: number }> {
+  const rows = await prisma.$queryRaw<Array<{ kind: string; total: bigint }>>`
+    SELECT t."kind"::text AS kind, COALESCE(SUM(m.amt), 0)::bigint AS total
+    FROM "FinancialTransaction" t
+    JOIN LATERAL (
+      SELECT ABS(COALESCE(SUM(p."amountCents"), 0)) AS amt
+      FROM "Posting" p JOIN "FinancialAccount" a ON a.id = p."accountId"
+      WHERE p."transactionId" = t.id AND a."type" IN ('ASSET', 'LIABILITY')
+    ) m ON true
+    WHERE t."userId" = ${userId} AND t."sport" = true AND t."kind" IN ('INCOME', 'EXPENSE')
+      AND t."date" >= ${from} AND t."date" <= ${to}
+    GROUP BY t."kind"`;
+  const of = (k: string) => Number(rows.find((r) => r.kind === k)?.total ?? 0);
+  return { spentCents: of("EXPENSE"), incomeCents: of("INCOME") };
+}
+
 export async function seasonBudgetView(userId: string, season: number, today: string) {
   const from = new Date(Date.UTC(season, 0, 1));
   const to = new Date(Date.UTC(season, 11, 31));
-  const [row, txs, upcoming] = await Promise.all([
+  const [row, totals, upcoming] = await Promise.all([
     prisma.seasonBudget.findUnique({ where: { userId_season: { userId, season } } }),
-    prisma.financialTransaction.findMany({ where: { userId, sport: true, kind: { in: ["INCOME", "EXPENSE"] }, date: { gte: from, lte: to } }, select: { kind: true, ...postingsSel } }),
+    seasonMoneyTotals(userId, from, to),
     prisma.calendarEvent.count({ where: { userId, type: "COMPETITION", startAt: { gt: addDays(dateOnly(today), 0), lte: addDays(to, 1) } } }),
   ]);
   const lines = ((row?.lines ?? {}) as Partial<Record<SeasonLine, number>>) ?? {};
-  const spentCents = txs.filter((t) => t.kind === "EXPENSE").reduce((a, t) => a + moneyCents(t), 0);
-  const incomeCents = txs.filter((t) => t.kind === "INCOME").reduce((a, t) => a + moneyCents(t), 0);
+  const { spentCents, incomeCents } = totals;
   return { season, lines, perCompetitionCents: row?.perCompetitionCents ?? 0, incomeCents, upcomingCompetitions: upcoming, hasBudget: Boolean(row), ...seasonForecast({ lines, perCompetitionCents: row?.perCompetitionCents ?? 0, spentCents, incomeCents, upcomingCompetitions: upcoming, today, season }) };
 }
 

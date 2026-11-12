@@ -100,19 +100,18 @@ export async function previewAssignment(coach: CurrentUser, input: z.infer<typeo
   const todayIso = toIsoDay(today());
   const lastDraft = src.days.at(-1)!.date;
   const people = await prisma.user.findMany({ where: { id: { in: ok } }, select: { id: true, name: true, email: true } });
-  const athletes: AthletePreview[] = [];
-  for (const p of people) {
+  // O23 · Cada atleta es independiente (solo lecturas): en paralelo en vez de en serie. `Promise.all` conserva el orden de `people`.
+  const athletes: AthletePreview[] = await Promise.all(people.map(async (p) => {
     const draft = src.days.map((d) => ({ date: d.date, title: d.title, tss: plannedTss({ tss: null, durationSec: d.durationMin ? d.durationMin * 60 : null }, input.rpe), isThrow: /jabalina|lanzamiento|javelin/i.test(d.title) }));
     const row: AthletePreview = { id: p.id, name: p.name ?? p.email, days: draft.map(({ date, title, tss }) => ({ date, title, tss: Math.round(tss) })), clashDates: [], simulation: null, simulationNote: null };
-    athletes.push(row);
     if (!grants.get(p.id)!.scopes.includes("LOAD")) {
       row.simulationNote = "Sin permiso de carga: se puede copiar, pero no simular";
-      continue;
+      return row;
     }
     // La carga de partida (CTL/ATL) incluye Strava: no se enseña ni se proyecta a la entrenadora
     if (await hasStravaIn(p.id, addDays(dateOnly(todayIso), -120), dateOnly(todayIso))) {
       row.simulationNote = "La carga incluye actividad de Strava: se puede copiar, pero no simular";
-      continue;
+      return row;
     }
     const to = toIsoDay(addDays(dateOnly(lastDraft < todayIso ? todayIso : lastDraft), 14));
     const [seed, profile, prefs, planned, comp] = await Promise.all([
@@ -141,7 +140,8 @@ export async function previewAssignment(coach: CurrentUser, input: z.infer<typeo
       competition: taper?.competition ?? null,
       scenarios: list.map((s) => ({ id: s.id, label: s.label, notes: s.notes, summary: s.summary, series: s.series.map(({ date, ctl, atl, tsb }) => ({ date, ctl, atl, tsb })) })),
     };
-  }
+    return row;
+  }));
   return { source: { name: src.name, kind: input.source.kind }, athletes, rejected };
 }
 
