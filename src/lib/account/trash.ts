@@ -67,6 +67,8 @@ async function restoreTransaction(userId: string, t: Row) {
   const { postings, receipts, ...row } = t as Row & { postings: Row[]; receipts: Row[] };
   const accounts = await prisma.financialAccount.count({ where: { userId, id: { in: postings.map((p) => String(p.accountId)) } } });
   if (accounts !== new Set(postings.map((p) => p.accountId)).size) throw new ApiError(409, "Alguna cuenta de este movimiento ya no existe");
+  const archived = await prisma.financialAccount.findFirst({ where: { userId, id: { in: postings.map((p) => String(p.accountId)) }, isArchived: true }, select: { name: true } });
+  if (archived) throw new ApiError(409, `La cuenta «${archived.name}» está archivada: reactívala para recuperar el movimiento`);
   const sub = row.subscriptionId ? await prisma.subscription.findFirst({ where: { id: String(row.subscriptionId), userId }, select: { id: true } }) : null;
   await prisma.financialTransaction.create({
     data: {

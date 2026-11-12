@@ -3,6 +3,7 @@ import { Wallet } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { BankImport, type ImportProfile } from "@/components/finance/bank-import";
+import { ArchiveAccountButton, ArchivedAccounts } from "@/components/finance/account-archive";
 import { ManageFinance, NewAccount, QuickTransaction } from "@/components/finance/finance-forms";
 import { PageHeader } from "@/components/page-header";
 import { TransactionRow } from "@/components/finance/transaction-row";
@@ -29,7 +30,7 @@ export default async function FinancePage() {
       where: { userId: user.id },
       orderBy: [{ date: "desc" }, { createdAt: "desc" }],
       take: 12,
-      include: { postings: { include: { account: { select: { name: true, type: true } }, category: { select: { name: true } } } }, receipts: { select: { id: true, mime: true } } },
+      include: { postings: { include: { account: { select: { name: true, type: true, isArchived: true } }, category: { select: { name: true } } } }, receipts: { select: { id: true, mime: true } } },
     }),
     prisma.bankImportProfile.findMany({ where: { userId: user.id }, orderBy: { name: "asc" } }),
     prisma.calendarEvent.findMany({
@@ -38,7 +39,10 @@ export default async function FinancePage() {
       select: { id: true, title: true, startAt: true },
     }),
   ]);
-  const { money, netCents } = moneySummary(accounts);
+  // El balance cuenta también las archivadas: archivar no hace desaparecer el dinero.
+  const { money: allMoney, netCents } = moneySummary(accounts);
+  const money = allMoney.filter((a) => !a.isArchived);
+  const archivedMoney = allMoney.filter((a) => a.isArchived);
   const thisMonth = flow.at(-1);
   const todayIso = toIsoDay(now);
 
@@ -75,12 +79,15 @@ export default async function FinancePage() {
                     {a.type === "LIABILITY" ? " · deuda" : ""}
                   </span>
                   <span className="truncate text-lg font-semibold tabular-nums">{formatEur(a.balanceCents)}</span>
+                  <ArchiveAccountButton account={a} />
                 </CardContent>
               </Card>
             </li>
           ))}
         </ul>
       ) : null}
+
+      <ArchivedAccounts accounts={archivedMoney} />
 
       <section id="movimientos" aria-label="Últimos movimientos" className="mb-6">
         <h2 className="mb-2 text-sm font-medium">Últimos movimientos</h2>

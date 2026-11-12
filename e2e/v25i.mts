@@ -110,6 +110,51 @@ if (await page.getByText("Súper").count()) errors.push("el gasto borrado sigue 
 await noOverflow("/finance/history tras borrar");
 log("borrar con confirmación: balance 170 €");
 
+// 5 · Editar una transferencia y un asiento partido (N6): los saldos cuadran al instante
+const accountsApi = async () => (await (await page.request.get(B + "/api/finance/accounts")).json()) as Array<{ id: string; name: string; balanceCents: number }>;
+const bal = async (name: string) => (await accountsApi()).find((x) => x.name === name)!.balanceCents;
+const ids = Object.fromEntries((await accountsApi()).map((x) => [x.name, x.id]));
+const post = async (data: object) => {
+  const r = await page.request.post(B + "/api/finance/transactions", { data });
+  if (r.status() !== 201 && r.status() !== 200) errors.push(`alta por API: ${r.status()}`);
+};
+await post({ mode: "simple", kind: "TRANSFER", date: "2026-10-06", description: "Traspaso", amountCents: 3000, moneyAccountId: ids["Banco"], counterAccountId: ids["Efectivo"] });
+await post({ mode: "split", kind: "EXPENSE", date: "2026-10-07", description: "Compra mixta", postings: [{ accountId: ids["Gastos"], amountCents: 3000 }, { accountId: ids["Gastos"], amountCents: 2000 }, { accountId: ids["Banco"], amountCents: -5000 }] });
+await page.goto(B + "/finance/history");
+await saldo().getByText(/120,00\s€/).waitFor();
+
+const trow = page.locator("li", { hasText: "Traspaso" }).first();
+await minH(trow.getByRole("button", { name: "Editar" }), "«Editar» de la transferencia");
+await trow.getByRole("button", { name: "Editar" }).click();
+await page.getByLabel("Importe (€)").fill("45");
+await minH(page.getByRole("button", { name: "Guardar cambios" }), "«Guardar cambios» de la transferencia");
+await noOverflow("hoja de editar transferencia");
+await page.getByRole("button", { name: "Guardar cambios" }).click();
+await toast(/Movimiento actualizado/);
+await saldo().getByText(/120,00\s€/).waitFor();
+if ((await bal("Banco")) !== 15000 - 4500 - 5000 || (await bal("Efectivo")) !== 6500) errors.push("saldos tras editar la transferencia no cuadran");
+log("transferencia 30 → 45 €: saldos por cuenta y total al instante");
+
+const srow = page.locator("li", { hasText: "Compra mixta" }).first();
+await minH(srow.getByRole("button", { name: "Editar" }), "«Editar» del asiento");
+await srow.getByRole("button", { name: "Editar" }).click();
+const amounts = page.getByLabel(/^Importe de la línea/);
+const values = await amounts.evaluateAll((els) => (els as HTMLInputElement[]).map((e) => e.value));
+const iFirst = values.findIndex((v) => /^30,00$/.test(v));
+const iPay = values.findIndex((v) => /^-50,00$/.test(v));
+if (iFirst < 0 || iPay < 0) errors.push(`líneas del asiento no esperadas: ${values.join(" | ")}`);
+await amounts.nth(iFirst).fill("35,00");
+await page.getByText(/Descuadre/).waitFor();
+if (!(await page.getByRole("button", { name: "Guardar cambios" }).isDisabled())) errors.push("«Guardar» no se deshabilita con el asiento descuadrado");
+await amounts.nth(iPay).fill("-55,00");
+await page.getByText("Cuadra", { exact: true }).waitFor();
+await noOverflow("hoja de editar asiento");
+await page.getByRole("button", { name: "Guardar cambios" }).click();
+await toast(/Movimiento actualizado/);
+await saldo().getByText(/115,00\s€/).waitFor();
+if ((await bal("Banco")) !== 15000 - 4500 - 5500) errors.push("saldo de Banco tras editar el asiento no cuadra");
+log("asiento partido 50 → 55 €: descuadre bloquea, al cuadrar el total baja a 115 €");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));
