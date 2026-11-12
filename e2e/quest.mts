@@ -142,7 +142,10 @@ for (let k = 0; k < 40 && !sawDead; k++) {
     }
   } else {
     await minH(page.locator("[data-opt]"), "opciones de teoría");
-    await page.locator("[data-opt]").first().click();
+    // Las tarjetas y las opciones se barajan: hasta ver una práctica se acierta la teoría para no llegar a GAME OVER sin
+    // ninguna práctica (con la 1.ª opción fallaba ~2 % de las veces). Después se sigue con la 1.ª opción, como antes.
+    const opt = sawPracticeFail ? page.locator("[data-opt]").first() : page.locator("[data-opt]", { hasText: "Respuesta correcta" });
+    await opt.click();
     await page.getByTestId("quest-feedback").waitFor();
   }
   await page.getByTestId("quest-next").click();
