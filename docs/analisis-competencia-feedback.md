@@ -145,8 +145,8 @@ Leyenda: **Impacto** A/M/B · **Esfuerzo** S (≤ 1 bloque pequeño) / M (1 bloq
 | ID | Punto | Origen | Riesgo | Esfuerzo | Confianza |
 |---|---|---|---|---|---|
 | S1 | El texto libre de la IA puede citar la recuperación aunque se oculte el snapshot | Auditoría privacidad v2.5 | A | M | [Seguro] |
-| S2 | `sw.js`: `PRECACHE_PATH` casa también rutas como `/training/diary`; acotar si el diario es privado | v2.5 B4 | M | S | [Seguro] |
-| S3 | `passkey.verifyRegistration` solo probado en rechazos | v2.5 B7 | M | S | [Seguro] |
+| S2 *(hecho en v2.11 B4-A)* | `sw.js`: `PRECACHE_PATH` casa también rutas como `/training/diary`; acotar si el diario es privado | v2.5 B4 | M | S | [Seguro] |
+| S3 *(hecho en v2.11 B4-A)* | `passkey.verifyRegistration` solo probado en rechazos | v2.5 B7 | M | S | [Seguro] |
 | S4 | Validación con Gemini real pendiente (revisar `log.warn` con `code` tras la primera generación) | v2.6 | M | S (revisión) | [Seguro] |
 | S5 | Imagen Docker real con Chromium sin construir | B17, v2.6 | A (la ruta de PDF da 503) | S | [Seguro] |
 | S6 | Scripts de `scripts/ops/` sin probar en el servidor real (copias, auditoría, aviso de `update.sh`) | Ops | A (copias no verificadas) | S (tiempo de la usuaria) | [Seguro] |

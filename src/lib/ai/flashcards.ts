@@ -5,6 +5,7 @@ import { generateJson } from "@/lib/ai/llm";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { nextReview } from "@/lib/ai/sm2";
 import { ApiError } from "@/lib/api";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 /** Límite de texto enviado al modelo por generación (~10k tokens). */
@@ -29,25 +30,54 @@ Creas flashcards en español a partir de apuntes:
 - Usa SOLO información presente en el texto. No inventes.
 - Evita preguntas de sí/no y tarjetas duplicadas.`;
 
+/**
+ * Elige elementos repartidos por todo el conjunto hasta el límite de caracteres (el orden se conserva).
+ * `len` da el tamaño de cada uno: sirve tanto con el contenido en memoria como con solo las longitudes de la BD.
+ */
+export function sampleBy<T>(items: T[], len: (item: T) => number, max = MAX_SOURCE_CHARS): T[] {
+  const total = items.reduce((a, c) => a + len(c), 0);
+  if (total <= max) return items;
+  const keep = Math.max(1, Math.floor((items.length * max) / total));
+  const step = items.length / keep;
+  return Array.from({ length: keep }, (_, i) => items[Math.floor(i * step)]);
+}
+
 /** Muestra fragmentos repartidos por todo el documento hasta el límite de caracteres. */
 export function sampleChunks<T extends { content: string }>(chunks: T[]): T[] {
-  const total = chunks.reduce((a, c) => a + c.content.length, 0);
-  if (total <= MAX_SOURCE_CHARS) return chunks;
-  const keep = Math.max(1, Math.floor((chunks.length * MAX_SOURCE_CHARS) / total));
-  const step = chunks.length / keep;
-  return Array.from({ length: keep }, (_, i) => chunks[Math.floor(i * step)]);
+  return sampleBy(chunks, (c) => c.content.length);
+}
+
+/**
+ * v2.11 B4-A · O20 · Lo mismo que `sampleChunks` sobre los fragmentos de varios documentos, pero muestreando en la BD:
+ * primero solo las longitudes (id + `length`), se elige y solo entonces se leen los textos elegidos. Evita traer
+ * todo el contenido de la asignatura (decenas de MB) para quedarse con ≤ `MAX_SOURCE_CHARS`.
+ * Orden: documentos por fecha de alta y fragmentos por `chunkIndex`. Solo fragmentos de `userId`.
+ */
+export async function loadSampledChunks(userId: string, documentIds: string[]): Promise<Array<{ content: string }>> {
+  if (!documentIds.length) return [];
+  const sizes = await prisma.$queryRaw<Array<{ id: string; len: number }>>`
+    SELECT c.id, length(c.content)::int AS len
+    FROM "DocumentChunk" c
+    JOIN "StudyDocument" d ON d.id = c."documentId"
+    WHERE c."userId" = ${userId} AND c."documentId" IN (${Prisma.join(documentIds)})
+    ORDER BY d."createdAt", c."documentId", c."chunkIndex"`;
+  const chosen = sampleBy(sizes, (x) => x.len);
+  if (!chosen.length) return [];
+  const rows = await prisma.documentChunk.findMany({ where: { userId, id: { in: chosen.map((x) => x.id) } }, select: { id: true, content: true } });
+  const byId = new Map(rows.map((r) => [r.id, r.content]));
+  return chosen.flatMap((x) => (byId.has(x.id) ? [{ content: byId.get(x.id)! }] : []));
 }
 
 export async function generateFlashcards(userId: string, params: { documentId: string; count: number; deckName?: string }) {
   await assertAiAllowed(userId);
   const doc = await prisma.studyDocument.findFirst({
     where: { id: params.documentId, userId },
-    include: { chunks: { orderBy: { chunkIndex: "asc" }, select: { content: true } } },
+    include: { _count: { select: { chunks: true } } },
   });
   if (!doc) throw new ApiError(404, "Documento no encontrado");
-  if (doc.status !== "EMBEDDED" || !doc.chunks.length) throw new ApiError(409, "El documento aún no está procesado");
+  if (doc.status !== "EMBEDDED" || !doc._count.chunks) throw new ApiError(409, "El documento aún no está procesado");
 
-  const source = sampleChunks(doc.chunks)
+  const source = (await loadSampledChunks(userId, [doc.id]))
     .map((c) => c.content)
     .join("\n\n");
   const { data } = await generateJson(cardsSchema, {
