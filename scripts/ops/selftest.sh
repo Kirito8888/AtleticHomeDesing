@@ -203,6 +203,52 @@ if bash "$QF" --queue "a'b" >>"$OUTALL" 2>&1; then bad "queue-failed aceptó una
 if bash "$QF" --retry --discard >>"$OUTALL" 2>&1; then bad "queue-failed aceptó --retry y --discard"; else ok "queue-failed rechaza acciones contradictorias"; fi
 unset FAKE_PSQL_IN
 
+# ── doctor.sh: entorno sano / inválido, web con 500/503/fuga y --all (curl y docker simulados; solo lectura) ──
+DR="$HERE/doctor.sh"
+bash -n "$DR" && bash "$DR" --help >>"$OUTALL" 2>&1 && ok "doctor: sintaxis y --help"
+if bash "$DR" --nada >>"$OUTALL" 2>&1; then bad "doctor aceptó una opción desconocida"; else [ "$?" = 2 ] && ok "doctor: opción desconocida → exit 2"; fi
+# shellcheck disable=SC2016  # el stub se escribe tal cual
+cat > "$T/bin/curl" <<'STUB'
+#!/usr/bin/env bash
+# curl simulado: FAKE_HTTP_MAP="/ruta=código;..." (resto: FAKE_HTTP_DEFAULT); escribe cabeceras (-D) y cuerpo (-o) como el real.
+url="" out=/dev/null hdr=/dev/null; while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift ;; -D) hdr="$2"; shift ;; -m|-w|-H) shift ;; -*) ;; *) url="$1" ;; esac; shift; done
+path="/${url#*://*/}"; path="${path%%\?*}"; code="${FAKE_HTTP_DEFAULT:-307}"
+case ";${FAKE_HTTP_MAP:-};" in *";$path="*) code="${FAKE_HTTP_MAP#*"$path="}"; code="${code%%;*}" ;; esac
+case ";${FAKE_HTTP_MAP:-};" in
+  *";$path="*) ;;
+  *) case "$path" in
+       /api/health) code=200 ;; /api/*) code=401 ;; /login|/register|/offline|/legal/*) code=200 ;;
+     esac ;;
+esac
+{ printf 'HTTP/1.1 %s X\r\n' "$code"; [ "$code" = 307 ] && printf 'location: /login\r\n'; [ "$path" = /login ] && printf 'content-security-policy: x\r\n'; true; } > "$hdr"
+[ "$path" = /api/health ] && [ "$code" = 200 ] && printf '{"status":"ok"}' > "$out"
+printf '%s' "$code"
+STUB
+chmod +x "$T/bin/curl"
+DENV="$T/doctor.env"; DSECRET="Zk3-valor-privado-NO-DEBE-SALIR"
+printf 'POSTGRES_USER=lifeos\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=lifeos\nAUTH_SECRET=abcdefghijklmnopqrstuvwxyz0123456789ABCDEF\nAUTH_URL=https://atlenza.example.org\nTOTP_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz0123456789ABCDEF\nOFF_USER_AGENT="Atlenza (x@example.org)"\n' "$DSECRET" > "$DENV"; chmod 600 "$DENV"
+DX=(env ENV_FILE="$DENV" DOCTOR_BASE_URL=http://127.0.0.1:3999 bash "$DR" --no-color)
+"${DX[@]}" --env >"$T/d1.txt" 2>&1 && grep -q 'Sintaxis compatible' "$T/d1.txt" && ! grep -q '\[ERROR\]' "$T/d1.txt" && ok "doctor --env: entorno sano (con comillas equilibradas) → exit 0"
+DBAD="$T/doctor-bad.env"; printf 'POSTGRES_USER=lifeos\nAUTH_SECRET="%s\nAUTH_URL=http://x.example.org\r\nexport FOO=1\nPOSTGRES_PASSWORD=change-me\n' "$DSECRET" > "$DBAD"; chmod 600 "$DBAD"
+if env ENV_FILE="$DBAD" bash "$DR" --env --no-color >"$T/d2.txt" 2>&1; then bad "doctor aceptó un .env inválido"; else ok ".env inválido → exit 1"; fi
+grep -q 'comilla de apertura' "$T/d2.txt" && grep -q 'CRLF' "$T/d2.txt" && grep -q '«export »' "$T/d2.txt" && grep -q 'POSTGRES_DB vacía' "$T/d2.txt" && grep -q 'es la de ejemplo' "$T/d2.txt" && ok "doctor --env: detecta comilla, CRLF, export, clave crítica y contraseña de ejemplo"
+[ "$(grep -c 'Solución:' "$T/d2.txt")" -ge 5 ] && ok "doctor: cada fallo trae «Solución:»"
+! grep -q "$DSECRET" "$T/d2.txt" && ! grep -q "$DSECRET" "$T/d1.txt" && ok "doctor --env: ningún valor del .env en la salida"
+"${DX[@]}" --web >"$T/d3.txt" 2>&1 && grep -q 'Páginas privadas sin sesión' "$T/d3.txt" && ok "doctor --web: web sana → exit 0"
+! grep -q 'atlenza.example.org' "$T/d3.txt" && ok "doctor --web: no imprime el dominio"
+if FAKE_HTTP_MAP='/api/health=503' "${DX[@]}" --web >"$T/d4.txt" 2>&1; then bad "doctor no marcó el 503"; else grep -q '503 (caído)' "$T/d4.txt" && grep -q 'Solución:' "$T/d4.txt" && ok "doctor --web: /api/health 503 → ERROR con causa y solución"; fi
+if FAKE_HTTP_MAP='/api/health=500;/login=500' "${DX[@]}" --web >"$T/d5.txt" 2>&1; then bad "doctor no marcó el 500"; else grep -q '/login → 500' "$T/d5.txt" && ok "doctor --web: ruta con 500 → ERROR"; fi
+if FAKE_HTTP_MAP='/study=200' "${DX[@]}" --web >"$T/d6.txt" 2>&1; then bad "doctor no vio la ruta privada abierta"; else grep -q 'SIN sesión' "$T/d6.txt" && ok "doctor --web: privada con 200 sin sesión → ERROR"; fi
+FAKE_HTTP_MAP='/api/health=000' "${DX[@]}" --web >"$T/d7.txt" 2>&1 || true; grep -q 'no responde' "$T/d7.txt" && ok "doctor --web: sin respuesta → ERROR y no sigue"
+# --all con docker simulado: termina, solo lee (queue-failed sin acciones) y no filtra secretos
+export FAKE_PSQL_IN="$T/doctor-in.txt"; : > "$FAKE_PSQL_IN"
+DOCTOR_SKIP_AUDIT=1 "${DX[@]}" --all >"$T/d8.txt" 2>&1 </dev/null || true; grep -q '== Resumen ==' "$T/d8.txt" && grep -q '1. Entorno' "$T/d8.txt" && grep -q '2. Web' "$T/d8.txt" && grep -q '3. Operación' "$T/d8.txt" && ok "doctor --all: ejecuta entorno, web y operación hasta el resumen"
+! grep -qiE 'update pgboss|delete from|insert into' "$FAKE_PSQL_IN" && ok "doctor --all: no escribe en la base de datos"
+DOCTOR_SKIP_AUDIT=1 env ENV_FILE="$DENV" DOCTOR_BASE_URL=http://127.0.0.1:3999 bash "$DR" --no-color >"$T/d9.txt" 2>&1 </dev/null || true; grep -q '== Resumen ==' "$T/d9.txt" && grep -q '3. Operación' "$T/d9.txt" && ok "doctor sin flags ni terminal = --all"
+! grep -q "$DSECRET" "$T/d8.txt" "$T/d9.txt" && ok "doctor --all: ningún valor del .env en la salida"
+unset FAKE_PSQL_IN
+cat "$T/d1.txt" "$T/d2.txt" "$T/d8.txt" >> "$OUTALL"
+
 if grep -q "$FAKEPW" "$OUTALL"; then bad "aparece la contraseña ficticia en la salida"; fi
 ok "sin secretos en la salida"
 echo "Todo correcto."

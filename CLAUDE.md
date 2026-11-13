@@ -22,6 +22,7 @@ Antes de vitest/E2E en un contenedor nuevo: `npm install` (el hook no siempre tr
 | Foto de la BD antes de cambiar el esquema | `sh scripts/dev/snapshot.sh` (o `--before <migración> […]` en bloques posteriores al A) |
 | Migración de la versión (una por versión) | `sh scripts/dev/regen-mig.sh <AAAAMMDDhhmmss_v2_0_features>` |
 | Probar la migración sobre copia | `sh scripts/dev/test-migration.sh` |
+| Diagnóstico del servidor (solo lectura; menú o `--all/--env/--web/--ops`) | `bash scripts/ops/doctor.sh` |
 | Licencias | `node scripts/third-party-notices.mjs --check` |
 | Semgrep (lo pasa la CI; en local solo al cerrar) | `pip install -q semgrep && semgrep scan --config .semgrep.yml --error --metrics=off src prisma e2e` |
 
@@ -43,6 +44,7 @@ Antes de vitest/E2E en un contenedor nuevo: `npm install` (el hook no siempre tr
 - **Parche (x.y.Z):** arreglos y ajustes sin función nueva. **Menor (x.Y.0):** bloques y funciones pequeñas. **Mayor (X.0.0):** cambios estructurales o hitos grandes (arquitectura, esquema que rompe compatibilidad, rediseños).
 - `package.json` se sube al **cerrar** la versión, no en cada bloque; la decisión del número final es de la usuaria.
 - **Tras fusionar el PR de cierre (v2.11.0 incluida):** la usuaria resube los adjuntos del Gem (`CLAUDE.md`, `docs/estado.md`, `docs/como-trabajar.md`; ver `docs/gemini-gem.md`). `e2e.sh all` incluye `e2e:noeval` desde v2.8.0 `e2e:v29a` desde v2.9.0 y `e2e:v210a` desde v2.10.0 (v2.10.0 no tiene migración) y `e2e:practica` (Práctica guiada, v2.11.0); v2.11.0 tampoco tiene migración. En un contenedor nuevo, `test-migration.sh` necesita antes `snapshot.sh --before 20270701080000_v2_9_features`.
+- **Cierre de versión y cambios de rutas/variables/migraciones:** actualizar el bloque «ACTUALIZAR EN CADA CIERRE DE VERSIÓN» de `scripts/ops/doctor.sh` (`EXPECTED_MIGRATION`, `PUBLIC_ROUTES`, `PRIVATE_PAGES`, `PRIVATE_API`, `CRITICAL_KEYS`) y ampliar `scripts/ops/selftest.sh` si cambia su comportamiento. Una ruta nueva (o movida) sin reflejar ahí da avisos falsos en producción.
 - **Tras cada cambio** (bloque, arreglo o dependencia) se actualizan siempre `CLAUDE.md`, `docs/estado.md` y `docs/como-trabajar.md` si lo cambiado les afecta, en el mismo commit.
 
 ## Verificación (proporcional, para gastar poco)

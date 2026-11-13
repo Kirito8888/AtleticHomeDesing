@@ -69,4 +69,20 @@ Variables opcionales (delante del comando, tras `sudo`: `sudo AUDIT_HIDE_HOST=1 
   En sistemas RPM no se consultan (dnf escribe registros): `dnf updateinfo list security` a mano.
 - Repite tras cambios importantes y compara dos informes con `diff`.
 
+## Diagnóstico rápido: `doctor.sh`
+`bash scripts/ops/doctor.sh` es el punto de entrada para comprobar de una vez entorno, web y operación **con usuarias activas**:
+solo lectura, peticiones GET una a una con timeout corto, sin tests ni escrituras. Por cada fallo imprime `Causa:` y `Solución:` con comandos copiables.
+```bash
+bash scripts/ops/doctor.sh                 # menú (sin terminal = --all)
+bash scripts/ops/doctor.sh --all --no-color
+bash scripts/ops/doctor.sh --env | --web | --ops   # combinables
+COOKIE_SESION='valor' bash scripts/ops/doctor.sh --web   # opcional: prueba también las rutas internas con sesión
+```
+- **`--env`:** sintaxis de `.env.production` compatible con Docker (comilla sin cerrar, CRLF, `export`, espacios, duplicados), claves frente a `.env.example`,
+  formato de `AUTH_URL` (https), `AUTH_SECRET` y contraseñas de ejemplo. **Nunca imprime valores**, solo nombres de clave, líneas y longitudes: se puede pegar la salida.
+- **`--web`:** `/api/health`, páginas públicas, páginas privadas (sin sesión deben redirigir a `/login`, nunca 200 ni 5xx), API privadas (401) y cabeceras de seguridad. El dominio sale enmascarado.
+- **`--ops`:** contenedores (estado, salud, reinicios), migraciones (`EXPECTED_MIGRATION` y pendientes), `check-backups.sh`, `queue-failed.sh` (sin acciones), `verify-hito-0.sh`, disco y un resumen de los avisos de `audit-server.sh`
+  (sin root es parcial; `DOCTOR_SKIP_AUDIT=1` lo omite). Para el informe completo, sigue siendo `sudo sh scripts/ops/audit-server.sh > auditoria.md`.
+- Salida: 0 sin errores (los avisos no cuentan), 1 con algún ERROR. Mantenimiento: las rutas y la migración esperadas se actualizan en cada cierre de versión (`CLAUDE.md`).
+
 Ver también: [servidor-hardening.md](servidor-hardening.md) (corregir lo que el informe marque en SSH, parches y paneles), [servidor-backups.md](servidor-backups.md), [servidor-llaves-ssh.md](servidor-llaves-ssh.md).
