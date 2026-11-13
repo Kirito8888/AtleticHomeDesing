@@ -228,7 +228,7 @@ chmod +x "$T/bin/curl"
 DENV="$T/doctor.env"; DSECRET="Zk3-valor-privado-NO-DEBE-SALIR"
 printf 'POSTGRES_USER=lifeos\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=lifeos\nAUTH_SECRET=abcdefghijklmnopqrstuvwxyz0123456789ABCDEF\nAUTH_URL=https://atlenza.example.org\nTOTP_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz0123456789ABCDEF\nOFF_USER_AGENT="Atlenza (x@example.org)"\n' "$DSECRET" > "$DENV"; chmod 600 "$DENV"
 DX=(env ENV_FILE="$DENV" DOCTOR_BASE_URL=http://127.0.0.1:3999 bash "$DR" --no-color)
-"${DX[@]}" --env >"$T/d1.txt" 2>&1 && grep -q 'Sintaxis compatible' "$T/d1.txt" && ! grep -q '\[ERROR\]' "$T/d1.txt" && ok "doctor --env: entorno sano (con comillas equilibradas) → exit 0"
+"${DX[@]}" --env >"$T/d1.txt" 2>&1 && grep -q 'Sintaxis compatible' "$T/d1.txt" && ! grep -q '\[ERROR\]' "$T/d1.txt" && ! grep -q '\[AVISO\]' "$T/d1.txt" && grep -q 'Nota:' "$T/d1.txt" && ok "doctor --env: entorno sano (con comillas equilibradas) → exit 0"
 DBAD="$T/doctor-bad.env"; printf 'POSTGRES_USER=lifeos\nAUTH_SECRET="%s\nAUTH_URL=http://x.example.org\r\nexport FOO=1\nPOSTGRES_PASSWORD=change-me\n' "$DSECRET" > "$DBAD"; chmod 600 "$DBAD"
 if env ENV_FILE="$DBAD" bash "$DR" --env --no-color >"$T/d2.txt" 2>&1; then bad "doctor aceptó un .env inválido"; else ok ".env inválido → exit 1"; fi
 grep -q 'comilla de apertura' "$T/d2.txt" && grep -q 'CRLF' "$T/d2.txt" && grep -q '«export »' "$T/d2.txt" && grep -q 'POSTGRES_DB vacía' "$T/d2.txt" && grep -q 'es la de ejemplo' "$T/d2.txt" && ok "doctor --env: detecta comilla, CRLF, export, clave crítica y contraseña de ejemplo"

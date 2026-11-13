@@ -162,8 +162,10 @@ check_env() {
       [ -n "${VAL[$key]+x}" ] || missing+=("$key")
     done < <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "$EXAMPLE_FILE" | cut -d= -f1 | grep -vx DATABASE_URL | sort -u)
     if [ "${#missing[@]}" -eq 0 ]; then ok "Están todas las claves de $EXAMPLE_FILE."
-    else aviso "Faltan claves de $EXAMPLE_FILE: ${missing[*]}." "el .env es de una versión anterior; se usarán los valores por defecto." \
-      "diff <(grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' $EXAMPLE_FILE | sort -u) <(grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' $ENV_FILE | sort -u)"; fi
+    else
+      # Informativo, no cuenta como aviso: todas las no críticas son opcionales o tienen valor por defecto (src/lib/env.ts).
+      echo "     Nota: ${#missing[@]} clave(s) opcionales de $EXAMPLE_FILE sin definir (usan su valor por defecto): ${missing[*]}."
+    fi
   else
     aviso "No se encuentra $EXAMPLE_FILE para comparar las claves." "el repositorio no está completo en esta carpeta." "git status --short $EXAMPLE_FILE"
   fi
@@ -414,7 +416,10 @@ check_ops() {
     out="$(bash scripts/ops/verify-hito-0.sh --no-color 2>&1)"; rc=$?
     printf '%s\n' "$out" | grep -E '^\[(AVISO|ERROR|DEGRADADO)' | grep -v 'check-backups' | indent
     case "$rc" in
-      0) ok "verify-hito-0.sh sin errores (Chromium, IA, BD)." ;;
+      0) if printf '%s\n' "$out" | grep -q 'DEGRADADO'; then
+           aviso "verify-hito-0.sh: hay servicios degradados o apagados (arriba)." "la IA local no responde (con LOCAL_AI_ONLY=true las funciones de IA dan 503) o falta acceso a algo." \
+             "bash scripts/ops/verify-hito-0.sh   # detalle; enciende el servidor de IA local o revisa LOCAL_AI_BASE_URL"
+         else ok "verify-hito-0.sh sin errores (Chromium, IA, BD)."; fi ;;
       *) fallo "verify-hito-0.sh informa de errores (arriba)." "Chromium, IA local o base de datos." "bash scripts/ops/verify-hito-0.sh   # salida completa" ;;
     esac
   fi
