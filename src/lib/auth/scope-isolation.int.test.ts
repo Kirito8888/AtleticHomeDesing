@@ -276,7 +276,7 @@ describe.skipIf(!HAS_DB)("una entrenadora con un solo ámbito (BD real)", () => 
   });
 });
 
-describe("RECOVERY exige el consentimiento expreso de la atleta (art. 9 RGPD)", () => {
+describe.skipIf(!HAS_DB)("RECOVERY exige el consentimiento expreso de la atleta (art. 9 RGPD)", () => {
   it("sin consentimiento concedido, el ámbito marcado no da lectura; al retirarlo se cierra otra vez", async () => {
     const { prisma } = await import("@/lib/prisma");
     const { readableScopes } = await import("@/lib/auth/session");
