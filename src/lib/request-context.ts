@@ -9,6 +9,8 @@ export interface RequestContext {
   /** Id de la petición (el `x-request-id` entrante si es sensato, si no uno aleatorio). */
   reqId: string;
   termsOk?: boolean;
+  /** v3.0 D · resultado memorizado de la puerta de 2FA para ADMIN/COACH. */
+  staffBlocked?: boolean;
 }
 
 export const requestContext = new AsyncLocalStorage<RequestContext>();
@@ -22,3 +24,8 @@ export const termsExempt = (path: string) => path === "/api/account" || TERMS_EX
 
 /** Id de petición: se acepta el de fuera solo si tiene forma de id (evita inyectar texto en el log). */
 export const makeRequestId = (incoming?: string | null): string => (incoming && /^[A-Za-z0-9-]{8,64}$/.test(incoming) ? incoming : randomUUID());
+
+/** v3.0 D · Rutas que una cuenta ADMIN/COACH bloqueada por falta de 2FA sí puede usar: configurarla y ejercer derechos. */
+const SECOND_FACTOR_EXEMPT = ["/api/account/2fa", "/api/account/passkeys", "/api/passkeys"];
+
+export const secondFactorExempt = (path: string) => termsExempt(path) || SECOND_FACTOR_EXEMPT.some((p) => path === p || path.startsWith(`${p}/`));

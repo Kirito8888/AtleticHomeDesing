@@ -226,6 +226,19 @@ check_env() {
   if [ -n "$s" ] && [ "$s" != true ] && [ "$s" != false ]; then
     aviso "LOCAL_AI_ONLY no es true ni false." "se interpreta como false: la IA podría salir a otro proveedor." "sed -i 's/^LOCAL_AI_ONLY=.*/LOCAL_AI_ONLY=true/' $ENV_FILE"
   fi
+  # v3.0 D · V3-S01 (2FA de ADMIN/COACH) y V3-S02 (proxies de confianza de clientIp)
+  s="$(val STAFF_2FA_REQUIRED_FROM)"
+  if [ -z "$s" ]; then
+    aviso "Falta STAFF_2FA_REQUIRED_FROM: la verificación en dos pasos de ADMIN/COACH solo se avisa, no se exige." "una cuenta de entrenadora con la contraseña robada vería datos de atletas." "echo 'STAFF_2FA_REQUIRED_FROM=AAAA-MM-DD' >> $ENV_FILE   # fecha de corte, tras avisar a las cuentas"
+  elif ! [[ "$s" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || ! date -d "$s" >/dev/null 2>&1; then
+    fallo "STAFF_2FA_REQUIRED_FROM no es una fecha AAAA-MM-DD válida." "la app no arrancará (validación de entorno)." "nano $ENV_FILE   # STAFF_2FA_REQUIRED_FROM=AAAA-MM-DD"
+  fi
+  s="$(val TRUSTED_PROXY_HOPS)"
+  if [ -n "$s" ] && ! [[ "$s" =~ ^[0-5]$ ]]; then
+    fallo "TRUSTED_PROXY_HOPS debe ser un número entre 0 y 5 (es '$s')." "la app no arrancará (validación de entorno)." "sed -i 's/^TRUSTED_PROXY_HOPS=.*/TRUSTED_PROXY_HOPS=1/' $ENV_FILE"
+  elif [ "${s:-1}" != 0 ] && [ "$(val WEB_BIND)" = 0.0.0.0 ]; then
+    aviso "TRUSTED_PROXY_HOPS=${s:-1} con WEB_BIND=0.0.0.0: quien llegue directo a la web puede falsificar su IP." "se saltaría el límite de intentos por IP." "sed -i 's/^WEB_BIND=.*/WEB_BIND=127.0.0.1/' $ENV_FILE && $DC up -d web"
+  fi
   if [ "$(val WEB_BIND)" = 0.0.0.0 ]; then
     aviso "WEB_BIND=0.0.0.0: la web escucha en todas las interfaces." "Docker se salta ufw: el puerto queda expuesto sin el proxy HTTPS." "sed -i 's/^WEB_BIND=.*/WEB_BIND=127.0.0.1/' $ENV_FILE && $DC up -d web"
   fi

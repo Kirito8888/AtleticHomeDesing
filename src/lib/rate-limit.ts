@@ -66,15 +66,25 @@ export const LIMITS = {
   comment: { limit: 60, windowMs: 60 * 60_000 },
 } as const;
 
+/** Proxies de confianza (`TRUSTED_PROXY_HOPS`, 0-5, por defecto 1). Valor no válido → 1. */
+function trustedHops(): number {
+  const raw = process.env.TRUSTED_PROXY_HOPS;
+  if (raw == null || raw === "") return 1;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 && n <= 5 ? n : 1;
+}
+
 /**
- * IP del cliente tras el reverse proxy. Se toma la ÚLTIMA entrada de
- * X-Forwarded-For: la añade nuestro proxy (NPM/nginx, $proxy_add_x_forwarded_for).
- * Las anteriores las pone el cliente y se pueden falsificar para saltarse el límite.
- * Requiere que la app solo sea accesible a través del proxy (WEB_BIND=127.0.0.1).
+ * IP del cliente tras el reverse proxy. Con N proxies de confianza (`TRUSTED_PROXY_HOPS`) se toma la
+ * entrada N-ésima contando desde el final de X-Forwarded-For (las de la izquierda las pone el cliente y se
+ * pueden falsificar). Con 0 proxies, o con menos entradas que proxies, la cabecera no es de fiar:
+ * `unknown` (Next 16 no expone la IP del socket). Requiere que la app solo sea accesible a través del proxy.
  */
-export function clientIp(headers: Headers): string {
-  const xff = headers.get("x-forwarded-for");
-  const last = xff?.split(",").at(-1)?.trim();
-  if (last) return last;
-  return headers.get("x-real-ip")?.trim() || "unknown";
+export function clientIp(headers: Headers, hops = trustedHops()): string {
+  if (hops <= 0) return "unknown";
+  const parts = (headers.get("x-forwarded-for") ?? "").split(",").map((p) => p.trim());
+  const picked = parts.length >= hops ? parts[parts.length - hops] : "";
+  if (picked) return picked;
+  if (hops === 1) return headers.get("x-real-ip")?.trim() || "unknown";
+  return "unknown";
 }

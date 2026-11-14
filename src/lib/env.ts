@@ -11,6 +11,14 @@ const schema = z.object({
     .string()
     .regex(/^https?:\/\/[^/\s]+\/?$/, "AUTH_URL debe ser una URL completa, p.ej. https://lifeos.midominio.es")
     .optional(),
+  // v3.0 D · Fecha (AAAA-MM-DD) desde la que ADMIN y COACH necesitan verificación en dos pasos. Sin ella solo se avisa.
+  STAFF_2FA_REQUIRED_FROM: z
+    .preprocess((v) => (v === "" ? undefined : v), z.string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "STAFF_2FA_REQUIRED_FROM debe ser AAAA-MM-DD")
+    .refine((v) => !Number.isNaN(Date.parse(`${v}T00:00:00Z`)), "STAFF_2FA_REQUIRED_FROM no es una fecha válida")
+      .optional()),
+  // v3.0 D · Proxies de confianza delante de la web (0-5): decide qué entrada de X-Forwarded-For es la IP real.
+  TRUSTED_PROXY_HOPS: z.preprocess((v) => (v === "" ? undefined : v), z.coerce.number().int().min(0).max(5).default(1)),
   // Registro de cuentas nuevas. Por defecto cerrado; el primer usuario siempre puede registrarse.
   ALLOW_REGISTRATION: z
     .enum(["true", "false"])
@@ -113,6 +121,8 @@ const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
  */
 function productionIssues(v: Env, source: Record<string, string | undefined>): string[] {
   if (source.NODE_ENV !== "production" || source.NEXT_PHASE === "phase-production-build") return [];
+  // v3.0 D (V3-S05): sin AUTH_SECRET no se arranca, ni siquiera con AUTH_URL local
+  if (!v.AUTH_SECRET) return ["Falta AUTH_SECRET (openssl rand -base64 32)"];
   const url = v.AUTH_URL ? new URL(v.AUTH_URL) : null;
   if (url && LOCAL_HOSTS.has(url.hostname)) return [];
   const issues: string[] = [];

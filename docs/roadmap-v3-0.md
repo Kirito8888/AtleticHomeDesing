@@ -46,7 +46,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 | Terminado = | La frase idéntica en README, LICENSE, pie, aviso legal, condiciones y `/about`; sin dominio, correo ni nombre de servidor en el pie |
 | Por qué primero | Lo pidió la usuaria como bloque inicial; es barato y fija el texto que reutilizan T y N (exportaciones) |
 
-#### D · Seguridad 1: autenticación y límites de tasa
+#### D · Seguridad 1: autenticación y límites de tasa — HECHO (14/11/2026, ver `docs/estado.md`)
 | | |
 |---|---|
 | Tareas | 1) **V3-S01 (Alta):** 2FA (TOTP o llave de acceso) obligatoria para ADMIN y COACH con gracia y aviso persistente; tras la gracia, sin 2FA solo se puede ir a configurarla. 2) **V3-S02 (Media):** `clientIp` con nº de proxies de confianza por variable; sin cabecera, IP del socket; aviso en `doctor.sh --env` si la web no está tras el proxy previsto. 3) **V3-S05 (Baja):** fallar al arrancar fuera de desarrollo si falta `AUTH_SECRET`; quitar el `"dev"` por defecto. 4) **V3-S07 (Info):** el clic de notificación en `sw.js` rechaza `//` y `\` (sube la versión de caché del SW) |

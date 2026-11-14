@@ -125,6 +125,16 @@ self.addEventListener("push", (event) => {
 });
 
 // Al tocarla: enfocar una pestaña de Atlenza (o abrir una) en la ruta indicada.
+// V3-S07: solo rutas propias («/x»); «//otro», «/\\otro», URL absolutas o cualquier otra cosa → «/».
+function safeNotificationPath(raw) {
+  if (typeof raw !== "string" || raw[0] !== "/" || raw[1] === "/" || raw[1] === "\\" || raw.includes("\\")) return "/";
+  try {
+    return new URL(raw, self.location.origin).origin === self.location.origin ? raw : "/";
+  } catch {
+    return "/";
+  }
+}
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   if (event.action === "snooze" && event.notification.data?.logId) {
@@ -133,7 +143,7 @@ self.addEventListener("notificationclick", (event) => {
     );
     return;
   }
-  const url = new URL(event.notification.data?.url || "/", self.location.origin).href;
+  const url = new URL(safeNotificationPath(event.notification.data?.url), self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
       for (const c of list) {
