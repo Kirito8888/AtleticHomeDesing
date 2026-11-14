@@ -29,15 +29,21 @@ export default async function PrivacyPolicy() {
       <ul>
         <li>Cuenta (nombre, email, contraseña cifrada con Argon2id): para que puedas entrar. Base: ejecución del servicio que pides (art. 6.1.b).</li>
         <li>Entrenamiento, recuperación, comidas, estudio y finanzas que anotas: para calcular tu carga, avisos y resúmenes. Base: art. 6.1.b.</li>
-        <li>Datos de salud (ciclo, salud de la mujer, molestias): cifrados; solo con tu consentimiento explícito (art. 9.2.a), que retiras borrándolos.</li>
+        <li>
+          Datos de salud (categoría especial): ciclo, salud de la mujer, molestias, <strong>recuperación (sueño, variabilidad cardiaca, frecuencia cardiaca en reposo, lesiones)</strong> y composición corporal. Solo con tu consentimiento explícito (art. 9.2.a), que retiras borrándolos. El ciclo, la salud de la mujer y la composición corporal van cifrados.
+        </li>
+        <li>
+          Estadística de uso (qué rutas de la app abres): se guarda solo en este servidor para saber qué usas; base: interés legítimo (art. 6.1.f). Está activada por defecto y la desactivas en Ajustes → Uso; también puedes oponerte.
+        </li>
+        <li>Importaciones (archivos de actividad, Strava, extractos bancarios) y lo que anota tu entrenador/a: proceden de ti o de quien te entrena (art. 14).</li>
         <li>Registro de seguridad (IP y navegador de inicios de sesión y cambios): para proteger tu cuenta. Base: interés legítimo y obligación de seguridad (arts. 6.1.f y 32).</li>
         <li>Notificaciones push: solo si las activas.</li>
       </ul>
       <h2>Con quién se comparten</h2>
       <ul>
-        <li>Nadie, salvo lo que tú decidas: tu entrenador/a (solo lo que marques, nunca salud ni finanzas), enlaces temporales que creas (médica, fisio, entrenadora) y tu contacto de «Entreno sola».</li>
+        <li>Nadie, salvo lo que tú decidas: tu entrenador/a o tu club (solo lo que marques; «recuperación y lesiones» son datos de salud y no los ven hasta que lo confirmas de forma expresa; nunca ciclo, salud de la mujer, composición corporal ni finanzas), enlaces temporales que creas (médica, fisio, entrenadora) y tu contacto de «Entreno sola».</li>
         <li>
-          El proveedor de IA que tú elijas en Ajustes → IA (Google, OpenAI o compatible, Anthropic, o un modelo local de este servidor; si no eliges ninguno y el servidor tiene clave, Google Gemini), solo si activas Atlenza IA: tus apuntes, preguntas y un resumen numérico sin nombre ni salud. Un proveedor externo puede tratarlos fuera del Espacio Económico Europeo según sus propias condiciones y garantías; un modelo local no los saca del servidor. Tu clave de API se guarda cifrada y no se comparte.
+          El proveedor de IA que tú elijas en Ajustes → IA (Google, OpenAI o compatible, Anthropic, o un modelo local de este servidor; si no eliges ninguno y el servidor tiene clave, Google Gemini, salvo que el servidor esté configurado «solo IA local»: entonces nada sale del servidor), solo si activas Atlenza IA: tus apuntes, preguntas y un resumen numérico sin nombre ni salud. Un proveedor externo puede tratarlos fuera del Espacio Económico Europeo según sus propias condiciones y garantías; un modelo local no los saca del servidor. Tu clave de API se guarda cifrada y no se comparte.
         </li>
         <li>OpenFoodFacts y Open-Meteo reciben solo búsquedas de alimentos y coordenadas de tu pista, sin datos tuyos.</li>
       </ul>
@@ -56,6 +62,8 @@ export default async function PrivacyPolicy() {
       <p>
         Conexión cifrada (HTTPS), datos de salud cifrados (AES-256-GCM), contraseñas con Argon2id, verificación en dos pasos y llaves de acceso, registro de actividad encadenado, copias cifradas verificadas a diario y aviso de brechas a la AEPD en 72 horas cuando corresponda.
       </p>
+      <h2>Edad</h2>
+      <p>Atlenza es para mayores de 14 años (art. 7 LOPDGDD). Con menos de 14, el uso exige el consentimiento de la madre, el padre o el tutor.</p>
       <h2>Cookies</h2>
       <p>Solo cookies técnicas imprescindibles (tu sesión). Sin publicidad ni analítica: por eso no hay banner de cookies (art. 22.2 LSSI).</p>
     </article>

@@ -43,6 +43,7 @@ describe.skipIf(!HAS_DB)("panel del club en lote (BD real)", () => {
     for (let i = 0; i < n; i++) {
       const id = (await prisma.user.create({ data: { email: `cp${k}-${i}-${t}@test.dev`, name: `At ${i}`, processingRestrictedAt: i === 1 ? new Date() : null } })).id;
       ids.push(id);
+      await prisma.consent.create({ data: { userId: id, purpose: "COACH_RECOVERY", version: "2026-11-14", granted: true } });
       members.push({
         userId: id,
         role: "ATHLETE" as never,

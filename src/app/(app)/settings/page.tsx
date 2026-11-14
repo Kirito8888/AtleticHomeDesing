@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { RecoveryConsentNotice } from "@/components/coach/recovery-consent-notice";
+import { pendingRecoveryConfirmation } from "@/lib/coach/recovery-consent";
 import {
   AiConsentToggle,
   ChangeEmailForm,
@@ -152,6 +154,7 @@ export default async function SettingsPage({
   const adminOk = user.role === "ADMIN" && (await hasSecondFactor(user.id));
   const { welcome, strava: stravaParam } = await searchParams;
   const todayIso = toIsoDay(today());
+  const recoveryPending = await pendingRecoveryConfirmation(user.id);
   // Todo en paralelo: las consultas son independientes (antes seis `await` seguidos sumaban latencia)
   const [
     me,
@@ -487,6 +490,7 @@ export default async function SettingsPage({
             title="Entrenador / atletas"
             description="El entrenador solo ve datos deportivos; nunca finanzas, nutrición ni estudio."
           >
+            {recoveryPending ? <RecoveryConsentNotice /> : null}
             <CoachLinks
               isCoach={user.role === "COACH" || user.role === "ADMIN"}
               asCoach={asCoach.map((l) => ({

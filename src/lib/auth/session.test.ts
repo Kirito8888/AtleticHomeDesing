@@ -6,11 +6,13 @@ const db = vi.hoisted(() => ({
   link: null as unknown,
   members: [] as unknown[],
   restricted: null as Date | null,
+  consent: true,
 }));
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     coachAthlete: { findUnique: async () => db.link },
     orgMember: { findMany: async () => db.members },
+    consent: { findMany: async (a: { where: { userId: { in: string[] } } }) => a.where.userId.in.map((userId) => ({ userId, granted: db.consent })) },
     user: { findUnique: async () => ({ processingRestrictedAt: db.restricted }) },
   },
 }));
@@ -24,6 +26,7 @@ beforeEach(() => {
   db.link = null;
   db.members = [];
   db.restricted = null;
+  db.consent = true;
 });
 
 describe("resolveAthleteId · permisos", () => {
@@ -59,6 +62,15 @@ describe("resolveAthleteId · permisos", () => {
     db.members = [{ scopes: ["SESSIONS", "RECOVERY"], canPlan: false }];
     expect(await resolveAthleteId(coach, "a1", "RECOVERY")).toBe("a1");
     await expect(resolveAthleteId(coach, "a1", "LOAD")).rejects.toThrow(/no te ha dado acceso/);
+  });
+
+  it("RECOVERY sin el consentimiento expreso de la atleta (salud, art. 9) no da acceso aunque el ámbito esté marcado", async () => {
+    db.consent = false;
+    db.link = { status: "ACTIVE", scopes: ["LOAD", "RECOVERY"], canPlan: false };
+    await expect(resolveAthleteId(coach, "a1", "RECOVERY")).rejects.toThrow(/no te ha dado acceso/);
+    expect(await resolveAthleteId(coach, "a1", "LOAD")).toBe("a1");
+    db.consent = true;
+    expect(await resolveAthleteId(coach, "a1", "RECOVERY")).toBe("a1");
   });
 
   it("club: escribir exige canPlan", async () => {

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Activity, Apple, Brain, CalendarDays, ChevronRight, HeartPulse, ListChecks, ListTodo, Plus, Target, Trophy, Wallet } from "lucide-react";
 
+import { RecoveryConsentNotice } from "@/components/coach/recovery-consent-notice";
+import { pendingRecoveryConfirmation } from "@/lib/coach/recovery-consent";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { OfflineDayCache } from "@/components/offline-day-cache";
@@ -43,13 +45,14 @@ function Widget({ title, icon: Icon, href, id, children, hide }: { title: string
 
 export default async function DashboardPage() {
   const user = await pageUser();
-  const [d, prefs, onb, focus, goals, reviewed] = await Promise.all([
+  const [d, prefs, onb, focus, goals, reviewed, recoveryPending] = await Promise.all([
     getDashboard(user.id),
     getPrefs(user.id),
     prisma.user.findUnique({ where: { id: user.id }, select: { onboardedAt: true } }),
     currentFocus(user.id),
     listGoals(user.id),
     prisma.weeklyReview.count({ where: { userId: user.id, weekStart: reviewWeek() } }),
+    pendingRecoveryConfirmation(user.id),
   ]);
   const openGoals = goals.filter((g) => !g.doneAt).slice(0, 3);
   // Sábado o domingo sin revisar: se invita a hacerla
@@ -87,6 +90,8 @@ export default async function DashboardPage() {
           </div>
         }
       />
+
+      {recoveryPending ? <RecoveryConsentNotice /> : null}
 
       {d.injuryAlert ? (
         <Link

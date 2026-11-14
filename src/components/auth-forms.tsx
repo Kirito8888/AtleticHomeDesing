@@ -174,7 +174,7 @@ export function RegisterForm({ invite }: { invite?: { token: string; email: stri
           <label className="flex items-start gap-2 text-sm">
             <input type="checkbox" name="terms" className="mt-0.5 size-4" required />
             <span>
-              Acepto las{" "}
+              Tengo 14 años o más y acepto las{" "}
               <Link href="/legal/condiciones" target="_blank" className="underline underline-offset-2">
                 condiciones de uso
               </Link>{" "}

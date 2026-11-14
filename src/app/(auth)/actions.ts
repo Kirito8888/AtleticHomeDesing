@@ -69,7 +69,7 @@ export async function registerAction(_prev: FormState, form: FormData): Promise<
   const parsed = registerSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Datos no válidos" };
   // v1.9 · Condiciones de uso y privacidad: hay que aceptarlas para crear la cuenta
-  if (form.get("terms") !== "on") return { error: "Para crear la cuenta tienes que aceptar las condiciones de uso y la política de privacidad." };
+  if (form.get("terms") !== "on") return { error: "Para crear la cuenta tienes que tener 14 años o más y aceptar las condiciones de uso y la política de privacidad." };
   // v1.9 · Con el registro cerrado, solo con una invitación válida (y para su email, si la tiene)
   const token = typeof form.get("invite") === "string" ? String(form.get("invite")) : "";
   const invitation = (await registrationOpen()) ? null : await findInvitation(token);
