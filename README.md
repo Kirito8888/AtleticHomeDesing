@@ -6,12 +6,13 @@ PWA personal para un atleta (pista, saltos y lanzamientos) que junta en una sola
 
 Pensada para el móvil y autoalojada en tu propio servidor.
 
-> **© 2026 David Ornelas Luna. Todos los derechos reservados.**
+> **© 2026 David Ornelas Luna · proyecto personal para uso personal y no comercial · todos los derechos reservados**
 > Este repositorio es público para que se pueda ver, pero **usar, instalar, copiar, modificar o
 > distribuir Atlenza requiere permiso previo y por escrito del autor**. Para pedirlo, abre una
 > [issue](https://github.com/Kirito8888/AtleticHomeDesing/issues). Condiciones completas en
 > [`LICENSE`](LICENSE); componentes de terceros en [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 > No es «open source»: es código visible con todos los derechos reservados.
+> *Texto legal provisional, pendiente de revisión por un abogado.*
 
 **Versión actual: v2.11**: Finanzas, práctica y rendimiento (editar transferencias y asientos partidos, archivar cuentas, atajos de categorías, práctica guiada de ejercicios en Estudio, fecha de examen sugerida, cola de PDF acotada, refresco por zonas y varias optimizaciones). Sin migraciones. (v2.10: Entreno y Nutrición (precarga y descanso automático en fuerza, frases que explican la disposición y el PMC, editar todas las semanas con vista previa y citas en la IA de planificación, menús por toma y alimentos recientes). Sin migraciones. (v2.9: datos entre dispositivos e índices (composición corporal ISAK con somatocarta y 4 masas, histórico de autoevaluación y micro-pasos en tu cuenta, ruta de estudio volcada al plan del día, un solo temporizador que anota las horas de estudio, índices en comentarios, auditoría, avisos y búsqueda de alimentos). Una migración aditiva. (v2.8: estudio sin fricción (editar Resumir/Informe antes de guardar, flashcards sin duplicados, reiniciar partida y tutorial en el Modo Juego, sondeo ligero de `/study`). Sin migraciones. v2.7: servidor de IA local primero (opcionalmente solo local con `LOCAL_AI_ONLY`), apuntes en DOCX, fotos grandes reducidas antes de la IA, tiempos de IA acotados, carga de entrenamiento y extractos bancarios en lote, y la recuperación fuera del texto del informe semanal para quien no tiene ese permiso. Sin migraciones. (v2.6: paquete de tema por IA, Modo Juego con desarrollo y examen final. v2.5: finanzas en el móvil, estudio con TDAH, rutinas con ciencia y refuerzo de seguridad. v2.4: perfil fuerza-velocidad y auditoría del staff. v2.3: navegación agrupada.) Ver [`CHANGELOG.md`](CHANGELOG.md).
 

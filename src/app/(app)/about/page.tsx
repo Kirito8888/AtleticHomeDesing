@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AUTHORSHIP_NOTICE, LEGAL_REVIEW_PENDING } from "@/lib/legal/notice";
 import pkg from "../../../../package.json";
 
 export const metadata = { title: "Acerca de · Atlenza" };
@@ -20,7 +21,7 @@ export default function AboutPage() {
           </CardHeader>
           <CardContent className="grid gap-2 px-4">
             <p>
-              Atlenza es un programa creado por <span className="font-medium">David Ornelas Luna</span>. © 2026. Todos los derechos reservados.
+              {AUTHORSHIP_NOTICE}. Atlenza es un programa creado por <span className="font-medium">David Ornelas Luna</span>.
             </p>
             <p className="text-muted-foreground">
               Solo pueden usarlo e instalarlo las personas a las que el autor ha dado permiso por escrito. Copiarlo, modificarlo, distribuirlo u ofrecerlo como servicio también requiere su autorización.
@@ -37,6 +38,7 @@ export default function AboutPage() {
             <p className="text-muted-foreground">
               Información orientativa de entrenamiento y bienestar: no es un producto sanitario ni sustituye el consejo de profesionales de la salud.
             </p>
+            <p className="text-xs text-muted-foreground">{LEGAL_REVIEW_PENDING}</p>
           </CardContent>
         </Card>
         <Card className="gap-2 py-4">
