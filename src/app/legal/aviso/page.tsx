@@ -1,5 +1,6 @@
 import { connection } from "next/server";
 
+import { AUTHORSHIP_NOTICE, LEGAL_REVIEW_PENDING } from "@/lib/legal/notice";
 import { controller } from "@/lib/privacy/legal";
 
 export const metadata = { title: "Aviso legal · Atlenza" };
@@ -22,9 +23,10 @@ export default async function LegalNotice() {
       </p>
       <p>Las estimaciones y proyecciones (marcas, progreso, previsiones) son orientativas y dependen de tus propios datos; no son una promesa de resultado.</p>
       <p>
-        El software Atlenza es obra de David Ornelas Luna (© 2026, todos los derechos reservados) y solo puede usarse con su autorización por escrito (ver la{" "}
+        {AUTHORSHIP_NOTICE}. El software Atlenza es obra de David Ornelas Luna y solo puede usarse con su autorización por escrito (ver la{" "}
         <a href="https://github.com/Kirito8888/AtleticHomeDesing/blob/main/LICENSE">licencia</a> y las <a href="/legal/condiciones">condiciones de uso</a>). Cada instalación autorizada es responsabilidad de quien la administra.
       </p>
+      <p className="text-xs text-muted-foreground">{LEGAL_REVIEW_PENDING}</p>
     </article>
   );
 }

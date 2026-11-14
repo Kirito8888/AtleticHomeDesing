@@ -876,7 +876,7 @@ export default async function SettingsPage({
               href="/about"
               className="inline-flex min-h-11 items-center text-sm underline underline-offset-2"
             >
-              Atlenza · © 2026 David Ornelas Luna · licencia y atribuciones
+              Atlenza · © 2026 David Ornelas Luna · uso no comercial · licencia y atribuciones
             </Link>
           </Section>
         </div>

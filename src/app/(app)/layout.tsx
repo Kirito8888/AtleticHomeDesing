@@ -6,6 +6,7 @@ import { pageUser } from "@/lib/auth/page";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { unreadCount } from "@/lib/push/inbox";
 import { getPrefs } from "@/lib/rules/prefs-service";
+import { AuthorshipFooter } from "@/components/legal/authorship-footer";
 import { TermsGate } from "@/components/legal/terms-gate";
 import { hasAcceptedTerms, TERMS_VERSION } from "@/lib/auth/access";
 
@@ -16,6 +17,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     return (
       <main id="main" className="mx-auto w-full max-w-5xl px-4">
         <TermsGate version={TERMS_VERSION} />
+        <AuthorshipFooter />
       </main>
     );
   }
@@ -41,6 +43,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           </p>
         ) : null}
         {children}
+        <AuthorshipFooter />
       </main>
     </div>
   );

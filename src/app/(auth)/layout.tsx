@@ -1,5 +1,6 @@
 import { Activity } from "lucide-react";
 
+import { AuthorshipFooter } from "@/components/legal/authorship-footer";
 import { PurgePrivateCache } from "@/components/purge-private-cache";
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
@@ -10,6 +11,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
         <Activity className="size-7" /> Atlenza
       </div>
       <div className="w-full max-w-sm">{children}</div>
+      <AuthorshipFooter className="max-w-sm" />
     </main>
   );
 }

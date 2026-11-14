@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 
 import { TERMS_VERSION } from "@/lib/auth/access";
+import { AUTHORSHIP_NOTICE } from "@/lib/legal/notice";
 import { controller } from "@/lib/privacy/legal";
 
 export const metadata = { title: "Condiciones de uso · Atlenza" };
@@ -15,7 +16,7 @@ export default async function Terms() {
       <p className="text-sm">Versión {TERMS_VERSION}</p>
       <h2>1. Quién eres para Atlenza</h2>
       <p>
-        Atlenza es un programa de David Ornelas Luna (© 2026, todos los derechos reservados). Puedes usar esta instalación porque su administración te ha invitado. Ese permiso es personal: no puedes cederlo, compartir tu cuenta ni dar acceso a otras personas.
+        {AUTHORSHIP_NOTICE}. Atlenza es un programa de David Ornelas Luna. Puedes usar esta instalación porque su administración te ha invitado. Ese permiso es personal: no puedes cederlo, compartir tu cuenta ni dar acceso a otras personas.
       </p>
       <h2>2. Qué puedes hacer</h2>
       <p>Usar la app para registrar y consultar tus propios datos (entrenamiento, recuperación, nutrición, finanzas y estudio), y descargarlos o borrarlos cuando quieras desde Ajustes.</p>

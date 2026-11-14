@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/client-api";
+import { AUTHORSHIP_NOTICE } from "@/lib/legal/notice";
 
 /** v1.9 · Antes de usar la app hay que aceptar la versión vigente de las condiciones (con su enlace). */
 export function TermsGate({ version }: { version: string }) {
@@ -18,7 +19,7 @@ export function TermsGate({ version }: { version: string }) {
         Condiciones de uso de Atlenza
       </h1>
       <p>
-        Atlenza es un programa de David Ornelas Luna con todos los derechos reservados. Para seguir, lee y acepta las condiciones de uso (versión {version}) y la política de privacidad.
+        {AUTHORSHIP_NOTICE}. Para seguir, lee y acepta las condiciones de uso (versión {version}) y la política de privacidad.
       </p>
       <p className="flex gap-3">
         <a href="/legal/condiciones" target="_blank" rel="noopener" className="underline underline-offset-2">

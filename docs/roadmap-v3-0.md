@@ -36,7 +36,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 
 ### Núcleo mínimo de v3.0
 
-#### C · Avisos de autoría y uso no comercial
+#### C · Avisos de autoría y uso no comercial — HECHO (14/11/2026, ver `docs/estado.md`)
 | | |
 |---|---|
 | Tareas | 1) `README.md`: el banner actual pasa a «© 2026 David Ornelas Luna · proyecto personal para uso personal y no comercial · todos los derechos reservados» (V3-L01). 2) `LICENSE`: cabecera informativa con la misma frase y la marca **«Pendiente de revisión legal»**, sin tocar las cláusulas 2–3. 3) Pie de una línea en `(app)/layout.tsx` y en el layout de `(auth)` con enlace a `/legal/aviso` (V3-L02 prioridad 1). 4) Alinear `/legal/aviso`, `/legal/condiciones`, `terms-gate.tsx` y `/about` (versión, autoría, licencia, terceros) con la frase, sin contradecir la licencia |

@@ -61,6 +61,18 @@ const addPasskey = async (p: Page) => {
   await p.getByRole("button", { name: "Añadir llave" }).click();
   await p.getByLabel("Mis llaves de acceso").getByText("Llave de administración").waitFor();
 };
+// v3.0 · C · pie de autoría: visible a 390 px, enlace a /legal/aviso, ≥ 44 px, sin scroll horizontal y con teclado
+const checkAuthorshipFooter = async (p: Page, where: string) => {
+  await p.setViewportSize({ width: 390, height: 844 });
+  const link = p.locator("footer").getByRole("link", { name: /uso personal y no comercial/ });
+  await link.waitFor();
+  const box = await link.boundingBox();
+  if (!box || box.height < 43.5) errors.push(`${where}: el pie de autoría mide menos de 44 px`);
+  if ((await link.getAttribute("href")) !== "/legal/aviso") errors.push(`${where}: el pie no enlaza a /legal/aviso`);
+  if (await p.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)) errors.push(`${where}: scroll horizontal a 390 px`);
+  await link.focus();
+  if (!(await link.evaluate((e) => e === document.activeElement))) errors.push(`${where}: el pie no recibe el foco`);
+};
 const run = Date.now();
 
 // 1. Páginas públicas nuevas: condiciones, acerca de y enlace de contraseña no válido (axe)
@@ -73,6 +85,7 @@ const run = Date.now();
   await p.getByText("Enlace no válido").waitFor();
   await checkA11y(p, "/reset");
   await go(p, "/login");
+  await checkAuthorshipFooter(p, "/login");
   await p.getByText("¿Olvidaste la contraseña?").click();
   await p.getByText(/administración/).first().waitFor();
   await go(p, "/register");
@@ -97,6 +110,7 @@ await athlete.getByRole("navigation", { name: "Navegación principal" }).first()
 await go(athlete, "/about");
 await athlete.getByText("David Ornelas Luna").first().waitFor();
 await athlete.getByText(/Open Food Facts/).first().waitFor();
+await checkAuthorshipFooter(athlete, "/about");
 await checkA11y(athlete, "/about");
 if ((await athlete.request.get(B + "/api/admin/users")).status() !== 403) errors.push("un atleta no debe ver la lista de cuentas");
 if ((await athlete.request.post(B + "/api/admin/invitations", { data: { email: null } })).status() !== 403) errors.push("un atleta no debe poder invitar");
