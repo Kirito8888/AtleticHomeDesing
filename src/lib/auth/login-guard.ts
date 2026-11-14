@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { countPersistent, rateLimitPersistent, resetPersistent } from "@/lib/rate-limit-db";
 
@@ -58,8 +58,16 @@ export const clearGlobalFailures = (email: string) => resetPersistent(globalKey(
 export const deviceCookieName = (email: string) => `atlenza-dev-${createHmac("sha256", "device-name").update(email).digest("hex").slice(0, 12)}`;
 
 /** Firma del dispositivo: ligada al email y a la versión de sesión (cambiar la contraseña o «cerrar todas» la invalida). */
+let ephemeralSecret: string | undefined;
+/** V3-S05: nunca una cadena fija. Sin AUTH_SECRET, producción falla y desarrollo/test usa un secreto aleatorio del proceso. */
+function deviceSecret(): string {
+  if (process.env.AUTH_SECRET) return process.env.AUTH_SECRET;
+  if (process.env.NODE_ENV === "production") throw new Error("Falta AUTH_SECRET");
+  return (ephemeralSecret ??= randomBytes(32).toString("hex"));
+}
+
 export function deviceToken(email: string, sessionVersion: number): string {
-  const secret = process.env.AUTH_SECRET ?? "dev";
+  const secret = deviceSecret();
   return createHmac("sha256", secret).update(`device|${email}|${sessionVersion}`).digest("base64url");
 }
 

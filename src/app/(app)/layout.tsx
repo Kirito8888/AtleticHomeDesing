@@ -8,6 +8,9 @@ import { unreadCount } from "@/lib/push/inbox";
 import { getPrefs } from "@/lib/rules/prefs-service";
 import { AuthorshipFooter } from "@/components/legal/authorship-footer";
 import { TermsGate } from "@/components/legal/terms-gate";
+import Link from "next/link";
+import { SecondFactorGate } from "@/components/settings/second-factor-gate";
+import { staffGate } from "@/lib/auth/staff-gate";
 import { hasAcceptedTerms, TERMS_VERSION } from "@/lib/auth/access";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
@@ -21,6 +24,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       </main>
     );
   }
+  // v3.0 D (V3-S01) · ADMIN/COACH sin 2FA: en gracia, aviso; pasada la gracia, solo la pantalla para activarla
+  const staff = await staffGate(user);
+  if (staff.kind === "blocked") return <SecondFactorGate userId={user.id} />;
   const [prefs, unread] = await Promise.all([getPrefs(user.id), unreadCount(user.id)]);
   return (
     <div className="min-h-dvh md:pl-56">
@@ -40,6 +46,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         {user.email?.endsWith("@demo.lifeos.invalid") ? (
           <p role="status" className="mb-3 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs">
             Cuenta de demostración: datos inventados que se borran solos a los 30 días.
+          </p>
+        ) : null}
+        {staff.kind === "grace" ? (
+          <p role="status" className="mb-3 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs">
+            Tu cuenta necesitará verificación en dos pasos{staff.from ? ` desde el ${staff.from.split("-").reverse().join("/")}${staff.daysLeft != null ? ` (quedan ${staff.daysLeft} días)` : ""}` : ""}.{" "}
+            <Link href="/settings#dos-pasos" className="inline-flex min-h-11 items-center font-medium underline underline-offset-2">
+              Actívala en Ajustes
+            </Link>
           </p>
         ) : null}
         {children}

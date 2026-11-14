@@ -226,13 +226,17 @@ printf '%s' "$code"
 STUB
 chmod +x "$T/bin/curl"
 DENV="$T/doctor.env"; DSECRET="Zk3-valor-privado-NO-DEBE-SALIR"
-printf 'POSTGRES_USER=lifeos\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=lifeos\nAUTH_SECRET=abcdefghijklmnopqrstuvwxyz0123456789ABCDEF\nAUTH_URL=https://atlenza.example.org\nTOTP_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz0123456789ABCDEF\nOFF_USER_AGENT="Atlenza (x@example.org)"\n' "$DSECRET" > "$DENV"; chmod 600 "$DENV"
+printf 'POSTGRES_USER=lifeos\nPOSTGRES_PASSWORD=%s\nPOSTGRES_DB=lifeos\nAUTH_SECRET=abcdefghijklmnopqrstuvwxyz0123456789ABCDEF\nAUTH_URL=https://atlenza.example.org\nTOTP_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz0123456789ABCDEF\nOFF_USER_AGENT="Atlenza (x@example.org)"\nSTAFF_2FA_REQUIRED_FROM=2026-12-01\nTRUSTED_PROXY_HOPS=1\n' "$DSECRET" > "$DENV"; chmod 600 "$DENV"
 DX=(env ENV_FILE="$DENV" DOCTOR_BASE_URL=http://127.0.0.1:3999 bash "$DR" --no-color)
 "${DX[@]}" --env >"$T/d1.txt" 2>&1 && grep -q 'Sintaxis compatible' "$T/d1.txt" && ! grep -q '\[ERROR\]' "$T/d1.txt" && ! grep -q '\[AVISO\]' "$T/d1.txt" && grep -q 'Nota:' "$T/d1.txt" && ok "doctor --env: entorno sano (con comillas equilibradas) → exit 0"
 DBAD="$T/doctor-bad.env"; printf 'POSTGRES_USER=lifeos\nAUTH_SECRET="%s\nAUTH_URL=http://x.example.org\r\nexport FOO=1\nPOSTGRES_PASSWORD=change-me\n' "$DSECRET" > "$DBAD"; chmod 600 "$DBAD"
 if env ENV_FILE="$DBAD" bash "$DR" --env --no-color >"$T/d2.txt" 2>&1; then bad "doctor aceptó un .env inválido"; else ok ".env inválido → exit 1"; fi
 grep -q 'comilla de apertura' "$T/d2.txt" && grep -q 'CRLF' "$T/d2.txt" && grep -q '«export »' "$T/d2.txt" && grep -q 'POSTGRES_DB vacía' "$T/d2.txt" && grep -q 'es la de ejemplo' "$T/d2.txt" && ok "doctor --env: detecta comilla, CRLF, export, clave crítica y contraseña de ejemplo"
 [ "$(grep -c 'Solución:' "$T/d2.txt")" -ge 5 ] && ok "doctor: cada fallo trae «Solución:»"
+DV3="$T/doctor-v3.env"; sed '/^STAFF_2FA_REQUIRED_FROM/d;/^TRUSTED_PROXY_HOPS/d' "$DENV" > "$DV3"; printf 'WEB_BIND=0.0.0.0\n' >> "$DV3"; chmod 600 "$DV3"
+env ENV_FILE="$DV3" bash "$DR" --env --no-color >"$T/d2b.txt" 2>&1; grep -q 'Falta STAFF_2FA_REQUIRED_FROM' "$T/d2b.txt" && grep -q 'TRUSTED_PROXY_HOPS=1 con WEB_BIND=0.0.0.0' "$T/d2b.txt" && ok "doctor --env: avisa sin STAFF_2FA_REQUIRED_FROM y con proxy de confianza + WEB_BIND=0.0.0.0"
+printf 'TRUSTED_PROXY_HOPS=9\nSTAFF_2FA_REQUIRED_FROM=ayer\n' >> "$DV3"
+if env ENV_FILE="$DV3" bash "$DR" --env --no-color >"$T/d2c.txt" 2>&1; then bad "doctor aceptó TRUSTED_PROXY_HOPS/STAFF_2FA inválidos"; else grep -q 'TRUSTED_PROXY_HOPS debe ser' "$T/d2c.txt" && ok "doctor --env: TRUSTED_PROXY_HOPS fuera de 0-5 → ERROR"; fi
 ! grep -q "$DSECRET" "$T/d2.txt" && ! grep -q "$DSECRET" "$T/d1.txt" && ok "doctor --env: ningún valor del .env en la salida"
 "${DX[@]}" --web >"$T/d3.txt" 2>&1 && grep -q 'Páginas privadas sin sesión' "$T/d3.txt" && ok "doctor --web: web sana → exit 0"
 ! grep -q 'atlenza.example.org' "$T/d3.txt" && ok "doctor --web: no imprime el dominio"

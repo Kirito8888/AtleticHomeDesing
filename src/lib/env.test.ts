@@ -48,3 +48,22 @@ describe("env · valores inseguros en producción", () => {
     expect(() => parseEnv({ DATABASE_URL: "x", TOTP_ENCRYPTION_KEY: "no-es-base64-de-32-bytes" })).toThrow(/TOTP_ENCRYPTION_KEY/);
   });
 });
+
+describe("env · v3.0 D (2FA de staff, proxies, AUTH_SECRET)", () => {
+  it("sin AUTH_SECRET en producción falla aunque AUTH_URL sea local; el build y el desarrollo no", () => {
+    expect(() => parseEnv({ ...PROD, AUTH_SECRET: undefined, AUTH_URL: "http://localhost:3000" })).toThrow(/AUTH_SECRET/);
+    expect(() => parseEnv({ ...PROD, AUTH_SECRET: undefined, NEXT_PHASE: "phase-production-build" })).not.toThrow();
+    expect(() => parseEnv({ ...PROD, NODE_ENV: "development", AUTH_SECRET: undefined })).not.toThrow();
+  });
+  it("STAFF_2FA_REQUIRED_FROM: fecha válida, vacía = sin fecha, otra cosa se rechaza", () => {
+    expect(parseEnv({ ...PROD, STAFF_2FA_REQUIRED_FROM: "2026-12-01" }).STAFF_2FA_REQUIRED_FROM).toBe("2026-12-01");
+    expect(parseEnv({ ...PROD, STAFF_2FA_REQUIRED_FROM: "" }).STAFF_2FA_REQUIRED_FROM).toBeUndefined();
+    expect(() => parseEnv({ ...PROD, STAFF_2FA_REQUIRED_FROM: "ayer" })).toThrow();
+    expect(() => parseEnv({ ...PROD, STAFF_2FA_REQUIRED_FROM: "2026-13-45" })).toThrow();
+  });
+  it("TRUSTED_PROXY_HOPS: 1 por defecto, 0-5 válidos, fuera de rango se rechaza", () => {
+    expect(parseEnv(PROD).TRUSTED_PROXY_HOPS).toBe(1);
+    expect(parseEnv({ ...PROD, TRUSTED_PROXY_HOPS: "0" }).TRUSTED_PROXY_HOPS).toBe(0);
+    expect(() => parseEnv({ ...PROD, TRUSTED_PROXY_HOPS: "9" })).toThrow();
+  });
+});

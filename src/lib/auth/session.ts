@@ -6,7 +6,8 @@ import { ApiError } from "@/lib/api";
 import { TERMS_VERSION } from "@/lib/auth/constants";
 import { recoveryConsented } from "@/lib/coach/recovery-consent";
 import { prisma } from "@/lib/prisma";
-import { isMutation, requestContext, termsExempt } from "@/lib/request-context";
+import { staffGate } from "@/lib/auth/staff-gate";
+import { isMutation, requestContext, secondFactorExempt, termsExempt } from "@/lib/request-context";
 
 export interface CurrentUser {
   id: string;
@@ -18,7 +19,7 @@ export interface CurrentUser {
  * En mutaciones exige además las condiciones de uso vigentes aceptadas (salvo rutas exentas).
  *
  * @returns `{ id, role }` de la sesión.
- * @throws {ApiError} 401 sin sesión · 403 `terms_required` si no ha aceptado las condiciones vigentes.
+ * @throws {ApiError} 401 sin sesión · 403 `terms_required` si no ha aceptado las condiciones vigentes · 403 `second_factor` si es ADMIN/COACH sin 2FA pasada la gracia.
  */
 export async function requireUser(): Promise<CurrentUser> {
   const session = await currentSession();
@@ -28,6 +29,11 @@ export async function requireUser(): Promise<CurrentUser> {
   if (rc && isMutation(rc.method) && !termsExempt(rc.path)) {
     rc.termsOk ??= await termsAccepted(session.user.id);
     if (!rc.termsOk) throw new ApiError(403, "Acepta las condiciones de uso para continuar", { code: "terms_required" });
+  }
+  // v3.0 D (V3-S01): ADMIN/COACH sin 2FA pasada la gracia solo pueden ir a configurarla (cualquier método)
+  if (rc && !secondFactorExempt(rc.path)) {
+    rc.staffBlocked ??= (await staffGate({ id: session.user.id, role: session.user.role })).kind === "blocked";
+    if (rc.staffBlocked) throw new ApiError(403, "Activa la verificación en dos pasos o una llave de acceso para seguir (Ajustes → Seguridad).", { code: "second_factor" });
   }
   return { id: session.user.id, role: session.user.role };
 }
