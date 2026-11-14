@@ -35,3 +35,27 @@ describe("clientIp", () => {
     expect(clientIp(new Headers())).toBe("unknown");
   });
 });
+
+describe("clientIp · proxies de confianza (V3-S02)", () => {
+  const h = (xff?: string, real?: string) => new Headers({ ...(xff ? { "x-forwarded-for": xff } : {}), ...(real ? { "x-real-ip": real } : {}) });
+  it("0 proxies: no se fía de ninguna cabecera", () => {
+    expect(clientIp(h("1.1.1.1, 2.2.2.2", "3.3.3.3"), 0)).toBe("unknown");
+  });
+  it("2 proxies: la penúltima entrada; con menos entradas, unknown", () => {
+    expect(clientIp(h("9.9.9.9, 1.1.1.1, 2.2.2.2"), 2)).toBe("1.1.1.1");
+    expect(clientIp(h("2.2.2.2"), 2)).toBe("unknown");
+    expect(clientIp(h(undefined, "3.3.3.3"), 2)).toBe("unknown");
+  });
+  it("valor por defecto del entorno: 1 proxy; un valor roto vuelve a 1", () => {
+    const old = process.env.TRUSTED_PROXY_HOPS;
+    try {
+      process.env.TRUSTED_PROXY_HOPS = "abc";
+      expect(clientIp(h("1.1.1.1, 2.2.2.2"))).toBe("2.2.2.2");
+      process.env.TRUSTED_PROXY_HOPS = "0";
+      expect(clientIp(h("1.1.1.1, 2.2.2.2"))).toBe("unknown");
+    } finally {
+      if (old === undefined) delete process.env.TRUSTED_PROXY_HOPS;
+      else process.env.TRUSTED_PROXY_HOPS = old;
+    }
+  });
+});

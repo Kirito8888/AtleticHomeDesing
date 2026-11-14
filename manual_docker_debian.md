@@ -187,7 +187,7 @@ Comprueba `https://lifeos.tudominio.es`, crea tu cuenta (la primera; después el
 
 **Alternativa con nginx** (si ya lo usas): `proxy_pass http://127.0.0.1:3000;` con `client_max_body_size 20m;` y `proxy_set_header Host $host; X-Forwarded-Proto $scheme; X-Forwarded-For $proxy_add_x_forwarded_for;`, y certificado con `certbot --nginx`. Nginx Proxy Manager y Caddy ya envían `X-Forwarded-For`.
 
-> **Límite de intentos por IP:** la app toma la IP del cliente de la **última** entrada de `X-Forwarded-For` (la que añade tu proxy). Por eso la app **no** debe ser accesible sin pasar por el proxy: deja `WEB_BIND=127.0.0.1` (o, con Nginx Proxy Manager en Docker, sin publicar el puerto).
+> **Límite de intentos por IP:** la app toma la IP del cliente de la entrada de `X-Forwarded-For` que corresponde a `TRUSTED_PROXY_HOPS` (por defecto 1 = la **última**, la que añade tu proxy; con 0 no se fía de ninguna cabecera). Por eso la app **no** debe ser accesible sin pasar por el proxy: deja `WEB_BIND=127.0.0.1` (o, con Nginx Proxy Manager en Docker, sin publicar el puerto).
 
 ### Bloquear IPs con fail2ban (recomendado)
 
