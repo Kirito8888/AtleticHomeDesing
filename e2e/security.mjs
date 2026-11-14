@@ -333,9 +333,17 @@ await b.waitForFunction(async () => Boolean(await caches.match("/finance")), nul
   const ok = await a.request.patch(B + `/api/coach/links/${link.id}`, { data: { status: "ACTIVE" } });
   if (!ok.ok()) fail("el atleta no pudo aceptar el vínculo");
 
-  if ((await coach.request.get(B + `/api/recovery?athleteId=${athleteId}`)).status() !== 200) fail("con todos los permisos el coach debía ver recuperación");
+  // Art. 9 RGPD: un vínculo nuevo no trae «Recuperación y lesiones»; la atleta lo activa de forma expresa
+  if ((await coach.request.get(B + `/api/recovery?athleteId=${athleteId}`)).status() !== 403) fail("un vínculo nuevo no debe dar recuperación sin consentimiento");
+  if ((await coach.request.get(B + `/api/training/pmc?athleteId=${athleteId}`)).status() !== 200) fail("el vínculo nuevo debía dar la carga");
   await go(a, "/settings");
-  await a.getByRole("switch", { name: "Recuperación y lesiones" }).click();
+  await a.getByRole("switch", { name: /Recuperación y lesiones/ }).click();
+  await a.getByRole("button", { name: "Activar" }).click();
+  await a.getByText("Permisos actualizados").first().waitFor();
+  if ((await coach.request.get(B + `/api/recovery?athleteId=${athleteId}`)).status() !== 200) fail("con el consentimiento expreso el coach debía ver recuperación");
+  if ((await (await a.request.get(B + "/api/coach/recovery-consent")).json()).pending !== false) fail("tras activarlo no debe quedar nada pendiente de confirmar");
+  await go(a, "/settings");
+  await a.getByRole("switch", { name: /Recuperación y lesiones/ }).click();
   await a.getByText("Permisos actualizados").first().waitFor();
   if ((await coach.request.get(B + `/api/recovery?athleteId=${athleteId}`)).status() !== 403) fail("sin el permiso RECOVERY el coach sigue viendo la recuperación");
   if ((await coach.request.get(B + `/api/training/pmc?athleteId=${athleteId}`)).status() !== 200) fail("quitar RECOVERY no debía afectar a la carga");

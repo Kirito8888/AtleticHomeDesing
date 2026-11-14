@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { ApiError, parseBody, route } from "@/lib/api";
 import { requireUser } from "@/lib/auth/session";
+import { syncRecoveryConsent } from "@/lib/coach/recovery-consent";
 import { prisma } from "@/lib/prisma";
 import { recordConsent } from "@/lib/privacy/service";
 import { auditContext, recordEvent } from "@/lib/security/audit";
@@ -38,6 +39,10 @@ export const PATCH = route(async (req, ctx: RouteContext<"/api/coach/links/[id]"
   });
   if (data.scopes) {
     await recordEvent(user.id, "COACH_SCOPES_CHANGED", auditContext(req.headers), data.scopes.join(", ") || "ninguno");
+  }
+  // Salud (art. 9): activar «Recuperación y lesiones» es un acto expreso que queda como consentimiento; quitarlo (o revocar) lo retira
+  if (isAthlete && (data.scopes || data.status === "REVOKED")) {
+    await syncRecoveryConsent(user.id, auditContext(req.headers), Boolean(data.scopes?.includes("RECOVERY")) && !link.scopes.includes("RECOVERY") && updated.status === "ACTIVE");
   }
   // v1.7 · Consentimiento del atleta: aceptar el vínculo lo concede; revocarlo lo retira
   if (isAthlete && data.status) await recordConsent(user.id, "COACH", data.status === "ACTIVE", auditContext(req.headers));

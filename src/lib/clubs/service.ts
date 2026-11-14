@@ -3,6 +3,8 @@ import "server-only";
 import type { CoachScope, OrgRole } from "@/generated/prisma/enums";
 import { ApiError } from "@/lib/api";
 import type { CurrentUser } from "@/lib/auth/session";
+import { DEFAULT_SHARED_SCOPES } from "@/lib/coach/scopes";
+import { syncRecoveryConsent } from "@/lib/coach/recovery-consent";
 import { prisma } from "@/lib/prisma";
 import { type AuditContext, recordEvent } from "@/lib/security/audit";
 
@@ -32,7 +34,7 @@ export async function inviteMember(user: CurrentUser, orgId: string, email: stri
   if (!target || target.id === user.id) throw new ApiError(404, "No se pudo enviar la invitación");
   if (role !== "ATHLETE" && target.role === "ATHLETE") throw new ApiError(404, "No se pudo enviar la invitación");
   try {
-    return await prisma.orgMember.create({ data: { orgId, userId: target.id, role, invitedById: user.id } });
+    return await prisma.orgMember.create({ data: { orgId, userId: target.id, role, invitedById: user.id, scopes: DEFAULT_SHARED_SCOPES } });
   } catch {
     throw new ApiError(404, "No se pudo enviar la invitación");
   }
@@ -71,6 +73,8 @@ export async function updateMember(
       acceptedAt: data.status === "ACTIVE" && !m.acceptedAt ? new Date() : undefined,
     },
   });
+  // Salud (art. 9): marcar «Recuperación y lesiones» al aceptar es el consentimiento expreso; sin él, el staff no la ve
+  if (own && data.scopes) await syncRecoveryConsent(user.id, ctx, data.scopes.includes("RECOVERY"));
   // v2.2 · Auditoría de club: solo lo que concede la propia persona (aceptar, ámbitos, planificar). Va a su Actividad.
   if (own && (data.status || data.scopes || data.canPlan !== undefined)) {
     const parts = [data.status ? "invitación aceptada" : null, data.scopes ? `ámbitos: ${updated.scopes.join(", ") || "ninguno"}` : null, data.canPlan !== undefined ? `planificar: ${updated.canPlan ? "sí" : "no"}` : null];

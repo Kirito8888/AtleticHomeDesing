@@ -39,6 +39,7 @@ describe.skipIf(!HAS_DB)("fisio compartida y curvas v2.1 (BD real)", () => {
     for (const [k, role] of [["coa", "COACH"], ["coa2", "COACH"], ["adm", "ADMIN"], ["at1", "ATHLETE"], ["at2", "ATHLETE"], ["at3", "ATHLETE"]] as const) {
       u[k] = { id: (await prisma.user.create({ data: { email: `${k}-${t}@test.dev`, role, passwordHash: "x", athleteProfile: { create: k === "at1" ? { birthDate: new Date("2010-01-01") } : {} } } })).id, role };
     }
+    await prisma.consent.create({ data: { userId: u.at1.id, purpose: "COACH_RECOVERY", version: "2026-11-14", granted: true } });
     // at1: vínculo con todos los ámbitos; at2: vínculo sin RECOVERY; at3: sin vínculo
     await prisma.coachAthlete.create({ data: { coachId: u.coa.id, athleteId: u.at1.id, status: "ACTIVE", scopes: ["LOAD", "RECOVERY"] } });
     await prisma.coachAthlete.create({ data: { coachId: u.coa.id, athleteId: u.at2.id, status: "ACTIVE", scopes: ["SESSIONS"] } });

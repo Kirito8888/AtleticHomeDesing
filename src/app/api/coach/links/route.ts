@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { ApiError, parseBody, route } from "@/lib/api";
+import { DEFAULT_SHARED_SCOPES } from "@/lib/coach/scopes";
 import { requireUser } from "@/lib/auth/session";
 import { prisma } from "@/lib/prisma";
 
@@ -32,6 +33,6 @@ export const POST = route(async (req) => {
   const athlete = await prisma.user.findUnique({ where: { email: athleteEmail }, select: { id: true } });
   // Mismo mensaje exista o no, para no filtrar qué emails están registrados.
   if (!athlete || athlete.id === user.id) throw new ApiError(404, "No se pudo enviar la invitación");
-  const link = await prisma.coachAthlete.create({ data: { coachId: user.id, athleteId: athlete.id, canPlan } });
+  const link = await prisma.coachAthlete.create({ data: { coachId: user.id, athleteId: athlete.id, canPlan, scopes: DEFAULT_SHARED_SCOPES } });
   return NextResponse.json(link, { status: 201 });
 });

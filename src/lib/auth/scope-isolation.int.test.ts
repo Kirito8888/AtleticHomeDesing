@@ -116,6 +116,7 @@ describe.skipIf(!HAS_DB)("una entrenadora con un solo ámbito (BD real)", () => 
     athlete = (await prisma.user.create({ data: { email: `si-a-${t}@test.dev`, name: "Atleta" } })).id;
     await prisma.user.update({ where: { id: athlete }, data: { aiConsentAt: new Date() } });
     await prisma.athleteProfile.create({ data: { userId: athlete, birthDate: new Date(Date.UTC(2010, 0, 1)) } });
+    await prisma.consent.create({ data: { userId: athlete, purpose: "COACH_RECOVERY", version: "2026-11-14", granted: true } });
     for (const s of SCOPES) {
       coaches[s] = (await prisma.user.create({ data: { email: `si-c-${s.toLowerCase()}-${t}@test.dev`, name: `Entrenadora ${s}`, role: "COACH" } })).id;
       await prisma.coachAthlete.create({ data: { coachId: coaches[s], athleteId: athlete, status: "ACTIVE", scopes: [s], canPlan: true } });
@@ -272,5 +273,25 @@ describe.skipIf(!HAS_DB)("una entrenadora con un solo ámbito (BD real)", () => 
       expect((await post({ id: coaches.LOAD, role: "COACH" }, athlete)).status).toBe(403);
       expect(aiCalls).toHaveLength(0);
     });
+  });
+});
+
+describe.skipIf(!HAS_DB)("RECOVERY exige el consentimiento expreso de la atleta (art. 9 RGPD)", () => {
+  it("sin consentimiento concedido, el ámbito marcado no da lectura; al retirarlo se cierra otra vez", async () => {
+    const { prisma } = await import("@/lib/prisma");
+    const { readableScopes } = await import("@/lib/auth/session");
+    const { DEFAULT_SHARED_SCOPES } = await import("@/lib/coach/scopes");
+    expect(DEFAULT_SHARED_SCOPES).not.toContain("RECOVERY");
+    const t = Date.now();
+    const [a, c] = await Promise.all(
+      ["a", "c"].map(async (k) => (await prisma.user.create({ data: { email: `rc-${k}-${t}@test.dev`, role: k === "c" ? "COACH" : "ATHLETE" } })).id),
+    );
+    await prisma.coachAthlete.create({ data: { coachId: c, athleteId: a, status: "ACTIVE", scopes: ["LOAD", "RECOVERY"] } });
+    const coach = { id: c, role: "COACH" as const };
+    expect([...(await readableScopes(coach, [a])).get(a)!].sort()).toEqual(["LOAD"]);
+    await prisma.consent.create({ data: { userId: a, purpose: "COACH_RECOVERY", version: "2026-11-14", granted: true } });
+    expect([...(await readableScopes(coach, [a])).get(a)!].sort()).toEqual(["LOAD", "RECOVERY"]);
+    await prisma.consent.create({ data: { userId: a, purpose: "COACH_RECOVERY", version: "2026-11-14", granted: false } });
+    expect([...(await readableScopes(coach, [a])).get(a)!].sort()).toEqual(["LOAD"]);
   });
 });

@@ -18,6 +18,7 @@ export default async function Terms() {
       <p>
         {AUTHORSHIP_NOTICE}. Atlenza es un programa de David Ornelas Luna. Puedes usar esta instalación porque su administración te ha invitado. Ese permiso es personal: no puedes cederlo, compartir tu cuenta ni dar acceso a otras personas.
       </p>
+      <p>Debes tener 14 años o más; con menos, solo con la autorización de tu madre, padre o tutor (art. 7 LOPDGDD).</p>
       <h2>2. Qué puedes hacer</h2>
       <p>Usar la app para registrar y consultar tus propios datos (entrenamiento, recuperación, nutrición, finanzas y estudio), y descargarlos o borrarlos cuando quieras desde Ajustes.</p>
       <h2>3. Qué no puedes hacer</h2>
@@ -30,6 +31,9 @@ export default async function Terms() {
       <h2>4. Salud: orientativo, no médico</h2>
       <p>
         Atlenza no es un producto sanitario. Sus avisos (carga, recuperación, molestias, ciclo, cribados, predicciones) son pautas de prudencia y estimaciones: no diagnostican, no sustituyen el consejo de profesionales y no sirven como método anticonceptivo.
+      </p>
+      <p>
+        La recuperación y las lesiones son datos de salud: tu entrenador/a o tu club solo los ven si lo activas tú de forma expresa, y puedes quitarlo cuando quieras.
       </p>
       <h2>5. Inteligencia artificial</h2>
       <p>

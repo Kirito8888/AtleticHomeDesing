@@ -4,6 +4,7 @@ import { currentSession } from "@/lib/auth/current";
 import type { CoachScope, UserRole } from "@/generated/prisma/enums";
 import { ApiError } from "@/lib/api";
 import { TERMS_VERSION } from "@/lib/auth/constants";
+import { recoveryConsented } from "@/lib/coach/recovery-consent";
 import { prisma } from "@/lib/prisma";
 import { isMutation, requestContext, termsExempt } from "@/lib/request-context";
 
@@ -92,6 +93,10 @@ export async function resolveAthleteId(
   const athlete = await prisma.user.findUnique({ where: { id: athleteId }, select: { processingRestrictedAt: true } });
   if (athlete?.processingRestrictedAt) throw new ApiError(403, "El atleta ha limitado el tratamiento de sus datos");
   const grant = mergeGrants(grants);
+  // Recuperación y lesiones es salud (art. 9): el ámbito solo vale con el consentimiento expreso de la atleta (`COACH_RECOVERY`)
+  if (grant.scopes.includes("RECOVERY") && !(await recoveryConsented([athleteId])).has(athleteId)) {
+    grant.scopes = grant.scopes.filter((x) => x !== "RECOVERY");
+  }
   if (!grant.scopes.includes(scope)) throw new ApiError(403, `El atleta no te ha dado acceso a: ${SCOPE_LABEL[scope]}`);
   if (mode === "write" && !grant.canPlan) throw new ApiError(403, "El atleta no te ha dado permiso de planificación");
   return athleteId;
@@ -124,7 +129,11 @@ export async function readableScopes(user: CurrentUser, athleteIds: string[]): P
   const grants = new Map<string, Grant[]>();
   for (const l of links) grants.set(l.athleteId, [...(grants.get(l.athleteId) ?? []), l]);
   for (const m of memberships) grants.set(m.userId, [...(grants.get(m.userId) ?? []), m]);
-  for (const [id, g] of grants) if (!blocked.has(id)) out.set(id, new Set(mergeGrants(g).scopes));
+  const merged = new Map<string, Grant>();
+  for (const [id, g] of grants) if (!blocked.has(id)) merged.set(id, mergeGrants(g));
+  const needsConsent = [...merged].filter(([, g]) => g.scopes.includes("RECOVERY")).map(([id]) => id);
+  const consented = await recoveryConsented(needsConsent);
+  for (const [id, g] of merged) out.set(id, new Set(consented.has(id) || !g.scopes.includes("RECOVERY") ? g.scopes : g.scopes.filter((x) => x !== "RECOVERY")));
   return out;
 }
 

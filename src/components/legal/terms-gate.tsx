@@ -19,7 +19,7 @@ export function TermsGate({ version }: { version: string }) {
         Condiciones de uso de Atlenza
       </h1>
       <p>
-        {AUTHORSHIP_NOTICE}. Para seguir, lee y acepta las condiciones de uso (versión {version}) y la política de privacidad.
+        {AUTHORSHIP_NOTICE}. Para seguir, lee y acepta las condiciones de uso (versión {version}) y la política de privacidad. Debes tener 14 años o más (con menos, solo con autorización de tu madre, padre o tutor).
       </p>
       <p className="flex gap-3">
         <a href="/legal/condiciones" target="_blank" rel="noopener" className="underline underline-offset-2">

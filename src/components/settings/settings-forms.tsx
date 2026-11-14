@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Field } from "@/components/form/chips";
 import { Button } from "@/components/ui/button";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -345,7 +346,7 @@ export interface LinkView {
 const SCOPES: Array<{ value: CoachScopeName; label: string }> = [
   { value: "LOAD", label: "Carga y marcas" },
   { value: "SESSIONS", label: "Sesiones" },
-  { value: "RECOVERY", label: "Recuperación y lesiones" },
+  { value: "RECOVERY", label: "Recuperación y lesiones (salud)" },
   { value: "PLANNING", label: "Planificación" },
   { value: "REPORTS", label: "Informes IA" },
 ];
@@ -409,14 +410,15 @@ export function CoachLinks({ isCoach, asCoach, asAthlete }: { isCoach: boolean; 
                           role="switch"
                           aria-checked={on}
                           disabled={busy}
-                          onClick={() =>
-                            save(
+                          onClick={async () => {
+                            if (!on && sc.value === "RECOVERY" && !(await confirmDialog({ title: "¿Activar recuperación y lesiones?", description: "Son datos de salud (art. 9 RGPD). Si lo activas, tu entrenador/a podrá verlos. Puedes quitarlo cuando quieras.", confirmLabel: "Activar" }))) return;
+                            return save(
                               `/api/coach/links/${l.id}`,
                               { scopes: on ? l.scopes.filter((x) => x !== sc.value) : [...l.scopes, sc.value] },
                               "PATCH",
                               "Permisos actualizados",
-                            )
-                          }
+                            );
+                          }}
                           className={cn(
                             "rounded-full border px-3 py-1 text-xs transition-colors",
                             on ? "border-primary bg-primary text-primary-foreground" : "text-muted-foreground line-through",

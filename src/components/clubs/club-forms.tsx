@@ -53,7 +53,7 @@ export function CreateClub() {
 const SCOPES = [
   ["LOAD", "Carga y marcas"],
   ["SESSIONS", "Sesiones"],
-  ["RECOVERY", "Recuperación y lesiones"],
+  ["RECOVERY", "Recuperación y lesiones (datos de salud)"],
   ["PLANNING", "Planificación"],
   ["REPORTS", "Informes del coach IA"],
 ] as const;
@@ -61,7 +61,7 @@ const SCOPES = [
 /** Invitación pendiente: la persona acepta y, si es atleta, elige qué ve el staff del club. */
 export function AcceptInvite({ orgId, memberId, orgName, role }: { orgId: string; memberId: string; orgName: string; role: string }) {
   const { busy, run } = useAction();
-  const [scopes, setScopes] = useState<string[]>(SCOPES.map(([k]) => k));
+  const [scopes, setScopes] = useState<string[]>(SCOPES.map(([k]) => k).filter((k) => k !== "RECOVERY"));
   const [canPlan, setCanPlan] = useState(false);
   const isAthlete = role === "ATHLETE";
   const url = `/api/clubs/${orgId}/members/${memberId}`;
@@ -75,7 +75,11 @@ export function AcceptInvite({ orgId, memberId, orgName, role }: { orgId: string
           <legend className="mb-1 text-xs text-muted-foreground">El staff del club podrá ver:</legend>
           {SCOPES.map(([k, label]) => (
             <label key={k} className="flex min-h-11 items-center gap-2">
-              <input type="checkbox" className="size-4" checked={scopes.includes(k)} onChange={(e) => setScopes(e.target.checked ? [...scopes, k] : scopes.filter((s) => s !== k))} />
+              <input type="checkbox" className="size-4" checked={scopes.includes(k)} onChange={async (e) => {
+                const on = e.target.checked;
+                if (on && k === "RECOVERY" && !(await confirmDialog({ title: "¿Activar recuperación y lesiones?", description: "Son datos de salud (art. 9 RGPD). Si lo activas, el staff de tu club podrá verlos. Puedes quitarlo cuando quieras.", confirmLabel: "Activar" }))) return;
+                setScopes(on ? [...scopes, k] : scopes.filter((s) => s !== k));
+              }} />
               {label}
             </label>
           ))}

@@ -29,6 +29,7 @@ describe.skipIf(!HAS_DB)("PMC y ámbito RECOVERY (BD real)", () => {
     athlete = (await prisma.user.create({ data: { email: `ps-a-${t}@test.dev`, name: "Atleta" } })).id;
     coachLoad = (await prisma.user.create({ data: { email: `ps-c1-${t}@test.dev`, name: "Entrenadora", role: "COACH" } })).id;
     coachAll = (await prisma.user.create({ data: { email: `ps-c2-${t}@test.dev`, name: "Entrenadora 2", role: "COACH" } })).id;
+    await prisma.consent.create({ data: { userId: athlete, purpose: "COACH_RECOVERY", version: "2026-11-14", granted: true } });
     await prisma.coachAthlete.create({ data: { coachId: coachLoad, athleteId: athlete, status: "ACTIVE", scopes: ["SESSIONS", "LOAD"] } });
     await prisma.coachAthlete.create({ data: { coachId: coachAll, athleteId: athlete, status: "ACTIVE", scopes: ["SESSIONS", "LOAD", "RECOVERY"] } });
     await prisma.trainingSession.create({ data: { userId: athlete, date: recent, type: "STRENGTH", status: "COMPLETED", durationSec: 3600, tss: 60, title: "Fuerza propia" } });

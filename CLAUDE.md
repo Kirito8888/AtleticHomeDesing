@@ -36,6 +36,7 @@ Antes de vitest/E2E en un contenedor nuevo: `npm install` (el hook no siempre tr
 - La salud cifrada (ciclo, salud de la mujer, composición corporal ISAK `lib/health/isak*`) nunca va a la IA, al coach, al informe semanal ni al `.ics`. Lo importado de Strava (`notFromStrava`) no va a la IA ni a la entrenadora.
 - IA: si hay `LOCAL_AI_BASE_URL`, el servidor de IA local va primero (`lib/ai/local.ts`); la usuaria no quiere IA ajena por ahora: con `LOCAL_AI_ONLY=true` `aiFor` nunca devuelve otro proveedor (sin embeddings; local apagado → 503). Detalle en `docs/estado.md`.
 - La frase de autoría y uso no comercial vive en `src/lib/legal/notice.ts` y debe ser idéntica en `LICENSE`, `README.md`, `NOTICE` y la interfaz (`license.test.ts`); el texto legal es provisional, pendiente de revisión por un abogado.
+- Recuperación y lesiones con entrenadora o club son salud (art. 9): `RECOVERY` nunca nace marcado (`DEFAULT_SHARED_SCOPES`) y solo cuenta con el consentimiento `COACH_RECOVERY` (`lib/coach/recovery-consent.ts`). Edad mínima 14 años. Al cambiar condiciones o política, subir `TERMS_VERSION`.
 - Nada escribe en el plan sin confirmación (siempre borrador + aceptar).
 - Migraciones solo aditivas; una por versión, regenerada con `regen-mig.sh`.
 - La usuaria fusiona los PR; Claude nunca fusiona. Rama de trabajo: la que indique la sesión.

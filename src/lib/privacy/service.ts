@@ -25,7 +25,12 @@ export const CONSENT_TEXT = {
   COACH: {
     version: "2026-10",
     label: "Acceso de tu entrenador/a",
-    text: "Tu entrenador/a ve solo lo que marques (carga, sesiones, recuperación, planificación o informes). Nunca salud ni finanzas.",
+    text: "Tu entrenador/a ve solo lo que marques (carga, sesiones, planificación o informes). Nunca ciclo, salud de la mujer, composición corporal ni finanzas. La recuperación y las lesiones son datos de salud y tienen su propio consentimiento.",
+  },
+  COACH_RECOVERY: {
+    version: "2026-11-14",
+    label: "Recuperación y lesiones para tu entrenador/a o club",
+    text: "Tu entrenador/a o el staff de tu club ve tu recuperación (sueño, VFC, FC en reposo, readiness) y tus lesiones, datos de salud (art. 9 RGPD). Solo lo activas tú, de forma expresa; lo retiras quitando ese permiso o revocando el vínculo.",
   },
   SAFETY: {
     version: "2026-10",
