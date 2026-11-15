@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CalendarClock, Plus, Trophy } from "lucide-react";
 
+import { AiBadge } from "@/components/ai/ai-badge";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,20 @@ export default async function TrainingPage() {
           </Button>
         }
       />
+
+      {/* v3.0 G (V3-D02) · la IA de entreno se presenta aquí, donde actúa (no como destino «Atlenza IA») */}
+      <nav aria-label="Con IA" className="mb-3 flex flex-wrap items-center gap-x-4 text-sm">
+        <AiBadge />
+        <Link href="/study/ask" className="inline-flex min-h-11 items-center underline underline-offset-4">
+          Pregunta a tus datos
+        </Link>
+        <Link href="/study?tab=coach" className="inline-flex min-h-11 items-center underline underline-offset-4">
+          Coach de rendimiento
+        </Link>
+        <Link href="/study/plan" className="inline-flex min-h-11 items-center underline underline-offset-4">
+          Crear plan con IA
+        </Link>
+      </nav>
 
       <WeekStrip days={week} today={toIsoDay(now)} throws={throwsInfo.weeks.at(-1)?.throws ?? 0} cap={throwsInfo.cap} metric={weekMetric} />
 

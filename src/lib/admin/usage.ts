@@ -14,6 +14,14 @@ export async function recordPageView(userId: string, rawPath: string) {
   await prisma.pageUsage.upsert({ where: { userId_path_week: { userId, path, week } }, create: { userId, path, week, count: 1 }, update: { count: { increment: 1 } } });
 }
 
+/** v3.0 G · Visitas por ruta en las últimas `weeks` semanas (para sugerir la barra móvil). Una consulta agrupada. */
+export async function usageByPath(userId: string, weeks = 8) {
+  const from = dateOnly(toIsoDay(startOfIsoWeek(today())));
+  from.setUTCDate(from.getUTCDate() - 7 * (weeks - 1));
+  const rows = await prisma.pageUsage.groupBy({ by: ["path"], where: { userId, week: { gte: from } }, _sum: { count: true } });
+  return rows.map((r) => ({ path: r.path, count: r._sum.count ?? 0 }));
+}
+
 /** Lo más y lo menos usado en las últimas `weeks` semanas, más las secciones que no abres nunca. */
 export async function usageSummary(userId: string, weeks = 8) {
   const from = dateOnly(toIsoDay(startOfIsoWeek(today())));

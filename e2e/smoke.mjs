@@ -240,7 +240,7 @@ await agenda.getByRole("list", { name: "Eventos del día" }).getByText("Campeona
 await agenda.getByRole("list", { name: "Sesiones del día" }).locator("a").first().waitFor();
 log("calendario: el día muestra competición y sesiones");
 
-// 9. Dashboard y Atlenza IA
+// 9. Dashboard y Estudio
 await go(B + "/");
 await page.getByText("Campeonato de España").waitFor();
 await page.getByRole("status").filter({ hasText: "Molestia activa en Rodilla (izquierda)" }).waitFor();

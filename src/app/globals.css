@@ -163,6 +163,24 @@ html [data-sonner-toaster][data-sonner-theme="light"] {
   :where(ul, ol).grid {
     grid-template-columns: minmax(0, 1fr);
   }
+  /* v3.0 G · V3-A07 (2.4.7 y 2.4.11): foco de teclado siempre visible. Contorno sólido del color --ring
+     (≥ 3:1, lo mide a11y:contrast) para lo que no trae su propio anillo; los componentes con
+     focus-visible:ring-* lo sustituyen desde la capa utilities. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  /* …y nunca tapado por la barra superior ni por la inferior del móvil (ni por una barra de acción fija,
+     marcada con data-sticky-action). Respaldo en JS para lo que el navegador no recoloca: FocusGuard. */
+  @media (width < 48rem) {
+    html {
+      scroll-padding-top: calc(3.5rem + env(safe-area-inset-top) + 0.5rem);
+      scroll-padding-bottom: calc(4rem + env(safe-area-inset-bottom) + 0.5rem);
+    }
+    html:has([data-sticky-action]) {
+      scroll-padding-bottom: calc(8.5rem + env(safe-area-inset-bottom) + 0.5rem);
+    }
+  }
 }
 
 /* Modo Juego: animaciones de ASO_Quest.html (pop al entrar una tarjeta, shake al fallar). */

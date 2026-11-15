@@ -110,6 +110,8 @@ Criterios nuevos de 2.2 (nivel AA según el W3C): 2.4.11 foco no oculto, 2.5.8 t
 
 **Estado tras el Bloque F (15/11/2026):** V3-A01 hecho (`e2e:a11y`: axe WCAG 2.2 AA en 10 rutas de las 8 verticales × claro, oscuro, `.hc` claro y `.hc` oscuro; en `e2e.sh all` y en la CI). V3-A02 verificado: los 6 `size-6…9` cumplen 2.5.8 (≥ 24 px); los 3 que no llegaban a 44 px en móvil llevan ahora `max-md:size-11`. V3-A03 hecho: 0 `text-[Npx]` fuera de `<text>` de SVG (`text-2xs` = 0,6875 rem; los 13/15/17 px del modo juego pasan a rem; guardia `src/test/font-scale.test.ts`). V3-A04 hecho: `prefers-reduced-motion` global en `globals.css`; recharts 3 ya lo respeta con `isAnimationActive` «auto» (guardia `src/test/reduced-motion.test.ts`). V3-A10 hecho: `npm run a11y:contrast` en la CI; se corrigieron `--ring` (claro 2,6 → 3,4:1) y `--series-3` (claro 2,8 → 3,3:1); todos los pares de texto ≥ 4,5:1 en los 4 temas. Corregido además: nombre accesible del mapa del modo juego (2.5.3, `label-content-name-mismatch`).
 
+**Estado tras el Bloque G (15/11/2026):** V3-D01 hecho (menú por intención, barra móvil configurable en prefs con valor inicial por uso), V3-D02 hecho («Atlenza IA» → Estudio; IA con `AiBadge` donde actúa; política legal pendiente de la revisión del abogado), V3-D03 en `docs/diseno-v3.md`, V3-A07 hecho (`e2e:v30g`). Las excepciones de tokens siguen abiertas como deuda visual (I–O); la de `/training/new` pasa a I.
+
 **Excepciones de F (documentadas; no bloquean el script ni la suite):**
 
 | Dónde | Regla | Medido | Por qué no ahora | Bloque |
@@ -117,7 +119,7 @@ Criterios nuevos de 2.2 (nivel AA según el W3C): 2.4.11 foco no oculto, 2.5.8 t
 | `--input` sobre fondo/tarjeta (claro y oscuro) | 1.4.11 no-texto | 1,26:1 claro · 1,47–1,57:1 oscuro | Oscurecer el borde de todos los campos es un cambio visual global; los campos tienen etiqueta visible y `.hc` ya cumple (≥ 3:1) | G |
 | `--status-warning`, `--status-serious` (claro y `.hc` claro) | 1.4.11 no-texto | 1,83:1 · 2,64:1 | Siempre con icono + texto (`StatusLabel`), no son el único medio; tocarlos cambia la paleta validada para daltonismo | G |
 | `--chart-4`, `--chart-5` (claro, presupuestos) | 1.4.11 no-texto | 1,72:1 · 2,15:1 | La barra de presupuestos lleva leyenda con nombre, importe y % | G |
-| `/training/new`: chips bajo «Guardar sesión» | 2.5.8 `target-size` (axe) | Chips de 44 px tapados por la barra fija `sticky bottom-20` al cargar | Es V3-A07 (foco/objetivos tapados por barras fijas): `scroll-padding` y barra en G | G |
+| `/training/new`: chips bajo «Guardar sesión» | 2.5.8 `target-size` (axe) | Chips de 44 px tapados por la barra fija `sticky bottom-20` al cargar | El foco ya no queda tapado (G: `scroll-padding` + `FocusGuard`, `e2e:v30g`); el solape en reposo pide rediseñar la barra de acción de la sesión | I |
 | `--border` decorativo | 1.4.11 (aviso) | 1,25:1 | Separador, no identifica un control | — |
 
 **Alcance propuesto V3-A01:** checklist WCAG 2.2 AA por plantilla de página (no por las 91), axe en CI por vertical, 1 pasada manual con teclado y 1 con lector de pantalla, y una página «Declaración de accesibilidad» en `/legal`.

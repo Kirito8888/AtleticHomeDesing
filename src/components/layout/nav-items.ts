@@ -1,4 +1,4 @@
-import { Activity, Apple, Brain, CalendarDays, Bell, HeartPulse, Info, LayoutDashboard, Settings, ShieldCheck, Target, UserCog, Users, UsersRound, Wallet } from "lucide-react";
+import { Activity, Apple, CalendarDays, Bell, GraduationCap, HeartPulse, Info, LayoutDashboard, Settings, ShieldCheck, Target, UserCog, Users, UsersRound, Wallet } from "lucide-react";
 
 export type NavRole = "ATHLETE" | "COACH" | "ADMIN";
 type ModuleName = "training" | "recovery" | "planning" | "nutrition" | "finance" | "study";
@@ -15,33 +15,42 @@ export type NavItem = {
 
 export const HOME: NavItem = { href: "/", label: "Inicio", icon: LayoutDashboard, module: null };
 
-/** v2.3 · Secciones agrupadas: lo mismo en la barra lateral y en el «Más» del móvil. */
+/**
+ * v3.0 G (V3-D01) · Secciones agrupadas por intención (qué quiere hacer la usuaria, no qué módulo es):
+ * lo mismo en la barra lateral y en el «Más» del móvil. Ver docs/diseno-v3.md § Navegación.
+ */
 export const NAV_GROUPS: readonly { id: string; label: string; items: readonly NavItem[] }[] = [
   {
-    id: "training",
-    label: "Entrenamiento y salud",
+    id: "train",
+    label: "Entrenar",
     items: [
       { href: "/training", label: "Entreno", icon: Activity, module: "training" },
       { href: "/planning", label: "Plan", icon: CalendarDays, module: "planning" },
-      { href: "/recovery", label: "Salud", icon: HeartPulse, module: "recovery" },
-      { href: "/nutrition", label: "Nutrición", icon: Apple, module: "nutrition" },
       { href: "/goals", label: "Objetivos", icon: Target, module: null },
     ],
   },
   {
-    id: "clubs",
-    label: "Clubes y coach",
+    id: "care",
+    label: "Cuidarme",
     items: [
-      { href: "/clubs", label: "Clubes", icon: Users, module: null },
-      { href: "/coach", label: "Mis atletas", icon: UsersRound, module: null, roles: ["COACH", "ADMIN"] },
+      { href: "/recovery", label: "Salud", icon: HeartPulse, module: "recovery" },
+      { href: "/nutrition", label: "Nutrición", icon: Apple, module: "nutrition" },
     ],
   },
   {
-    id: "tools",
-    label: "Herramientas",
+    id: "organize",
+    label: "Organizarme",
     items: [
-      { href: "/study", label: "Atlenza IA", icon: Brain, module: "study" },
+      { href: "/study", label: "Estudio", icon: GraduationCap, module: "study" },
       { href: "/finance", label: "Finanzas", icon: Wallet, module: "finance" },
+    ],
+  },
+  {
+    id: "people",
+    label: "Con otras personas",
+    items: [
+      { href: "/clubs", label: "Clubes", icon: Users, module: null },
+      { href: "/coach", label: "Mis atletas", icon: UsersRound, module: null, roles: ["COACH", "ADMIN"] },
     ],
   },
   {
@@ -58,7 +67,7 @@ export const NAV_GROUPS: readonly { id: string; label: string; items: readonly N
 ];
 
 export type ModuleKey = ModuleName;
-export const MODULE_LABEL: Record<ModuleKey, string> = { training: "Entreno", recovery: "Recuperación", planning: "Planificación", nutrition: "Nutrición", finance: "Finanzas", study: "Atlenza IA (estudio)" };
+export const MODULE_LABEL: Record<ModuleKey, string> = { training: "Entreno", recovery: "Recuperación", planning: "Planificación", nutrition: "Nutrición", finance: "Finanzas", study: "Estudio" };
 
 /** Exp. B10 · Lo que una cuenta nueva trae activado en la bienvenida; el resto se ofrece. */
 export const NEW_ACCOUNT_MODULES: readonly ModuleKey[] = ["training", "recovery"];
@@ -74,23 +83,57 @@ export function welcomeModules({ onboarded, hidden }: { onboarded: boolean; hidd
   return all.filter((m) => !hidden.includes(m));
 }
 
-/** Candidatos de la barra inferior, por prioridad; si se ocultan módulos entran los siguientes. */
-const BAR_ORDER = ["/training", "/planning", "/recovery", "/nutrition", "/goals", "/clubs"] as const;
-const BAR_SLOTS = 3; // + Inicio + «Más» = 5 huecos
+/** Orden por defecto de la barra inferior (cuenta sin uso ni elección); si se ocultan módulos entran los siguientes. */
+export const BAR_DEFAULT = ["/training", "/planning", "/recovery", "/nutrition", "/goals", "/clubs"] as const;
+export const BAR_SLOTS = 3; // + Inicio + «Más» = 5 huecos
+/** Visitas mínimas (8 semanas) para que el uso cuente al sugerir la barra: una visita suelta no la cambia. */
+export const BAR_USAGE_MIN = 5;
+const CONFIG_GROUP = "config";
+
+/** Destinos que pueden ir en la barra: todo salvo Configuración, en el orden del menú. */
+export function barCandidates(groups: readonly { id: string; items: readonly NavItem[] }[]) {
+  return groups.filter((g) => g.id !== CONFIG_GROUP).flatMap((g) => g.items);
+}
+
+const rank = (href: string) => {
+  const i = (BAR_DEFAULT as readonly string[]).indexOf(href);
+  const j = NAV_GROUPS.flatMap((g) => g.items).findIndex((x) => x.href === href);
+  return i >= 0 ? i : BAR_DEFAULT.length + j;
+};
+
+/**
+ * v3.0 G · Barra sugerida por el uso (`UsageBeacon` → `PageUsage`): los {@link BAR_SLOTS} destinos más abiertos
+ * con al menos {@link BAR_USAGE_MIN} visitas, completados con el orden por defecto. Se ordenan por la posición
+ * por defecto (no por visitas) para que la barra no baile de una semana a otra.
+ */
+export function suggestBar(usage: readonly { path: string; count: number }[], available: readonly string[]): string[] {
+  const visits = new Map<string, number>();
+  for (const href of available) visits.set(href, usage.filter((u) => isActive(u.path, href)).reduce((a, u) => a + u.count, 0));
+  const used = [...available].filter((h) => (visits.get(h) ?? 0) >= BAR_USAGE_MIN).sort((a, b) => (visits.get(b) ?? 0) - (visits.get(a) ?? 0) || rank(a) - rank(b)).slice(0, BAR_SLOTS);
+  const rest = [...available].filter((h) => !used.includes(h)).sort((a, b) => rank(a) - rank(b));
+  return [...used, ...rest].slice(0, BAR_SLOTS).sort((a, b) => rank(a) - rank(b));
+}
 
 export function isActive(pathname: string, href: string) {
   return href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Navegación según módulos ocultos y rol (la barra nunca lee datos: solo enlaces). */
-export function buildNav({ hidden = [], role = "ATHLETE" }: { hidden?: readonly string[]; role?: NavRole | string } = {}) {
+/**
+ * Navegación según módulos ocultos y rol (la barra nunca lee datos: solo enlaces). `bar` es la elección de
+ * la usuaria (`prefs.mobileBar`) o la sugerida por el uso; lo que no sea un destino disponible se ignora y
+ * los huecos libres se completan con el orden por defecto.
+ */
+export function buildNav({ hidden = [], role = "ATHLETE", bar: chosen }: { hidden?: readonly string[]; role?: NavRole | string; bar?: readonly string[] | null } = {}) {
   const groups = NAV_GROUPS.map((g) => ({
     ...g,
     items: g.items.filter((i) => (!i.module || !hidden.includes(i.module)) && (!i.roles || i.roles.includes(role as NavRole))),
   })).filter((g) => g.items.length > 0);
-  const flat = groups.flatMap((g) => g.items);
-  const bar = [HOME, ...BAR_ORDER.map((h) => flat.find((i) => i.href === h)).filter((i): i is NavItem => !!i).slice(0, BAR_SLOTS)];
-  return { home: HOME, groups, bar };
+  const candidates = barCandidates(groups);
+  const valid = [...new Set(chosen ?? [])].filter((h) => candidates.some((i) => i.href === h)).slice(0, BAR_SLOTS);
+  const fill = suggestBar([], candidates.map((i) => i.href)).concat(candidates.map((i) => i.href)).filter((h, k, a) => !valid.includes(h) && a.indexOf(h) === k);
+  const hrefs = [...valid, ...fill].slice(0, BAR_SLOTS);
+  const bar = [HOME, ...hrefs.map((h) => candidates.find((i) => i.href === h)!)];
+  return { home: HOME, groups, bar, candidates };
 }
 
 /** Qué entrada del conjunto está activa: la de href más largo (Privacidad no marca también Ajustes). */

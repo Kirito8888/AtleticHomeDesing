@@ -2,7 +2,9 @@
 
 Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servidor, ver [`manual_docker_debian.md`](../manual_docker_debian.md); para saber cómo funciona por dentro, [`arquitectura.md`](arquitectura.md) y [`manual_backend.md`](../manual_backend.md).
 
-**Navegación.** En el móvil, la barra inferior tiene **Inicio · Entreno · Plan · Nutrición · Atlenza IA**. **Recuperación, Finanzas y Ajustes** están en el menú ☰ de arriba a la derecha, y la lupa 🔍 abre la **búsqueda** (sesiones, ejercicios, días del plan, tareas y apuntes). En el ordenador, todo está en la barra lateral.
+**Navegación.** El menú se agrupa por lo que quieres hacer: **Entrenar** (Entreno, Plan, Objetivos), **Cuidarme** (Salud, Nutrición), **Organizarme** (Estudio, Finanzas), **Con otras personas** (Clubes) y **Configuración**. En el móvil, la barra inferior tiene **Inicio**, tres destinos y **Más** (el resto del menú); la lupa 🔍 abre la **búsqueda**. Los tres destinos salen de lo que más abres (si usas mucho Estudio o Finanzas, aparecen ahí) o los eliges tú en **Ajustes → Barra inferior (móvil)**; «Volver a la sugerida por el uso» deshace la elección. En el ordenador, todo está en la barra lateral. Con teclado, el elemento enfocado siempre se ve con un contorno y nunca queda debajo de las barras.
+
+**La IA** no es una sección aparte: aparece donde trabaja, con la marca **IA** (en Entreno: «Pregunta a tus datos», «Coach de rendimiento», «Crear plan con IA»; en Plan: «Créalo con IA»; en Estudio: tutor, flashcards y resúmenes).
 
 **Instalarla como app.** Ábrela por HTTPS, abre el menú del navegador y elige «Añadir a pantalla de inicio» (Safari: Compartir → Añadir a pantalla de inicio). Las notificaciones en iPhone solo funcionan así.
 
@@ -14,7 +16,7 @@ Cómo se usa la app día a día, módulo a módulo. Para instalarla en un servid
 2. **Ajustes → Umbrales fisiológicos:** FC máxima, FC de reposo, LTHR y ritmo umbral, cada uno con su fecha de inicio. Cada sesión se calcula con los umbrales vigentes ese día, así que actualizarlos no reescribe el pasado.
 3. **Ajustes → Objetivo nutricional diario:** kcal y macros.
 4. **Ajustes → Verificación en dos pasos:** actívala y guarda los 10 códigos de recuperación en tu gestor de contraseñas.
-5. Si quieres, **Planificación → Importar plan** (ver abajo), o **Atlenza IA → Crear plan** si no tienes uno.
+5. Si quieres, **Planificación → Importar plan** (ver abajo), o **Plan → Créalo con IA** si no tienes uno.
 6. **Ajustes → Mis reglas:** revisa los umbrales de los avisos (vienen con valores genéricos).
 
 ## Inicio
@@ -169,9 +171,9 @@ En el calendario o en Inicio, toca una competición:
 - **Gastos deportivos:** al crear un gasto, activa «Gasto deportivo» y, si quieres, elige la competición; o toca 🏅 en un movimiento ya guardado. La tarjeta los suma por temporada y por competición.
 - **Becas y saldo de la temporada:** activa «Ingreso deportivo» en una beca, premio o patrocinio (o 🏅 en el movimiento). La tarjeta muestra ingresos frente a gastos deportivos, el saldo y la previsión a fin de año al ritmo actual.
 
-## Atlenza IA: crear tu planificación
+## Crear tu planificación con IA
 
-**Atlenza IA → Crear plan.** Requiere tu IA configurada (Ajustes → IA) y el permiso de IA activado (Ajustes → Privacidad e IA).
+**Plan → Créalo con IA** (o Entreno → Crear plan con IA). Requiere tu IA configurada (Ajustes → IA) y el permiso de IA activado (Ajustes → Privacidad e IA).
 
 1. **Cuestionario sin escribir:** objetivo, disciplina, nivel, edad, qué días y cuántos minutos, duración (4–12 semanas) y fecha de inicio, **dónde entrenas cada día** y **con qué material**, molestias y ejercicios que prefieres evitar, intensidad y estilo.
 2. **Seguridad:** si marcas dolor en el pecho, mareos, una condición cardíaca, embarazo o posparto reciente, o una cirugía en los últimos 6 meses, **no se genera el plan**: consulta antes con un profesional sanitario.
@@ -189,7 +191,7 @@ Al terminar cada semana, **«¿Cómo fue?»** (fácil / bien / duro + dolor) aju
 
 Lo que se envía a tu IA: solo tus respuestas del cuestionario (incluidas las zonas con molestias que marques; las lesiones activas vienen marcadas y puedes quitarlas). Nunca tu ciclo, tus registros de recuperación, tus notas ni tu nombre.
 
-## Atlenza IA (estudio)
+## Estudio
 
 Requiere configurar tu IA en **Ajustes → IA** y activarla en **Ajustes → Privacidad e IA**: está desactivada hasta que la autorizas, porque envía texto al proveedor que elijas.
 
@@ -499,7 +501,7 @@ Además:
   2. apunta lo que bebiste;
   3. sabrás tus litros por hora y cuánto beber para no perder más del 2 %.
 
-**Atlenza IA (estudio)**
+**Estudio**
 - **Flashcards:** «Crear tarjetas a mano (sin IA)»; pega varias como `pregunta | respuesta`.
 - **Trabajos y entregas:** avisos («en 2 días y sin empezar»), estado, nota y media ponderada.
 - **Horas de estudio:** «Cuándo te concentras mejor», con tus franjas de los últimos 60 días.
@@ -562,7 +564,7 @@ Además:
 - **Recetas:** ingredientes con sus macros por 100 g (o búscalos en OpenFoodFacts) → macros por ración. «Anotar hoy» o «A favoritas».
 - **Comida del día de competición:** en el modo competición, lo que toca ahora sale resaltado. «Editar» cambia la plantilla para todas.
 
-**Atlenza IA → Exámenes y notas**
+**Estudio → Exámenes y notas**
 - **Plan hasta el examen:** pon las horas que quieres para cada examen (salen del horario) y pulsa «Generar plan de estudio». Reparte bloques descontando clases y días de entreno; la víspera, solo esa asignatura. Si no da tiempo, te dice cuánto falta. Cada bloque de foco anotado tacha los bloques del día de esa asignatura.
 - **Notas y créditos:** media ponderada, créditos aprobados y pendientes.
 

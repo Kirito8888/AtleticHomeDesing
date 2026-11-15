@@ -17,10 +17,11 @@ const log = (...a: unknown[]) => console.log("✔", ...a);
 const errors: string[] = [];
 
 /** Excepciones conocidas: «ruta regla» → bloque destino. Mantener en sincronía con docs/auditoria-v3-0.md. */
-const ALLOWED: Record<string, "G" | "T"> = {
-  // V3-A07: la barra fija «Guardar sesión» (sticky bottom-20) tapa los chips que quedan debajo al cargar; al
-  // desplazarse se liberan. Depende de la altura de la pantalla: scroll-padding/rediseño de la barra en G.
-  "/training/new target-size": "G",
+const ALLOWED: Record<string, "I" | "T"> = {
+  // La barra fija «Guardar sesión» (sticky bottom-20) se superpone en reposo a los chips que quedan debajo; al
+  // desplazarse se liberan. El foco por teclado ya no queda tapado (V3-A07, G: scroll-padding + FocusGuard,
+  // lo prueba e2e:v30g); quitar el solape pide rediseñar la barra de acción de la sesión: Bloque I.
+  "/training/new target-size": "I",
 };
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });

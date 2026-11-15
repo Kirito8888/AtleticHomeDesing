@@ -121,9 +121,9 @@ if (!(await (await anon.request.get(B + "/legal/privacidad")).text()).includes("
 await anon.close();
 await go(B + "/settings");
 await page.getByRole("switch", { name: /^Permitir enviar datos a / }).click();
-await toast(/Atlenza IA activado/);
+await toast(/IA activada/);
 await go(B + "/settings/privacy");
-await page.getByLabel("Consentimientos").getByText(/Atlenza IA \(el proveedor que elijas\) · concedido/).waitFor();
+await page.getByLabel("Consentimientos").getByText(/IA \(el proveedor que elijas\) · concedido/).waitFor();
 await page.getByRole("switch", { name: "Limitar el tratamiento de mis datos" }).click();
 await toast(/Tratamiento limitado/);
 const blocked = await page.request.post(B + "/api/calendar/feed");

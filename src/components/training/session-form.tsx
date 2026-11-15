@@ -314,7 +314,7 @@ export function SessionForm({
         </p>
       ) : null}
 
-      <div className="sticky bottom-20 z-10 md:bottom-4">
+      <div data-sticky-action className="sticky bottom-20 z-10 md:bottom-4">
         <Button type="submit" size="lg" className="h-12 w-full text-base shadow-lg" disabled={saving}>
           {saving ? "Guardando…" : sessionId ? "Guardar cambios" : "Guardar sesión"}
         </Button>

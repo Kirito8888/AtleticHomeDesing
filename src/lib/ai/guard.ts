@@ -16,6 +16,6 @@ export async function assertAiAllowed(dataOwnerId: string): Promise<void> {
     throw new ApiError(503, "Configura tu IA en Ajustes → IA (tu propia clave de Google, OpenAI, Anthropic o un modelo local)", { code: "ai_not_configured" });
   }
   if (!owner?.aiConsentAt) {
-    throw new ApiError(403, "Activa el consentimiento de IA en Ajustes → IA para usar Atlenza IA", { code: "ai_consent_required" });
+    throw new ApiError(403, "Activa el consentimiento de IA en Ajustes → IA para usar la IA", { code: "ai_consent_required" });
   }
 }

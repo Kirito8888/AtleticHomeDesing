@@ -146,7 +146,7 @@ export function AiConsentToggle({ initial, configured, provider }: { initial: bo
             try {
               await api("/api/account/ai-consent", { method: "PUT", body: { enabled: value } });
               setEnabled(value);
-              toast.success(value ? "Atlenza IA activado" : "Atlenza IA desactivado");
+              toast.success(value ? "IA activada" : "IA desactivada");
               router.refresh();
             } catch (e) {
               toast.error((e as Error).message);

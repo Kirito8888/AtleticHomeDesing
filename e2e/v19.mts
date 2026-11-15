@@ -231,7 +231,7 @@ await new Promise<void>((r) => mock.listen(AI_PORT, "127.0.0.1", r));
   const view = await (await p.request.get(B + "/api/account/ai-provider")).text();
   if (view.includes(AI_KEY) || !view.includes("KLMN")) errors.push("la API de la IA propia muestra la clave o no muestra su pista");
   await p.getByLabel("Permitir enviar datos a modelo local de este servidor").click();
-  await p.getByText("Atlenza IA activado").first().waitFor();
+  await p.getByText("IA activada").first().waitFor();
 
   const up = await p.request.post(B + "/api/ai/documents", {
     multipart: { file: { name: "metabolismo.txt", mimeType: "text/plain", buffer: Buffer.from("La glucólisis anaeróbica produce lactato durante los esfuerzos intensos.\n\n".repeat(20)) }, title: "Metabolismo V19" },

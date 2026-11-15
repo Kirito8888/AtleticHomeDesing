@@ -53,8 +53,10 @@ const LEAK_TERMS = /\b(vfc|hrv|rmssd|readiness|sue[ñn]o|duerm\w*|descans\w*|rec
 // Las marcas de tiempo ISO («…T13:04:43.952Z») llevan números sueltos que no son datos sembrados: sin quitarlas, el «43» de la FC
 // en reposo saltaba como fuga cuando los segundos o minutos de `createdAt` valían 43 (fallo intermitente de CI, 07/11/2026).
 const ISO_TS = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z/g;
+// Igual con los ids cuid (aleatorios): «cmwi8wlfw0000by2c43yqlpry» daba un «43» falso (CI, 15/11/2026).
+const CUID = /\bc[a-z0-9]{24}\b/g;
 const leaks = (raw: string) => {
-  const text = raw.replace(ISO_TS, "");
+  const text = raw.replace(ISO_TS, "").replace(CUID, "");
   return [...LEAK_VALUES.filter((r) => r.test(text)).map(String), ...(LEAK_KEYS.test(text) ? ["clave"] : []), ...(LEAK_TERMS.test(text) ? [String(text.match(LEAK_TERMS))] : [])];
 };
 const SCOPES = ["LOAD", "SESSIONS", "PLANNING", "RECOVERY", "REPORTS"] as const;
@@ -204,6 +206,11 @@ describe.skipIf(!HAS_DB)("una entrenadora con un solo ámbito (BD real)", () => 
   });
 
   // v2.7.0 B4 (S1) · el texto libre de la IA no revela la recuperación si el ámbito está cerrado
+  it("el detector de fugas ignora ids y marcas de tiempo, pero no los valores sembrados", () => {
+    expect(leaks('{"userId":"cmwi8wlfw0000by2c43yqlpry","createdAt":"2026-11-15T19:43:43.000Z"}')).toEqual([]);
+    expect(leaks("pulso 43")).toEqual([String(LEAK_VALUES[2])]);
+  });
+
   describe("informe semanal de la IA y recuperación", () => {
     const weekly = () => import("@/app/api/ai/coach/weekly/route");
     const post = async (user: typeof current, athleteId?: string) => {

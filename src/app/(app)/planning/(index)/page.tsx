@@ -1,4 +1,6 @@
 import Link from "next/link";
+
+import { AiBadge } from "@/components/ai/ai-badge";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { CompetitionImport } from "@/components/competition/competition-tools";
@@ -219,6 +221,7 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
         <Link href="/study/plan" className="font-medium text-foreground underline underline-offset-2">
           Créalo con IA
         </Link>{" "}
+        <AiBadge />{" "}
         o{" "}
         <Link href="/planning/plan/new" className="font-medium text-foreground underline underline-offset-2">
           hazlo tú

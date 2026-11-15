@@ -2,6 +2,7 @@ import { AppNav } from "@/components/layout/app-nav";
 import { ConnectionBanner } from "@/components/offline/connection-banner";
 import { OutboxSync } from "@/components/offline/outbox-sync";
 import { DisplayPrefs, UsageBeacon } from "@/components/layout/display-prefs";
+import { FocusGuard } from "@/components/layout/focus-guard";
 import { pageUser } from "@/lib/auth/page";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { unreadCount } from "@/lib/push/inbox";
@@ -12,6 +13,8 @@ import Link from "next/link";
 import { SecondFactorGate } from "@/components/settings/second-factor-gate";
 import { staffGate } from "@/lib/auth/staff-gate";
 import { hasAcceptedTerms, TERMS_VERSION } from "@/lib/auth/access";
+import { usageByPath } from "@/lib/admin/usage";
+import { buildNav, suggestBar } from "@/components/layout/nav-items";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await pageUser();
@@ -28,6 +31,10 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const staff = await staffGate(user);
   if (staff.kind === "blocked") return <SecondFactorGate userId={user.id} />;
   const [prefs, unread] = await Promise.all([getPrefs(user.id), unreadCount(user.id)]);
+  // v3.0 G (V3-D01) · Barra móvil: la elegida en Ajustes o, si no hay, la sugerida por el uso (solo con el uso activado)
+  const bar =
+    prefs.mobileBar ??
+    (prefs.usageStats ? suggestBar(await usageByPath(user.id), buildNav({ hidden: prefs.hiddenModules, role: user.role }).candidates.map((i) => i.href)) : null);
   return (
     <div className="min-h-dvh md:pl-56">
       <a
@@ -38,7 +45,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       </a>
       <DisplayPrefs fontScale={prefs.fontScale} highContrast={prefs.highContrast} />
       <UsageBeacon enabled={prefs.usageStats} />
-      <AppNav userName={user.name ?? user.email} hidden={prefs.hiddenModules} role={user.role} bell={<NotificationBell unread={unread} />} />
+      <FocusGuard />
+      <AppNav userName={user.name ?? user.email} hidden={prefs.hiddenModules} role={user.role} bar={bar} bell={<NotificationBell unread={unread} />} />
       <main id="main" tabIndex={-1} className="mx-auto w-full max-w-5xl px-4 pt-4 pb-24 outline-none sm:px-6 md:pb-10">
         <OutboxSync />
         <ConnectionBanner />
