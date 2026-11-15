@@ -99,6 +99,11 @@ export const prefsSchema = z.object({
   usageStats: z.boolean().default(true),
   /** Módulos ocultos en la navegación y el panel. */
   hiddenModules: z.array(z.enum(["training", "recovery", "planning", "nutrition", "finance", "study"])).max(6).default([]),
+  /**
+   * v3.0 G (V3-D01) · Los 3 destinos de la barra inferior del móvil (además de Inicio y «Más»), en orden.
+   * `null` = sugerida por el uso (`suggestBar`). Lo que no sea un destino disponible se ignora al pintarla.
+   */
+  mobileBar: z.array(z.string().regex(/^\/[a-z][a-z/-]*$/).max(40)).max(3).nullable().default(null),
   /** Tamaño de letra (%) y contraste alto. */
   fontScale: z.union([z.literal(100), z.literal(115), z.literal(130)]).default(100),
   highContrast: z.boolean().default(false),

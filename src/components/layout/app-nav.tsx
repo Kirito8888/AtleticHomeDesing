@@ -56,10 +56,10 @@ function LogoutButton() {
 }
 
 /** Barra lateral (≥ md) + barra superior y barra inferior con «Más» (móvil). */
-export function AppNav({ userName, hidden = [], role = "ATHLETE", bell }: { userName: string | null; hidden?: readonly string[]; role?: string; bell?: React.ReactNode }) {
+export function AppNav({ userName, hidden = [], role = "ATHLETE", bar, bell }: { userName: string | null; hidden?: readonly string[]; role?: string; bar?: readonly string[] | null; bell?: React.ReactNode }) {
   const pathname = usePathname();
   const [more, setMore] = useState(false);
-  const nav = buildNav({ hidden, role });
+  const nav = buildNav({ hidden, role, bar });
   const barCurrent = activeHref(pathname, nav.bar.map((i) => i.href));
   const moreOn = moreActive(pathname, nav.bar);
   return (

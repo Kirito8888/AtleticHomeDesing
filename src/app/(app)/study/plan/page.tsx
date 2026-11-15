@@ -19,7 +19,7 @@ function ageBand(birth: Date | null | undefined): keyof typeof AGE_BANDS | null 
   return age < 18 ? "u18" : age < 30 ? "18-29" : age < 40 ? "30-39" : age < 50 ? "40-49" : age < 60 ? "50-59" : "60+";
 }
 
-/** Atlenza IA → Crear planificación: cuestionario sin escribir → plan con la IA del usuario (borrador). */
+/** Plan → Crear con IA: cuestionario sin escribir → plan con la IA del usuario (borrador). */
 export default async function CreatePlanPage() {
   const user = await pageUser();
   const now = today();

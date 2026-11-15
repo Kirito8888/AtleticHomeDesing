@@ -43,7 +43,7 @@ await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/login")), pag
 await page.goto(B + "/");
 await settle();
 let m = await menu();
-for (const t of ["Plan", "Nutrición", "Finanzas", "Atlenza IA"]) if (!m.more.includes(t)) errors.push(`antes de la bienvenida falta «${t}» en el menú`);
+for (const t of ["Plan", "Nutrición", "Finanzas", "Estudio"]) if (!m.more.includes(t)) errors.push(`antes de la bienvenida falta «${t}» en el menú`);
 log("sin bienvenida, menú completo");
 
 // 2 · Bienvenida: solo Entreno y Recuperación marcados; el resto se ofrece
@@ -67,7 +67,7 @@ await settle();
 // 3 · Menú corto a 390 px
 m = await menu();
 if (m.bar.join("|") !== ["Inicio", "Entreno", "Salud", "Objetivos"].join("|")) errors.push(`barra con cuenta nueva: ${m.bar.join(", ")}`);
-for (const t of ["Plan", "Nutrición", "Finanzas", "Atlenza IA"]) if (m.more.includes(t)) errors.push(`«${t}» sigue en el menú de la cuenta nueva`);
+for (const t of ["Plan", "Nutrición", "Finanzas", "Estudio"]) if (m.more.includes(t)) errors.push(`«${t}» sigue en el menú de la cuenta nueva`);
 for (const t of ["Entreno", "Salud", "Ajustes"]) if (!m.more.includes(t)) errors.push(`falta «${t}» en el menú de la cuenta nueva`);
 await noOverflow("inicio con menú corto");
 log("menú corto tras la bienvenida:", m.more.join(" · "));

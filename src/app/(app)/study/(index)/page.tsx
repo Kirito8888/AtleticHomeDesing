@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
 
 import { PageHeader } from "@/components/page-header";
 import type { CoachReportView } from "@/components/study/coach-panel";
@@ -14,14 +13,13 @@ import { today } from "@/lib/dates";
 import { DocumentsPanel } from "@/components/study/documents-panel";
 import { publicDocError } from "@/lib/ai/doc-error";
 import { listDecks } from "@/lib/ai/flashcards";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { aiAvailable } from "@/lib/ai/provider";
 import { pageUser } from "@/lib/auth/page";
 import { toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 
-export const metadata = { title: "Atlenza IA · Atlenza" };
+export const metadata = { title: "Estudio · Atlenza" };
 
 export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   const user = await pageUser();
@@ -49,20 +47,8 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   return (
     <>
       <PageHeader
-        title="Atlenza IA"
-        description="Estudio con tus apuntes, coach de rendimiento y planes de entrenamiento (con la IA que elijas)"
-        action={
-          <div className="flex gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href="/study/ask">Pregunta a tus datos</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/study/plan">
-                <Sparkles /> Crear plan
-              </Link>
-            </Button>
-          </div>
-        }
+        title="Estudio"
+        description="Apuntes, repasos, horario y exámenes. La IA que elijas te ayuda donde ves la marca IA."
       />
       <nav aria-label="Organización del estudio" className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-sm">
         <Link href="/study/schedule" className="inline-flex min-h-11 items-center underline underline-offset-4">
@@ -88,7 +74,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
         </p>
       ) : !aiConsent ? (
         <p role="status" className="mb-4 rounded-md border border-dashed p-3 text-sm text-muted-foreground">
-          Atlenza IA está desactivado: tus apuntes y tu resumen semanal solo se envían a tu IA si lo autorizas en{" "}
+          La IA está desactivada: tus apuntes y tu resumen semanal solo se envían a tu IA si lo autorizas en{" "}
           <Link href="/settings" className="font-medium text-foreground underline underline-offset-4">
             Ajustes → Privacidad e IA
           </Link>

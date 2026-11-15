@@ -14,7 +14,7 @@ import { recordEvent, type AuditContext } from "@/lib/security/audit";
 export const CONSENT_TEXT = {
   AI: {
     version: "2026-11",
-    label: "Atlenza IA (el proveedor que elijas)",
+    label: "IA (el proveedor que elijas)",
     text: "Envío al proveedor de IA que configures en Ajustes → IA (Google, OpenAI o compatible, Anthropic o un modelo local de este servidor; si no configuras ninguno y el servidor tiene clave, Google Gemini) de tus apuntes, un resumen numérico de tus entrenos sin nombre ni datos de salud y tus preguntas, para responderte. Los proveedores externos pueden tratarlos fuera del Espacio Económico Europeo según sus propias condiciones; un modelo local no saca nada del servidor. Al cambiar de proveedor se vuelve a pedir este consentimiento. Puedes retirarlo cuando quieras; no afecta a lo ya enviado.",
   },
   HEALTH: {

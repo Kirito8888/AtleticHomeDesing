@@ -380,7 +380,7 @@ export function PlanWizard({
         <h2 className="text-lg font-semibold">{current.title}</h2>
         {current.body}
       </section>
-      <div className="sticky bottom-20 z-10 flex gap-2 md:bottom-4">
+      <div data-sticky-action className="sticky bottom-20 z-10 flex gap-2 md:bottom-4">
         <Button type="button" variant="outline" className="h-11 flex-1" disabled={step === 0 || busy} onClick={() => setStep((s) => s - 1)}>
           Atrás
         </Button>

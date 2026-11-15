@@ -49,6 +49,62 @@ export function ModulesSettings({ hidden }: { hidden: string[] }) {
   );
 }
 
+/**
+ * v3.0 G (V3-D01) · Los 3 destinos de la barra inferior del móvil. Sin elección (`null`) manda el uso;
+ * al guardar queda fija hasta que se vuelva a la sugerida.
+ */
+export function MobileBarSettings({ chosen, suggested, candidates }: { chosen: string[] | null; suggested: string[]; candidates: Array<{ href: string; label: string }> }) {
+  const { busy, save } = usePrefs();
+  const [slots, setSlots] = useState<string[]>(() => {
+    const start = (chosen ?? suggested).filter((h) => candidates.some((c) => c.href === h));
+    for (const c of [...suggested, ...candidates.map((x) => x.href)]) if (start.length < 3 && !start.includes(c)) start.push(c);
+    return start.slice(0, 3);
+  });
+  const label = (h: string) => candidates.find((c) => c.href === h)?.label ?? h;
+  const repeated = new Set(slots).size !== slots.length;
+  return (
+    <div className="grid gap-3 text-sm">
+      <p className="text-xs text-muted-foreground" aria-live="polite">
+        {chosen ? "Barra elegida por ti." : `Sugerida por tu uso: ${suggested.map(label).join(", ")}.`}
+      </p>
+      <div className="grid gap-2 sm:grid-cols-3">
+        {slots.map((v, i) => (
+          <Field key={i} label={`Hueco ${i + 1}`} htmlFor={`bar-slot-${i}`}>
+            <select
+              id={`bar-slot-${i}`}
+              className="h-11 w-full rounded-md border bg-transparent px-2 text-sm text-foreground"
+              value={v}
+              disabled={busy}
+              onChange={(e) => setSlots(slots.map((x, k) => (k === i ? e.target.value : x)))}
+            >
+              {candidates.map((c) => (
+                <option key={c.href} value={c.href}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ))}
+      </div>
+      {repeated ? (
+        <p role="alert" className="text-xs text-destructive">
+          Hay un destino repetido: elige tres distintos.
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" size="sm" disabled={busy || repeated} onClick={() => save({ mobileBar: slots }, "Barra guardada")}>
+          Guardar barra
+        </Button>
+        {chosen ? (
+          <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={() => save({ mobileBar: null }, "Barra sugerida por el uso")}>
+            Volver a la sugerida por el uso
+          </Button>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 /** v1.8 · Tamaño de letra y contraste alto. */
 export function AccessibilitySettings({ fontScale, highContrast }: { fontScale: 100 | 115 | 130; highContrast: boolean }) {
   const { busy, save } = usePrefs();

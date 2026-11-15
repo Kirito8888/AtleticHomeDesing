@@ -31,11 +31,13 @@ import { RotateKeys } from "@/components/settings/rotate-keys";
 import { DemoAccounts } from "@/components/settings/demo-accounts";
 import {
   AccessibilitySettings,
+  MobileBarSettings,
   ModulesSettings,
   QuietHoursSettings,
   UsageSettings,
 } from "@/components/settings/app-preferences";
-import { usageSummary } from "@/lib/admin/usage";
+import { usageByPath, usageSummary } from "@/lib/admin/usage";
+import { buildNav, suggestBar } from "@/components/layout/nav-items";
 import { hasSecondFactor } from "@/lib/auth/admin";
 import { IntegrityCheck } from "@/components/settings/integrity-check";
 import { listDemoAccounts } from "@/lib/demo/service";
@@ -273,6 +275,9 @@ export default async function SettingsPage({
   const vapid = vapidKeys();
   const p = me.athleteProfile;
   const prefs = readPrefs(p?.prefs);
+  // v3.0 G (V3-D01) · Destinos posibles de la barra móvil y la sugerida por el uso
+  const barCandidates = buildNav({ hidden: prefs.hiddenModules, role: user.role }).candidates.map(({ href, label }) => ({ href, label }));
+  const barSuggested = suggestBar(prefs.usageStats ? await usageByPath(user.id) : [], barCandidates.map((c) => c.href));
   const isDemo = Boolean(me.demoExpiresAt);
   const aiFallbackName =
     aiView.own?.label ??
@@ -583,6 +588,13 @@ export default async function SettingsPage({
             description="Oculta lo que no usas: desaparece de la navegación y del panel. Tus datos no se tocan."
           >
             <ModulesSettings hidden={prefs.hiddenModules} />
+          </Section>
+          <Section
+            id="barra"
+            title="Barra inferior (móvil)"
+            description="Elige los 3 destinos que quieres a un toque, además de Inicio y «Más». Sin elegir, se sugieren por lo que más abres."
+          >
+            <MobileBarSettings key={(prefs.mobileBar ?? barSuggested).join()} chosen={prefs.mobileBar} suggested={barSuggested} candidates={barCandidates} />
           </Section>
           <Section
             id="accesibilidad"

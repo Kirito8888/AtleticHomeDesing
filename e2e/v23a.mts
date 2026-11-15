@@ -107,7 +107,7 @@ for (const [role, ip, tag] of [["ATHLETE", "198.51.100.231", "v23at"], ["COACH",
   watch(page);
   await login(page, "v23dk", "COACH");
   const side = page.getByRole("complementary");
-  for (const g of ["Entrenamiento y salud", "Clubes y coach", "Herramientas", "Configuración"]) {
+  for (const g of ["Entrenar", "Cuidarme", "Organizarme", "Con otras personas", "Configuración"]) {
     if (!(await side.getByRole("heading", { name: g }).count())) errors.push(`sidebar sin grupo «${g}»`);
   }
   if (await bar(page).isVisible()) errors.push("la barra inferior se ve en desktop");
