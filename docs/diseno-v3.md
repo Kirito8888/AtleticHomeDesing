@@ -79,16 +79,16 @@ Las carpetas grandes (`training`, `study`) son las que más pantallas hijas gene
 
 | Tarea de la usuaria | Hoy (tras G) | Destino v3 | Bloque |
 |---|---|---|---|
-| Ver qué toca hoy | Inicio (panel) | «Hoy»: portada accionable | H |
-| Registrar una sesión | Entreno → `+ Sesión` (`/training/new`) | Igual, y desde «Hoy» en 1–2 toques | H, I |
+| Ver qué toca hoy | Inicio (panel) | «Hoy»: portada accionable (hecho en H) | H |
+| Registrar una sesión | Entreno → `+ Sesión` (`/training/new`) | Igual, y desde «Hoy» en 1–2 toques (Serie, hecho en H) | H, I |
 | Preguntar a mis datos de entreno (IA) | Entreno → «Con IA» → `/study/ask` | Ruta propia en Entreno | I |
 | Coach de rendimiento (IA) | Entreno → «Con IA» → `/study?tab=coach` | Pestaña en Rendimiento | I |
 | Crear plan con IA | Plan → «Créalo con IA» (y Entreno → «Con IA») → `/study/plan` | Ruta propia en Plan | I/O |
 | Ver/editar el plan | Plan (`/planning`) | Igual, con los principios 1–3 | O |
 | Recuperación, sueño, VFC | Salud (`/recovery`) | Igual | J |
-| Comidas, agua | Nutrición | Igual; registro desde «Hoy» | H, K |
+| Comidas, agua | Nutrición | Igual; toma y agua desde «Hoy» (hecho en H) | H, K |
 | Apuntes, repasos, horario, exámenes | **Estudio** (`/study`) | Igual, sin las piezas de entreno | N |
-| Gastos y presupuestos | Finanzas | Igual; gasto desde «Hoy» | H, M |
+| Gastos y presupuestos | Finanzas | Igual; gasto desde «Hoy» (hecho en H) | H, M |
 | Clubes, atletas | Con otras personas | Igual | L |
 | Ocultar lo que no uso | Ajustes → Módulos | Igual (principio 5) | — |
 | Elegir la barra del móvil | Ajustes → Barra inferior | Igual | — |

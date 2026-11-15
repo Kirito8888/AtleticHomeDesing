@@ -1,6 +1,9 @@
 import Link from "next/link";
-import { Activity, Apple, Brain, CalendarDays, ChevronRight, HeartPulse, ListChecks, ListTodo, Plus, Target, Trophy, Wallet } from "lucide-react";
+import { Activity, Apple, Brain, CalendarDays, ChevronRight, HeartPulse, ListChecks, ListTodo, Target, Trophy, Wallet } from "lucide-react";
 
+import { NowCard } from "@/components/today/now-card";
+import { QuickLog } from "@/components/today/quick-log";
+import { todayActions } from "@/lib/today/actions";
 import { RecoveryConsentNotice } from "@/components/coach/recovery-consent-notice";
 import { pendingRecoveryConfirmation } from "@/lib/coach/recovery-consent";
 import { EmptyState } from "@/components/empty-state";
@@ -67,6 +70,22 @@ export default async function DashboardPage() {
   const totals = d.nutrition.totals as Record<string, number>;
   // Cuenta nueva: sin sesiones, recuperación, tareas, objetivos ni competición.
   const isNewAccount = !d.perf.current && !d.recovery && !d.sessions.length && !d.tasks.length && !openGoals.length && !d.nextCompetition;
+  const hidden = prefs.hiddenModules as readonly string[];
+  const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hourCycle: "h23" }).format(new Date()));
+  const planned = d.sessions.find((s) => s.status === "PLANNED");
+  const now = todayActions({
+    sessions: d.sessions,
+    dueCards: d.dueCards,
+    mealsLogged: d.nutrition.entries.map((e) => e.mealType),
+    hour,
+    weekday: today().getUTCDay(),
+    reviewed: reviewed > 0,
+    light: d.dailyLight,
+    hidden,
+    pmcWhy: cur ? explainPmc(cur) : null,
+  });
+  // «Serie»: la sesión de fuerza planificada de hoy, o una nueva de fuerza.
+  const setHref = planned?.type === "STRENGTH" ? `/training/${planned.id}/edit` : "/training/new?type=STRENGTH";
   const daysToComp = d.nextCompetition ? diffDays(d.nextCompetition.startAt, today()) : null;
 
   return (
@@ -82,14 +101,12 @@ export default async function DashboardPage() {
             <Button asChild size="sm" variant="outline">
               <Link href="/planning/week-all">Semana</Link>
             </Button>
-            <Button asChild size="sm">
-              <Link href="/training/new">
-                <Plus /> Sesión
-              </Link>
-            </Button>
           </div>
         }
       />
+
+      <NowCard main={now.main} rest={now.rest} />
+      <QuickLog day={d.day} hidden={hidden} setHref={setHref} />
 
       {recoveryPending ? <RecoveryConsentNotice /> : null}
 
@@ -192,7 +209,7 @@ export default async function DashboardPage() {
               </StatusLabel>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Registra tu primera sesión para ver tu carga.</p>
+            <EmptyState icon={Activity} title="Aún no hay carga calculada" text="La carga (fitness, fatiga y forma) sale de tus sesiones y te dice si puedes apretar o descansar." action={{ href: "/training/new", label: "Registrar una sesión" }} />
           )}
         </Widget>
 
@@ -211,7 +228,7 @@ export default async function DashboardPage() {
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-muted-foreground">Sin sesiones hoy.</p>
+            <p className="text-sm text-muted-foreground">Sin sesiones hoy. Planifica una para que «Hoy» te diga cuándo y por qué entrenarla.</p>
           )}
           {d.nextCompetition && daysToComp != null ? (
             <p className="mt-3 flex items-center gap-2 border-t pt-3 text-sm">
@@ -249,9 +266,7 @@ export default async function DashboardPage() {
               {d.nutrition.isTrainingDay ? <p className="text-xs text-muted-foreground">Objetivo ajustado: día de entreno.</p> : null}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">
-              {Math.round(totals.kcal)} kcal registradas. Define tu objetivo en Ajustes.
-            </p>
+            <EmptyState icon={Apple} title={`${Math.round(totals.kcal)} kcal registradas`} text="Con un objetivo ves cuánto te falta de cada macro y se ajusta en los días de entreno." action={{ href: "/settings", label: "Definir mi objetivo" }} />
           )}
         </Widget>
 
@@ -268,7 +283,10 @@ export default async function DashboardPage() {
               ))}
             </ul>
           ) : (
-            <StatusLabel status="good">Presupuestos dentro de lo previsto</StatusLabel>
+            <div className="grid gap-1">
+              <StatusLabel status="good">Presupuestos dentro de lo previsto</StatusLabel>
+              <p className="text-xs text-muted-foreground">Solo avisamos cuando una categoría pasa del umbral de su presupuesto.</p>
+            </div>
           )}
         </Widget>
 

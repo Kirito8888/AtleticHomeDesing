@@ -66,7 +66,7 @@ await settle();
 
 // 3 · Menú corto a 390 px
 m = await menu();
-if (m.bar.join("|") !== ["Inicio", "Entreno", "Salud", "Objetivos"].join("|")) errors.push(`barra con cuenta nueva: ${m.bar.join(", ")}`);
+if (m.bar.join("|") !== ["Hoy", "Entreno", "Salud", "Objetivos"].join("|")) errors.push(`barra con cuenta nueva: ${m.bar.join(", ")}`);
 for (const t of ["Plan", "Nutrición", "Finanzas", "Estudio"]) if (m.more.includes(t)) errors.push(`«${t}» sigue en el menú de la cuenta nueva`);
 for (const t of ["Entreno", "Salud", "Ajustes"]) if (!m.more.includes(t)) errors.push(`falta «${t}» en el menú de la cuenta nueva`);
 await noOverflow("inicio con menú corto");
