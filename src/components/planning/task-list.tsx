@@ -88,7 +88,7 @@ export function TaskList({ tasks, todayIso }: { tasks: TaskItem[]; todayIso: str
                 <Badge variant={t.priority === "URGENT" || t.priority === "HIGH" ? "default" : "outline"} className="shrink-0">
                   {PRIORITY_LABEL[t.priority]}
                 </Badge>
-                <Button variant="ghost" size="icon" className="size-8 shrink-0" aria-label={`Borrar ${t.title}`} onClick={() => void call(() => api(`/api/tasks/${t.id}`, { method: "DELETE" }))}>
+                <Button variant="ghost" size="icon" className="size-8 shrink-0 max-md:size-11" aria-label={`Borrar ${t.title}`} onClick={() => void call(() => api(`/api/tasks/${t.id}`, { method: "DELETE" }))}>
                   <Trash2 className="size-4" />
                 </Button>
               </li>

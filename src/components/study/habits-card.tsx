@@ -89,7 +89,7 @@ export function HabitsCard({ habits: initial, today }: { habits: HabitView[]; to
                 ) : null}
               </span>
               {editing ? (
-                <Button type="button" variant="ghost" size="icon" className="size-7" aria-label={`Archivar ${h.name}`} onClick={() => archive(h)}>
+                <Button type="button" variant="ghost" size="icon" className="size-7 max-md:size-11" aria-label={`Archivar ${h.name}`} onClick={() => archive(h)}>
                   <X />
                 </Button>
               ) : null}

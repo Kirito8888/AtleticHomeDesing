@@ -59,7 +59,7 @@ export function Stepper({
           onBlur={() => value != null && onChange(clamp(value))}
         />
         {suffix ? (
-          <span className="pointer-events-none absolute top-1/2 right-1 -translate-y-1/2 text-[10px] text-muted-foreground">{suffix}</span>
+          <span className="pointer-events-none absolute top-1/2 right-1 -translate-y-1/2 text-2xs text-muted-foreground">{suffix}</span>
         ) : null}
       </div>
       <Button

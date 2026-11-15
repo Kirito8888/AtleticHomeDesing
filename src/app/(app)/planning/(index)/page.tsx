@@ -198,13 +198,13 @@ export default async function PlanningPage({ searchParams }: PageProps<"/plannin
                     </span>
                   );
                 })}
-                {done ? <span className="ml-auto text-[10px] text-muted-foreground" title="Sesiones completadas">✓{done > 1 ? done : ""}</span> : null}
-                {planned ? <span className="text-[10px] text-muted-foreground" title="Sesiones planificadas">○{planned > 1 ? planned : ""}</span> : null}
-                {due ? <span className="text-[10px] text-muted-foreground" title="Tareas que vencen">□{due > 1 ? due : ""}</span> : null}
-                {hrv ? <span className="rounded bg-sky-100 px-0.5 text-[9px] font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200" title="Semana de VFC: mide la VFC cada mañana">VFC</span> : null}
-                {exam ? <span className="text-[10px] text-amber-700 dark:text-amber-400" title="Examen">✎</span> : null}
+                {done ? <span className="ml-auto text-2xs text-muted-foreground" title="Sesiones completadas">✓{done > 1 ? done : ""}</span> : null}
+                {planned ? <span className="text-2xs text-muted-foreground" title="Sesiones planificadas">○{planned > 1 ? planned : ""}</span> : null}
+                {due ? <span className="text-2xs text-muted-foreground" title="Tareas que vencen">□{due > 1 ? due : ""}</span> : null}
+                {hrv ? <span className="rounded bg-sky-100 px-0.5 text-2xs font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200" title="Semana de VFC: mide la VFC cada mañana">VFC</span> : null}
+                {exam ? <span className="text-2xs text-amber-700 dark:text-amber-400" title="Examen">✎</span> : null}
                 {predicted.get(iso) ? (
-                  <span className="text-[10px] text-rose-600 dark:text-rose-400" title={predicted.get(iso)!.period ? "Regla prevista" : "Síntomas previstos"}>
+                  <span className="text-2xs text-rose-600 dark:text-rose-400" title={predicted.get(iso)!.period ? "Regla prevista" : "Síntomas previstos"}>
                     {predicted.get(iso)!.period ? "●" : "◦"}
                   </span>
                 ) : null}

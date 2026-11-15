@@ -40,6 +40,9 @@
   --color-status-warning: var(--status-warning);
   --color-status-serious: var(--status-serious);
   --color-status-critical: var(--status-critical);
+  /* v3.0 F · V3-A03: tamaño mínimo de la escala (11 px a 100 %); en rem, así escala con fontScale y la fuente del sistema */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -65,7 +68,7 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: oklch(0.64 0 0); /* v3.0 F: ≥ 3:1 sobre el fondo (antes 0.708 = 2,6:1) */
   /* Gráficas: CTL (fitness), ATL (fatiga), TSB (forma), readiness, TSS */
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
@@ -76,7 +79,7 @@
      1 = CTL/fitness · 2 = ATL/fatiga · 3 = TSB/forma */
   --series-1: #2a78d6;
   --series-2: #eb6834;
-  --series-3: #1baf7a;
+  --series-3: #18a273; /* v3.0 F: ≥ 3:1 sobre blanco (antes #1baf7a = 2,8:1), mismo tono */
   --chart-grid: #e6e5e1;
   /* Estados reservados: siempre con icono + texto, nunca solo color */
   --status-good: #0ca30c;
@@ -193,5 +196,15 @@ html [data-sonner-toaster][data-sonner-theme="light"] {
   .quest-pop,
   .quest-shake {
     animation: none;
+  }
+  /* v3.0 F · V3-A04: movimiento reducido en toda la app (hojas, diálogos, esqueletos, modo juego, transiciones).
+     Duración casi nula en vez de «none»: los estados finales y los eventos animationend/transitionend se mantienen. */
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

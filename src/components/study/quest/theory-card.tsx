@@ -19,8 +19,8 @@ export function TheoryCard({ item, picked, onPick }: { item: PlayItem; picked: n
   }, [answered, opts, onPick]);
   return (
     <>
-      <span className="inline-block rounded-md bg-[#6d7cff33] px-2 py-0.5 font-mono text-[11px] font-bold text-[#aab4ff]">TEORÍA</span>
-      <p className="mt-2 mb-3 text-[17px] leading-snug font-semibold break-words">{item.t?.[0]}</p>
+      <span className="inline-block rounded-md bg-[#6d7cff33] px-2 py-0.5 font-mono text-2xs font-bold text-[#aab4ff]">TEORÍA</span>
+      <p className="mt-2 mb-3 text-[1.0625rem] leading-snug font-semibold break-words">{item.t?.[0]}</p>
       <div className="grid gap-2">
         {opts.map((o, k) => (
           <button
@@ -30,18 +30,18 @@ export function TheoryCard({ item, picked, onPick }: { item: PlayItem; picked: n
             data-opt={k}
             onClick={() => onPick(k)}
             className={cn(
-              "flex min-h-12 w-full items-center gap-3 rounded-xl border-2 border-[var(--q-line)] bg-[var(--q-panel2)] p-2.5 text-left text-[15px] shadow-[0_3px_0_#0008] enabled:hover:border-[var(--q-lin)]",
+              "flex min-h-12 w-full items-center gap-3 rounded-xl border-2 border-[var(--q-line)] bg-[var(--q-panel2)] p-2.5 text-left text-[0.9375rem] shadow-[0_3px_0_#0008] enabled:hover:border-[var(--q-lin)]",
               answered && o.ok && "border-[var(--q-lin)] bg-[#12452e] disabled:opacity-100",
               answered && picked === k && !o.ok && "border-[var(--q-bad)] bg-[#5a1a28] disabled:opacity-100",
               answered && !o.ok && picked !== k && "opacity-60",
             )}
           >
-            <span className="grid size-7 shrink-0 place-items-center rounded-md bg-[var(--q-bg)] font-mono text-[13px]">{k + 1}</span>
+            <span className="grid size-7 shrink-0 place-items-center rounded-md bg-[var(--q-bg)] font-mono text-[0.8125rem]">{k + 1}</span>
             <span className="min-w-0 break-words">{o.t}</span>
           </button>
         ))}
       </div>
-      {!answered ? <p className="mt-2 hidden font-mono text-[11px] text-[var(--q-mute)] md:block">Teclas 1-4 para responder · Intro para seguir</p> : null}
+      {!answered ? <p className="mt-2 hidden font-mono text-2xs text-[var(--q-mute)] md:block">Teclas 1-4 para responder · Intro para seguir</p> : null}
     </>
   );
 }
