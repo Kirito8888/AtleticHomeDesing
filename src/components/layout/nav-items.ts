@@ -13,7 +13,7 @@ export type NavItem = {
   roles?: readonly NavRole[];
 };
 
-export const HOME: NavItem = { href: "/", label: "Inicio", icon: LayoutDashboard, module: null };
+export const HOME: NavItem = { href: "/", label: "Hoy", icon: LayoutDashboard, module: null };
 
 /**
  * v3.0 G (V3-D01) · Secciones agrupadas por intención (qué quiere hacer la usuaria, no qué módulo es):

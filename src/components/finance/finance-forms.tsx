@@ -92,7 +92,12 @@ export function QuickTransaction({
   frequent = { EXPENSE: [], INCOME: [] },
   today,
   competitions = [],
+  defaultOpen = false,
+  hideTrigger = false,
 }: {
+  /** «Hoy»: se abre al montarse y sin botón propio (el botón vive en la barra de registro). */
+  defaultOpen?: boolean;
+  hideTrigger?: boolean;
   accounts: AccountOpt[];
   categories: CategoryOpt[];
   /** Ids de las categorías más usadas (90 días), por tipo. */
@@ -100,7 +105,7 @@ export function QuickTransaction({
   today: string;
   competitions?: Array<{ id: string; title: string; date: string }>;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [kind, setKind] = useState<Kind>("EXPENSE");
   const [sport, setSport] = useState(false);
   const { busy, run } = useSubmit(() => setOpen(false));
@@ -137,11 +142,13 @@ export function QuickTransaction({
         if (v) setCategory("");
       }}
     >
-      <SheetTrigger asChild>
-        <Button size="sm">
-          <Plus /> Movimiento
-        </Button>
-      </SheetTrigger>
+      {hideTrigger ? null : (
+        <SheetTrigger asChild>
+          <Button size="sm">
+            <Plus /> Movimiento
+          </Button>
+        </SheetTrigger>
+      )}
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Nuevo movimiento</SheetTitle>

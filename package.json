@@ -58,6 +58,7 @@
     "e2e:v20b": "tsx e2e/v20b.mts",
     "e2e:v30d": "tsx e2e/v30d.mts",
     "e2e:v30g": "tsx e2e/v30g.mts",
+    "e2e:v30h": "tsx e2e/v30h.mts",
     "e2e:v20c": "tsx e2e/v20c.mts",
     "e2e:v20d": "tsx e2e/v20d.mts",
     "e2e:v20e": "tsx e2e/v20e.mts",

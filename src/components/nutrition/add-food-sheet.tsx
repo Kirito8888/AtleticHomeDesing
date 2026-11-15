@@ -42,7 +42,7 @@ function useDebounced<T>(value: T, ms: number) {
   return v;
 }
 
-export function AddFoodSheet({ date, menus = [], recents = [] }: { date: string; menus?: MealTemplateSummary[]; recents?: RecentFood[] }) {
+export function AddFoodSheet({ date, menus = [], recents = [], triggerLabel, triggerClassName }: { date: string; menus?: MealTemplateSummary[]; recents?: RecentFood[]; triggerLabel?: string; triggerClassName?: string }) {
   const refresh = useZoneRefresh();
   const [open, setOpen] = useState(false);
   const [meal, setMeal] = useState<string>(defaultMeal);
@@ -151,8 +151,8 @@ export function AddFoodSheet({ date, menus = [], recents = [] }: { date: string;
   return (
     <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setPicked(null); setCustom(null); } }}>
       <SheetTrigger asChild>
-        <Button size="sm">
-          <Plus /> Alimento
+        <Button size={triggerClassName ? "default" : "sm"} className={triggerClassName}>
+          <Plus /> {triggerLabel ?? "Alimento"}
         </Button>
       </SheetTrigger>
       <SheetContent>
