@@ -7,12 +7,19 @@ export function generateNonce(): string {
 
 /**
  * - script-src: solo scripts con el nonce (y los que estos carguen: 'strict-dynamic').
- * - style-src 'unsafe-inline': Recharts, sonner y las barras de progreso usan
- *   atributos style; un nonce no cubre atributos. El riesgo de CSS inyectado es
- *   muy inferior al de scripts, que sí quedan bloqueados.
+ * - style-src 'unsafe-inline' (DEUDA CONOCIDA, V3-S10): Recharts, sonner y las barras de
+ *   progreso usan atributos style; un nonce no cubre atributos. El riesgo de CSS inyectado
+ *   es muy inferior al de scripts, que sí quedan bloqueados. Salida: separar
+ *   `style-src-elem` (con nonce) de `style-src-attr` y retirar los atributos inline o
+ *   sustituirlos por clases cuando las librerías lo permitan. Ver docs/arquitectura.md.
+ * - report-uri + report-to: el primero lo entienden todos los navegadores; el segundo usa la
+ *   cabecera Reporting-Endpoints (REPORTING_ENDPOINTS) y apunta a la misma ruta.
  * - connect-src 'self': el navegador solo habla con Atlenza; Gemini y Open Food
  *   Facts se llaman desde el servidor.
  */
+/** Valor de la cabecera `Reporting-Endpoints`: mismo destino que `report-uri` (ruta relativa). */
+export const REPORTING_ENDPOINTS = 'csp-endpoint="/api/csp-report"';
+
 export function buildCsp(nonce: string, opts: { dev: boolean; https: boolean }): string {
   return [
     "default-src 'self'",
@@ -30,6 +37,7 @@ export function buildCsp(nonce: string, opts: { dev: boolean; https: boolean }):
     "frame-ancestors 'none'",
     // v1.8 · Las violaciones se registran (agregadas) en Estado del servidor
     "report-uri /api/csp-report",
+    "report-to csp-endpoint",
     ...(opts.https ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 }

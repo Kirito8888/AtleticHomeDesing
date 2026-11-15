@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "@/auth";
-import { buildCsp, generateNonce } from "@/lib/security/csp";
+import { REPORTING_ENDPOINTS, buildCsp, generateNonce } from "@/lib/security/csp";
 
 /** Páginas de acceso: con sesión iniciada no tiene sentido verlas. */
 const AUTH_PATHS = ["/login", "/register", "/reset"];
@@ -37,6 +37,7 @@ export default auth((req) => {
   requestHeaders.set("Content-Security-Policy", csp);
   const res = NextResponse.next({ request: { headers: requestHeaders } });
   res.headers.set("Content-Security-Policy", csp);
+  res.headers.set("Reporting-Endpoints", REPORTING_ENDPOINTS);
   return res;
 });
 

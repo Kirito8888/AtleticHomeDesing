@@ -18,8 +18,8 @@ jobs:
     name: Lint, tipos, tests y build
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -40,9 +40,9 @@ jobs:
     name: Análisis estático (Semgrep)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # Desde PyPI (sin imagen de Docker Hub) y con versión fija
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
       - run: pip install --quiet semgrep==1.179.0
@@ -69,7 +69,7 @@ jobs:
       VAPID_PRIVATE_KEY: WR6TKd8X0HhDbnzMaiYLa1-Ye5SPRYYjarLHcVna1Is
       VAPID_SUBJECT: mailto:ci@example.com
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # Docker Hub limita las descargas anónimas desde los runners compartidos (toomanyrequests): se usa
       # el espejo público de Google; si una imagen no está en él, Docker cae a Docker Hub.
       - name: Espejo de Docker Hub
@@ -84,7 +84,7 @@ jobs:
           docker run -d --name db -p 5432:5432 -e POSTGRES_USER=lifeos -e POSTGRES_PASSWORD=lifeos -e POSTGRES_DB=lifeos pgvector/pgvector:pg17
           for i in $(seq 60); do docker exec db pg_isready -U lifeos -h 127.0.0.1 >/dev/null 2>&1 && break; sleep 1; done
           docker exec db pg_isready -U lifeos -h 127.0.0.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -135,13 +135,13 @@ jobs:
           docker run --rm --network host -u root -v "$PWD/.zap:/zap/wrk:rw" ghcr.io/zaproxy/zaproxy:2.16.1 \
             zap-baseline.py -t http://localhost:3000/login -c rules.tsv -I -m 2 -r zap-report.html -J zap-report.json
       - if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: zap-report
           path: .zap/zap-report.*
           if-no-files-found: ignore
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: e2e-logs
           path: |
@@ -168,7 +168,7 @@ jobs:
       VAPID_PRIVATE_KEY: WR6TKd8X0HhDbnzMaiYLa1-Ye5SPRYYjarLHcVna1Is
       VAPID_SUBJECT: mailto:ci@example.com
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: Espejo de Docker Hub
         run: |
           sudo sh -c '[ -s /etc/docker/daemon.json ] || echo "{}" > /etc/docker/daemon.json'
@@ -180,7 +180,7 @@ jobs:
           docker run -d --name db -p 5432:5432 -e POSTGRES_USER=lifeos -e POSTGRES_PASSWORD=lifeos -e POSTGRES_DB=lifeos pgvector/pgvector:pg17
           for i in $(seq 60); do docker exec db pg_isready -U lifeos -h 127.0.0.1 >/dev/null 2>&1 && break; sleep 1; done
           docker exec db pg_isready -U lifeos -h 127.0.0.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
@@ -207,7 +207,7 @@ jobs:
           if [ -n "$fail" ]; then echo "Suites con fallo:$fail"; exit 1; fi
           echo "Todas las suites v2.x en verde"
       - if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: e2e-extra-logs
           path: |
@@ -220,7 +220,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: check
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # Docker Hub limita las descargas anónimas desde los runners compartidos (toomanyrequests): se usa
       # el espejo público de Google; si una imagen no está en él, Docker cae a Docker Hub.
       - name: Espejo de Docker Hub
@@ -257,7 +257,7 @@ jobs:
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.74.0 image \
             --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress lifeos-web:latest
           npm sbom --package-lock-only --sbom-format cyclonedx --omit dev > sbom.cdx.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: sbom
           path: sbom.cdx.json

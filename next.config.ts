@@ -38,7 +38,8 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-          // Cámara solo para el propio origen (escáner de códigos de barras).
+          // Solo el propio origen: cámara (escáner de códigos de barras, medidor de salto), micrófono
+          // (botón «Dictar» de /training/new, SpeechRecognition; se mantiene porque SÍ se usa) y geolocalización.
           { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self)" },
           // HTTPS obligatorio durante 1 año (solo lo respetan los navegadores si llega por HTTPS).
           // Sin includeSubDomains: el dominio DuckDNS no es nuestro.

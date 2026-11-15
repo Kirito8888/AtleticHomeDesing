@@ -122,6 +122,15 @@ flowchart LR
 
 **Reglas para una ruta nueva:** (1) `route()` + `requireUser()`; (2) si toca datos de otra persona, `resolveAthleteId` con el ámbito mínimo; (3) si lee sesiones de otra persona, `notFromStrava` y alta en `strava/privacy.int.test.ts`; (4) nada de salud cifrada a la IA; (5) nada escribe en el plan sin borrador y confirmación.
 
+## Cadena de suministro (v3.0 · Bloque E)
+
+- **Acciones de GitHub por SHA completo.** Todo `uses:` de `.github/workflows/*` va como `owner/repo@<sha de 40 hex> # vX.Y.Z` (la etiqueta, solo como comentario). Dependabot (`github-actions`, un PR semanal agrupado) actualiza SHA y comentario a la vez. `src/test/workflows-pinned.test.ts` falla si aparece una etiqueta suelta o un workflow sin `permissions:`. Permisos mínimos: `contents: read` global; `packages: write` solo en el job que publica la imagen.
+- **Arquitectura: la IA no alcanza la salud cifrada.** `src/test/architecture.test.ts` recorre los imports (directos y transitivos) de `src/lib/ai/**` y falla si llegan a `lib/health/isak*`, `cycle*` o `women*` (complementa `isak-isolation.test.ts`, que vigila por texto).
+- **Cabeceras (V3-S10).** `Permissions-Policy` conserva `microphone=(self)` **porque se usa** (botón «Dictar», `components/training/voice-session.tsx`). La CSP lleva `report-uri /api/csp-report` y `report-to csp-endpoint`; la cabecera `Reporting-Endpoints` apunta a la misma ruta (no hay un endpoint de reporting aparte).
+- **Deuda: `style-src 'unsafe-inline'`.** Lo exigen los atributos `style` de Recharts, sonner y las barras de progreso (un nonce no cubre atributos). Riesgo bajo (CSS, no scripts). Salida: separar `style-src-elem` (con nonce) de `style-src-attr` y eliminar los estilos inline o pasarlos a clases cuando las librerías lo permitan; hasta entonces no se toca.
+- **Calendario de subida a Node 24 (V3-S11).** `unpdf` 2.1.0 declara Node ≥ 24 y funciona en Node 22 (Dockerfile y CI). Node 22 sale de mantenimiento el 30/04/2027. Plan: [Probable] rama de prueba en la versión siguiente a v3.0 cambiando a la vez `NODE_VERSION` del Dockerfile, `node-version` de `ci.yml` y `@types/node` (y retirando su `ignore` mayor de `dependabot.yml`), con `e2e.sh all`; despliegue **antes de marzo de 2027**. Disparador anticipado: una versión de `unpdf` o de una dependencia que deje de funcionar en 22.
+- **Revisión mensual de `npm audit`.** El primer lunes de cada mes: `npm audit --omit=dev` (producción; la CI ya corta en `high`) y `npm audit` completo. Alta o crítica en producción: arreglo inmediato; media/baja: agrupar en la siguiente versión; las de desarrollo, solo si afectan a la CI. Se anota el resultado en `docs/estado.md`.
+
 ## Trabajo en segundo plano
 
 - `src/instrumentation.ts` arranca (solo runtime Node y con `DATABASE_URL`) el planificador y el trabajador de ingesta.

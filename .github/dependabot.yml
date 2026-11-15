@@ -26,6 +26,11 @@ updates:
   - package-ecosystem: docker
     directory: /deploy/backup
     schedule: { interval: weekly, day: monday }
+  # Las acciones de los workflows van fijadas por SHA completo con la etiqueta en un comentario
+  # (`uses: x@<sha> # vX.Y.Z`); Dependabot actualiza ambos. Un único PR semanal (V3-S03).
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly, day: monday }
+    groups:
+      actions:
+        patterns: ["*"]
