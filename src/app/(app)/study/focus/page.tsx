@@ -84,7 +84,7 @@ export default async function FocusPage({ searchParams }: PageProps<"/study/focu
             <figure aria-label="Minutos de estudio por día" className="grid h-36 grid-cols-7 items-end gap-2">
               {w.days.map((d) => (
                 <div key={d.date} className="flex h-full flex-col items-center justify-end gap-1">
-                  <span className="text-[10px] text-muted-foreground tabular-nums">{d.minutes || ""}</span>
+                  <span className="text-2xs text-muted-foreground tabular-nums">{d.minutes || ""}</span>
                   <div className="w-full rounded-t bg-primary" style={{ height: `${(d.minutes / max) * 100}%` }} title={`${d.minutes} min`} />
                   <span className="text-xs text-muted-foreground">{formatDate(d.date, { weekday: "narrow" })}</span>
                 </div>

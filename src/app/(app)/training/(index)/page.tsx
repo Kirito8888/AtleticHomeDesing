@@ -158,7 +158,7 @@ export default async function TrainingPage() {
                   </div>
                   <div className="shrink-0 text-right">
                     <div className="font-semibold tabular-nums">{s.tss != null ? formatNum(s.tss) : "—"}</div>
-                    <div className="text-[10px] text-muted-foreground">TSS</div>
+                    <div className="text-2xs text-muted-foreground">TSS</div>
                   </div>
                 </Link>
               </li>

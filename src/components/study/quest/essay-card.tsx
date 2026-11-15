@@ -19,8 +19,8 @@ export function EssayCard({ item, locked, onSubmit }: { item: PlayItem; locked: 
   const covered = marks.filter(Boolean).length;
   return (
     <div>
-      <span className="inline-block rounded-md bg-[#ffd23f26] px-2 py-0.5 font-mono text-[11px] font-bold text-[var(--q-gold)]">DESARROLLO · autocorrección con rúbrica</span>
-      <p className="mt-2 mb-3 text-[17px] leading-snug font-semibold break-words">{e.q}</p>
+      <span className="inline-block rounded-md bg-[#ffd23f26] px-2 py-0.5 font-mono text-2xs font-bold text-[var(--q-gold)]">DESARROLLO · autocorrección con rúbrica</span>
+      <p className="mt-2 mb-3 text-[1.0625rem] leading-snug font-semibold break-words">{e.q}</p>
       <label htmlFor={`${id}-a`} className="mb-1 block text-sm text-[var(--q-mute)]">
         Tu respuesta
       </label>

@@ -146,7 +146,7 @@ export function SaveMealFavorite({ date, mealType, existing = [] }: { date: stri
   return (
     <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (o) setName(`Menú ${MEAL_LABEL[mealType].toLowerCase()}`); }}>
       <SheetTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" className="size-7" aria-label={`Guardar ${label} como menú`}>
+        <Button type="button" variant="ghost" size="icon" className="size-7 max-md:size-11" aria-label={`Guardar ${label} como menú`}>
           <Star className="size-4" />
         </Button>
       </SheetTrigger>
@@ -188,7 +188,7 @@ export function LoadTemplate({ date, mealType, templates }: { date: string; meal
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" className="size-7" aria-label={`Cargar menú en ${label}`}>
+        <Button type="button" variant="ghost" size="icon" className="size-7 max-md:size-11" aria-label={`Cargar menú en ${label}`}>
           <ListPlus className="size-4" />
         </Button>
       </SheetTrigger>

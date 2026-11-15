@@ -23,8 +23,8 @@ export function PracticeCard({ item, locked, noHelp, onSubmit }: { item: PlayIte
         onSubmit(v, hint);
       }}
     >
-      <span className="inline-block rounded-md bg-[#3dff9a26] px-2 py-0.5 font-mono text-[11px] font-bold text-[var(--q-lin)]">PRÁCTICA · escribe el comando</span>
-      <p className="mt-2 mb-3 text-[17px] leading-snug font-semibold break-words">{p.q}</p>
+      <span className="inline-block rounded-md bg-[#3dff9a26] px-2 py-0.5 font-mono text-2xs font-bold text-[var(--q-lin)]">PRÁCTICA · escribe el comando</span>
+      <p className="mt-2 mb-3 text-[1.0625rem] leading-snug font-semibold break-words">{p.q}</p>
       <div className="overflow-hidden rounded-xl border-2 border-[var(--q-line)] bg-black">
         <div className="flex gap-1.5 bg-[var(--q-panel2)] px-2.5 py-1.5" aria-hidden>
           <i className="size-2.5 rounded-full bg-[#ff5f56]" />
@@ -32,7 +32,7 @@ export function PracticeCard({ item, locked, noHelp, onSubmit }: { item: PlayIte
           <i className="size-2.5 rounded-full bg-[#27c93f]" />
         </div>
         <label className="flex flex-wrap items-center gap-x-2 p-2.5 font-mono">
-          <span className="text-[13px] font-bold whitespace-nowrap text-[var(--q-lin)]">{PROMPT[p.sh]}</span>
+          <span className="text-[0.8125rem] font-bold whitespace-nowrap text-[var(--q-lin)]">{PROMPT[p.sh]}</span>
           <input
             ref={ref}
             name="cmd"

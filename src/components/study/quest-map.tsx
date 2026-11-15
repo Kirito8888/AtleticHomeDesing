@@ -42,7 +42,7 @@ export function QuestMap({ moduleId, moduleName, topics }: { moduleId: string; m
   const stars = totalStars(nodes, s);
   const max = maxStars(nodes);
   const cur = currentIndex(nodes, s);
-  const chip = "inline-flex min-h-9 items-center rounded-[10px] border-2 border-[var(--q-line)] bg-[var(--q-panel)] px-2.5 font-mono text-[13px] whitespace-nowrap";
+  const chip = "inline-flex min-h-9 items-center rounded-[10px] border-2 border-[var(--q-line)] bg-[var(--q-panel)] px-2.5 font-mono text-[0.8125rem] whitespace-nowrap";
   const btn =
     "inline-flex min-h-11 items-center justify-center rounded-[10px] border-2 px-3.5 text-sm font-semibold shadow-[0_4px_0_#0008] active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-40";
 
@@ -161,7 +161,7 @@ export function QuestMap({ moduleId, moduleName, topics }: { moduleId: string; m
 
       {!s.seen || howOpen ? (
         <section id="quest-how" ref={howRef} tabIndex={-1} aria-label="Cómo se juega" className="mb-4 rounded-2xl border-2 border-[var(--q-gold)] bg-[var(--q-panel)] p-4 text-sm leading-relaxed" data-testid="quest-how">
-          <b className="text-[17px]">Cómo se juega</b>
+          <b className="text-[1.0625rem]">Cómo se juega</b>
           <ul className="mt-2 grid gap-1.5">
             <li>• Cada <b>nivel</b> es un tema: preguntas de <b>teoría</b> (test, teclas 1–4), de <b>desarrollo</b> (te autocorriges con una rúbrica) y <b>prácticas</b> donde escribes el comando en una terminal.</li>
             <li>• Tienes <b>3 ❤️</b> por nivel. Cada fallo quita una; con 0, game over.</li>
@@ -184,7 +184,7 @@ export function QuestMap({ moduleId, moduleName, topics }: { moduleId: string; m
         </section>
       ) : null}
 
-      <div className="mb-2 flex items-center gap-2.5 font-mono text-[15px] font-extrabold tracking-wide">
+      <div className="mb-2 flex items-center gap-2.5 font-mono text-[0.9375rem] font-extrabold tracking-wide">
         📚 MAPA DE TEMAS
         <span className="h-0.5 flex-1 bg-gradient-to-r from-[var(--q-line)] to-transparent" />
       </div>
@@ -195,7 +195,8 @@ export function QuestMap({ moduleId, moduleName, topics }: { moduleId: string; m
           const best = s.lv[n.id]?.best;
           const boss = n.kind === "boss";
           const acc = boss ? "var(--q-fin)" : "var(--q-lin)";
-          const label = `${boss ? "Jefe Final" : `Nivel ${n.n}: ${n.title}`}${locked ? " (bloqueado)" : ""}, ${st} de 3 estrellas`;
+          // v3.0 F (2.5.3): el nombre accesible es el texto visible + lo que solo se ve con iconos (candado, estrellas)
+          const srExtra = `${locked ? ", bloqueado" : ""}, ${st} de 3 estrellas`;
           const nodeProps = {
             ...NODE_PROPS,
             className: cn(
@@ -212,12 +213,12 @@ export function QuestMap({ moduleId, moduleName, topics }: { moduleId: string; m
                   🔒
                 </span>
               ) : null}
-              <span className="block font-mono text-[11px] text-[var(--q-mute)]">{boss ? "FINAL" : `NIVEL ${n.n}`}</span>
+              <span className="block font-mono text-2xs text-[var(--q-mute)]">{boss ? "FINAL" : `NIVEL ${n.n}`}</span>
               <span aria-hidden className="block text-2xl leading-none">
                 {boss ? "🐉" : "📘"}
               </span>
-              <span className="mt-1.5 mb-1 block text-[15px] font-bold break-words">{n.title}</span>
-              <span className="block min-h-5 font-mono text-[11px] text-[var(--q-mute)]">
+              <span className="mt-1.5 mb-1 block text-[0.9375rem] font-bold break-words">{n.title}</span>
+              <span className="block min-h-5 font-mono text-2xs text-[var(--q-mute)]">
                 {boss ? "Mezcla de todos los temas" : `${TAG_EMOJI[n.tag as Tag]} · ${formatInt(n.minutes)} min`}
               </span>
               <span className="flex items-center justify-between">
@@ -228,18 +229,19 @@ export function QuestMap({ moduleId, moduleName, topics }: { moduleId: string; m
                     </span>
                   ))}
                 </span>
-                {best != null ? <span className="font-mono text-[11px] text-[var(--q-mute)]">mejor {formatInt(best)}%</span> : null}
+                {best != null ? <span className="font-mono text-2xs text-[var(--q-mute)]">mejor {formatInt(best)}%</span> : null}
               </span>
+              <span className="sr-only">{srExtra}</span>
             </>
           );
           return (
             <li key={n.id}>
               {locked ? (
-                <button type="button" disabled data-node={n.id} aria-label={label} style={{ "--acc": acc } as CSSProperties} {...nodeProps}>
+                <button type="button" disabled data-node={n.id} style={{ "--acc": acc } as CSSProperties} {...nodeProps}>
                   {content}
                 </button>
               ) : (
-                <Link href={`${playBase}?level=${n.id}`} data-node={n.id} aria-label={label} style={{ "--acc": acc } as CSSProperties} {...nodeProps}>
+                <Link href={`${playBase}?level=${n.id}`} data-node={n.id} style={{ "--acc": acc } as CSSProperties} {...nodeProps}>
                   {content}
                 </Link>
               )}
@@ -251,7 +253,6 @@ export function QuestMap({ moduleId, moduleName, topics }: { moduleId: string; m
       {(() => {
         const unlocked = s.free || starsOf(s, BOSS_ID) >= UNLOCK_STARS;
         const r = s.lv[FINAL_ID];
-        const label = `Examen final${unlocked ? "" : " (bloqueado)"}${r?.best != null ? `, mejor nota ${formatDec(r.best, 1)}` : ""}`;
         const body = (
           <>
             {unlocked ? null : (
@@ -259,12 +260,13 @@ export function QuestMap({ moduleId, moduleName, topics }: { moduleId: string; m
                 🔒
               </span>
             )}
-            <span className="block font-mono text-[11px] text-[var(--q-mute)]">CASTILLO FINAL</span>
+            <span className="block font-mono text-2xs text-[var(--q-mute)]">CASTILLO FINAL</span>
             <span aria-hidden className="block text-2xl leading-none">
               🏆
             </span>
-            <span className="mt-1.5 mb-1 block text-[15px] font-bold">Examen final</span>
-            <span className="block font-mono text-[11px] text-[var(--q-mute)]">Simulacro cronometrado · nota sobre 10 · sin vidas ni pistas</span>
+            <span className="mt-1.5 mb-1 block text-[0.9375rem] font-bold">Examen final</span>
+            <span className="block font-mono text-2xs text-[var(--q-mute)]">Simulacro cronometrado · nota sobre 10 · sin vidas ni pistas</span>
+            {unlocked ? null : <span className="sr-only">, bloqueado</span>}
             {r?.best != null ? (
               <span className="mt-1 block font-mono text-sm text-[var(--q-gold)]" data-testid="quest-final-best">
                 mejor nota {formatDec(r.best, 1)}/10
@@ -274,11 +276,11 @@ export function QuestMap({ moduleId, moduleName, topics }: { moduleId: string; m
         );
         const cls = cn(NODE_PROPS.className, "mt-4 bg-gradient-to-br from-[#4a3a0e] to-[var(--q-panel)]");
         return unlocked ? (
-          <Link href={`${playBase}?level=${FINAL_ID}`} data-final="1" aria-label={label} className={cls} style={{ "--acc": "var(--q-gold)" } as CSSProperties}>
+          <Link href={`${playBase}?level=${FINAL_ID}`} data-final="1" className={cls} style={{ "--acc": "var(--q-gold)" } as CSSProperties}>
             {body}
           </Link>
         ) : (
-          <button type="button" disabled data-final="1" aria-label={label} className={cls}>
+          <button type="button" disabled data-final="1" className={cls}>
             {body}
           </button>
         );
@@ -287,7 +289,7 @@ export function QuestMap({ moduleId, moduleName, topics }: { moduleId: string; m
       {s.exams?.length ? (
         <details className="mt-3 text-sm" data-testid="quest-exams">
           <summary className="min-h-11 cursor-pointer py-2 font-semibold">Historial de exámenes ({formatInt(s.exams.length)})</summary>
-          <ul className="grid gap-1 font-mono text-[13px]">
+          <ul className="grid gap-1 font-mono text-[0.8125rem]">
             {s.exams.map((e) => (
               <li key={e.at} className="flex flex-wrap justify-between gap-2 rounded-lg border border-[var(--q-line)] bg-[var(--q-panel)] px-2.5 py-1.5">
                 <span>{formatDateTime(e.at, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</span>

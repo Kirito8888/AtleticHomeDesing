@@ -4,7 +4,7 @@ import { formatInt } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Run } from "@/lib/study/quest-play";
 
-const chip = "inline-flex min-h-9 items-center rounded-[10px] border-2 border-[var(--q-line)] bg-[var(--q-panel)] px-2.5 font-mono text-[13px] whitespace-nowrap";
+const chip = "inline-flex min-h-9 items-center rounded-[10px] border-2 border-[var(--q-line)] bg-[var(--q-panel)] px-2.5 font-mono text-[0.8125rem] whitespace-nowrap";
 
 /** Cabecera de la partida: salir, título, combo, corazones y contador; debajo, la barra de progreso. */
 export function QuestHud({ run, title, icon, mapHref, lostHeart, timer }: { run: Run; title: string; icon: string; mapHref: string; lostHeart: boolean; /** Examen: `mm:ss` que quedan. */ timer?: string }) {
@@ -17,7 +17,7 @@ export function QuestHud({ run, title, icon, mapHref, lostHeart, timer }: { run:
         <Link href={mapHref} className={cn(chip, "min-h-11 border-[var(--q-line)] bg-transparent font-sans text-sm font-semibold")}>
           ← Mapa
         </Link>
-        <div className="mr-auto min-w-0 text-[15px] font-bold break-words">
+        <div className="mr-auto min-w-0 text-[0.9375rem] font-bold break-words">
           <span aria-hidden>{icon}</span> {title}
         </div>
         {run.combo >= 3 ? (

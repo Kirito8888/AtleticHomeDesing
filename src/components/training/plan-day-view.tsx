@@ -37,7 +37,7 @@ function Exercise({ row }: { row: PlanRow }) {
           .filter(([, v]) => !empty(v))
           .map(([k, v]) => (
             <div key={k} className="min-w-0">
-              <dt className="text-[11px] text-muted-foreground">{k}</dt>
+              <dt className="text-2xs text-muted-foreground">{k}</dt>
               <dd className={cn("font-semibold tabular-nums", k === "Series" && "text-base")}>{v}</dd>
             </div>
           ))}
