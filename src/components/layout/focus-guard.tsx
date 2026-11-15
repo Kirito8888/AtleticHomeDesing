@@ -33,6 +33,13 @@ export function FocusGuard() {
     const onFocus = (e: FocusEvent) => {
       const el = e.target;
       if (!(el instanceof HTMLElement) || el.closest('[role="dialog"], [role="alertdialog"]')) return;
+      // Solo foco de teclado: con puntero el foco llega en el pointerdown y desplazar ahí haría que el
+      // click cayera en otro sitio (se perdían toques cerca de la barra inferior)
+      try {
+        if (!el.matches(":focus-visible")) return;
+      } catch {
+        return;
+      }
       const vh = window.innerHeight;
       const bars = [...document.querySelectorAll<HTMLElement>(OBSTRUCTIONS)]
         .filter((b) => !b.contains(el) && getComputedStyle(b).display !== "none")
