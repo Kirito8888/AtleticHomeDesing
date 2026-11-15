@@ -38,6 +38,7 @@ Antes de vitest/E2E en un contenedor nuevo: `npm install` (el hook no siempre tr
 - La frase de autoría y uso no comercial vive en `src/lib/legal/notice.ts` y debe ser idéntica en `LICENSE`, `README.md`, `NOTICE` y la interfaz (`license.test.ts`); el texto legal es provisional, pendiente de revisión por un abogado.
 - Recuperación y lesiones con entrenadora o club son salud (art. 9): `RECOVERY` nunca nace marcado (`DEFAULT_SHARED_SCOPES`) y solo cuenta con el consentimiento `COACH_RECOVERY` (`lib/coach/recovery-consent.ts`). Edad mínima 14 años. Al cambiar condiciones o política, subir `TERMS_VERSION`.
 - Seguridad v3.0 D: ADMIN/COACH sin 2FA, pasada `STAFF_2FA_REQUIRED_FROM`, solo pueden configurarla (`requireUser` 403 `second_factor` + `SecondFactorGate`); `TRUSTED_PROXY_HOPS` (defecto 1) fija qué entrada de `X-Forwarded-For` es la IP; `AUTH_SECRET` es obligatorio en producción. Detalle en `docs/estado.md`.
+- Cadena de suministro (v3.0 E): las acciones de `.github/workflows/*` van solo por SHA completo con `# vX.Y.Z` y `permissions:` mínimo (lo vigila `src/test/workflows-pinned.test.ts`; Dependabot las actualiza); `lib/ai/**` no puede importar `lib/health/isak*|cycle*|women*` (`src/test/architecture.test.ts`). Detalle en `docs/arquitectura.md`.
 - Nada escribe en el plan sin confirmación (siempre borrador + aceptar).
 - Migraciones solo aditivas; una por versión, regenerada con `regen-mig.sh`.
 - La usuaria fusiona los PR; Claude nunca fusiona. Rama de trabajo: la que indique la sesión.

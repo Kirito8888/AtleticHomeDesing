@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCsp, generateNonce } from "./csp";
+import { REPORTING_ENDPOINTS, buildCsp, generateNonce } from "./csp";
 
 describe("csp", () => {
   it("genera nonces distintos", () => {
@@ -19,5 +19,12 @@ describe("csp", () => {
     const csp = buildCsp("abc", { dev: true, https: false });
     expect(csp).toContain("'unsafe-eval'");
     expect(csp).not.toContain("upgrade-insecure-requests");
+  });
+
+  it("report-to apunta al mismo destino que report-uri", () => {
+    const csp = buildCsp("abc", { dev: false, https: true });
+    expect(csp).toContain("report-uri /api/csp-report");
+    expect(csp).toContain("report-to csp-endpoint");
+    expect(REPORTING_ENDPOINTS).toBe('csp-endpoint="/api/csp-report"');
   });
 });
