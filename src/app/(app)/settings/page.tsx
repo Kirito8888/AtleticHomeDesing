@@ -22,10 +22,10 @@ import { CalendarFeedSettings } from "@/components/settings/calendar-feed";
 import { PasskeySettings } from "@/components/settings/passkeys";
 import { listPasskeys } from "@/lib/auth/passkey";
 import {
-  CarbsByDayForm,
   HydrationForm,
   TrackForm,
 } from "@/components/settings/carbs-form";
+import { MacroRulesForm } from "@/components/settings/macro-rules-form";
 import { CoachReport } from "@/components/settings/coach-report";
 import { RotateKeys } from "@/components/settings/rotate-keys";
 import { DemoAccounts } from "@/components/settings/demo-accounts";
@@ -436,12 +436,10 @@ export default async function SettingsPage({
           <Section id="nutricion" title="Objetivo nutricional diario">
             <div className="grid gap-6">
               <NutritionGoalForm today={todayIso} initial={goal} />
-              <CarbsByDayForm
-                initial={{
-                  carbsThrowDayG: prefs.carbsThrowDayG,
-                  carbsHeavyDayG: prefs.carbsHeavyDayG,
-                  carbsRestDayG: prefs.carbsRestDayG,
-                }}
+              <MacroRulesForm
+                initial={prefs.macroRules}
+                thresholds={{ longRunMinKm: prefs.longRunMinKm, longRunMinMin: prefs.longRunMinMin, highLoadRpe: prefs.highLoadRpe }}
+                legacy={{ throwG: prefs.carbsThrowDayG, heavyG: prefs.carbsHeavyDayG, restG: prefs.carbsRestDayG }}
               />
               <HydrationForm
                 initial={{

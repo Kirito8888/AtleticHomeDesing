@@ -6,6 +6,25 @@ import { compMealSchema, DEFAULT_COMP_MEALS } from "@/lib/nutrition/kitchen";
  * «Mis reglas»: umbrales y preferencias del usuario (AthleteProfile.prefs).
  * Los valores por defecto son genéricos; ninguno es un dato personal.
  */
+/** v3.0 extra · regla de macros: suma (`delta`) o fija (`set`) sobre el objetivo base; null = sin cambio en ese macro. */
+export const macroRuleSchema = z.object({
+  mode: z.enum(["delta", "set"]),
+  kcal: z.number().int().min(-5000).max(10000).nullable().default(null),
+  proteinG: z.number().int().min(-1000).max(1500).nullable().default(null),
+  carbsG: z.number().int().min(-1500).max(1500).nullable().default(null),
+  fatG: z.number().int().min(-1000).max(1500).nullable().default(null),
+});
+export type MacroRule = z.infer<typeof macroRuleSchema>;
+export const SESSION_KINDS = ["rest", "strength", "high", "long"] as const;
+export const WEEKDAY_KEYS = ["1", "2", "3", "4", "5", "6", "7"] as const;
+const dayTargetSchema = z.object({
+  kcal: z.number().int().min(0).max(10000),
+  proteinG: z.number().int().min(0).max(1500),
+  carbsG: z.number().int().min(0).max(1500),
+  fatG: z.number().int().min(0).max(1500),
+});
+export type DayTarget = z.infer<typeof dayTargetSchema>;
+
 export const prefsSchema = z.object({
   /** Redondeo de los kg calculados desde %RM. */
   kgStep: z.union([z.literal(0.5), z.literal(1), z.literal(1.25), z.literal(2.5)]).default(2.5),
@@ -41,6 +60,20 @@ export const prefsSchema = z.object({
   carbsThrowDayG: z.number().int().min(0).max(1500).nullable().default(null),
   carbsHeavyDayG: z.number().int().min(0).max(1500).nullable().default(null),
   carbsRestDayG: z.number().int().min(0).max(1500).nullable().default(null),
+  /** v3.0 extra · reglas de macros por tipo de sesión y día de la semana (1 = lunes … 7 = domingo); null = sin configurar. */
+  macroRules: z
+    .object({
+      bySession: z.partialRecord(z.enum(SESSION_KINDS), macroRuleSchema).default({}),
+      byWeekday: z.partialRecord(z.enum(WEEKDAY_KEYS), macroRuleSchema).default({}),
+    })
+    .nullable()
+    .default(null),
+  /** Umbrales para decidir el tipo de sesión: tirada larga (km o minutos) y esfuerzo percibido de «alta carga». */
+  longRunMinKm: z.number().min(1).max(100).default(16),
+  longRunMinMin: z.number().int().min(10).max(600).default(75),
+  highLoadRpe: z.number().min(1).max(10).default(8),
+  /** Objetivo marcado a mano por fecha (AAAA-MM-DD); prevalece sobre las reglas. */
+  nutritionDayTargets: z.record(z.string().regex(/^\d{4}-\d{2}-\d{2}$/), dayTargetSchema).default({}),
   /** Checklist de la bolsa de competición. */
   checklist: z.array(z.string().min(1).max(60)).max(40).default(["Licencia / DNI", "Dorsal e imperdibles", "Clavos y llave", "Jabalinas / implementos", "Ropa de calentamiento", "Agua y comida", "Cinta métrica"]),
   /** Objetivos de la temporada (líneas en la gráfica de marcas). */
