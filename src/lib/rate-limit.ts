@@ -62,6 +62,11 @@ export const LIMITS = {
   deckShare: { limit: 30, windowMs: 60 * 60_000 },
   /** v2.1 · Compartir protocolos de fisio y alta de curvas (escrituras de la entrenadora). */
   physioShare: { limit: 60, windowMs: 60 * 60_000 },
+  /**
+   * v3.0 R (V3-S09) · Tope por defecto de escrituras (POST/PUT/PATCH/DELETE) por usuaria, aplicado en `requireUser`.
+   * Holgado para el uso normal (la cola sin conexión, importaciones, rachas de toques); frena bucles y abuso con una sesión robada.
+   */
+  mutation: { limit: 600, windowMs: 10 * 60_000 },
   /** Comentarios en sesiones (cada uno puede disparar un push). */
   comment: { limit: 60, windowMs: 60 * 60_000 },
 } as const;

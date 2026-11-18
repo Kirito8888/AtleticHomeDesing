@@ -30,11 +30,19 @@ export const GET = route(async (req, ctx: Ctx) => {
   return session;
 });
 
+/** Una entrenadora solo escribe lo que también puede leer: lo importado de Strava es de su dueña (404). */
+async function assertVisible(viewerId: string, userId: string, id: string) {
+  if (userId === viewerId) return;
+  const ok = await prisma.trainingSession.findFirst({ where: { id, userId, ...notFromStrava }, select: { id: true } });
+  if (!ok) throw new ApiError(404, "Sesión no encontrada");
+}
+
 /** Edita una sesión (mismo cuerpo que POST /api/training/sessions). Recalcula TSS, marcas y PMC. */
 export const PATCH = route(async (req, ctx: Ctx) => {
   const user = await requireUser();
   const { id } = await ctx.params;
   const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "SESSIONS", "write");
+  await assertVisible(user.id, userId, id);
   return updateTrainingSession(userId, id, await parseBody(req, createSessionSchema));
 });
 
@@ -42,6 +50,7 @@ export const DELETE = route(async (req, ctx: Ctx) => {
   const user = await requireUser();
   const { id } = await ctx.params;
   const userId = await resolveAthleteId(user, req.nextUrl.searchParams.get("athleteId"), "SESSIONS", "write");
+  await assertVisible(user.id, userId, id);
   // v1.8 · a la papelera (7 días, se puede deshacer)
   const { id: trashId } = await trashSession(userId, id);
   return { ok: true, trashId };

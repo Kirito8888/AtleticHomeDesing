@@ -32,6 +32,8 @@ type Handler<C> = (req: NextRequest, ctx: C) => Promise<unknown>;
  * conocidos (validación, ApiError, Prisma) a códigos HTTP coherentes.
  *
  * - Mutaciones (POST/PUT/PATCH/DELETE): comprueba `Origin` contra `AUTH_URL`; si no coincide, 403.
+ * - Límite por usuaria: las escrituras cuentan contra `LIMITS.mutation` dentro de `requireUser` (que `route()` envuelve; no hay usuaria aquí
+ *   sin duplicar la consulta de sesión). Exentas: `mutationLimitExempt` (`request-context.ts`). Las rutas públicas limitan por IP.
  * - Si `fn` devuelve un `Response` se entrega tal cual; si no, se serializa (`undefined` → `{ ok: true }`).
  * - Añade `x-request-id`, registra métricas internas y anota los 5xx para «Estado del servidor».
  * No lanza: cualquier excepción acaba en `errorResponse`.

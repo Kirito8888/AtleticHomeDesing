@@ -74,7 +74,8 @@ export async function getOwn(user: CurrentUser, id: string) {
     try {
       await resolveAthleteId(user, s.athleteId, "RECOVERY");
     } catch {
-      out.push({ shareId: s.id, athleteId: s.athleteId, athlete: s.athlete.name ?? s.athlete.email, blocked: true as const });
+      // Sin acceso (p. ej. tratamiento limitado) no se muestra ni el email de la atleta
+      out.push({ shareId: s.id, athleteId: s.athleteId, athlete: s.athlete.name ?? "Atleta", blocked: true as const });
       continue;
     }
     const progress = normalizeProgress(phases, s.progress);

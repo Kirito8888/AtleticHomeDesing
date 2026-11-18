@@ -26,13 +26,14 @@ export const GET = route(async () => {
 export const POST = route(async (req) => {
   const user = await requireUser();
   if (user.role !== "COACH" && user.role !== "ADMIN") throw new ApiError(403, "Solo un coach puede invitar atletas");
-  const { athleteEmail, canPlan } = await parseBody(
+  // `canPlan` se acepta por compatibilidad pero se ignora: el permiso de planificar solo lo concede la atleta (v3.0 R)
+  const { athleteEmail } = await parseBody(
     req,
-    z.object({ athleteEmail: z.string().trim().toLowerCase().email(), canPlan: z.boolean().default(false) }),
+    z.object({ athleteEmail: z.string().trim().toLowerCase().email(), canPlan: z.boolean().optional() }),
   );
   const athlete = await prisma.user.findUnique({ where: { email: athleteEmail }, select: { id: true } });
   // Mismo mensaje exista o no, para no filtrar qué emails están registrados.
   if (!athlete || athlete.id === user.id) throw new ApiError(404, "No se pudo enviar la invitación");
-  const link = await prisma.coachAthlete.create({ data: { coachId: user.id, athleteId: athlete.id, canPlan, scopes: DEFAULT_SHARED_SCOPES } });
+  const link = await prisma.coachAthlete.create({ data: { coachId: user.id, athleteId: athlete.id, canPlan: false, scopes: DEFAULT_SHARED_SCOPES } });
   return NextResponse.json(link, { status: 201 });
 });

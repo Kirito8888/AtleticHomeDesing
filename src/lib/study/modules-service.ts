@@ -135,8 +135,9 @@ export async function deleteTopic(userId: string, id: string) {
 }
 
 /** Mete un apunte en la asignatura (iguala `subject` al nombre) y crea un tema con su título si no existe. `moduleId` null lo saca. */
-export async function assignDocument(userId: string, documentId: string, moduleId: string | null) {
-  const doc = await prisma.studyDocument.findFirst({ where: { id: documentId, userId } });
+export async function assignDocument(userId: string, documentId: string, moduleId: string | null, fromModuleId?: string) {
+  // `fromModuleId`: al sacar el apunte, debe estar en la asignatura de la ruta
+  const doc = await prisma.studyDocument.findFirst({ where: { id: documentId, userId, ...(fromModuleId ? { moduleId: fromModuleId } : {}) } });
   if (!doc) throw new ApiError(404, "Apunte no encontrado");
   if (moduleId === null) {
     await prisma.studyDocument.update({ where: { id: documentId }, data: { moduleId: null } });

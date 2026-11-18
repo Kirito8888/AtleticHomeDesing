@@ -45,6 +45,8 @@ export const PATCH = route(async (req, ctx: RouteContext<"/api/coach/links/[id]"
     await syncRecoveryConsent(user.id, auditContext(req.headers), Boolean(data.scopes?.includes("RECOVERY")) && !link.scopes.includes("RECOVERY") && updated.status === "ACTIVE");
   }
   // v1.7 · Consentimiento del atleta: aceptar el vínculo lo concede; revocarlo lo retira
+  // Si revoca la entrenadora, la atleta deja de tener vínculos con RECOVERY: el consentimiento se recalcula también
+  if (!isAthlete && data.status === "REVOKED") await syncRecoveryConsent(link.athleteId, {}, false);
   if (isAthlete && data.status) await recordConsent(user.id, "COACH", data.status === "ACTIVE", auditContext(req.headers));
   return updated;
 });

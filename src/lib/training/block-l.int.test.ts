@@ -44,6 +44,19 @@ describe.skipIf(!HAS_DB)("entrenadora, material, becas y servidor (BD real)", ()
     vi.unstubAllEnvs();
   });
 
+  it("con el tratamiento limitado (art. 18) la respuesta de la atleta no avisa a la entrenadora", async () => {
+    const sent: string[] = [];
+    const send = async (t: { endpoint: string }) => (sent.push(t.endpoint), { ok: true as const });
+    await prisma.user.update({ where: { id: athlete }, data: { processingRestrictedAt: new Date() } });
+    try {
+      await comments.addComment({ id: athlete, role: "ATHLETE" }, sessionId, null, "Respuesta con tratamiento limitado", send);
+      expect(sent).toHaveLength(0);
+    } finally {
+      await prisma.user.update({ where: { id: athlete }, data: { processingRestrictedAt: null } });
+      await prisma.sessionComment.deleteMany({ where: { sessionId, body: "Respuesta con tratamiento limitado" } });
+    }
+  });
+
   it("el coach con permiso de sesiones comenta, el atleta recibe push y responde", async () => {
     const sent: string[] = [];
     const send = async (t: { endpoint: string }) => (sent.push(t.endpoint), { ok: true as const });
