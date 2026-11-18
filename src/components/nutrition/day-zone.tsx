@@ -16,6 +16,7 @@ import { Progress } from "@/components/ui/progress";
 import { ZoneProvider, useZoneData } from "@/components/zone-refresh";
 import { addDays, dateOnly, toIsoDay } from "@/lib/dates";
 import { capitalizeFirst, formatDate, formatNum } from "@/lib/format";
+import { DayTargetSheet } from "@/components/nutrition/day-target-sheet";
 import { CARB_DAY_LABEL } from "@/lib/nutrition/carbs";
 import type { NutritionDayView } from "@/lib/nutrition/day-view";
 
@@ -39,7 +40,9 @@ export function NutritionDayZone({ initial, date, showIron }: { initial: Nutriti
         </Button>
         <div className="text-center">
           <div className="font-semibold">{capitalizeFirst(formatDate(date, { weekday: "long", day: "numeric", month: "long" }))}</div>
-          {day.carbsAdjusted ? (
+          {day.target.label && !day.carbsAdjusted ? (
+            <div className="text-xs text-muted-foreground" data-testid="day-target-source">{day.target.label}</div>
+          ) : day.carbsAdjusted ? (
             <div className="text-xs text-muted-foreground">Hidratos de {CARB_DAY_LABEL[day.carbDay]}</div>
           ) : day.isTrainingDay ? (
             <div className="text-xs text-muted-foreground">Día de entreno</div>
@@ -99,6 +102,8 @@ export function NutritionDayZone({ initial, date, showIron }: { initial: Nutriti
           {!day.goal ? <p className="text-xs text-muted-foreground sm:col-span-2">Define tu objetivo diario en Ajustes para ver el progreso.</p> : null}
         </CardContent>
       </Card>
+
+      <DayTargetSheet key={`${date}-${day.target.source}`} date={date} goal={day.goal} manual={day.target.source === "manual"} />
 
       <div id="agua" className="mb-4 scroll-mt-20">
         <WaterCard date={date} ml={water.ml} target={water.target} hot={water.hot} hasSession={water.hasSession} maxTemp={water.maxTemp} />

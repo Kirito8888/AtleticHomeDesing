@@ -3,14 +3,15 @@ import { z } from "zod";
 
 import type { Prisma } from "@/generated/prisma/client";
 import { ApiError } from "@/lib/api";
-import { addDays, dateOnly, isoDate } from "@/lib/dates";
+import { addDays, dateOnly, isoDate, toIsoDay, today } from "@/lib/dates";
 import { env } from "@/lib/env";
 import { createOffClient, macrosForQuantity, OffError, type NormalizedFood } from "@/lib/nutrition/openfoodfacts";
 import { prisma } from "@/lib/prisma";
-import { getPrefs } from "@/lib/rules/prefs-service";
+import { getPrefs, updatePrefs } from "@/lib/rules/prefs-service";
 import { microsForQuantity } from "@/lib/nutrition/micros";
 
-import { carbDay, carbTarget } from "./carbs";
+import { carbDay } from "./carbs";
+import { pruneDayTargets, resolveDayTarget, sessionKind } from "./macro-rules";
 
 /** Un producto de OFF se considera fresco durante 30 días. */
 const CACHE_TTL_DAYS = 30;
@@ -172,26 +173,47 @@ export async function createEntry(userId: string, input: z.infer<typeof createEn
   });
 }
 
-/** Diario de un día: entradas, totales y objetivo (ajustado si hay entrenamiento). */
+/** Diario de un día: entradas, totales y objetivo efectivo (manual > regla por sesión > regla por día > base). */
 export async function getDay(userId: string, day: string) {
   const date = dateOnly(day);
-  const [entries, goal, trained, daySessions, prefs] = await Promise.all([
+  const dayEnd = new Date(date.getTime() + 86_400_000);
+  const [entries, goal, daySessions, competitions, prefs] = await Promise.all([
     prisma.macros.findMany({
       where: { userId, date },
       orderBy: { createdAt: "asc" },
       include: { foodProduct: { select: { name: true, brand: true, imageUrl: true, barcode: true } } },
     }),
     prisma.nutritionGoal.findFirst({ where: { userId, effectiveFrom: { lte: date } }, orderBy: { effectiveFrom: "desc" } }),
-    prisma.trainingSession.count({ where: { userId, date, status: { in: ["COMPLETED", "PLANNED"] } } }),
     prisma.trainingSession.findMany({
       where: { userId, date, status: { in: ["COMPLETED", "PLANNED"] } },
-      select: { technical: { select: { event: true } }, strength: { select: { id: true } }, type: true },
+      select: {
+        type: true,
+        durationSec: true,
+        sessionRpe: true,
+        technical: { select: { event: true } },
+        strength: { select: { id: true } },
+        track: { select: { modality: true, distanceM: true, _count: { select: { intervals: true } } } },
+      },
     }),
+    prisma.calendarEvent.count({ where: { userId, type: "COMPETITION", startAt: { gte: date, lt: dayEnd } } }),
     getPrefs(userId),
   ]);
-  // Hidratos según el día (Mis reglas): lanzamientos, gimnasio o descanso.
-  const kind = carbDay(daySessions.map((s) => ({ event: s.technical?.event ?? null, strength: Boolean(s.strength) || s.type === "STRENGTH" })));
-  const carbsOverride = carbTarget(prefs, kind);
+  const trained = daySessions.length;
+  // Hidratos antiguos (solo si no hay reglas nuevas): lanzamientos, gimnasio o descanso.
+  const legacyKind = carbDay(daySessions.map((s) => ({ event: s.technical?.event ?? null, strength: Boolean(s.strength) || s.type === "STRENGTH" })));
+  const kind = sessionKind(
+    daySessions.map((s) => ({
+      type: s.type,
+      hasStrength: Boolean(s.strength),
+      hasTechnical: s.technical != null,
+      durationSec: s.durationSec,
+      sessionRpe: s.sessionRpe,
+      track: s.track ? { modality: s.track.modality, distanceM: s.track.distanceM, intervals: s.track._count.intervals } : null,
+    })),
+    competitions > 0,
+    prefs,
+  );
+  const resolved = resolveDayTarget({ base: goal, trained: trained > 0, kind, isoDay: day, prefs, legacyKind });
   const totals = entries.reduce(
     (t, e) => ({
       kcal: t.kcal + e.kcal,
@@ -203,32 +225,29 @@ export async function getDay(userId: string, day: string) {
     { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0, fiberG: 0 },
   );
   const r1 = (x: number) => Math.round(x * 10) / 10;
-  const factor = trained && goal ? goal.trainingDayKcalFactor : 1;
   return {
     date: day,
     isTrainingDay: trained > 0,
-    carbDay: kind,
-    carbsAdjusted: goal != null && carbsOverride != null,
+    carbDay: legacyKind,
+    carbsAdjusted: resolved.legacyCarbDay,
+    target: { source: resolved.source, kind: resolved.kind, label: resolved.label },
     entries,
     totals: Object.fromEntries(Object.entries(totals).map(([k, v]) => [k, r1(v)])),
-    goal: goal
-      ? carbsOverride != null
-        ? {
-            // Hidratos fijados por tipo de día: las kcal cambian con ellos (4 kcal/g).
-            kcal: Math.round(goal.kcal + (carbsOverride - goal.carbsG) * 4),
-            carbsG: carbsOverride,
-            proteinG: goal.proteinG,
-            fatG: goal.fatG,
-            fiberG: goal.fiberG,
-          }
-        : {
-          kcal: Math.round(goal.kcal * factor),
-          // El extra de un día de entreno va a hidratos; proteína y grasa se mantienen.
-          carbsG: Math.round(goal.carbsG + (goal.kcal * (factor - 1)) / 4),
-          proteinG: goal.proteinG,
-          fatG: goal.fatG,
-          fiberG: goal.fiberG,
-        }
-      : null,
+    goal: resolved.goal,
   };
+}
+
+/** Marca (o cambia) a mano el objetivo de una fecha; prevalece sobre las reglas. Poda las de hace más de 90 días. */
+export async function setDayTarget(userId: string, day: string, t: { kcal: number; proteinG: number; carbsG: number; fatG: number }) {
+  const prefs = await getPrefs(userId);
+  const nutritionDayTargets = pruneDayTargets({ ...prefs.nutritionDayTargets, [day]: t }, toIsoDay(today()));
+  await updatePrefs(userId, { nutritionDayTargets });
+}
+
+/** Vuelve al objetivo automático de esa fecha. */
+export async function clearDayTarget(userId: string, day: string) {
+  const prefs = await getPrefs(userId);
+  const { [day]: _removed, ...rest } = prefs.nutritionDayTargets;
+  void _removed;
+  await updatePrefs(userId, { nutritionDayTargets: rest });
 }
