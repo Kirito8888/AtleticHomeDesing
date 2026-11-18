@@ -214,6 +214,16 @@ Dentro de una asignatura (`/study/modules/…`), sección **Resumen y web de est
 
 Tu progreso del juego se guarda en tu cuenta: lo ves igual desde el móvil y el ordenador.
 
+## Novedades de la v3.0 (preview)
+
+- **Hoy:** la portada te propone una sola cosa para ahora, con el motivo («Por qué»), y registra serie, toma, agua o gasto en uno o dos toques.
+- **Menú por intención y barra móvil:** el menú se agrupa en Entrenar, Cuidarme, Organizarme y Con otras personas. En Ajustes → «Barra inferior (móvil)» eliges tus tres atajos; si no, Atlenza sugiere los que más usas. La IA vive ahora en Estudio y lleva la etiqueta «IA» donde actúa.
+- **Nutrición:** reglas de macros por tipo de sesión (tirada, series, fuerza, descanso) y día de la semana, y objetivo manual para una fecha concreta.
+- **Entreno:** «Importar historial» lee tu Excel o CSV en el navegador, te deja revisar las columnas y no duplica sesiones.
+- **Privacidad:** tu recuperación (sueño, VFC…) solo la ve tu entrenadora o club si tú lo confirmas; verás un aviso en Hoy y Ajustes para los vínculos existentes. Edad mínima 14 años; tendrás que aceptar las condiciones de nuevo.
+- **Seguridad:** las entrenadoras y administradoras deberán tener verificación en dos pasos o llave de acceso a partir de la fecha de corte. En un dispositivo compartido hay una tarjeta para borrar las copias locales.
+- **Accesibilidad:** foco visible, texto que escala, menos movimiento si lo pides, y los gráficos tienen resumen y tabla. La declaración está en `/legal/accesibilidad`: cumplimiento **parcial** mientras no se pruebe con lector de pantalla.
+
 ## Novedades de la v2.11
 
 - **Finanzas:** puedes editar una transferencia o un asiento partido (cambias importes, cuentas, categorías y notas; debe cuadrar). «Archivar» en cada cuenta la esconde y evita apuntes nuevos; aparece en «Archivadas» con «Reactivar». Al apuntar salen atajos con tus categorías más usadas.

@@ -176,8 +176,15 @@ await page.getByRole("link", { name: "Notificaciones", exact: true }).first().wa
 
 // Horas de silencio
 await go(B + "/settings");
-await page.getByLabel("Silencio desde").fill("23:00");
-await page.getByLabel("Hasta", { exact: true }).fill("07:00");
+// Rellena y comprueba que el valor aguanta: si se escribe antes de hidratar, React lo restablece (en domingo, 3/3 veces)
+const qFrom = page.getByLabel("Silencio desde");
+const qTo = page.getByLabel("Hasta", { exact: true });
+for (let i = 0; i < 6; i++) {
+  await qFrom.fill("23:00");
+  await qTo.fill("07:00");
+  await page.waitForTimeout(500);
+  if ((await qFrom.inputValue()) === "23:00" && (await qTo.inputValue()) === "07:00") break;
+}
 await page.getByRole("button", { name: "Guardar horas de silencio" }).click();
 await toast(/Horas de silencio guardadas/);
 const prefs = (await (await page.request.get(B + "/api/settings/prefs")).json()) as { quietHours?: { from: string; to: string } | null };
