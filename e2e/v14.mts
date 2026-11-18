@@ -266,12 +266,19 @@ log("plan de mañana disponible sin conexión");
 // 9. Bloque E: hidratos según el día, gastos deportivos e informe para la entrenadora
 await page.request.post(B + "/api/nutrition/goals", { data: { effectiveFrom: "2026-01-01", kcal: 2800, proteinG: 150, carbsG: 330, fatG: 80 } });
 await go(B + "/settings");
-await page.getByRole("textbox", { name: "Día de lanzamientos", exact: true }).fill("400");
-await page.getByRole("button", { name: "Guardar hidratos por día" }).click();
-await toast(/Hidratos por día guardados/);
+// Reglas de macros (v3.0 extra): hoy hay competición de jabalina (tirada/competición o series/alta carga según el día): se fijan las dos
+for (const fila of ["Tirada / competición", "Series / alta carga"]) {
+  const row = page.locator("details", { has: page.locator("summary", { hasText: fila }) }).first();
+  await row.locator("summary").scrollIntoViewIfNeeded();
+  await row.locator("summary").click();
+  await row.getByRole("button", { name: "Fija", exact: true }).click();
+  await row.getByRole("textbox", { name: `Hidratos · ${fila}`, exact: true }).fill("400");
+}
+await page.getByRole("button", { name: "Guardar reglas de macros" }).click();
+await toast(/Reglas de macros guardadas/);
 await go(B + "/nutrition");
-await page.getByText("Hidratos de día de lanzamientos").waitFor(); // hoy hay competición de jabalina
-await page.getByText(/\/ 400 g/).waitFor();
+await page.getByTestId("day-target-source").getByText(/Día de (tirada|series)/).waitFor(); // hoy hay competición de jabalina
+await page.getByText(/\/ 400 g/).first().waitFor();
 log("hidratos según el día");
 
 await page.request.post(B + "/api/finance/accounts", { data: { name: "Banco", type: "ASSET", openingBalanceCents: 100000 } });
