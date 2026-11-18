@@ -1,7 +1,6 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
-import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
 import { GoogleGenAI, HarmBlockThreshold, HarmCategory } from "@google/genai";
@@ -13,6 +12,7 @@ import { localConfig, localFirst, localOnly, withSchema } from "@/lib/ai/local";
 import { log } from "@/lib/log";
 import { prisma } from "@/lib/prisma";
 import { openJson } from "@/lib/security/data-key";
+import { isPrivateAddress, pinnedFetch, resolvePublic, type PinnedAddress } from "@/lib/security/ssrf";
 
 /**
  * v1.9 · IA propia de cada usuario, con cualquier proveedor.
@@ -86,37 +86,35 @@ export function normalizeUrl(raw: string | null | undefined): string | null {
   }
 }
 
-/** IPv4/IPv6 privada, local, de enlace o reservada: no se permiten en URL escritas por usuarios (SSRF). */
-export function isPrivateAddress(ip: string): boolean {
-  const v = isIP(ip);
-  if (v === 4) {
-    const [a, b] = ip.split(".").map(Number);
-    return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 198 && (b === 18 || b === 19)) || a >= 224;
-  }
-  if (v === 6) {
-    const x = ip.toLowerCase();
-    if (x.startsWith("::ffff:")) return isPrivateAddress(x.slice(7));
-    return x === "::" || x === "::1" || x.startsWith("fc") || x.startsWith("fd") || x.startsWith("fe8") || x.startsWith("fe9") || x.startsWith("fea") || x.startsWith("feb") || x.startsWith("ff");
-  }
-  return true;
-}
+export { isPrivateAddress };
 
 /**
  * Comprueba la URL de un proveedor compatible con OpenAI antes de cada uso:
  * las predefinidas y las locales autorizadas valen; cualquier otra debe ser https y resolver a IP pública.
+ * v3.0 S · V3-S04: devuelve también las IP comprobadas (`pinned`) para conectar a ellas sin volver a
+ * resolver el nombre (null en las conocidas y en las IP literales).
  */
-export async function assertSafeBaseUrl(raw: string): Promise<string> {
+export async function resolveSafeBaseUrl(raw: string): Promise<{ url: string; pinned: PinnedAddress[] | null }> {
   const url = normalizeUrl(raw);
   if (!url) throw new ApiError(400, "URL del proveedor no válida");
   const known = Object.values(OPENAI_PRESETS).some((p) => p.baseUrl === url) || localBaseUrls().includes(url);
-  if (known) return url;
+  if (known) return { url, pinned: null };
   const u = new URL(url);
   if (u.protocol !== "https:") throw new ApiError(400, "La URL del proveedor debe ser https (los modelos locales los autoriza la administración con AI_LOCAL_BASE_URLS)");
   const host = u.hostname.replace(/^\[|\]$/g, "");
-  const addrs = isIP(host) ? [{ address: host }] : await lookup(host, { all: true }).catch(() => []);
-  if (!addrs.length) throw new ApiError(400, "No se encuentra el servidor del proveedor");
-  if (addrs.some((a) => isPrivateAddress(a.address))) throw new ApiError(400, "Esa URL apunta a una red interna: solo la administración puede autorizarla (AI_LOCAL_BASE_URLS)");
-  return url;
+  const internal = () => new ApiError(400, "Esa URL apunta a una red interna: solo la administración puede autorizarla (AI_LOCAL_BASE_URLS)");
+  if (isIP(host)) {
+    if (isPrivateAddress(host)) throw internal();
+    return { url, pinned: null };
+  }
+  const addrs = await resolvePublic(host);
+  if (!addrs) throw new ApiError(400, "No se encuentra el servidor del proveedor");
+  if (addrs === "private") throw internal();
+  return { url, pinned: addrs };
+}
+
+export async function assertSafeBaseUrl(raw: string): Promise<string> {
+  return (await resolveSafeBaseUrl(raw)).url;
 }
 
 // Errores -----------------------------------------------------------------------------------------
@@ -305,6 +303,11 @@ const openAiChat = z.object({
 });
 const openAiEmbed = z.object({ data: z.array(z.object({ embedding: z.array(z.number()), index: z.number().optional() })) });
 
+/** V3-S04: con IP fijadas, la conexión va a ellas (salvo que un test inyecte su propio fetch). */
+export function pinnedOpts(opts: ClientOpts, pinned: PinnedAddress[] | null): ClientOpts {
+  return pinned && !opts.fetch ? { ...opts, fetch: pinnedFetch(pinned) } : opts;
+}
+
 function openAiClient(cfg: AiConfig, source: AiClient["source"], opts: ClientOpts = {}): AiClient {
   if (!cfg.baseUrl) throw new ApiError(400, "Falta la URL del proveedor");
   const base = cfg.baseUrl;
@@ -317,7 +320,8 @@ function openAiClient(cfg: AiConfig, source: AiClient["source"], opts: ClientOpt
     chatModel: cfg.model,
     embedTag: embeddingModel ? `openai:${host}:${embeddingModel}@${EMBED_DIM}` : null,
     async text({ system, messages, temperature, json }) {
-      const url = `${await assertSafeBaseUrl(base)}/chat/completions`;
+      const safe = await resolveSafeBaseUrl(base);
+      const url = `${safe.url}/chat/completions`;
       const raw = await postJson(
         "OPENAI",
         url,
@@ -329,7 +333,7 @@ function openAiClient(cfg: AiConfig, source: AiClient["source"], opts: ClientOpt
           ...(json ? { response_format: { type: "json_object" } } : {}),
         },
         cfg.apiKey,
-        opts,
+        pinnedOpts(opts, safe.pinned),
       );
       const parsed = openAiChat.safeParse(raw);
       const text = parsed.success ? parsed.data.choices[0].message.content : null;
@@ -338,11 +342,12 @@ function openAiClient(cfg: AiConfig, source: AiClient["source"], opts: ClientOpt
     },
     embed: embeddingModel
       ? async (texts) => {
-          const url = `${await assertSafeBaseUrl(base)}/embeddings`;
+          const safe = await resolveSafeBaseUrl(base);
+          const url = `${safe.url}/embeddings`;
           const out: number[][] = [];
           for (let i = 0; i < texts.length; i += EMBED_BATCH) {
             const batch = texts.slice(i, i + EMBED_BATCH);
-            const raw = await postJson("OPENAI", url, headers, { model: embeddingModel, input: batch, dimensions: EMBED_DIM }, cfg.apiKey, opts);
+            const raw = await postJson("OPENAI", url, headers, { model: embeddingModel, input: batch, dimensions: EMBED_DIM }, cfg.apiKey, pinnedOpts(opts, safe.pinned));
             const parsed = openAiEmbed.safeParse(raw);
             if (!parsed.success) throw new ApiError(502, "Respuesta de embeddings inesperada");
             const rows = [...parsed.data.data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));

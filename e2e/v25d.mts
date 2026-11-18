@@ -110,6 +110,68 @@ await back;
 await page.waitForLoadState("load");
 await page.waitForFunction(() => !document.body.innerText.includes("Reintentar"), null, { timeout: 15000 }).catch(() => errors.push("al volver la red «Reintentar» no recupera la página"));
 
+// 5 · v3.0 S (V3-S06): TTL de 24 h y purga ante 401 en las copias privadas del SW
+const privateCopies = () =>
+  page.evaluate(async () => {
+    const out: string[] = [];
+    for (const n of await caches.keys()) for (const r of await (await caches.open(n)).keys()) if (new URL(r.url).pathname !== "/offline") out.push(new URL(r.url).pathname);
+    return out;
+  });
+const madridDay = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+const sess = (await (await page.request.post(B + "/api/training/sessions", { data: { date: madridDay, type: "STRENGTH", status: "PLANNED", title: "Copia con caducidad", strength: { sets: [] } } })).json()) as { id: string };
+const sessPath = `/training/${sess.id}`;
+await page.goto(B + sessPath);
+await page.waitForLoadState("networkidle");
+await page.waitForFunction(async (p) => Boolean(await caches.match(p)), sessPath, { timeout: 10000 }).catch(() => errors.push("la sesión no se guardó en la caché"));
+const stampOk = await page.evaluate(async (p) => Number((await caches.match(p))?.headers.get("x-atlenza-cached-at")) > 0, sessPath);
+if (!stampOk) errors.push("la copia no lleva sello de caducidad");
+log("copia privada con sello");
+
+// 5a · TTL: copia de hace 25 h + sin red → /offline y la copia desaparece
+await page.evaluate(async (p) => {
+  const cache = await caches.open("lifeos-v4-pages");
+  const res = (await cache.match(p))!;
+  const headers = new Headers(res.headers);
+  headers.set("x-atlenza-cached-at", String(Date.now() - 25 * 3600 * 1000));
+  await cache.put(p, new Response(await res.text(), { status: 200, headers }));
+}, sessPath);
+await ctx.setOffline(true);
+await page.goto(B + sessPath).catch(() => undefined);
+await page.waitForSelector("text=Sin conexión", { timeout: 8000 }).catch(() => errors.push("copia caducada: no sale /offline"));
+await ctx.setOffline(false);
+await page.waitForFunction(async () => (await fetch("/api/health", { cache: "no-store" }).catch(() => null))?.ok === true, null, { timeout: 10000, polling: 250 });
+if ((await privateCopies()).includes(sessPath)) errors.push("la copia caducada sigue en la caché");
+log("TTL: copia de 25 h no legible");
+
+// 5b · 401: copia fresca, sesión caducada (sin cookies) y una acción que usa api() → sin copias privadas, sin pasar por /login
+await page.goto(B + sessPath);
+await page.waitForLoadState("networkidle");
+await page.waitForFunction(async (p) => Boolean(await caches.match(p)), sessPath, { timeout: 10000 }).catch(() => errors.push("5b: sin copia fresca"));
+await ctx.clearCookies();
+await page.getByRole("button", { name: "Borrar" }).first().click();
+await page.getByRole("button", { name: "Borrar", exact: true }).last().click().catch(() => undefined);
+await page.waitForFunction(async () => {
+  let n = 0;
+  for (const k of await caches.keys()) for (const r of await (await caches.open(k)).keys()) if (new URL(r.url).pathname !== "/offline") n++;
+  return n === 0;
+}, null, { timeout: 8000 }).catch(() => errors.push("401: quedan copias privadas en la caché"));
+if (new URL(page.url()).pathname.startsWith("/login")) errors.push("401: la purga la ha hecho /login, no la detección del 401");
+log("401: copias privadas purgadas");
+
+// 5c · aviso «dispositivo compartido» en Privacidad
+await page.goto(B + "/login");
+await page.fill("#email", email);
+await page.fill("#password", pw);
+await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/login")), page.click("button[type=submit]")]);
+await page.goto(B + "/settings/privacy");
+await page.waitForLoadState("networkidle");
+const notice = page.getByTestId("shared-device-notice");
+if (!(await notice.isVisible())) errors.push("falta el aviso de dispositivo compartido");
+else if (!/24 horas/.test(await notice.innerText())) errors.push("el aviso no menciona las 24 horas");
+await noOverflow("privacidad");
+errors.push(...(await a11y(page, "privacidad")));
+log("aviso de dispositivo compartido");
+
 await browser.close();
 if (errors.length) {
   console.error(errors.join("\n"));
