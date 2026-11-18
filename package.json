@@ -1,6 +1,6 @@
 {
   "name": "lifeos",
-  "version": "2.11.0",
+  "version": "3.0.0-preview",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "author": "David Ornelas Luna (https://github.com/Kirito8888)",
@@ -94,7 +94,7 @@
     "fit-file-parser": "6.2.6",
     "lucide-react": "^1.65.0",
     "mammoth": "^1.13.0",
-    "next": "16.4.3",
+    "next": "16.4.6",
     "next-auth": "5.0.0-beta.32",
     "next-themes": "^0.4.6",
     "otplib": "13.5.0",

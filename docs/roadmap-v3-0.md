@@ -191,7 +191,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 | BD | [Probable] No (si P ya creó el modelo) |
 | Ses. | 1 [Probable] |
 
-### Cierre de v3.0 (sesión aparte)
+### Cierre de v3.0 — HECHO como 3.0.0-preview (18/11/2026, ver `docs/estado.md`; núcleo C–T cerrado, tramo movible I–Q pendiente → v3.1)
 `e2e.sh all` (con `e2e:a11y` nueva y lanzado también en fin de semana), `test-migration.sh` si hay `v3_0_features` (antes `snapshot.sh --before 20270701080000_v2_9_features`), Semgrep, licencias, `npm audit --omit=dev`, CHANGELOG, guía de usuaria, `docs/migracion-v2-11-a-v3-0.md`, `doctor.sh` (`EXPECTED_MIGRATION`, rutas nuevas como `/legal/accesibilidad`) y `selftest.sh`, `package.json` al número que decida la usuaria, PR. Después: la usuaria fusiona, despliega con `update.sh` y resube los adjuntos del Gem.
 
 ## Orden recomendado y estimación total

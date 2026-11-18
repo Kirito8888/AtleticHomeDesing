@@ -234,7 +234,10 @@ if env ENV_FILE="$DBAD" bash "$DR" --env --no-color >"$T/d2.txt" 2>&1; then bad 
 grep -q 'comilla de apertura' "$T/d2.txt" && grep -q 'CRLF' "$T/d2.txt" && grep -q '«export »' "$T/d2.txt" && grep -q 'POSTGRES_DB vacía' "$T/d2.txt" && grep -q 'es la de ejemplo' "$T/d2.txt" && ok "doctor --env: detecta comilla, CRLF, export, clave crítica y contraseña de ejemplo"
 [ "$(grep -c 'Solución:' "$T/d2.txt")" -ge 5 ] && ok "doctor: cada fallo trae «Solución:»"
 DV3="$T/doctor-v3.env"; sed '/^STAFF_2FA_REQUIRED_FROM/d;/^TRUSTED_PROXY_HOPS/d' "$DENV" > "$DV3"; printf 'WEB_BIND=0.0.0.0\n' >> "$DV3"; chmod 600 "$DV3"
-env ENV_FILE="$DV3" bash "$DR" --env --no-color >"$T/d2b.txt" 2>&1; grep -q 'Falta STAFF_2FA_REQUIRED_FROM' "$T/d2b.txt" && grep -q 'TRUSTED_PROXY_HOPS=1 con WEB_BIND=0.0.0.0' "$T/d2b.txt" && ok "doctor --env: avisa sin STAFF_2FA_REQUIRED_FROM y con proxy de confianza + WEB_BIND=0.0.0.0"
+if env ENV_FILE="$DV3" bash "$DR" --env --no-color >"$T/d2b.txt" 2>&1; then bad "doctor aceptó un .env sin STAFF_2FA_REQUIRED_FROM"; else grep -q 'STAFF_2FA_REQUIRED_FROM vacía o ausente' "$T/d2b.txt" && grep -q 'TRUSTED_PROXY_HOPS=1 con WEB_BIND=0.0.0.0' "$T/d2b.txt" && ok "doctor --env: sin STAFF_2FA_REQUIRED_FROM → ERROR (clave crítica); avisa proxy de confianza + WEB_BIND=0.0.0.0"; fi
+DV3E="$T/doctor-v3e.env"; sed 's/^STAFF_2FA_REQUIRED_FROM=.*/STAFF_2FA_REQUIRED_FROM=/' "$DENV" > "$DV3E"; chmod 600 "$DV3E"
+if env ENV_FILE="$DV3E" bash "$DR" --env --no-color >"$T/d2d.txt" 2>&1; then bad "doctor aceptó STAFF_2FA_REQUIRED_FROM vacía"; else grep -q 'STAFF_2FA_REQUIRED_FROM vacía o ausente' "$T/d2d.txt" && grep -q 'Solución:' "$T/d2d.txt" && ok "doctor --env: STAFF_2FA_REQUIRED_FROM vacía → ERROR con solución"; fi
+grep -q '^STAFF_2FA_REQUIRED_FROM=' "$(dirname "$DR")/../../.env.example" && ok ".env.example define STAFF_2FA_REQUIRED_FROM"
 printf 'TRUSTED_PROXY_HOPS=9\nSTAFF_2FA_REQUIRED_FROM=ayer\n' >> "$DV3"
 if env ENV_FILE="$DV3" bash "$DR" --env --no-color >"$T/d2c.txt" 2>&1; then bad "doctor aceptó TRUSTED_PROXY_HOPS/STAFF_2FA inválidos"; else grep -q 'TRUSTED_PROXY_HOPS debe ser' "$T/d2c.txt" && ok "doctor --env: TRUSTED_PROXY_HOPS fuera de 0-5 → ERROR"; fi
 ! grep -q "$DSECRET" "$T/d2.txt" && ! grep -q "$DSECRET" "$T/d1.txt" && ok "doctor --env: ningún valor del .env en la salida"

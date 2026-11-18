@@ -142,7 +142,7 @@ describe.skipIf(!HAS_DB)("entrenadora, material, becas y servidor (BD real)", ()
     expect(st.migrations?.last?.name).toMatch(/^\d{14}_v\d+_/);
     expect(st.migrations?.failed).toEqual([]);
     expect(st.backup?.ok).toBe(true);
-    expect(st.version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(st.version).toMatch(/^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$/);
     await prisma.backupRun.deleteMany({ where: { detail: "prueba" } });
   });
 });

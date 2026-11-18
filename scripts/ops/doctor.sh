@@ -25,9 +25,9 @@ PUBLIC_ROUTES=(/login /register /offline /legal/privacidad /legal/condiciones /l
 # Páginas privadas: sin sesión deben redirigir (302/307) a /login; con COOKIE_SESION, 200.
 PRIVATE_PAGES=(/ /training /nutrition /planning /study /recovery /goals /finance /settings /notifications)
 # API privadas GET: sin sesión deben dar 401.
-PRIVATE_API=(/api/notifications /api/ai/flashcards/due /api/training/history-import/template)
+PRIVATE_API=(/api/notifications /api/ai/flashcards/due /api/training/history-import/template /api/coach/recovery-consent)
 # Claves que, vacías o ausentes, impiden arrancar o dejan la web insegura.
-CRITICAL_KEYS=(AUTH_SECRET AUTH_URL POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB TOTP_ENCRYPTION_KEY)
+CRITICAL_KEYS=(AUTH_SECRET AUTH_URL POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB TOTP_ENCRYPTION_KEY STAFF_2FA_REQUIRED_FROM)
 # ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 ENV_FILE="${ENV_FILE:-.env.production}"
@@ -176,6 +176,7 @@ check_env() {
       crit_ok=0
       case "$key" in
         AUTH_SECRET|TOTP_ENCRYPTION_KEY) fallo "$key vacía o ausente." "sin ella no hay sesiones seguras / no se pueden cifrar los datos de salud ni la 2FA." "echo \"$key=\$(openssl rand -base64 32)\" >> $ENV_FILE   # solo si no existía; si ya tenía valor, NO lo cambies" ;;
+        STAFF_2FA_REQUIRED_FROM) fallo "STAFF_2FA_REQUIRED_FROM vacía o ausente." "sin fecha de corte la verificación en dos pasos de ADMIN/COACH solo se avisa, no se exige: con la contraseña robada de una entrenadora se verían datos de atletas." "echo 'STAFF_2FA_REQUIRED_FROM=AAAA-MM-DD' >> $ENV_FILE   # fecha futura, tras avisar a las cuentas y anotar sus códigos de recuperación" ;;
         AUTH_URL) fallo "AUTH_URL vacía o ausente." "Auth.js no sabe con qué URL pública se accede." "echo 'AUTH_URL=https://TU_DOMINIO' >> $ENV_FILE" ;;
         *) fallo "$key vacía o ausente." "docker compose no puede crear la base de datos sin ella." "nano $ENV_FILE   # define $key (ver .env.example)" ;;
       esac
@@ -229,7 +230,7 @@ check_env() {
   # v3.0 D · V3-S01 (2FA de ADMIN/COACH) y V3-S02 (proxies de confianza de clientIp)
   s="$(val STAFF_2FA_REQUIRED_FROM)"
   if [ -z "$s" ]; then
-    aviso "Falta STAFF_2FA_REQUIRED_FROM: la verificación en dos pasos de ADMIN/COACH solo se avisa, no se exige." "una cuenta de entrenadora con la contraseña robada vería datos de atletas." "echo 'STAFF_2FA_REQUIRED_FROM=AAAA-MM-DD' >> $ENV_FILE   # fecha de corte, tras avisar a las cuentas"
+    :  # vacía: ya la marca la comprobación de claves imprescindibles
   elif ! [[ "$s" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || ! date -d "$s" >/dev/null 2>&1; then
     fallo "STAFF_2FA_REQUIRED_FROM no es una fecha AAAA-MM-DD válida." "la app no arrancará (validación de entorno)." "nano $ENV_FILE   # STAFF_2FA_REQUIRED_FROM=AAAA-MM-DD"
   fi

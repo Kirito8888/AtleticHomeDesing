@@ -2,6 +2,32 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v3.0.0-preview — Núcleo de v3.0 (18/11/2026)
+
+**Sin migraciones ni cambios de esquema** (la última sigue siendo `20270701080000_v2_9_features`). Versión **preview**: el núcleo de v3.0 está completo; los rediseños de verticales (bloques I–Q de `docs/roadmap-v3-0.md`) quedan para v3.1. Pasos para el servidor en [`docs/migracion-v2-11-a-v3-0.md`](docs/migracion-v2-11-a-v3-0.md). **Variables:** `STAFF_2FA_REQUIRED_FROM` (crítica para `doctor.sh`), `TRUSTED_PROXY_HOPS` y `AUTH_SECRET` obligatoria en producción.
+
+**Seguridad y privacidad**
+- **2FA para ADMIN y COACH** con fecha de corte `STAFF_2FA_REQUIRED_FROM`; `TRUSTED_PROXY_HOPS` fija qué entrada de `X-Forwarded-For` es la IP.
+- **Recuperación y lesiones con entrenadora o club = salud (art. 9):** `RECOVERY` nunca nace marcado y exige el consentimiento `COACH_RECOVERY`; edad mínima 14 años; condiciones re-aceptadas (`TERMS_VERSION` 2026-11-14).
+- **Control de acceso y abuso:** límite de escrituras por usuaria (600 / 10 min), pruebas de aislamiento entre cuentas para las rutas con id y varias correcciones menores de acceso.
+- **SSRF:** las URL de proveedores se resuelven una vez y se conecta a esa IP; caché privada del navegador con caducidad de 24 h y purga al cerrar sesión.
+- **Cadena de suministro:** acciones de CI fijadas por SHA, informe de CSP y prueba de arquitectura (la IA no importa salud cifrada).
+- **Avisos de autoría y uso no comercial** idénticos en `LICENSE`, `README`, `NOTICE` y la interfaz (texto legal provisional, pendiente de abogado).
+
+**Accesibilidad (WCAG 2.2 AA)**
+- Suite `e2e:a11y` (axe en 10 rutas × claro, oscuro y alto contraste), contraste de tokens comprobado en la CI, texto que escala, movimiento reducido, foco visible y no tapado.
+- Gráficos con resumen en texto y tabla; avisos anunciados; declaración en `/legal/accesibilidad`: **parcialmente conforme**. La prueba con lector de pantalla real está pendiente.
+
+**Diseño y producto**
+- **Hoy:** portada con una acción principal y su «Por qué», registro rápido (serie, toma, agua, gasto) a 390 px.
+- **Navegación por intención** y barra móvil configurable (o sugerida por el uso); «Atlenza IA» pasa a Estudio y la IA se rotula donde actúa.
+- **Nutrición:** macros por tipo de sesión y día de la semana, con objetivo manual por fecha.
+- **Entreno:** importación de historial desde Excel/CSV con recálculo único de carga.
+
+**Operación**
+- `next` 16.4.3 → 16.4.6 (aviso moderado de `npm audit` en `use cache`; la app no usa esa función).
+- `doctor.sh`: `STAFF_2FA_REQUIRED_FROM` pasa a clave crítica (vacía = ERROR); rutas nuevas `/legal/accesibilidad`, `/api/training/history-import/template` y `/api/coach/recovery-consent`; `selftest.sh` ampliado.
+
 ## v2.11.0 — Finanzas, práctica y optimizaciones (12/11/2026)
 
 **Sin migraciones ni cambios de esquema** (la última sigue siendo `20270701080000_v2_9_features`; `git diff -- prisma` vacío desde v2.10.0). Pasos para el servidor en [`docs/migracion-v2-10-a-v2-11.md`](docs/migracion-v2-10-a-v2-11.md).
