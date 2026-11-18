@@ -22,6 +22,10 @@ export default function LegalLayout({ children }: LayoutProps<"/legal">) {
           Aviso legal
         </Link>{" "}
         ·{" "}
+        <Link href="/legal/accesibilidad" className="inline-flex min-h-11 items-center underline underline-offset-2">
+          Accesibilidad
+        </Link>{" "}
+        ·{" "}
         <Link href="/login" className="inline-flex min-h-11 items-center underline underline-offset-2">
           Entrar
         </Link>

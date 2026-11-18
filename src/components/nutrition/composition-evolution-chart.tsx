@@ -13,10 +13,10 @@ export function CompositionEvolutionChart({ rows, unit }: { rows: EvolutionRow[]
   const t = useCssTokens(TOKENS);
   const kg = unit === "kg";
   return (
-    <div className="h-52 w-full">
+    <div className="h-52 w-full" aria-hidden="true">
       {t ? (
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+          <LineChart accessibilityLayer={false} data={rows} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
             <CartesianGrid stroke={t["--chart-grid"]} vertical={false} />
             <XAxis dataKey="date" tickFormatter={(d: string) => formatDate(d)} tick={{ fill: t["--muted-foreground"], fontSize: 11 }} minTickGap={24} />
             <YAxis domain={["auto", "auto"]} tick={{ fill: t["--muted-foreground"], fontSize: 11 }} tickFormatter={(v: number) => formatNum(v)} />

@@ -13,6 +13,8 @@ import {
   YAxis,
 } from "recharts";
 
+import { ChartDataTable } from "@/components/charts/chart-data-table";
+import { pmcSummary } from "@/lib/charts/alt-text";
 import { formatDate, formatNum } from "@/lib/format";
 import { useCssTokens } from "@/lib/use-css-tokens";
 
@@ -70,7 +72,7 @@ function Panel({ title, height = 160, children }: { title: string; height?: numb
   return (
     <figure className="grid gap-1">
       <figcaption className="text-sm font-medium">{title}</figcaption>
-      <div style={{ height }} className="w-full">
+      <div style={{ height }} className="w-full" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
           {children}
         </ResponsiveContainer>
@@ -109,6 +111,7 @@ export function PmcCharts({ data }: { data: PmcPoint[] }) {
 
   return (
     <div className="grid gap-6">
+      <p className="text-sm text-muted-foreground">{pmcSummary(data)}</p>
       <div className="grid gap-2">
         <Legend
           items={[
@@ -118,7 +121,7 @@ export function PmcCharts({ data }: { data: PmcPoint[] }) {
           ]}
         />
         <Panel title="Carga: fitness, fatiga y forma" height={220}>
-          <LineChart data={data} syncId={SYNC} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
+          <LineChart accessibilityLayer={false} data={data} syncId={SYNC} margin={{ top: 8, right: 8, bottom: 0, left: -16 }}>
             {grid}
             {x}
             <YAxis {...axis} />
@@ -132,7 +135,7 @@ export function PmcCharts({ data }: { data: PmcPoint[] }) {
       </div>
 
       <Panel title="TSS diario" height={120}>
-        <BarChart data={data} syncId={SYNC} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+        <BarChart accessibilityLayer={false} data={data} syncId={SYNC} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
           {grid}
           {x}
           <YAxis {...axis} />
@@ -144,7 +147,7 @@ export function PmcCharts({ data }: { data: PmcPoint[] }) {
       {hasRecovery ? (
         <>
           <Panel title="Readiness (0–100)" height={120}>
-            <LineChart data={data} syncId={SYNC} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+            <LineChart accessibilityLayer={false} data={data} syncId={SYNC} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
               {grid}
               {x}
               <YAxis domain={[0, 100]} ticks={[0, 50, 75, 100]} {...axis} />
@@ -154,7 +157,7 @@ export function PmcCharts({ data }: { data: PmcPoint[] }) {
           </Panel>
           <div className="grid gap-6 sm:grid-cols-2">
             <Panel title="VFC (rMSSD, ms)" height={120}>
-              <LineChart data={data} syncId={SYNC} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+              <LineChart accessibilityLayer={false} data={data} syncId={SYNC} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
                 {grid}
                 {x}
                 <YAxis domain={["auto", "auto"]} {...axis} />
@@ -163,7 +166,7 @@ export function PmcCharts({ data }: { data: PmcPoint[] }) {
               </LineChart>
             </Panel>
             <Panel title="Sueño (h)" height={120}>
-              <BarChart data={data} syncId={SYNC} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+              <BarChart accessibilityLayer={false} data={data} syncId={SYNC} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
                 {grid}
                 {x}
                 <YAxis domain={[0, 10]} ticks={[0, 4, 8]} {...axis} />
@@ -178,34 +181,12 @@ export function PmcCharts({ data }: { data: PmcPoint[] }) {
         <p className="text-sm text-muted-foreground">Registra tu recuperación diaria para ver readiness, VFC y sueño aquí.</p>
       )}
 
-      <details className="rounded-lg border">
-        <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-medium">Ver como tabla</summary>
-        <div className="max-h-80 overflow-auto">
-          <table className="w-full text-xs tabular-nums">
-            <thead className="sticky top-0 bg-background text-muted-foreground">
-              <tr>
-                {["Fecha", "TSS", "CTL", "ATL", "TSB", "Readiness", "VFC", "Sueño"].map((h) => (
-                  <th key={h} className="px-2 py-1 text-right font-normal first:text-left">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[...data].reverse().map((d) => (
-                <tr key={d.date} className="border-t">
-                  <td className="px-2 py-1">{formatDate(d.date)}</td>
-                  {[d.tss, d.ctl, d.atl, d.tsb, d.readinessScore, d.hrvRmssdMs, d.sleepHours].map((v, i) => (
-                    <td key={i} className="px-2 py-1 text-right">
-                      {v == null ? "—" : formatNum(v)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </details>
+      <ChartDataTable
+        summary="Ver como tabla"
+        caption="Carga, readiness, VFC y sueño por día, del más reciente al más antiguo"
+        columns={["Fecha", "TSS", "CTL", "ATL", "TSB", "Readiness", "VFC", "Sueño"]}
+        rows={[...data].reverse().map((d) => [formatDate(d.date), ...[d.tss, d.ctl, d.atl, d.tsb, d.readinessScore, d.hrvRmssdMs, d.sleepHours].map((v) => (v == null ? "—" : formatNum(v)))])}
+      />
     </div>
   );
 }

@@ -33,7 +33,7 @@ export function Stepper({
   const stepText = String(step).replace(".", ",");
   const clamp = (v: number) => Math.min(max, Math.max(min, Math.round(v * 10 ** decimals) / 10 ** decimals));
   return (
-    <div className={cn("flex items-center rounded-md border", className)}>
+    <div className={cn("flex items-center rounded-md border focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50", className)}>
       <Button
         type="button"
         variant="ghost"

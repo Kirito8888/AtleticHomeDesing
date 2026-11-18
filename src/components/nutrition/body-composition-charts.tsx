@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 
+import { compositionSummary } from "@/lib/charts/alt-text";
 import { formatDate, formatNum } from "@/lib/format";
 import { type CompositionPoint, evolutionSeries, type MassKey, massDeltas, somatochartOutline, trajectory, VIEW } from "@/lib/health/isak-chart";
 
@@ -125,11 +126,13 @@ export function CompositionEvolution({ points }: { points: CompositionPoint[] })
           </button>
         ))}
       </div>
+      <p className="text-sm text-muted-foreground">{compositionSummary(rows, unit)}</p>
       {rows.length > 1 ? <EvolutionChart rows={rows} unit={unit} /> : <p className="text-sm text-muted-foreground">Con una sola medición no hay evolución todavía: añade otra para ver la gráfica.</p>}
       <details className="text-sm">
         <summary className="min-h-11 cursor-pointer py-2">Ver datos de la evolución</summary>
         <div className="overflow-x-auto">
           <table className="w-full text-left tabular-nums">
+            <caption className="sr-only">Peso y composición corporal por fecha de medición</caption>
             <thead>
               <tr className="text-xs text-muted-foreground">
                 <th scope="col" className="font-medium">Fecha</th>

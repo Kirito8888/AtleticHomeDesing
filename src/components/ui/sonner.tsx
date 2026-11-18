@@ -10,6 +10,7 @@ function Toaster(props: ToasterProps) {
       theme={theme as ToasterProps["theme"]}
       position="top-center"
       richColors
+      containerAriaLabel="Avisos"
       style={
         {
           "--normal-bg": "var(--popover)",
