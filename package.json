@@ -38,6 +38,7 @@
     "e2e:v25h": "tsx e2e/v25h.mts",
     "e2e:v25i": "tsx e2e/v25i.mts",
     "e2e:macros": "tsx e2e/macros.mts",
+    "e2e:historial": "tsx e2e/historial.mts",
     "e2e:v25j": "tsx e2e/v25j.mts",
     "e2e:v25k": "tsx e2e/v25k.mts",
     "e2e:v25l": "tsx e2e/v25l.mts",
