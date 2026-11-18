@@ -11,6 +11,8 @@ export interface RequestContext {
   termsOk?: boolean;
   /** v3.0 D · resultado memorizado de la puerta de 2FA para ADMIN/COACH. */
   staffBlocked?: boolean;
+  /** v3.0 R · el tope de escrituras ya se contó en esta petición (una vez aunque `requireUser` se llame varias). */
+  mutationCounted?: boolean;
 }
 
 export const requestContext = new AsyncLocalStorage<RequestContext>();
@@ -29,3 +31,10 @@ export const makeRequestId = (incoming?: string | null): string => (incoming && 
 const SECOND_FACTOR_EXEMPT = ["/api/account/2fa", "/api/account/passkeys", "/api/passkeys"];
 
 export const secondFactorExempt = (path: string) => termsExempt(path) || SECOND_FACTOR_EXEMPT.some((p) => path === p || path.startsWith(`${p}/`));
+
+/**
+ * v3.0 R (V3-S09) · Escrituras fuera del tope por defecto por usuaria (`LIMITS.mutation`). Lista cerrada y justificada:
+ * las mismas que la puerta de 2FA (ejercer derechos RGPD, cerrar sesiones, contraseña, configurar 2FA y llaves): una cuenta
+ * con límite agotado no debe quedar sin poder exportar, borrar sus datos o asegurar su acceso, y las sensibles ya tienen cubo propio.
+ */
+export const mutationLimitExempt = (path: string) => secondFactorExempt(path);

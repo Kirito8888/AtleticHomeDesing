@@ -55,7 +55,10 @@ async function restoreSession(userId: string, s: Row) {
   const cycleOk = s.cycleId ? await prisma.trainingCycle.findFirst({ where: { id: String(s.cycleId), userId }, select: { id: true } }) : null;
   const { parsed } = sessionInputFromSnapshot({ ...s, cycleId: cycleOk ? s.cycleId : null }, (x) => (ids.has(String(x.exerciseId)) ? String(x.exerciseId) : null), true);
   if (!parsed.success) throw new ApiError(422, "No se pudo recuperar la sesión");
-  await createTrainingSession(userId, (s.plannedById as string | null) ?? null, parsed.data, { id: String(s.id) });
+  await createTrainingSession(userId, (s.plannedById as string | null) ?? null, parsed.data, {
+    id: String(s.id),
+    keep: { source: typeof s.source === "string" ? s.source : null, externalId: typeof s.externalId === "string" ? s.externalId : null },
+  });
 }
 
 async function restoreMeal(userId: string, m: Row) {

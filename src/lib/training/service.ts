@@ -54,13 +54,17 @@ export async function createTrainingSession(
   plannedById: string | null,
   input: CreateSessionInput,
   /** `skipLoads`: no recalcula la carga; quien crea varias sesiones (restaurar, Strava) la recalcula una vez al final. */
-  opts: { replace?: { id: string; date: Date }; id?: string; skipLoads?: boolean } = {},
+  opts: { replace?: { id: string; date: Date }; id?: string; skipLoads?: boolean; keep?: { source: string | null; externalId: string | null } } = {},
 ) {
   const date = dateOnly(input.date);
   // v1.6 · registro sin conexión: el mismo clientId no crea dos sesiones (reenvío tras perder la respuesta)
   if (input.clientId && !opts.replace) {
     const dup = await prisma.trainingSession.findUnique({ where: { userId_clientId: { userId, clientId: input.clientId } } });
     if (dup) return { ...dup, newPersonalRecords: [], tssCandidates: [], duplicate: true as const };
+  }
+  // El ciclo enlazado debe ser de la dueña de la sesión (v3.0 R)
+  if (input.cycleId && !(await prisma.trainingCycle.findFirst({ where: { id: input.cycleId, userId }, select: { id: true } }))) {
+    throw new ApiError(400, "El ciclo indicado no existe");
   }
   const track = "track" in input ? input.track : null;
   const technical = "technical" in input ? input.technical : null;
@@ -129,6 +133,9 @@ export async function createTrainingSession(
         clientId: opts.replace ? null : (input.clientId ?? null),
         plannedById,
         cycleId: input.cycleId ?? null,
+        // Editar o recuperar no cambia el origen: lo importado sigue siendo privado de su dueña
+        source: opts.keep?.source ?? null,
+        externalId: opts.keep?.externalId ?? null,
         date,
         startedAt: input.startedAt ? new Date(input.startedAt) : null,
         type: input.type,
@@ -300,11 +307,11 @@ export async function recomputeSessionsTss(userId: string, from?: Date) {
 
 /** Sustituye una sesión existente por `input` (mismo id; conserva quién la planificó). */
 export async function updateTrainingSession(userId: string, id: string, input: CreateSessionInput) {
-  const existing = await prisma.trainingSession.findFirst({ where: { id, userId }, select: { date: true, plannedById: true, cycleId: true } });
+  const existing = await prisma.trainingSession.findFirst({ where: { id, userId }, select: { date: true, plannedById: true, cycleId: true, source: true, externalId: true } });
   if (!existing) throw new ApiError(404, "Sesión no encontrada");
   // El formulario no envía el ciclo: si no viene, se conserva (p. ej. el microciclo del plan importado).
   const withCycle = input.cycleId === undefined ? { ...input, cycleId: existing.cycleId } : input;
-  return createTrainingSession(userId, existing.plannedById, withCycle, { replace: { id, date: existing.date } });
+  return createTrainingSession(userId, existing.plannedById, withCycle, { replace: { id, date: existing.date }, keep: { source: existing.source, externalId: existing.externalId } });
 }
 
 async function detectPersonalRecords(

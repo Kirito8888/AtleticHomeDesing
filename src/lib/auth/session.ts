@@ -2,12 +2,12 @@ import "server-only";
 
 import { currentSession } from "@/lib/auth/current";
 import type { CoachScope, UserRole } from "@/generated/prisma/enums";
-import { ApiError } from "@/lib/api";
+import { ApiError, enforceRateLimit } from "@/lib/api";
 import { TERMS_VERSION } from "@/lib/auth/constants";
 import { recoveryConsented } from "@/lib/coach/recovery-consent";
 import { prisma } from "@/lib/prisma";
 import { staffGate } from "@/lib/auth/staff-gate";
-import { isMutation, requestContext, secondFactorExempt, termsExempt } from "@/lib/request-context";
+import { isMutation, mutationLimitExempt, requestContext, secondFactorExempt, termsExempt } from "@/lib/request-context";
 
 export interface CurrentUser {
   id: string;
@@ -19,7 +19,7 @@ export interface CurrentUser {
  * En mutaciones exige además las condiciones de uso vigentes aceptadas (salvo rutas exentas).
  *
  * @returns `{ id, role }` de la sesión.
- * @throws {ApiError} 401 sin sesión · 403 `terms_required` si no ha aceptado las condiciones vigentes · 403 `second_factor` si es ADMIN/COACH sin 2FA pasada la gracia.
+ * @throws {ApiError} 401 sin sesión · 429 si supera `LIMITS.mutation` en una escritura (salvo rutas exentas) · 403 `terms_required` si no ha aceptado las condiciones vigentes · 403 `second_factor` si es ADMIN/COACH sin 2FA pasada la gracia.
  */
 export async function requireUser(): Promise<CurrentUser> {
   const session = await currentSession();
@@ -34,6 +34,11 @@ export async function requireUser(): Promise<CurrentUser> {
   if (rc && !secondFactorExempt(rc.path)) {
     rc.staffBlocked ??= (await staffGate({ id: session.user.id, role: session.user.role })).kind === "blocked";
     if (rc.staffBlocked) throw new ApiError(403, "Activa la verificación en dos pasos o una llave de acceso para seguir (Ajustes → Seguridad).", { code: "second_factor" });
+  }
+  // v3.0 R (V3-S09): tope por defecto de escrituras por usuaria (una vez por petición; las rutas con cubo propio lo conservan además)
+  if (rc && isMutation(rc.method) && !rc.mutationCounted && !mutationLimitExempt(rc.path)) {
+    rc.mutationCounted = true;
+    await enforceRateLimit("mutation", session.user.id);
   }
   return { id: session.user.id, role: session.user.role };
 }

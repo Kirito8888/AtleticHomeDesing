@@ -74,7 +74,7 @@ export async function updateMember(
     },
   });
   // Salud (art. 9): marcar «Recuperación y lesiones» al aceptar es el consentimiento expreso; sin él, el staff no la ve
-  if (own && data.scopes) await syncRecoveryConsent(user.id, ctx, data.scopes.includes("RECOVERY"));
+  if (own && data.scopes) await syncRecoveryConsent(user.id, ctx, data.scopes.includes("RECOVERY") && updated.status === "ACTIVE");
   // v2.2 · Auditoría de club: solo lo que concede la propia persona (aceptar, ámbitos, planificar). Va a su Actividad.
   if (own && (data.status || data.scopes || data.canPlan !== undefined)) {
     const parts = [data.status ? "invitación aceptada" : null, data.scopes ? `ámbitos: ${updated.scopes.join(", ") || "ninguno"}` : null, data.canPlan !== undefined ? `planificar: ${updated.canPlan ? "sí" : "no"}` : null];
@@ -102,6 +102,8 @@ export async function removeMember(user: CurrentUser, orgId: string, memberId: s
     throw new ApiError(409, "Debe quedar al menos una administradora");
   }
   await prisma.orgMember.delete({ where: { id: m.id } });
+  // Si ya no queda ninguna vía con RECOVERY, el consentimiento de salud se retira
+  await syncRecoveryConsent(m.userId, m.userId === user.id ? ctx : {}, false);
   // v2.2 · Auditoría: salir/rechazar o ser expulsada deja huella en la Actividad de la persona afectada.
   const what = m.userId === user.id ? (m.status === "ACTIVE" ? "has salido del club" : "invitación rechazada") : "expulsada por la administración del club";
   await recordEvent(m.userId, "COACH_SCOPES_CHANGED", m.userId === user.id ? ctx : {}, `${await clubLabel(orgId)} · ${what}`);

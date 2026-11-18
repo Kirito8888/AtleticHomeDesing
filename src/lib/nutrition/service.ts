@@ -107,6 +107,8 @@ export async function deleteOwnFood(userId: string, id: string) {
 
 export async function getFoodByBarcode(barcode: string) {
   const cached = await prisma.foodProduct.findUnique({ where: { barcode } });
+  // El catálogo por código es común: un alimento propio (con dueña) nunca se sirve ni se sobrescribe aquí
+  if (cached?.ownerId) throw new ApiError(404, "Producto no encontrado");
   if (cached && cached.fetchedAt > addDays(new Date(), -CACHE_TTL_DAYS)) return cached;
   try {
     const { food, raw } = await off().product(barcode);

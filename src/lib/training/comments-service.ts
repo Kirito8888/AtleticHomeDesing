@@ -29,7 +29,8 @@ export async function sessionThread(viewer: CurrentUser, sessionId: string, athl
     id: c.id,
     body: c.body,
     createdAt: c.createdAt.toISOString(),
-    author: c.author.name ?? c.author.email.split("@")[0],
+    // Sin nombre no se muestra ni parte del email: rótulo genérico por rol
+    author: c.author.name ?? (c.authorId === athlete ? "Atleta" : "Entrenadora"),
     mine: c.authorId === viewer.id,
     fromCoach: c.authorId !== athlete,
   }));
@@ -46,7 +47,8 @@ export async function addComment(viewer: CurrentUser, sessionId: string, athlete
   const preview = body.length > 120 ? `${body.slice(0, 117)}…` : body;
   if (viewer.id !== athlete) {
     await sendToUser(athlete, { title: `Comentario en «${title}»`, body: preview, url: `/training/${sessionId}`, tag: `comment-${sessionId}` }, send);
-  } else {
+  } else if (!(await prisma.user.findUnique({ where: { id: athlete }, select: { processingRestrictedAt: true } }))?.processingRestrictedAt) {
+    // Con el tratamiento limitado (art. 18) nada sale hacia la entrenadora, tampoco un aviso con extracto
     const coaches = await prisma.sessionComment.findMany({ where: { sessionId, athleteId: athlete, authorId: { not: athlete } }, distinct: ["authorId"], select: { authorId: true } });
     const active = await prisma.coachAthlete.findMany({
       where: { athleteId: athlete, coachId: { in: coaches.map((x) => x.authorId) }, status: "ACTIVE", scopes: { has: "SESSIONS" } },
