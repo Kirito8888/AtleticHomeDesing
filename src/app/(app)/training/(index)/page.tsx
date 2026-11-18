@@ -3,6 +3,7 @@ import { CalendarClock, Plus, Trophy } from "lucide-react";
 
 import { AiBadge } from "@/components/ai/ai-badge";
 import { PageHeader } from "@/components/page-header";
+import { HistoryImport } from "@/components/training/history-import";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,6 +80,10 @@ export default async function TrainingPage() {
           </Button>
         }
       />
+
+      <div className="mb-3">
+        <HistoryImport />
+      </div>
 
       {/* v3.0 G (V3-D02) · la IA de entreno se presenta aquí, donde actúa (no como destino «Atlenza IA») */}
       <nav aria-label="Con IA" className="mb-3 flex flex-wrap items-center gap-x-4 text-sm">
