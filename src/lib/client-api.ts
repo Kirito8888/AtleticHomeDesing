@@ -1,5 +1,7 @@
 "use client";
 
+import { purgePrivateCaches } from "@/lib/offline/private-cache";
+
 /** fetch JSON para componentes cliente: lanza Error con el mensaje de la API. */
 export async function api<T = unknown>(url: string, init: { method?: string; body?: unknown; form?: FormData } = {}): Promise<T> {
   const res = await fetch(url, {
@@ -7,6 +9,8 @@ export async function api<T = unknown>(url: string, init: { method?: string; bod
     headers: init.body ? { "content-type": "application/json" } : undefined,
     body: init.form ?? (init.body ? JSON.stringify(init.body) : undefined),
   });
+  // V3-S06: sesión caducada → no quedan copias privadas legibles en este dispositivo
+  if (res.status === 401) void purgePrivateCaches();
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const details = Array.isArray(data?.details)

@@ -1,5 +1,7 @@
 "use client";
 
+import { purgePrivateCaches } from "@/lib/offline/private-cache";
+
 /**
  * Bandeja de salida sin conexión (v1.6): sesiones registradas en la pista sin cobertura.
  * Se guardan en IndexedDB de este dispositivo y se envían al volver la conexión.
@@ -50,6 +52,7 @@ export async function flush(): Promise<{ sent: number; rejected: Array<{ label: 
     } catch {
       break; // sigue sin red
     }
+    if (res.status === 401) void purgePrivateCaches(); // V3-S06
     if (res.status === 401 || res.status === 429 || res.status >= 500) break; // sesión caducada o servidor: reintentar luego
     if (res.ok) sent++;
     else rejected.push({ label: it.label, error: ((await res.json().catch(() => ({}))) as { error?: string }).error ?? `Error ${res.status}` });

@@ -101,6 +101,16 @@ export default async function PrivacyPage() {
             ) : null}
           </CardContent>
         </Card>
+        <Card className="h-fit gap-3 py-4 lg:col-span-2" data-testid="shared-device-notice">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base">Dispositivo compartido</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-1 px-4 text-sm">
+            <p>Para verlas sin conexión, este dispositivo guarda copias de tus sesiones de entreno, de los días de tu plan y de los ficheros que compartes con Atlenza.</p>
+            <p>Esas copias caducan a las 24 horas y se borran al cerrar sesión o si tu sesión caduca. Mientras tanto, quien use este dispositivo podría verlas.</p>
+            <p className="text-muted-foreground">Si no es solo tuyo: cierra sesión al terminar, no instales la app ni actives los avisos y usa una ventana privada.</p>
+          </CardContent>
+        </Card>
         <Card className="h-fit gap-3 py-4 lg:col-span-2">
           <CardHeader className="px-4">
             <CardTitle className="text-base">Cuánto se guarda</CardTitle>

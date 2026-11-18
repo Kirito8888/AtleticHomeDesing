@@ -73,6 +73,21 @@ Una copia que nunca se ha restaurado no es una copia. Ensáyalo con `--restore-t
 
 Los apuntes subidos (volumen `uploads`) **no** van en estos scripts: los cubre el servicio `backup` ([manual § 8](../manual_docker_debian.md#8-operación-diaria)).
 
+## Simulacro trimestral de restauración
+Una copia sin restaurar con regularidad no es una copia (V3-S12). Cada trimestre (primer lunes de enero, abril, julio y octubre) se ensaya la restauración **sin tocar la base real**. Este procedimiento está documentado; la ejecución es tiempo de la usuaria y **no se ha ejecutado** todavía.
+
+1. **Estado de las copias:** `bash scripts/ops/check-backups.sh` (solo lee). Anota cuántas hay y la antigüedad de la última (RPO real: lo que se perdería hoy).
+2. **Copia más reciente en una BD temporal:** `bash scripts/ops/verify-backup.sh --restore-test` (sha256, gzip y restauración en una BD que se borra sola). Anota el tiempo total (RTO aproximado).
+3. **Copia traída de fuera del servidor:** copia a una carpeta de trabajo (`<RUTA>`) la copia guardada en la otra máquina con su `.sha256` y valídala: `bash scripts/ops/verify-backup.sh <RUTA>/lifeos-db-AAAAMMDDTHHMMSSZ.sql.gz[.age]`. Si va cifrada, comprueba además que tienes a mano la clave privada y que descifra (`age -d -i <RUTA_CLAVE> FICHERO | gzip -dc | head -c 200`).
+4. **Contenido:** `--restore-test` solo cuenta tablas. Una vez al año (o si cambió el esquema), restaura además a mano en una BD de prueba con los pasos 5–6 de «Restauración ante desastre» (nunca sobre la real) y comprueba que hay usuarias, sesiones de las últimas semanas y que `_prisma_migrations` llega a `EXPECTED_MIGRATION` de `scripts/ops/doctor.sh`; bórrala al terminar.
+5. **Volumen `uploads`:** confirma que la copia del servicio `backup` existe y su fecha (los apuntes no van en estos scripts).
+6. **Si algo falla:** no esperes al siguiente trimestre. Prueba la copia anterior, revisa `check-backups.sh` y el cron, repite el simulacro y apunta la causa.
+7. **Registro:** añade una fila a la tabla (sin nombres de equipo, IP ni rutas reales).
+
+| Fecha | Copia (AAAAMMDD) | Resultado | Tiempo | Antigüedad | Notas |
+|---|---|---|---|---|---|
+| _pendiente_ | | | | | |
+
 ## Permisos de `.env*`
 ```sh
 bash scripts/ops/secure-env-permissions.sh                 # informe (no cambia nada)
@@ -83,6 +98,8 @@ Recorre `/opt/lifeos`, `/srv`, `/etc/lifeos` y `$HOME` (las que existan, o las r
 No lee ni cambia el contenido ni el dueño. **Mira la columna del dueño:** con 600 solo ese usuario podrá leerlo; quien lance `docker compose --env-file` o `scripts/update.sh` debe ser él.
 
 ## Límites de lo probado
+El simulacro trimestral de arriba está documentado pero no ejecutado.
+
 Probado en el contenedor de desarrollo con un `docker` simulado (`bash scripts/ops/selftest.sh </dev/null`; sin esa redirección se cuelga si hereda un stdin interactivo): sintaxis, `--help`/`--dry-run`, copia, rotación, sha256, detección de corrupción y permisos. **No probado contra el Postgres real ni con cron**: la primera ejecución en el servidor debe hacerse a mano, con `--dry-run` y luego `verify-backup.sh --restore-test`. Tampoco se ha probado en el servidor real `check-backups.sh` ni el registro en `BackupRun`: primera vez, `bash scripts/ops/check-backups.sh` a mano.
 
 Ver también: [servidor-hardening.md](servidor-hardening.md), [servidor-auditoria.md](servidor-auditoria.md), [servidor-llaves-ssh.md](servidor-llaves-ssh.md).
