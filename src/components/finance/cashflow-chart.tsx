@@ -2,6 +2,8 @@
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+import { ChartDataTable } from "@/components/charts/chart-data-table";
+import { cashflowSummary } from "@/lib/charts/alt-text";
 import { formatEur, formatInt, formatMonth } from "@/lib/format";
 import { useCssTokens } from "@/lib/use-css-tokens";
 
@@ -27,6 +29,7 @@ export function CashflowChart({ data }: { data: CashflowRow[] }) {
 
   return (
     <figure className="grid gap-2">
+      <p className="text-sm text-muted-foreground">{cashflowSummary(data)}</p>
       <ul className="flex gap-4 text-xs text-muted-foreground">
         <li className="flex items-center gap-1.5">
           <span className="inline-block size-2.5 rounded-sm" style={{ background: income }} /> Ingresos
@@ -35,9 +38,9 @@ export function CashflowChart({ data }: { data: CashflowRow[] }) {
           <span className="inline-block size-2.5 rounded-sm" style={{ background: expense }} /> Gastos
         </li>
       </ul>
-      <div className="h-56 w-full">
+      <div className="h-56 w-full" aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 4, right: 4, bottom: 0, left: 0 }} barGap={2}>
+          <BarChart accessibilityLayer={false} data={rows} margin={{ top: 4, right: 4, bottom: 0, left: 0 }} barGap={2}>
             <CartesianGrid stroke={grid} vertical={false} />
             <XAxis dataKey="month" tickFormatter={monthLabel} {...axis} />
             <YAxis width={56} tickFormatter={(v: number) => `${formatInt(v)} €`} {...axis} />
@@ -64,6 +67,12 @@ export function CashflowChart({ data }: { data: CashflowRow[] }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
+      <ChartDataTable
+        summary="Ver como tabla"
+        caption="Ingresos, gastos y neto por mes"
+        columns={["Mes", "Ingresos", "Gastos", "Neto"]}
+        rows={data.map((d) => [formatMonth(d.month, "long"), formatEur(d.incomeCents), formatEur(d.expenseCents), formatEur(d.netCents)])}
+      />
     </figure>
   );
 }

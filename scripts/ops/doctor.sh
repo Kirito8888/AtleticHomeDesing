@@ -21,7 +21,7 @@ cd "$(dirname "$0")/../.." || exit 2
 # Última migración de prisma/migrations que debe estar aplicada en producción.
 EXPECTED_MIGRATION="20270701080000_v2_9_features"
 # Páginas públicas (200 sin sesión) y la API de salud.
-PUBLIC_ROUTES=(/login /register /offline /legal/privacidad /legal/condiciones /legal/aviso)
+PUBLIC_ROUTES=(/login /register /offline /legal/privacidad /legal/condiciones /legal/aviso /legal/accesibilidad)
 # Páginas privadas: sin sesión deben redirigir (302/307) a /login; con COOKIE_SESION, 200.
 PRIVATE_PAGES=(/ /training /nutrition /planning /study /recovery /goals /finance /settings /notifications)
 # API privadas GET: sin sesión deben dar 401.

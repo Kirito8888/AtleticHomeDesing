@@ -112,6 +112,21 @@ Criterios nuevos de 2.2 (nivel AA según el W3C): 2.4.11 foco no oculto, 2.5.8 t
 
 **Estado tras el Bloque G (15/11/2026):** V3-D01 hecho (menú por intención, barra móvil configurable en prefs con valor inicial por uso), V3-D02 hecho («Atlenza IA» → Estudio; IA con `AiBadge` donde actúa; política legal pendiente de la revisión del abogado), V3-D03 en `docs/diseno-v3.md`, V3-A07 hecho (`e2e:v30g`). Las excepciones de tokens siguen abiertas como deuda visual (I–O); la de `/training/new` pasa a I.
 
+**Estado tras el Bloque T (18/11/2026):** V3-A12 hecho (resumen en texto + tabla con `caption`/`th scope` en PMC, finanzas y composición; recharts oculto al lector y fuera del orden de tabulación; marcas, e1RM y proyecciones siguen sin tabla: deuda). V3-A05: sonner trae `aria-live=polite`; región etiquetada «Avisos». Los errores no usan `assertive` [Probable aceptable]. V3-A06, A08 y A09 verificados por `e2e:v30t`. **Pasada de teclado automatizada** (9 rutas: Hoy y las 8 verticales; sin trampa, foco visible, con nombre, no tapado): halló 1 fallo real, `Stepper` sin indicador de foco (2.4.7), corregido. **V3-A11: pendiente de la usuaria** (Puerta 0.4); `/legal/accesibilidad` dice «parcialmente conforme» hasta entonces.
+
+**Checklist para la prueba con lector de pantalla (usuaria).** Sin prisa; basta una plataforma. Anota ✔/✘ y qué se oyó. Si algo se oye como «grupo», «sin etiqueta» o no se oye, es un hallazgo.
+- *Preparación:* VoiceOver iOS (Ajustes › Accesibilidad › VoiceOver; rotor con dos dedos girando), TalkBack Android (Ajustes › Accesibilidad), o NVDA en Windows con Firefox o Chrome (Insert+↓ para leer, H para encabezados, D para regiones, F para campos).
+- [ ] 1. **Entrar:** `/login` → se anuncia «Entrar con llave de acceso» y los campos email/contraseña con su nombre. Entrar con tu método.
+- [ ] 2. **Hoy (`/`):** lo primero que se oye es «Saltar al contenido»; activarlo lleva al contenido. Recorrer por encabezados: ¿hay un h1 y la acción principal se entiende sin ver la pantalla?
+- [ ] 3. **Registro rápido desde Hoy:** completar un registro en 1–2 toques; ¿se anuncia el resultado («guardado») sin buscarlo?
+- [ ] 4. **Aviso emergente:** guarda algo en Ajustes; ¿el aviso se anuncia solo, sin mover el foco? Anota si tarda o se pierde.
+- [ ] 5. **Menú y barra móvil:** abrir «Más secciones»; ¿las opciones tienen nombre y el foco queda dentro de la hoja y vuelve al cerrarla?
+- [ ] 6. **Una ruta por vertical** (Entreno `/training`, Plan, Salud `/recovery`, Estudio, Nutrición, Finanzas, Clubes, Ajustes): navegar por encabezados y botones; anotar controles sin nombre o con nombre repetido.
+- [ ] 7. **Formularios con contador (±):** `/recovery` (horas de sueño, VFC): ¿se oye la etiqueta, el valor y los botones − y +?
+- [ ] 8. **Gráficos:** `/training/performance`, `/finance/more`, `/nutrition/composition`: se lee el resumen y «Ver como tabla»; abrir y recorrer la tabla celda a celda (¿se anuncia la cabecera de fila y de columna?). Comprobar que no hay una «gráfica» vacía en medio.
+- [ ] 9. **Declaración:** `/legal/accesibilidad` se lee completa y los enlaces del pie se entienden.
+- *Al terminar:* pásame los ✘ (o dímelos en una sesión). Se corrigen en un bloque aparte y, con el resultado real, se actualiza `lib/legal/accessibility.ts` (`A11Y_KNOWN_ISSUES`, `A11Y_REVIEWED`) y la declaración. No cambiar `A11Y_STATUS` a `full` sin tus resultados.
+
 **Excepciones de F (documentadas; no bloquean el script ni la suite):**
 
 | Dónde | Regla | Medido | Por qué no ahora | Bloque |

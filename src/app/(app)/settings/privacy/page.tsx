@@ -126,6 +126,9 @@ export default async function PrivacyPage() {
               <Button asChild variant="ghost" size="sm">
                 <Link href="/legal/aviso">Aviso legal</Link>
               </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/legal/accesibilidad">Accesibilidad</Link>
+              </Button>
             </div>
           </CardContent>
         </Card>
