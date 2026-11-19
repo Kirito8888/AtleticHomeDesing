@@ -2,6 +2,9 @@ import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 
 import {
+  attachSets,
+  findSeriesHeader,
+  parseSeriesSheet,
   buildTemplateCsv,
   buildTemplateXlsx,
   classify,
@@ -213,5 +216,36 @@ describe("duplicados", () => {
     expect(a).not.toBe(dedupeKey({ date: "2026-01-06", title: "rodaje facil", durationSec: 2700 }));
     expect(a).not.toBe(dedupeKey({ date: "2026-01-05", title: "rodaje facil", durationSec: 3000 }));
     expect(dedupeKey({ date: "2026-01-05", title: null, durationSec: null })).toBe("2026-01-05||");
+  });
+});
+
+describe("hoja Series (fuerza)", () => {
+  const sheet = {
+    name: "Series",
+    rows: [
+      ["Fecha", "Ejercicio", "Series", "Reps", "Kg", "Nota"],
+      ["2026-09-29", "Sentadilla frontal", "3", "5", "95", "plan"],
+      ["2026-09-29", "Press banca mancuernas", "4", "6", "22,5", ""],
+      ["2026-09-30", "Algo", "x", "5", "10", ""],
+      ["", "Sin fecha", "1", "5", "10", ""],
+    ],
+  };
+  it("detecta la cabecera y expande series × reps × kg", () => {
+    expect(findSeriesHeader(sheet)?.headerIdx).toBe(0);
+    expect(findSeriesHeader({ name: "x", rows: [["Fecha", "Título"]] })).toBeNull();
+    const { byDate, issues } = parseSeriesSheet(sheet);
+    const sets = byDate.get("2026-09-29")!;
+    expect(sets).toHaveLength(7);
+    expect(sets[0]).toMatchObject({ exercise: "Sentadilla frontal", reps: 5, weightKg: 95, notes: "plan" });
+    expect(sets[3]).toMatchObject({ exercise: "Press banca mancuernas", reps: 6, weightKg: 22.5 });
+    expect(issues).toHaveLength(2);
+  });
+  it("las series van a la sesión de su fecha y la de pista pasa a mixta; las fechas sin sesión se devuelven", () => {
+    const { byDate } = parseSeriesSheet({ ...sheet, rows: [...sheet.rows.slice(0, 3), ["2026-10-01", "Sentadilla trasera", "1", "5", "100", ""]] });
+    const rows = [{ line: 2, date: "2026-09-29", title: "A", kind: "TRACK" as const }];
+    const out = attachSets(rows, byDate);
+    expect(out.rows[0].kind).toBe("MIXED");
+    expect(out.rows[0].sets).toHaveLength(7);
+    expect(out.unmatched).toEqual(["2026-10-01"]);
   });
 });

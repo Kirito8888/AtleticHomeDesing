@@ -279,6 +279,8 @@ export function parseDistanceM(raw: string, unit: "km" | "m" = "km"): number | n
 // ---------------------------------------------------------------------------
 
 export type Modality = "RUN" | "SPRINT" | "HURDLES" | "SWIM" | "CYCLE" | "ROW" | "WALK" | "OTHER";
+/** Serie de fuerza leída de la hoja «Series»: ejercicio por nombre (el servidor lo empareja con la biblioteca o lo crea). */
+export type HistorySet = { exercise: string; reps: number; weightKg: number; notes?: string | null };
 export type HistoryRow = {
   line: number;
   date: string;
@@ -291,6 +293,7 @@ export type HistoryRow = {
   manualTss?: number | null;
   notes?: string | null;
   typeText?: string | null;
+  sets?: HistorySet[];
   /** Duración o RPE puestos por el valor por defecto del importador, no leídos del fichero. */
   estimated?: boolean;
 };
@@ -395,6 +398,89 @@ export function parseRows(sheet: Sheet, headerIdx: number, mapping: Mapping, opt
     });
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Hoja «Series» (fuerza): una fila por ejercicio y día → series sueltas dentro de la sesión de ese día
+// ---------------------------------------------------------------------------
+
+export const SERIES_LIMITS = { setsPerDay: 150, setsPerRow: 30 } as const;
+
+const SERIES_SYNONYMS: Record<"date" | "exercise" | "series" | "reps" | "kg" | "notes", RegExp> = {
+  date: /^(fecha|date)$/,
+  exercise: /^(ejercicio|exercise)( .*)?$/,
+  series: /^(series|sets|n series|numero de series)$/,
+  reps: /^(reps|repeticiones|repeticiones por serie)$/,
+  kg: /^(kg|peso|carga kg|peso kg|kilos)( .*)?$/,
+  notes: /^(nota|notas|comentario|observaciones)( .*)?$/,
+};
+type SeriesCols = Record<keyof typeof SERIES_SYNONYMS, number | null>;
+
+function seriesColumns(header: string[]): SeriesCols {
+  const out: SeriesCols = { date: null, exercise: null, series: null, reps: null, kg: null, notes: null };
+  header.forEach((h, i) => {
+    const key = (Object.keys(SERIES_SYNONYMS) as Array<keyof SeriesCols>).find((k) => out[k] == null && SERIES_SYNONYMS[k].test(norm(h)));
+    if (key) out[key] = i;
+  });
+  return out;
+}
+
+/** ¿Es la hoja de series? Cabecera (en las 5 primeras filas) con fecha, ejercicio, reps y kg. */
+export function findSeriesHeader(sheet: Sheet): { headerIdx: number; cols: SeriesCols } | null {
+  for (let i = 0; i < Math.min(sheet.rows.length, 5); i++) {
+    const cols = seriesColumns(sheet.rows[i] ?? []);
+    if (cols.date != null && cols.exercise != null && cols.reps != null && cols.kg != null) return { headerIdx: i, cols };
+  }
+  return null;
+}
+
+/** Series por fecha. Una fila «4 | 6 | 22,5» son 4 series de 6 con 22,5 kg. Las filas con datos no válidos se avisan y se saltan. */
+export function parseSeriesSheet(sheet: Sheet, date1904 = false): { byDate: Map<string, HistorySet[]>; issues: Array<{ line: number; message: string }> } {
+  const found = findSeriesHeader(sheet);
+  const byDate = new Map<string, HistorySet[]>();
+  const issues: Array<{ line: number; message: string }> = [];
+  if (!found) return { byDate, issues };
+  const { headerIdx, cols } = found;
+  const cell = (row: string[], i: number | null) => (i == null ? "" : (row[i] ?? "").trim());
+  for (let r = headerIdx + 1; r < sheet.rows.length; r++) {
+    const row = sheet.rows[r];
+    if (!row || row.every((c) => !c?.trim())) continue;
+    const line = r + 1;
+    const date = parseDateCell(cell(row, cols.date), date1904);
+    const exercise = cell(row, cols.exercise).slice(0, 100);
+    if (!date || !exercise) {
+      issues.push({ line, message: "Hoja Series: falta fecha o ejercicio" });
+      continue;
+    }
+    const n = cols.series == null || !cell(row, cols.series) ? 1 : parseNumber(cell(row, cols.series));
+    const reps = parseNumber(cell(row, cols.reps));
+    const kg = parseNumber(cell(row, cols.kg));
+    if (n == null || !Number.isInteger(n) || n < 1 || n > SERIES_LIMITS.setsPerRow || reps == null || !Number.isInteger(reps) || reps < 0 || reps > 200 || kg == null || kg < 0 || kg > 1000) {
+      issues.push({ line, message: `Hoja Series: valores no válidos en «${exercise.slice(0, 30)}»` });
+      continue;
+    }
+    const list = byDate.get(date) ?? [];
+    if (list.length + n > SERIES_LIMITS.setsPerDay) {
+      issues.push({ line, message: "Hoja Series: demasiadas series ese día" });
+      continue;
+    }
+    const notes = cell(row, cols.notes).slice(0, 500) || null;
+    for (let k = 0; k < n; k++) list.push({ exercise, reps, weightKg: kg, notes });
+    byDate.set(date, list);
+  }
+  return { byDate, issues };
+}
+
+/** Añade las series a la sesión de su fecha. Con series, una sesión solo de pista pasa a mixta (la pista no guarda series). */
+export function attachSets(rows: HistoryRow[], byDate: Map<string, HistorySet[]>): { rows: HistoryRow[]; unmatched: string[] } {
+  const used = new Set<string>();
+  const out = rows.map((r) => {
+    const sets = byDate.get(r.date);
+    if (!sets?.length || used.has(r.date)) return r;
+    used.add(r.date);
+    return { ...r, sets, kind: r.kind === "TRACK" ? ("MIXED" as const) : r.kind };
+  });
+  return { rows: out, unmatched: [...byDate.keys()].filter((d) => !used.has(d)).sort() };
 }
 
 // ---------------------------------------------------------------------------

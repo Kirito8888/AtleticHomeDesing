@@ -45,6 +45,8 @@ describe.skipIf(!HAS_DB)("importar historial (BD real)", () => {
     training = await import("./service");
   });
   afterAll(async () => {
+    // Las series bloquean borrar el ejercicio (restricción): primero las sesiones
+    await prisma.trainingSession.deleteMany({ where: { user: { email: { contains: `-${t}@test.dev` } } } });
     await prisma.user.deleteMany({ where: { email: { contains: `-${t}@test.dev` } } });
   });
 
@@ -124,5 +126,27 @@ describe.skipIf(!HAS_DB)("importar historial (BD real)", () => {
     expect(s.map((x) => [x.title, x.tss])).toEqual([["Sin datos", null], ["Con TSS", 55]]);
     expect(s.every((x) => x.status === "COMPLETED" && x.source === null && x.tags.includes("importado"))).toBe(true);
     expect((await loads(a)).some((l) => l.tss === 55)).toBe(true);
+  });
+
+  it("con series: crea el ejercicio si no existe, reutiliza el de la biblioteca y las marcas salen de los kg", async () => {
+    const a = await user("sets");
+    const name = `Ejercicio nuevo ${t}`;
+    const row = (title: string, date: string, exercise: string) => ({
+      kind: "STRENGTH" as const,
+      line: 1,
+      date,
+      title,
+      sets: [
+        { exercise, reps: 5, weightKg: 100 },
+        { exercise, reps: 5, weightKg: 100 },
+      ],
+    });
+    const res = await svc.importHistory(a, [row("Pierna", "2026-10-05", name), row("Pierna 2", "2026-10-06", name.toUpperCase())]);
+    expect(res.created).toBe(2);
+    expect(await prisma.exercise.count({ where: { userId: a } })).toBe(1);
+    const sets = await prisma.strengthSet.findMany({ where: { strengthSession: { session: { userId: a } } }, select: { weightKg: true, reps: true, order: true } });
+    expect(sets).toHaveLength(4);
+    expect(sets.every((x) => x.weightKg === 100 && x.reps === 5)).toBe(true);
+    expect((await svc.previewHistory(a, [row("Pierna 3", "2026-10-07", name)])).counts.sets).toBe(2);
   });
 });

@@ -22,6 +22,9 @@ import {
   parseRows,
   readSpreadsheet,
   type Field,
+  attachSets,
+  findSeriesHeader,
+  parseSeriesSheet,
   type HistoryRow,
   type Mapping,
   type ParseResult,
@@ -29,7 +32,7 @@ import {
 } from "@/lib/training/history-import";
 
 type Status = "new" | "duplicate" | "duplicate_in_file";
-type Counts = { new: number; duplicate: number; duplicateInFile: number; noLoad: number; from: string | null; to: string | null };
+type Counts = { new: number; duplicate: number; duplicateInFile: number; sets?: number; noLoad: number; from: string | null; to: string | null };
 type Preview = { items: Array<{ line: number; status: Status }>; counts: Counts };
 
 const FIELD_LABEL: Record<Field, string> = {
@@ -111,6 +114,15 @@ export function HistoryImport() {
       units: guessUnits(header, mapping),
       defaults: { durationMin: durationDefault ? dMin : null, rpe: rpeDefault ? rpe : null },
     });
+    // Hoja «Series» (si el libro la trae): las series se añaden a la sesión de su fecha
+    const seriesSheet = book?.sheets.find((s) => s !== sheet && findSeriesHeader(s));
+    if (seriesSheet) {
+      const ser = parseSeriesSheet(seriesSheet, book?.date1904);
+      const att = attachSets(result.rows, ser.byDate);
+      result.rows = att.rows;
+      result.issues.push(...ser.issues);
+      for (const d of att.unmatched) result.issues.push({ line: 0, message: `Hoja Series: el ${d} no tiene sesión en la hoja principal; sus series no se importan` });
+    }
     setParsed(result);
     setPreview(null);
     if (!result.rows.length) return void toast.error("No hay ninguna fila con fecha válida: revisa la columna de la fecha y la fila de cabecera");
@@ -256,6 +268,11 @@ export function HistoryImport() {
                 <p className="font-medium" data-testid="hist-counts">
                   {preview.counts.new} nuevas · {preview.counts.duplicate + preview.counts.duplicateInFile} duplicadas · {parsed.skipped.length} omitidas
                 </p>
+                {preview.counts.sets ? (
+                  <p className="rounded-md bg-muted/60 p-2" data-testid="hist-sets">
+                    Se guardarán {preview.counts.sets} series de fuerza (hoja «Series»): saldrán en el progreso de cada ejercicio y en tus marcas.
+                  </p>
+                ) : null}
                 {preview.counts.noLoad > 0 ? (
                   <p className="rounded-md bg-muted/60 p-2" data-testid="hist-noload">
                     {preview.counts.noLoad} de las nuevas no suman carga (sin duración y RPE ni carga). Puedes poner valores por defecto arriba y volver a revisar.
