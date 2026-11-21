@@ -5,7 +5,7 @@ import { z } from "zod";
 import { generateJson, generateText } from "@/lib/ai/llm";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { aiAvailable } from "@/lib/ai/provider";
-import { notFromStrava, STRAVA } from "@/lib/strava/policy";
+import { fromPrivateSource, notFromStrava } from "@/lib/strava/policy";
 import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { weekOf } from "@/lib/rules/engine";
@@ -26,7 +26,7 @@ const fakeAi = () => process.env.LIFEOS_FAKE_AI === "1";
 export async function trainingSummary(userId: string, day = toIsoDay(today())) {
   const from = addDays(dateOnly(day), -55);
   // La forma (CTL/ATL) se calcula con todas las sesiones: si hay de Strava en el periodo, no se envía
-  const strava = await prisma.trainingSession.count({ where: { userId, source: STRAVA, date: { gte: from, lte: dateOnly(day) } } });
+  const strava = await prisma.trainingSession.count({ where: { userId, ...fromPrivateSource, date: { gte: from, lte: dateOnly(day) } } });
   const [sessions, perf, bests, rms, tests, rule] = await Promise.all([
     prisma.trainingSession.findMany({ where: { userId, status: "COMPLETED", date: { gte: from, lte: dateOnly(day) }, ...notFromStrava }, select: { date: true, type: true, durationSec: true, sessionRpe: true, tss: true } }),
     getPerformanceSeries(userId, 56),

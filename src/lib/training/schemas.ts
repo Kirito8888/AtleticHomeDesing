@@ -135,6 +135,8 @@ const common = {
   status: z.enum(["PLANNED", "COMPLETED", "SKIPPED"]).default("COMPLETED"),
   durationSec: optInt(0, 86_400),
   sessionRpe: optNum(0, 10),
+  /** v3.1 · calorías activas (las trae el reloj). */
+  kcal: optInt(0, 20_000),
   manualTss: optNum(0, 2000),
   cycleId: z.string().nullish(),
   notes: z.string().max(5000).nullish(),

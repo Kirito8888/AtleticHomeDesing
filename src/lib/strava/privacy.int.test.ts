@@ -167,3 +167,115 @@ describe.skipIf(!HAS_DB)("Strava no llega a terceros (BD real)", () => {
     expect(ics).not.toContain(TITLE);
   });
 });
+
+// v3.1 · Apple Fitness: lo importado «como sesión aparte» (`source = APPLE_FITNESS`) tiene el mismo aislamiento que Strava;
+// lo FUSIONADO en una sesión propia conserva `source = null` y es de la usuaria como cualquier otra (lo ven entrenadora e IA).
+describe.skipIf(!HAS_DB)("Apple Fitness aparte no llega a terceros (BD real)", () => {
+  const APPLE_TITLE = "Rodaje del Apple Watch aparte";
+  const MERGED_TITLE = "Rodaje propio completado con el reloj";
+  let prisma: typeof import("@/lib/prisma").prisma;
+  let athlete: string;
+  let coach: string;
+  let appleId: string;
+  let recentAppleId: string;
+  let mergedId: string;
+  const t = Date.now() + 1;
+  const day = new Date(Date.UTC(2026, 9, 7));
+  const recent = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() - 2));
+  const req = (url: string) => new NextRequest(`http://localhost${url}`);
+
+  beforeAll(async () => {
+    process.env.AUTH_SECRET ??= "secreto-auth-de-prueba";
+    prisma = (await import("@/lib/prisma")).prisma;
+    athlete = (await prisma.user.create({ data: { email: `aa-${t}@test.dev`, name: "Atleta" } })).id;
+    coach = (await prisma.user.create({ data: { email: `ac-${t}@test.dev`, name: "Entrenadora", role: "COACH" } })).id;
+    await prisma.coachAthlete.create({ data: { coachId: coach, athleteId: athlete, status: "ACTIVE", scopes: ["SESSIONS", "LOAD", "REPORTS"], canPlan: true } });
+    appleId = (await prisma.trainingSession.create({ data: { userId: athlete, date: day, type: "TRACK", status: "COMPLETED", durationSec: 3000, tss: 55, title: APPLE_TITLE, source: "APPLE_FITNESS", externalId: `apple:${t}` } })).id;
+    recentAppleId = (await prisma.trainingSession.create({ data: { userId: athlete, date: recent, type: "TRACK", status: "COMPLETED", durationSec: 3000, tss: 55, title: APPLE_TITLE, source: "APPLE_FITNESS", externalId: `apple:${t}:r` } })).id;
+    mergedId = (await prisma.trainingSession.create({ data: { userId: athlete, date: recent, type: "TRACK", status: "COMPLETED", durationSec: 2700, tss: 45, kcal: 480, title: MERGED_TITLE } })).id;
+    await prisma.personalRecord.create({ data: { userId: athlete, kind: "TECHNICAL_MARK", value: 40, achievedOn: day, sessionId: appleId } });
+    await prisma.sessionComment.create({ data: { sessionId: appleId, athleteId: athlete, authorId: athlete, body: "nota privada" } });
+  });
+
+  afterAll(async () => {
+    await prisma.user.deleteMany({ where: { id: { in: [athlete, coach].filter(Boolean) } } });
+  });
+
+  it("la vista de la entrenadora no lleva la de Apple, sí la fusionada", async () => {
+    const { coachOverview, coachSessionDetail } = await import("@/lib/coach/overview");
+    const ids = (await coachOverview({ id: coach, role: "COACH" })).sessions.map((s) => s.id);
+    expect(ids).toContain(mergedId);
+    expect(ids).not.toContain(recentAppleId);
+    expect(await coachSessionDetail({ id: coach, role: "COACH" }, appleId, athlete)).toBeNull();
+    expect((await coachSessionDetail({ id: coach, role: "COACH" }, mergedId, athlete))?.session.id).toBe(mergedId);
+  });
+
+  it("comentarios, API de sesiones, marcas y carga", async () => {
+    const svc = await import("@/lib/training/comments-service");
+    await expect(svc.sessionThread({ id: coach, role: "COACH" }, appleId, athlete)).rejects.toMatchObject({ status: 404 });
+    current = { id: coach, role: "COACH" };
+    const sessions = await import("@/app/api/training/sessions/route");
+    const one = await import("@/app/api/training/sessions/[id]/route");
+    const records = await import("@/app/api/training/records/route");
+    const pmc = await import("@/app/api/training/pmc/route");
+    const list = await (await sessions.GET(req(`/api/training/sessions?athleteId=${athlete}`), undefined as never)).text();
+    expect(list).not.toContain(APPLE_TITLE);
+    expect(list).toContain(MERGED_TITLE);
+    expect((await one.GET(req(`/api/training/sessions/${appleId}?athleteId=${athlete}`), { params: Promise.resolve({ id: appleId }) } as never)).status).toBe(404);
+    expect((await one.PATCH(req(`/api/training/sessions/${appleId}?athleteId=${athlete}`), { params: Promise.resolve({ id: appleId }) } as never)).status).toBe(404);
+    const prs = (await (await records.GET(req(`/api/training/records?athleteId=${athlete}`), undefined as never)).json()) as unknown[];
+    expect(prs).toHaveLength(0);
+    const load = (await (await pmc.GET(req(`/api/training/pmc?athleteId=${athlete}&days=30`), undefined as never)).json()) as { loadHidden?: boolean };
+    expect(load.loadHidden).toBe(true);
+    current = { id: athlete, role: "ATHLETE" };
+    expect(((await (await records.GET(req("/api/training/records"), undefined as never)).json()) as unknown[]).length).toBe(1);
+  });
+
+  it("informe compartido, .ics y club", async () => {
+    const { createReport, reportHtml } = await import("@/lib/report/service");
+    const { token } = await createReport(athlete, { from: "2026-10-01", to: "2026-10-31", includeInjuries: false });
+    expect((await reportHtml(token)) ?? "").not.toContain(APPLE_TITLE);
+    const { createFeed, feedIcs } = await import("@/lib/planning/feed-service");
+    const ics = (await feedIcs(await createFeed(athlete))) ?? "";
+    expect(ics).not.toContain(APPLE_TITLE);
+    const { loadClubPanel } = await import("@/lib/clubs/club-panel");
+    const org = await prisma.organization.create({
+      data: { name: `Club apple ${t}`, members: { create: [{ userId: coach, role: "ADMIN", status: "ACTIVE" }, { userId: athlete, role: "ATHLETE", status: "ACTIVE", scopes: ["SESSIONS", "LOAD", "PLANNING"] }] } },
+    });
+    try {
+      const panel = await loadClubPanel({ id: coach, role: "COACH" }, org.id);
+      expect(JSON.stringify({ calendar: panel.calendar, compare: panel.compare, alerts: panel.alerts })).not.toContain(APPLE_TITLE);
+    } finally {
+      await prisma.organization.delete({ where: { id: org.id } });
+    }
+  });
+
+  it("la IA (resumen y semana) no recibe la de Apple aparte y sí la fusionada", async () => {
+    const { trainingSummary } = await import("@/lib/ai/data-ai");
+    const { buildWeeklySnapshot } = await import("@/lib/ai/coach");
+    const s = JSON.stringify(await trainingSummary(athlete, "2026-10-08"));
+    expect(s).not.toContain(APPLE_TITLE);
+    const w = JSON.stringify(await buildWeeklySnapshot(athlete, new Date(Date.UTC(2026, 9, 5))));
+    expect(w).not.toContain(APPLE_TITLE);
+    // La carga acumulada incluye la de Apple: no se envía (misma regla que Strava)
+    const recentSummary = JSON.stringify(await trainingSummary(athlete));
+    expect(recentSummary).not.toContain(APPLE_TITLE);
+    const { buildWeeklySnapshot: snap } = await import("@/lib/ai/coach");
+    const monday = new Date(recent);
+    monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+    expect(JSON.stringify(await snap(athlete, monday))).not.toContain(APPLE_TITLE);
+  });
+
+  it("la bandeja es solo de su dueña: la entrenadora no la ve ni la resuelve", async () => {
+    const ew = await prisma.externalWorkout.create({
+      data: { userId: athlete, source: "APPLE_FITNESS", dedupeKey: `k-${t}`, date: day, startedAt: new Date(Date.UTC(2026, 9, 7, 7)), activityName: "Bandeja", modality: "RUN", durationSec: 1800 },
+    });
+    current = { id: coach, role: "COACH" };
+    const pending = await import("@/app/api/training/apple-fitness/pending/route");
+    const resolve = await import("@/app/api/training/apple-fitness/pending/[id]/route");
+    expect(JSON.stringify(await (await pending.GET(req(`/api/training/apple-fitness/pending?athleteId=${athlete}`), undefined as never)).json())).not.toContain("Bandeja");
+    const post = new NextRequest(`http://localhost/api/training/apple-fitness/pending/${ew.id}?athleteId=${athlete}`, { method: "POST", body: JSON.stringify({ action: "discard" }), headers: { "content-type": "application/json" } });
+    expect((await resolve.POST(post, { params: Promise.resolve({ id: ew.id }) } as never)).status).toBe(404);
+    expect((await prisma.externalWorkout.findUniqueOrThrow({ where: { id: ew.id } })).status).toBe("PENDING");
+  });
+});

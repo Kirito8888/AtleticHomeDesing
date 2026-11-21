@@ -3,6 +3,8 @@ import { CalendarClock, Plus, Trophy } from "lucide-react";
 
 import { AiBadge } from "@/components/ai/ai-badge";
 import { PageHeader } from "@/components/page-header";
+import { AppleInbox } from "@/components/training/apple-inbox";
+import { listPending } from "@/lib/apple-fitness/inbox-service";
 import { HistoryImport } from "@/components/training/history-import";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,7 +27,7 @@ export default async function TrainingPage() {
   const user = await pageUser();
   const now = today();
   const monday = startOfIsoWeek(now);
-  const [sessions, records, upcoming, weekSessions, throwsInfo, profile] = await Promise.all([
+  const [sessions, records, upcoming, weekSessions, throwsInfo, profile, pendingApple] = await Promise.all([
     // Historial: hasta hoy. Lo planificado a futuro va aparte (el plan importado son cientos de días).
     prisma.trainingSession.findMany({
       where: { userId: user.id, date: { lte: now } },
@@ -51,6 +53,7 @@ export default async function TrainingPage() {
     prisma.trainingSession.findMany({ where: { userId: user.id, date: { gte: monday, lte: addDays(monday, 6) } }, select: { date: true, status: true, track: { select: { distanceM: true, intervals: { select: { distanceM: true } } } }, technical: { select: { _count: { select: { attempts: true } } } } } }),
     throwWeeks(user.id, toIsoDay(now)),
     prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { primaryDiscipline: true, primaryEvent: true } }),
+    listPending(user.id),
   ]);
   // Días previstos de regla o síntomas (solo para ella; cálculo local).
   const predicted = new Map((await cyclePredictions(user.id, toIsoDay(now), toIsoDay(addDays(now, 7)))).map((p) => [p.date, p]));
@@ -80,6 +83,8 @@ export default async function TrainingPage() {
           </Button>
         }
       />
+
+      <AppleInbox items={pendingApple} />
 
       <div className="mb-3">
         <HistoryImport />

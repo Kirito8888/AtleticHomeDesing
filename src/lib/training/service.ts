@@ -6,7 +6,7 @@ import { Prisma, type TechnicalEvent, type TssMethod } from "@/generated/prisma/
 import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
-import { STRAVA } from "@/lib/strava/policy";
+import { isPrivateSource } from "@/lib/strava/policy";
 import { bestTimesByDistance } from "@/lib/training/disciplines";
 import { computePmc } from "@/lib/training/pmc";
 import { computeReadiness } from "@/lib/training/readiness";
@@ -144,6 +144,7 @@ export async function createTrainingSession(
         title: input.title ?? null,
         durationSec: input.durationSec ?? null,
         sessionRpe: input.sessionRpe ?? null,
+        kcal: input.kcal ?? null,
         notes: input.notes ?? null,
         tags: [...new Set(input.tags ?? [])],
         feelings: input.feelings?.length ? input.feelings : Prisma.DbNull,
@@ -297,20 +298,20 @@ export async function recomputeSessionsTss(userId: string, from?: Date) {
         data: { tss: r.tss, tssMethod: r.method as TssMethod | null, tssComputedAt: new Date() },
       });
       changed++;
-      if (s.source !== STRAVA) changedVisible++;
+      if (!isPrivateSource(s.source)) changedVisible++;
     }
   }
   if (sessions.length) await recomputeDailyLoads(userId, sessions[0].date);
   // `visible*`: lo que puede ver otra persona (sin Strava); la ruta devuelve solo esto a una entrenadora.
-  return { sessions: sessions.length, changed, visibleSessions: sessions.filter((s) => s.source !== STRAVA).length, visibleChanged: changedVisible };
+  return { sessions: sessions.length, changed, visibleSessions: sessions.filter((s) => !isPrivateSource(s.source)).length, visibleChanged: changedVisible };
 }
 
 /** Sustituye una sesión existente por `input` (mismo id; conserva quién la planificó). */
 export async function updateTrainingSession(userId: string, id: string, input: CreateSessionInput) {
-  const existing = await prisma.trainingSession.findFirst({ where: { id, userId }, select: { date: true, plannedById: true, cycleId: true, source: true, externalId: true } });
+  const existing = await prisma.trainingSession.findFirst({ where: { id, userId }, select: { date: true, plannedById: true, cycleId: true, source: true, externalId: true, kcal: true } });
   if (!existing) throw new ApiError(404, "Sesión no encontrada");
   // El formulario no envía el ciclo: si no viene, se conserva (p. ej. el microciclo del plan importado).
-  const withCycle = input.cycleId === undefined ? { ...input, cycleId: existing.cycleId } : input;
+  const withCycle = { ...input, ...(input.cycleId === undefined ? { cycleId: existing.cycleId } : {}), ...(input.kcal === undefined ? { kcal: existing.kcal } : {}) };
   return createTrainingSession(userId, existing.plannedById, withCycle, { replace: { id, date: existing.date }, keep: { source: existing.source, externalId: existing.externalId } });
 }
 

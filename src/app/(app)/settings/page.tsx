@@ -47,6 +47,9 @@ import { serverStatus } from "@/lib/admin/status";
 import { PushSettings } from "@/components/settings/push-settings";
 import { TelegramSettings } from "@/components/settings/telegram-settings";
 import { telegramStatus } from "@/lib/telegram/link";
+import { env } from "@/lib/env";
+import { appleTokenStatus } from "@/lib/apple-fitness/token-service";
+import { AppleFitnessSettings } from "@/components/settings/apple-fitness-settings";
 import { StravaSettings } from "@/components/settings/strava-settings";
 import { stravaStatus } from "@/lib/strava/service";
 import { ReminderSettings } from "@/components/settings/reminder-settings";
@@ -178,6 +181,7 @@ export default async function SettingsPage({
     aiView,
     tgStatus,
     stravaSt,
+    appleSt,
   ] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: user.id },
@@ -250,6 +254,7 @@ export default async function SettingsPage({
       lastError: null,
       sessions: 0,
     }),
+    optional("Apple Fitness", () => appleTokenStatus(user.id), { active: false, createdAt: null, lastUsedAt: null }),
   ]);
   const monday = startOfIsoWeek(today());
   const reportPeriods = [
@@ -646,6 +651,13 @@ export default async function SettingsPage({
               }}
               result={typeof stravaParam === "string" ? stravaParam : undefined}
             />
+          </Section>
+          <Section
+            id="apple-fitness"
+            title="Apple Fitness"
+            description="Recibe los entrenos de tu Apple Watch desde un Atajo de iOS y revísalos antes de añadirlos."
+          >
+            <AppleFitnessSettings initial={appleSt} baseUrl={(env().AUTH_URL ?? "").replace(/\/$/, "")} />
           </Section>
           <Section
             id="ia"

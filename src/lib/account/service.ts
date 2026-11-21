@@ -136,7 +136,7 @@ export async function exportAccount(userId: string) {
     // v2.0 · Mis membresías de club y mis propias cuotas (nunca las de otras personas del club).
     prisma.orgMember.findMany({ where, include: { org: { select: { name: true } }, fees: true } }),
   ]);
-  const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos, cycle, oneRepMaxes, exerciseAliases, sharedReports, calendarFeeds, women, referenceCurves, physioProtocols, physioReceived] = await Promise.all([
+  const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos, cycle, oneRepMaxes, exerciseAliases, sharedReports, calendarFeeds, women, referenceCurves, physioProtocols, physioReceived, externalWorkouts, personalTokens] = await Promise.all([
     prisma.securityEvent.findMany({ where, orderBy: { createdAt: "desc" }, omit: { userId: true } }),
     prisma.injury.findMany({ where, orderBy: { startedOn: "asc" } }),
     prisma.sessionTemplate.findMany({ where }),
@@ -155,6 +155,9 @@ export async function exportAccount(userId: string) {
     prisma.referenceCurve.findMany({ where: { createdById: userId } }),
     prisma.physioProtocol.findMany({ where: { ownerId: userId }, include: { shares: { select: { athleteId: true, createdAt: true } } } }),
     prisma.physioProtocolShare.findMany({ where: { athleteId: userId }, include: { protocol: { select: { title: true, phases: true } } } }),
+    // v3.1 · Bandeja de entrenos del reloj y el estado de mi token de envío (nunca su hash)
+    prisma.externalWorkout.findMany({ where, orderBy: { startedAt: "asc" }, omit: { userId: true } }),
+    prisma.personalToken.findMany({ where, omit: { tokenHash: true } }),
   ]);
   // v1.5: tests físicos, vuelta por fases, agua, horario, estudio, hábitos, material y comentarios
   const [testResults, fvSeries, returnProtocols, hydration, classSlots, studySessions, habits, equipment, sessionComments, selfTestAttempts, microSessions] = await Promise.all([
@@ -284,6 +287,7 @@ export async function exportAccount(userId: string) {
     clubs: { memberships: clubMemberships },
     training21: { referenceCurves, physioProtocols, physioReceived },
     calendarFeeds,
+    appleFitness: { workouts: externalWorkouts, tokens: personalTokens },
     security: { events: securityEvents, passkeys },
     privacy: { consents, requests: privacyRequests, aiProvider, telegram, strava },
     goals: { goals, weeklyReviews },

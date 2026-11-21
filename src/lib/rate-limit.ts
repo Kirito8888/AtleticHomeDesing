@@ -58,6 +58,8 @@ export const LIMITS = {
   /** Enlaces públicos con token (.ics, informe para la entrenadora), por IP. */
   calendarFeed: { limit: 60, windowMs: 60 * 60_000 },
   sharedReport: { limit: 60, windowMs: 60 * 60_000 },
+  /** v3.1 · Envío de entrenos del Atajo de iOS (token Bearer): por IP antes de mirar el token y por usuaria después. */
+  appleFitness: { limit: 120, windowMs: 60 * 60_000 },
   /** v2.0 · Compartir mazos de flashcards por email. */
   deckShare: { limit: 30, windowMs: 60 * 60_000 },
   /** v2.1 · Compartir protocolos de fisio y alta de curvas (escrituras de la entrenadora). */
