@@ -117,7 +117,7 @@ export function AppleFitnessSettings({ initial, baseUrl }: { initial: Status; ba
       {fresh ? (
         <div role="status" className="grid gap-2 rounded-md border p-3" data-testid="apple-token-fresh">
           <p className="font-medium">Copia el token ahora: no se volverá a mostrar.</p>
-          <code className="break-all rounded bg-muted p-2 text-xs" data-testid="apple-token-value">
+          <code className="[overflow-wrap:anywhere] rounded bg-muted p-2 text-xs" data-testid="apple-token-value">
             {fresh.token}
           </code>
           <Button type="button" variant="outline" size="sm" className="min-h-11 justify-self-start" onClick={() => copy(fresh.token, "Token")}>
@@ -127,7 +127,7 @@ export function AppleFitnessSettings({ initial, baseUrl }: { initial: Status; ba
       ) : null}
       <div className="grid gap-1">
         <p className="font-medium">URL de envío</p>
-        <code className="break-all rounded bg-muted p-2 text-xs">{url}</code>
+        <code className="[overflow-wrap:anywhere] rounded bg-muted p-2 text-xs">{url}</code>
         <Button type="button" variant="outline" size="sm" className="min-h-11 justify-self-start" onClick={() => copy(url, "URL")}>
           Copiar URL
         </Button>
