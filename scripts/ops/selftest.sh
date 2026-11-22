@@ -217,7 +217,7 @@ case ";${FAKE_HTTP_MAP:-};" in *";$path="*) code="${FAKE_HTTP_MAP#*"$path="}"; c
 case ";${FAKE_HTTP_MAP:-};" in
   *";$path="*) ;;
   *) case "$path" in
-       /api/health) code=200 ;; /api/*) code=401 ;; /login|/register|/offline|/legal/*) code=200 ;;
+       /api/health) code=200 ;; /api/training/apple-fitness|/api/recovery/apple-health|/api/settings/apple-fitness/test) code=405 ;; /api/*) code=401 ;; /login|/register|/offline|/legal/*) code=200 ;;
      esac ;;
 esac
 { printf 'HTTP/1.1 %s X\r\n' "$code"; [ "$code" = 307 ] && printf 'location: /login\r\n'; [ "$path" = /login ] && printf 'content-security-policy: x\r\n'; true; } > "$hdr"
@@ -246,6 +246,9 @@ if env ENV_FILE="$DV3" bash "$DR" --env --no-color >"$T/d2c.txt" 2>&1; then bad 
 if FAKE_HTTP_MAP='/api/health=503' "${DX[@]}" --web >"$T/d4.txt" 2>&1; then bad "doctor no marcó el 503"; else grep -q '503 (caído)' "$T/d4.txt" && grep -q 'Solución:' "$T/d4.txt" && ok "doctor --web: /api/health 503 → ERROR con causa y solución"; fi
 if FAKE_HTTP_MAP='/api/health=500;/login=500' "${DX[@]}" --web >"$T/d5.txt" 2>&1; then bad "doctor no marcó el 500"; else grep -q '/login → 500' "$T/d5.txt" && ok "doctor --web: ruta con 500 → ERROR"; fi
 if FAKE_HTTP_MAP='/study=200' "${DX[@]}" --web >"$T/d6.txt" 2>&1; then bad "doctor no vio la ruta privada abierta"; else grep -q 'SIN sesión' "$T/d6.txt" && ok "doctor --web: privada con 200 sin sesión → ERROR"; fi
+if FAKE_HTTP_MAP='/api/recovery/apple-health=500' "${DX[@]}" --web >"$T/d6b.txt" 2>&1; then bad "doctor no marcó el 500 de una ruta solo-POST"; else grep -q '/api/recovery/apple-health → 500' "$T/d6b.txt" && ok "doctor --web: ruta solo-POST con 500 → ERROR"; fi
+FAKE_HTTP_MAP='/api/training/apple-fitness=404' "${DX[@]}" --web >"$T/d6c.txt" 2>&1 || true; grep -q 'se esperaba 405' "$T/d6c.txt" && ok "doctor --web: ruta solo-POST movida (404) → aviso"
+grep -q 'API solo-POST' "$T/d3.txt" && ok "doctor --web: sana comprueba las rutas solo-POST"
 FAKE_HTTP_MAP='/api/health=000' "${DX[@]}" --web >"$T/d7.txt" 2>&1 || true; grep -q 'no responde' "$T/d7.txt" && ok "doctor --web: sin respuesta → ERROR y no sigue"
 # --all con docker simulado: termina, solo lee (queue-failed sin acciones) y no filtra secretos
 export FAKE_PSQL_IN="$T/doctor-in.txt"; : > "$FAKE_PSQL_IN"

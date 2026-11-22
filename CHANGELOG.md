@@ -2,6 +2,26 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## v3.0.1-preview — Apple Fitness y Apple Salud (22/11/2026)
+
+**Con migración aditiva:** `20270801080000_v3_1_features` (tablas `PersonalToken`, `ExternalWorkout`, `HealthSyncConflict`, `AppleDelivery`; columnas `TrainingSession.kcal`, `RecoveryMetrics.hrvSdnnMs` y `healthSync`, `ExternalWorkout.activityType`). Aunque el número sea de parche, **hay que actualizar con `update.sh`** (aplica la migración). Pasos en [`docs/migracion-v3-0-a-v3-0-1.md`](docs/migracion-v3-0-a-v3-0-1.md). Los rediseños de verticales (bloques I–Q) siguen pendientes.
+
+**Apple Fitness (Bloque A)**
+- Los entrenos del reloj llegan por `POST /api/training/apple-fitness` con un **token personal** (Ajustes → Apple Fitness; en la base solo queda su hash; revocable). Caen en una **bandeja de borradores** en Entreno: nada entra en el diario sin aceptar. «Crear aparte» o «Completar» (solo rellena huecos de una sesión propia).
+- Aislamiento como Strava: lo importado de Apple no llega a la IA, la entrenadora, el club, el informe ni el `.ics`.
+
+**Apple Salud (Bloque B)**
+- `POST /api/recovery/apple-health` (mismo token) guarda sueño, VFC, FC en reposo y peso por día. Vacío → se guarda; igual con tolerancia → se conserva; distinto de lo anotado → **no se pisa** y se abre un aviso de conflicto que se resuelve en Recuperación. La VFC de Apple es SDNN y se guarda aparte de la RMSSD.
+
+**Calibración y diagnóstico (Bloque C)**
+- Unidades explícitas (kcal/kJ, m/km/mi, h/min/s, kg/g/lb, lpm, ms) y números con coma o punto de miles; un número sin unidad se toma en la unidad del campo, nunca se adivina. Instantes con o sin zona (sin zona = hora de Madrid); el sueño cuenta para el día en que te despiertas.
+- Deporte: fuerza → Fuerza, HIIT/cruzado → Mixto, resto → Pista (nunca Técnica).
+- Diagnóstico en Ajustes (último envío y última prueba, solo recuentos y nombres de campo), «Probar envío» con un payload sintético y `?dryRun=1` en los dos endpoints.
+
+**Operación y CI**
+- `effect` 3.22.5 por `overrides` (aviso de `npm audit`; quitar cuando Prisma lo suba). E2E `v15` acepta migraciones de cualquier versión mayor; Ajustes no comparte `code.break-all` con el secreto 2FA.
+- `doctor.sh`: `EXPECTED_MIGRATION` pasa a `20270801080000_v3_1_features`; `PRIVATE_API` suma las rutas GET de Apple (`/api/training/apple-fitness/pending`, `/api/settings/apple-fitness/token`) y nace `POST_ONLY_API` (`/api/training/apple-fitness`, `/api/recovery/apple-health`, `/api/settings/apple-fitness/test`): un GET sin sesión da 405 y el doctor no escribe. `selftest.sh` ampliado.
+
 ## v3.0.0-preview — Núcleo de v3.0 (18/11/2026)
 
 **Sin migraciones ni cambios de esquema** (la última sigue siendo `20270701080000_v2_9_features`). Versión **preview**: el núcleo de v3.0 está completo; los rediseños de verticales (bloques I–Q de `docs/roadmap-v3-0.md`) quedan para v3.1. Pasos para el servidor en [`docs/migracion-v2-11-a-v3-0.md`](docs/migracion-v2-11-a-v3-0.md). **Variables:** `STAFF_2FA_REQUIRED_FROM` (crítica para `doctor.sh`), `TRUSTED_PROXY_HOPS` y `AUTH_SECRET` obligatoria en producción.
