@@ -136,7 +136,7 @@ export async function exportAccount(userId: string) {
     // v2.0 · Mis membresías de club y mis propias cuotas (nunca las de otras personas del club).
     prisma.orgMember.findMany({ where, include: { org: { select: { name: true } }, fees: true } }),
   ]);
-  const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos, cycle, oneRepMaxes, exerciseAliases, sharedReports, calendarFeeds, women, referenceCurves, physioProtocols, physioReceived, externalWorkouts, personalTokens, healthSyncConflicts] = await Promise.all([
+  const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos, cycle, oneRepMaxes, exerciseAliases, sharedReports, calendarFeeds, women, referenceCurves, physioProtocols, physioReceived, externalWorkouts, personalTokens, healthSyncConflicts, appleDeliveries] = await Promise.all([
     prisma.securityEvent.findMany({ where, orderBy: { createdAt: "desc" }, omit: { userId: true } }),
     prisma.injury.findMany({ where, orderBy: { startedOn: "asc" } }),
     prisma.sessionTemplate.findMany({ where }),
@@ -159,6 +159,7 @@ export async function exportAccount(userId: string) {
     prisma.externalWorkout.findMany({ where, orderBy: { startedAt: "asc" }, omit: { userId: true } }),
     prisma.personalToken.findMany({ where, omit: { tokenHash: true } }),
     prisma.healthSyncConflict.findMany({ where, orderBy: { date: "asc" }, omit: { userId: true } }),
+    prisma.appleDelivery.findMany({ where, omit: { userId: true } }),
   ]);
   // v1.5: tests físicos, vuelta por fases, agua, horario, estudio, hábitos, material y comentarios
   const [testResults, fvSeries, returnProtocols, hydration, classSlots, studySessions, habits, equipment, sessionComments, selfTestAttempts, microSessions] = await Promise.all([
@@ -289,7 +290,7 @@ export async function exportAccount(userId: string) {
     training21: { referenceCurves, physioProtocols, physioReceived },
     calendarFeeds,
     appleFitness: { workouts: externalWorkouts, tokens: personalTokens },
-    appleHealth: { conflicts: healthSyncConflicts },
+    appleHealth: { conflicts: healthSyncConflicts, deliveries: appleDeliveries },
     security: { events: securityEvents, passkeys },
     privacy: { consents, requests: privacyRequests, aiProvider, telegram, strava },
     goals: { goals, weeklyReviews },

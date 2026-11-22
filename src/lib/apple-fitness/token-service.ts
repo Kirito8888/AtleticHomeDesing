@@ -38,3 +38,10 @@ export async function userForAppleToken(token: string): Promise<{ id: string; ro
   await prisma.personalToken.update({ where: { id: t.id }, data: { lastUsedAt: new Date() } });
   return t.user;
 }
+
+/** ¿Este token en claro es el activo de esta usuaria? No anota uso ni revela si pertenece a otra persona. */
+export async function ownsAppleToken(userId: string, token: string): Promise<boolean> {
+  if (!isShareToken(token)) return false;
+  const t = await prisma.personalToken.findUnique({ where: { tokenHash: hashShareToken(token) }, select: { userId: true, purpose: true } });
+  return t?.userId === userId && t.purpose === APPLE_PURPOSE;
+}
