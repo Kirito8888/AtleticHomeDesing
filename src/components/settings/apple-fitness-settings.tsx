@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -8,25 +8,55 @@ import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { api } from "@/lib/client-api";
 import { formatDateTime } from "@/lib/format";
 
-type Status = { active: boolean; createdAt: string | null; lastUsedAt: string | null };
+type Delivery = {
+  lastAt: string | null;
+  lastStatus: number | null;
+  lastSummary: { counts?: Record<string, number>; fields?: string[]; reason?: string } | null;
+  testAt: string | null;
+  testStatus: number | null;
+  testSummary: { counts?: Record<string, number>; fields?: string[]; reason?: string } | null;
+};
+type Deliveries = { FITNESS: Delivery; HEALTH: Delivery };
+type Status = { active: boolean; createdAt: string | null; lastUsedAt: string | null; deliveries?: Deliveries };
+type TestResult = { ok: boolean; fitness: { ok: boolean; checks: { label: string; ok: boolean }[] }; health: { ok: boolean; checks: { label: string; ok: boolean }[] } };
+
+const REASON: Record<string, string> = {
+  second_factor: "Falta activar la verificación en dos pasos",
+  rate_limit: "Demasiados envíos seguidos",
+  json: "El cuerpo no era JSON válido",
+  prueba_incoherente: "La prueba no dio lo esperado",
+  error_interno: "Error del servidor",
+};
+const COUNT_LABEL: Record<string, string> = { received: "recibidos", added: "añadidos", duplicates: "repetidos", days: "días", saved: "guardados", unchanged: "sin cambios", conflicts: "avisos", checks: "comprobaciones" };
+
+/** Resultado en texto llano, sin valores de salud: solo recuentos o nombres de campo. */
+export function describeDelivery(status: number | null, s: Delivery["lastSummary"]): string {
+  if (status == null) return "Sin envíos todavía";
+  if (status === 200) {
+    const parts = Object.entries(s?.counts ?? {}).filter(([, n]) => n > 0).map(([k, n]) => `${n} ${COUNT_LABEL[k] ?? k}`);
+    return `Correcto${parts.length ? ` · ${parts.join(", ")}` : ""}`;
+  }
+  if (status === 400 && s?.fields?.length) return `Datos rechazados: ${s.fields.join(", ")}`;
+  return `Error ${status}${s?.reason ? ` · ${REASON[s.reason] ?? s.reason}` : ""}`;
+}
 
 /** Plantilla del cuerpo (las fechas llevan zona horaria; la duración sale de start/end, o añade `durationMin`/`durationSec`). */
 export const APPLE_TEMPLATE = `{
   "type": "Correr",
   "start": "2026-11-21T08:30:00+01:00",
   "end": "2026-11-21T09:15:00+01:00",
-  "distanceKm": 7.2,
-  "kcal": 480,
+  "distance": "7,2 km",
+  "energyKj": "2008 kJ",
   "hrAvg": 148,
   "hrMax": 171
 }`;
 
 export const HEALTH_TEMPLATE = `{
-  "date": "2026-11-22",
-  "sleepHours": 7.4,
+  "sleepStart": "2026-11-21T23:40:00",
+  "sleepEnd": "2026-11-22T07:10:00",
   "hrvSdnnMs": 48,
   "restingHr": 52,
-  "weightKg": 62.3
+  "weightKg": "62,3 kg"
 }`;
 
 const HEALTH_STEPS = [
@@ -60,13 +90,19 @@ export function AppleFitnessSettings({ initial, baseUrl }: { initial: Status; ba
   const [status, setStatus] = useState<Status>(initial);
   const [fresh, setFresh] = useState<{ token: string; endpoint: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [pasted, setPasted] = useState("");
+  const [result, setResult] = useState<TestResult | null>(null);
 
   const load = useCallback(async () => {
     try {
       setStatus(await api<Status>("/api/settings/apple-fitness/token"));
     } catch {
-      setStatus({ active: false, createdAt: null, lastUsedAt: null });
+      setStatus({ active: false, createdAt: null, lastUsedAt: null, deliveries: undefined });
     }
+  }, []);
+  // La página puede venir de una copia local: se pide el estado vivo (sin tocar lo que hay si falla la red)
+  useEffect(() => {
+    api<Status>("/api/settings/apple-fitness/token").then(setStatus, () => undefined);
   }, []);
   const when = (iso: string | null) => (iso ? formatDateTime(iso, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "nunca");
   // Antes de generar, la ruta relativa basta para la guía; con el token se da la URL completa
@@ -149,6 +185,76 @@ export function AppleFitnessSettings({ initial, baseUrl }: { initial: Status; ba
           Copiar URL
         </Button>
       </div>
+      <div className="grid gap-2 rounded-md border p-3" data-testid="apple-diag">
+        <p className="font-medium">Diagnóstico de conexión</p>
+        {(["FITNESS", "HEALTH"] as const).map((c) => {
+          const d = status?.deliveries?.[c];
+          return (
+            <div key={c} className="grid gap-0.5" data-testid={`apple-diag-${c.toLowerCase()}`}>
+              <p className="font-medium">{c === "FITNESS" ? "Entrenos" : "Salud"}</p>
+              <p data-testid="apple-diag-last">
+                Último envío: {when(d?.lastAt ?? null)} · {describeDelivery(d?.lastStatus ?? null, d?.lastSummary ?? null)}
+              </p>
+              <p className="text-xs text-muted-foreground" data-testid="apple-diag-test">
+                Última prueba: {d?.testAt ? `${when(d.testAt)} · ${describeDelivery(d.testStatus, d.testSummary)}` : "ninguna"}
+              </p>
+            </div>
+          );
+        })}
+        <label className="grid gap-1">
+          <span className="text-xs text-muted-foreground">{fresh ? "Se usará el token recién generado" : "Pega tu token (solo se compara con el tuyo; no se guarda)"}</span>
+          {fresh ? null : (
+            <input
+              type="password"
+              autoComplete="off"
+              value={pasted}
+              onChange={(e) => setPasted(e.target.value)}
+              data-testid="apple-test-token"
+              className="min-h-11 rounded-md border bg-background px-3"
+            />
+          )}
+        </label>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="min-h-11 justify-self-start"
+          data-testid="apple-test"
+          disabled={busy || !(fresh?.token || pasted.trim())}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              setResult(await api<TestResult>("/api/settings/apple-fitness/test", { method: "POST", body: { token: fresh?.token ?? pasted.trim() } }));
+              setPasted("");
+              await load();
+            } catch (e) {
+              setResult(null);
+              toast.error((e as Error).message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Probar envío
+        </Button>
+        {result ? (
+          <div role="status" className="grid gap-1" data-testid="apple-test-result">
+            <p className="font-medium">{result.ok ? "La prueba ha ido bien: no se ha guardado ningún dato." : "La prueba ha fallado en algún punto."}</p>
+            {(["fitness", "health"] as const).map((k) => (
+              <ul key={k} className="ml-4 list-disc text-xs">
+                {result[k].checks.map((x) => (
+                  <li key={x.label}>
+                    {x.ok ? "✓" : "✗"} {k === "fitness" ? "Entrenos" : "Salud"}: {x.label}
+                  </li>
+                ))}
+              </ul>
+            ))}
+          </div>
+        ) : null}
+        <p className="text-xs text-muted-foreground">
+          Para probar el propio Atajo sin guardar nada, añade <code>?dryRun=1</code> a la URL de envío: responde con lo que ha entendido (día de Madrid, deporte y unidades).
+        </p>
+      </div>
       <details className="rounded-md border p-3">
         <summary className="min-h-11 cursor-pointer py-2 font-medium">Cómo configurar el Atajo (6 pasos)</summary>
         <ol className="ml-5 mt-2 list-decimal space-y-1.5">
@@ -162,7 +268,7 @@ export function AppleFitnessSettings({ initial, baseUrl }: { initial: Status; ba
           Copiar plantilla
         </Button>
         <p className="mt-2 text-xs text-muted-foreground">
-          También vale <code>durationMin</code> o <code>durationSec</code> en lugar de <code>end</code>, <code>distanceM</code> en metros, o varios entrenos en <code>{`{"workouts": [...]}`}</code> (máx. 50). Reenviar el mismo entreno no lo duplica.
+          Admite números con coma y unidades («7,2 km», «2008 kJ», «1 h 5 min», «148 lpm»); si falta la zona horaria, se toma la de Madrid. También vale <code>duration</code>, <code>durationMin</code> o <code>durationSec</code> en lugar de <code>end</code>, <code>distanceM</code> en metros, o varios entrenos en <code>{`{"workouts": [...]}`}</code> (máx. 50). Reenviar el mismo entreno no lo duplica.
         </p>
       </details>
       <details className="rounded-md border p-3" data-testid="health-settings">
@@ -183,7 +289,7 @@ export function AppleFitnessSettings({ initial, baseUrl }: { initial: Status; ba
           Copiar plantilla
         </Button>
         <p className="mt-2 text-xs text-muted-foreground">
-          Todos los campos menos <code>date</code> son opcionales (al menos uno). Varios días en <code>{`{"days": [...]}`}</code> (máx. 14). Reenviar no duplica nada. Un valor vacío o igual al tuyo se guarda solo; si difiere de uno que anotaste tú, no se pisa y eliges en Recuperación. La VFC de Apple es SDNN: se guarda aparte de tu rMSSD. Peso, sueño y VFC no van a la IA ni a tu entrenador/a.
+          Pon <code>date</code> o <code>sleepEnd</code> (el sueño cuenta para el día en que te despiertas) y al menos una métrica; admite unidades («7 h 32 min», «62,3 kg», «52 lpm»). Varios días en <code>{`{"days": [...]}`}</code> (máx. 14). Reenviar no duplica nada. Un valor vacío o igual al tuyo se guarda solo; si difiere de uno que anotaste tú, no se pisa y eliges en Recuperación. La VFC de Apple es SDNN: se guarda aparte de tu rMSSD. Peso, sueño y VFC no van a la IA ni a tu entrenador/a.
         </p>
       </details>
       <p className="text-xs text-muted-foreground">

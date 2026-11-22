@@ -1,4 +1,4 @@
--- v3.1 · Apple Fitness (token, bandeja, kcal) y Apple Salud (VFC SDNN, conflictos); solo añade
+-- solo añade tablas y columnas
 -- CreateEnum
 CREATE TYPE "HealthMetric" AS ENUM ('SLEEP_HOURS', 'HRV_SDNN', 'RESTING_HR', 'BODY_WEIGHT');
 
@@ -31,6 +31,21 @@ CREATE TABLE "HealthSyncConflict" (
 );
 
 -- CreateTable
+CREATE TABLE "AppleDelivery" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "channel" TEXT NOT NULL,
+    "lastAt" TIMESTAMP(3),
+    "lastStatus" INTEGER,
+    "lastSummary" JSONB,
+    "testAt" TIMESTAMP(3),
+    "testStatus" INTEGER,
+    "testSummary" JSONB,
+
+    CONSTRAINT "AppleDelivery_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "PersonalToken" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -53,6 +68,7 @@ CREATE TABLE "ExternalWorkout" (
     "endedAt" TIMESTAMP(3),
     "activityName" TEXT NOT NULL,
     "modality" "TrackModality" NOT NULL,
+    "activityType" TEXT,
     "durationSec" INTEGER NOT NULL,
     "distanceM" DOUBLE PRECISION,
     "hrAvg" INTEGER,
@@ -73,6 +89,9 @@ CREATE INDEX "HealthSyncConflict_userId_status_idx" ON "HealthSyncConflict"("use
 CREATE UNIQUE INDEX "HealthSyncConflict_userId_date_metric_key" ON "HealthSyncConflict"("userId", "date", "metric");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "AppleDelivery_userId_channel_key" ON "AppleDelivery"("userId", "channel");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "PersonalToken_tokenHash_key" ON "PersonalToken"("tokenHash");
 
 -- CreateIndex
@@ -86,6 +105,9 @@ CREATE UNIQUE INDEX "ExternalWorkout_userId_source_dedupeKey_key" ON "ExternalWo
 
 -- AddForeignKey
 ALTER TABLE "HealthSyncConflict" ADD CONSTRAINT "HealthSyncConflict_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppleDelivery" ADD CONSTRAINT "AppleDelivery_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PersonalToken" ADD CONSTRAINT "PersonalToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

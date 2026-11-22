@@ -6,10 +6,11 @@ import { prisma } from "@/lib/prisma";
 import { APPLE_FITNESS } from "@/lib/strava/policy";
 import type { ParsedActivity } from "@/lib/training/activity-import";
 import { previewParsed } from "@/lib/training/activity-import-service";
+import { createSessionSchema } from "@/lib/training/schemas";
 import { createTrainingSession, recomputeSessionsTss } from "@/lib/training/service";
 
 import { canHoldTrack, compareWorkout, mergePatch, type CompareRow, type WatchValues, type WebValues } from "./compare";
-import { normalizeWorkout } from "./normalize";
+import { mapSessionType, normalizeWorkout, type AppleSessionType } from "./normalize";
 import type { WorkoutInput } from "./payload";
 
 /** Guarda en la bandeja (borrador) lo recibido. Idempotente: un reenvío, o el mismo entreno con otro nombre localizado, no duplica. */
@@ -27,6 +28,7 @@ export async function ingestWorkouts(userId: string, workouts: WorkoutInput[]) {
       endedAt: r.endedAt,
       activityName: r.activityName,
       modality: r.modality,
+      activityType: r.activityType,
       durationSec: r.durationSec,
       distanceM: r.distanceM,
       hrAvg: r.hrAvg,
@@ -36,6 +38,14 @@ export async function ingestWorkouts(userId: string, workouts: WorkoutInput[]) {
     skipDuplicates: true,
   });
   return { received: workouts.length, added: count, duplicates: workouts.length - count };
+}
+
+/** Lo que entendió el servidor de un envío, sin guardar nada (`?dryRun=1` y «Probar envío»). */
+export function previewWorkouts(workouts: WorkoutInput[]) {
+  return workouts.map((w) => {
+    const n = normalizeWorkout(w);
+    return { date: n.date, activityType: n.activityType, modality: n.modality, sessionType: mapSessionType(n.activityType), durationSec: n.durationSec, distanceM: n.distanceM, kcal: n.kcal, hrAvg: n.hrAvg, hrMax: n.hrMax };
+  });
 }
 
 export interface PendingSessionView {
@@ -52,6 +62,8 @@ export interface PendingView {
   startedAt: string;
   activityName: string;
   modality: string;
+  /** Cómo se creará al «Crear aparte». */
+  sessionType: AppleSessionType;
   watch: WatchValues;
   /** Sesiones propias de ese día (sin origen externo) con su comparativa. */
   sessions: PendingSessionView[];
@@ -92,6 +104,7 @@ export async function listPending(userId: string): Promise<PendingView[]> {
       startedAt: p.startedAt.toISOString(),
       activityName: p.activityName,
       modality: p.modality,
+      sessionType: mapSessionType(p.activityType ?? p.activityName),
       watch,
       sessions: sessions
         .filter((s) => s.date.getTime() === p.date.getTime())
@@ -170,7 +183,15 @@ export async function importWorkout(userId: string, id: string) {
       avgCadence: null,
       samples: [],
     };
-    const { payload } = await previewParsed(userId, a);
+    const { payload: trackPayload } = await previewParsed(userId, a);
+    const sessionType = mapSessionType(w.activityType ?? w.activityName);
+    // Fuerza: sin parte de pista (el reloj no da series ni distancia útil); mixta y pista conservan la parte de cardio
+    const payload =
+      sessionType === "STRENGTH"
+        ? createSessionSchema.parse({ date: trackPayload.date, startedAt: trackPayload.startedAt, type: "STRENGTH", status: "COMPLETED", title: w.activityName, durationSec: w.durationSec, notes: trackPayload.notes, strength: { sets: [] } })
+        : sessionType === "MIXED"
+          ? createSessionSchema.parse({ ...trackPayload, type: "MIXED" })
+          : trackPayload;
     const created = await createTrainingSession(userId, null, { ...payload, title: w.activityName, kcal: w.kcal }, { keep: { source: APPLE_FITNESS, externalId: `apple:${w.dedupeKey}` } });
     await prisma.externalWorkout.update({ where: { id }, data: { sessionId: created.id } });
     return { ok: true, sessionId: created.id };

@@ -117,6 +117,7 @@ model User {
   personalTokens         PersonalToken[]
   externalWorkouts       ExternalWorkout[]
   healthSyncConflicts    HealthSyncConflict[]
+  appleDeliveries        AppleDelivery[]
   sharedReports          SharedReport[]
   womenHealth            WomenHealth?
   healthLogs             HealthLog[]
@@ -918,6 +919,24 @@ model HealthSyncConflict {
 
   @@unique([userId, date, metric])
   @@index([userId, status])
+}
+
+/// v3.1 C · Diagnóstico de conexión del Atajo de iOS: último envío real y última prueba por vía (FITNESS | HEALTH).
+/// Los resúmenes llevan SOLO recuentos y nombres de campo, nunca valores de salud. Vive aparte del token: revocarlo no borra el historial.
+model AppleDelivery {
+  id          String    @id @default(cuid())
+  userId      String
+  channel     String
+  lastAt      DateTime?
+  lastStatus  Int?
+  lastSummary Json?
+  testAt      DateTime?
+  testStatus  Int?
+  testSummary Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, channel])
 }
 
 // =============================================================================
@@ -1895,6 +1914,8 @@ model ExternalWorkout {
   endedAt      DateTime?
   activityName String
   modality     TrackModality
+  /// v3.1 C · Tipo de actividad tal como llegó de Apple (para volver a mapear el deporte).
+  activityType String?
   durationSec  Int
   distanceM    Float?
   hrAvg        Int?

@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { assertNotRestricted } from "@/lib/privacy/service";
 import { ensureLoadsUpToDate, refreshReadinessRange } from "@/lib/training/service";
 
-import { decide, HEALTH_KEYS, type HealthDay, type HealthKey, KEY_OF, METRIC_OF } from "./health-sync";
+import { decide, HEALTH_KEYS, type HealthDay, type HealthKey, KEY_OF, METRIC_OF, sameValue } from "./health-sync";
 
 type Sync = Partial<Record<HealthKey, number>>;
 
@@ -64,7 +64,7 @@ export async function ingestHealthDays(userId: string, days: HealthDay[]): Promi
       } else {
         det.conflicts.push(key);
         // Resuelto con el mismo valor entrante: no se reabre; con otro valor, sí (nuevo dato de Apple)
-        const same = prior && Math.abs(prior.incomingValue - incoming) < 1e-9 && Math.abs(prior.currentValue - (current ?? 0)) < 1e-9;
+        const same = prior && sameValue(key, prior.incomingValue, incoming) && sameValue(key, prior.currentValue, current ?? 0);
         if (!(prior && prior.status !== "PENDING" && same)) {
           await prisma.healthSyncConflict.upsert({
             where: { userId_date_metric: { userId, date, metric: METRIC_OF[key] } },

@@ -91,7 +91,7 @@ describe.skipIf(!HAS_DB)("Apple Salud (BD real)", () => {
 
   it("igual con tolerancia a lo anotado: se conserva lo anotado, sin aviso; distinto: aviso y NO se pisa", async () => {
     await prisma.recoveryMetrics.create({ data: { userId: a, date: day(D2), restingHr: 48, bodyWeightKg: 61, sleepHours: 8 } });
-    const r = await (await send({ date: D2, restingHr: 49, weightKg: 63, sleepHours: 8.05, hrvSdnnMs: 41 })).json();
+    const r = await (await send({ date: D2, restingHr: 49, weightKg: 63, sleepHours: 8.01, hrvSdnnMs: 41 })).json();
     expect(r).toMatchObject({ saved: 1, unchanged: 2, conflicts: 1 });
     const x = await row(a, D2);
     expect(x).toMatchObject({ restingHr: 48, bodyWeightKg: 61, sleepHours: 8, hrvSdnnMs: 41 });

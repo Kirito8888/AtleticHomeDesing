@@ -140,6 +140,9 @@ function PendingCard({ w }: { w: PendingView }) {
           Descartar
         </Button>
       </div>
+      <p className="text-xs text-muted-foreground" data-testid="apple-create-as">
+        «Crear aparte» la guarda como: {SESSION_TYPE_LABEL[w.sessionType]}.
+      </p>
       <p className="text-xs text-muted-foreground">«Crear aparte» no se comparte con tu entrenador/a ni con la IA (como Strava).</p>
     </section>
   );

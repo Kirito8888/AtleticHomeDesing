@@ -48,7 +48,7 @@ import { PushSettings } from "@/components/settings/push-settings";
 import { TelegramSettings } from "@/components/settings/telegram-settings";
 import { telegramStatus } from "@/lib/telegram/link";
 import { env } from "@/lib/env";
-import { appleTokenStatus } from "@/lib/apple-fitness/token-service";
+import { appleConnectionState, EMPTY_DELIVERIES } from "@/lib/apple-fitness/delivery-service";
 import { AppleFitnessSettings } from "@/components/settings/apple-fitness-settings";
 import { StravaSettings } from "@/components/settings/strava-settings";
 import { stravaStatus } from "@/lib/strava/service";
@@ -254,7 +254,7 @@ export default async function SettingsPage({
       lastError: null,
       sessions: 0,
     }),
-    optional("Apple Fitness", () => appleTokenStatus(user.id), { active: false, createdAt: null, lastUsedAt: null }),
+    optional("Apple Fitness", () => appleConnectionState(user.id), { active: false, createdAt: null, lastUsedAt: null, deliveries: EMPTY_DELIVERIES }),
   ]);
   const monday = startOfIsoWeek(today());
   const reportPeriods = [

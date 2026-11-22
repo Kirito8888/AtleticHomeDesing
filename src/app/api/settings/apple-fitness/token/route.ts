@@ -1,5 +1,6 @@
 import { route } from "@/lib/api";
-import { appleTokenStatus, createAppleToken, revokeAppleToken } from "@/lib/apple-fitness/token-service";
+import { appleConnectionState } from "@/lib/apple-fitness/delivery-service";
+import { createAppleToken, revokeAppleToken } from "@/lib/apple-fitness/token-service";
 import { requireUser } from "@/lib/auth/session";
 import { env } from "@/lib/env";
 import { auditContext, recordEvent } from "@/lib/security/audit";
@@ -7,7 +8,7 @@ import { auditContext, recordEvent } from "@/lib/security/audit";
 /** Token personal de envío para el Atajo de iOS: estado, generar (sustituye al anterior) y revocar. */
 export const GET = route(async () => {
   const user = await requireUser();
-  return appleTokenStatus(user.id);
+  return appleConnectionState(user.id);
 });
 
 export const POST = route(async (req) => {
