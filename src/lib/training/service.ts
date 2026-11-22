@@ -509,11 +509,12 @@ export async function upsertRecovery(userId: string, input: RecoveryInput) {
 type RecoveryRow = Awaited<ReturnType<typeof prisma.recoveryMetrics.findMany>>[number];
 
 /** Readiness de una fila con su historia (días previos en orden de fecha) y el TSB del día. Mismo cálculo en los dos caminos. */
-function readinessData(row: RecoveryRow, history: Array<{ hrvRmssdMs: number | null; restingHr: number | null }>, tsb: number | null) {
+function readinessData(row: RecoveryRow, history: Array<{ hrvRmssdMs: number | null; hrvSdnnMs: number | null; restingHr: number | null }>, tsb: number | null) {
   const result = computeReadiness({
     ...row,
     tsb,
     hrvHistory: history.flatMap((h) => (h.hrvRmssdMs != null ? [h.hrvRmssdMs] : [])),
+    hrvSdnnHistory: history.flatMap((h) => (h.hrvSdnnMs != null ? [h.hrvSdnnMs] : [])),
     restingHrHistory: history.flatMap((h) => (h.restingHr != null ? [h.restingHr] : [])),
   });
   return { readinessScore: result.score, readinessParts: { ...result.parts, label: result.label, ...result.context } };
@@ -527,7 +528,7 @@ export async function refreshReadiness(userId: string, date: Date) {
       where: { userId, date: { gte: addDays(date, -BASELINE_DAYS), lt: date } },
       // Orden fijo: la media y la desviación en coma flotante dependen del orden de la suma (igual que en el lote).
       orderBy: { date: "asc" },
-      select: { hrvRmssdMs: true, restingHr: true },
+      select: { hrvRmssdMs: true, hrvSdnnMs: true, restingHr: true },
     }),
     prisma.dailyLoad.findUnique({ where: { userId_date: { userId, date } } }),
   ]);

@@ -19,10 +19,12 @@ export const GET = route(async (req) => {
   const userId = await resolveAthleteId(user, q.athleteId, "RECOVERY");
   const to = q.to ? dateOnly(q.to) : today();
   const from = q.from ? dateOnly(q.from) : addDays(to, -29);
-  return prisma.recoveryMetrics.findMany({
+  const rows = await prisma.recoveryMetrics.findMany({
     where: { userId, date: { gte: from, lte: to } },
     orderBy: { date: "asc" },
   });
+  // v3.1 B: peso, grasa y lo recibido de Apple Salud son de la dueña; una entrenadora con ámbito RECOVERY no los ve.
+  return userId === user.id ? rows : rows.map(({ bodyWeightKg: _w, bodyFatPct: _f, healthSync: _h, ...rest }) => (void _w, void _f, void _h, rest));
 });
 
 /** Registro diario (upsert por fecha). Devuelve la fila con readinessScore calculado. */

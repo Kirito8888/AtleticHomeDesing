@@ -35,6 +35,8 @@ export const SLEEP_TARGET_HOURS = 8;
 
 export interface ReadinessInput {
   hrvRmssdMs?: number | null;
+  /** v3.1 · VFC de Apple Salud (SDNN). Solo puntúa si no hay rMSSD ese día y contra SU PROPIA línea base. */
+  hrvSdnnMs?: number | null;
   restingHr?: number | null;
   sleepHours?: number | null;
   sleepQuality?: number | null;
@@ -45,6 +47,7 @@ export interface ReadinessInput {
   tsb?: number | null;
   /** Valores de los días previos (idealmente 7–60) para la línea base individual. */
   hrvHistory?: number[];
+  hrvSdnnHistory?: number[];
   restingHrHistory?: number[];
 }
 
@@ -53,7 +56,7 @@ export interface ReadinessResult {
   label: "READY" | "MODERATE" | "RECOVER" | null;
   parts: Partial<Record<ReadinessComponent, number>>;
   /** Información auxiliar para explicar el resultado en la UI / al coach IA. */
-  context: { hrvZ?: number; rhrZ?: number; usedWeight: number };
+  context: { hrvZ?: number; rhrZ?: number; hrvSource?: "rmssd" | "sdnn"; usedWeight: number };
 }
 
 function meanSd(values: number[]): { mean: number; sd: number } | null {
@@ -129,6 +132,14 @@ export function computeReadiness(input: ReadinessInput): ReadinessResult {
     if (r) {
       parts.hrv = r.score;
       context.hrvZ = Math.round(r.z * 100) / 100;
+    }
+  } else if (input.hrvSdnnMs != null) {
+    // SDNN ≠ rMSSD: nunca se comparan entre sí; la SDNN usa solo historia de SDNN
+    const r = hrvScore(input.hrvSdnnMs, input.hrvSdnnHistory ?? []);
+    if (r) {
+      parts.hrv = r.score;
+      context.hrvZ = Math.round(r.z * 100) / 100;
+      context.hrvSource = "sdnn";
     }
   }
   if (input.restingHr != null) {

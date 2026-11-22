@@ -21,6 +21,22 @@ export const APPLE_TEMPLATE = `{
   "hrMax": 171
 }`;
 
+export const HEALTH_TEMPLATE = `{
+  "date": "2026-11-22",
+  "sleepHours": 7.4,
+  "hrvSdnnMs": 48,
+  "restingHr": 52,
+  "weightKg": 62.3
+}`;
+
+const HEALTH_STEPS = [
+  "En Atajos → Automatización → «Nueva automatización personal» → «Hora del día» (p. ej. 09:00, a diario) → «Ejecutar inmediatamente».",
+  "Añade «Encontrar muestras de Salud» para cada métrica (Sueño, Variabilidad de la frecuencia cardiaca, FC en reposo, Peso) con «Inicio: hoy» y «Último».",
+  "Para el sueño suma las muestras «Dormido» (o usa minutos: sleepMin) del día.",
+  "Añade «Obtener contenido de URL» con la URL de envío de arriba, método POST, cuerpo JSON como la plantilla y el encabezado Authorization: Bearer + tu token.",
+  "Ejecútala una vez a mano: lo vacío o igual se guarda solo; si algo difiere de lo que anotaste, verás un aviso en Recuperación.",
+];
+
 const STEPS = [
   "Genera el token aquí abajo y cópialo: solo se muestra una vez.",
   "En la app Atajos crea un atajo nuevo (p. ej. «Enviar entreno a Atlenza»).",
@@ -54,6 +70,7 @@ export function AppleFitnessSettings({ initial, baseUrl }: { initial: Status; ba
   }, []);
   const when = (iso: string | null) => (iso ? formatDateTime(iso, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "nunca");
   // Antes de generar, la ruta relativa basta para la guía; con el token se da la URL completa
+  const healthUrl = `${baseUrl || "https://TU_ATLENZA"}/api/recovery/apple-health`;
   const url = fresh?.endpoint ?? `${baseUrl || "https://TU_ATLENZA"}/api/training/apple-fitness`;
 
   return (
@@ -146,6 +163,27 @@ export function AppleFitnessSettings({ initial, baseUrl }: { initial: Status; ba
         </Button>
         <p className="mt-2 text-xs text-muted-foreground">
           También vale <code>durationMin</code> o <code>durationSec</code> en lugar de <code>end</code>, <code>distanceM</code> en metros, o varios entrenos en <code>{`{"workouts": [...]}`}</code> (máx. 50). Reenviar el mismo entreno no lo duplica.
+        </p>
+      </details>
+      <details className="rounded-md border p-3" data-testid="health-settings">
+        <summary className="min-h-11 cursor-pointer py-2 font-medium">Apple Salud · métricas diarias (sueño, VFC, FC en reposo, peso)</summary>
+        <p className="mt-2">Mismo token. URL de envío:</p>
+        <code className="[overflow-wrap:anywhere] mt-1 block rounded bg-muted p-2 text-xs">{healthUrl}</code>
+        <Button type="button" variant="outline" size="sm" className="mt-2 min-h-11" onClick={() => copy(healthUrl, "URL")}>
+          Copiar URL
+        </Button>
+        <ol className="ml-5 mt-3 list-decimal space-y-1.5">
+          {HEALTH_STEPS.map((x) => (
+            <li key={x}>{x}</li>
+          ))}
+        </ol>
+        <p className="mt-3 font-medium">Plantilla JSON diaria</p>
+        <pre className="mt-1 max-w-full overflow-x-auto rounded bg-muted p-2 text-xs">{HEALTH_TEMPLATE}</pre>
+        <Button type="button" variant="outline" size="sm" className="mt-2 min-h-11" onClick={() => copy(HEALTH_TEMPLATE, "Plantilla")}>
+          Copiar plantilla
+        </Button>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Todos los campos menos <code>date</code> son opcionales (al menos uno). Varios días en <code>{`{"days": [...]}`}</code> (máx. 14). Reenviar no duplica nada. Un valor vacío o igual al tuyo se guarda solo; si difiere de uno que anotaste tú, no se pisa y eliges en Recuperación. La VFC de Apple es SDNN: se guarda aparte de tu rMSSD. Peso, sueño y VFC no van a la IA ni a tu entrenador/a.
         </p>
       </details>
       <p className="text-xs text-muted-foreground">

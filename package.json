@@ -40,6 +40,7 @@
     "e2e:macros": "tsx e2e/macros.mts",
     "e2e:historial": "tsx e2e/historial.mts",
     "e2e:apple": "tsx e2e/apple.mts",
+    "e2e:health": "tsx e2e/apple-health.mts",
     "e2e:v25j": "tsx e2e/v25j.mts",
     "e2e:v25k": "tsx e2e/v25k.mts",
     "e2e:v25l": "tsx e2e/v25l.mts",

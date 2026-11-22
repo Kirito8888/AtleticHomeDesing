@@ -5,6 +5,7 @@ import { Moon } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { CycleCard } from "@/components/recovery/cycle-card";
 import { InjuriesPanel } from "@/components/recovery/injuries-panel";
+import { HealthConflicts } from "@/components/recovery/health-conflicts";
 import { RecoveryForm } from "@/components/recovery/recovery-form";
 import { readinessStatus, StatusLabel } from "@/components/status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ import { getCycle } from "@/lib/health/cycle-service";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { dataKeyConfigured } from "@/lib/security/data-key";
+import { listConflicts } from "@/lib/recovery/health-sync-service";
 import { listInjuries } from "@/lib/recovery/injuries";
 import { listInjuryPhotos } from "@/lib/recovery/wellbeing-service";
 import { explainReadiness, PART_LABEL } from "@/lib/training/explain";
@@ -35,11 +37,12 @@ export const metadata = { title: "Recuperación · Atlenza" };
 export default async function RecoveryPage() {
   const user = await pageUser();
   const now = today();
-  const [todayRow, recent, profile, injuries] = await Promise.all([
+  const [todayRow, recent, profile, injuries, conflicts] = await Promise.all([
     prisma.recoveryMetrics.findUnique({ where: { userId_date: { userId: user.id, date: now } } }),
     prisma.recoveryMetrics.findMany({ where: { userId: user.id, date: { gte: addDays(now, -13) } }, orderBy: { date: "desc" } }),
     prisma.athleteProfile.findUnique({ where: { userId: user.id }, select: { bodyWeightKg: true, sex: true } }),
     listInjuries(user.id),
+    listConflicts(user.id),
   ]);
   const parts = (todayRow?.readinessParts ?? {}) as Partial<Record<ReadinessComponent, number>> & { label?: keyof typeof READINESS_LABEL; usedWeight?: number };
   const status = readinessStatus(todayRow?.readinessScore);
@@ -90,6 +93,7 @@ export default async function RecoveryPage() {
           Citas y suplementos
         </Link>
       </nav>
+      <HealthConflicts items={conflicts} />
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <div id="registro" className="scroll-mt-20">
         <RecoveryForm
@@ -252,7 +256,7 @@ export default async function RecoveryPage() {
                       <tr key={r.id}>
                         <td>{formatDate(r.date)}</td>
                         <td className="text-right">{r.readinessScore != null ? Math.round(r.readinessScore) : "—"}</td>
-                        <td className="text-right">{formatNum(r.hrvRmssdMs)}</td>
+                        <td className="text-right">{r.hrvRmssdMs != null ? formatNum(r.hrvRmssdMs) : r.hrvSdnnMs != null ? `${formatNum(r.hrvSdnnMs)} (SDNN)` : "—"}</td>
                         <td className="text-right">{formatNum(r.sleepHours)}</td>
                       </tr>
                     ))}

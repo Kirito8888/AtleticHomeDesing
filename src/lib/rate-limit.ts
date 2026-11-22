@@ -60,6 +60,8 @@ export const LIMITS = {
   sharedReport: { limit: 60, windowMs: 60 * 60_000 },
   /** v3.1 · Envío de entrenos del Atajo de iOS (token Bearer): por IP antes de mirar el token y por usuaria después. */
   appleFitness: { limit: 120, windowMs: 60 * 60_000 },
+  /** v3.1 B · Envío diario de métricas de Apple Salud (mismo token Bearer). */
+  appleHealth: { limit: 60, windowMs: 60 * 60_000 },
   /** v2.0 · Compartir mazos de flashcards por email. */
   deckShare: { limit: 30, windowMs: 60 * 60_000 },
   /** v2.1 · Compartir protocolos de fisio y alta de curvas (escrituras de la entrenadora). */
