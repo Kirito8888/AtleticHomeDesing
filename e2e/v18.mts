@@ -171,6 +171,8 @@ await go(B + "/");
 await page.getByRole("link", { name: /Notificaciones: \d+ sin leer/ }).first().click();
 await page.waitForURL(/\/notifications/);
 await page.getByRole("list", { name: "Notificaciones" }).getByText("Nuevo inicio de sesión en Atlenza").first().waitFor();
+// Tras una navegación suave el <title> llega después del contenido: axe (document-title) no debe medir antes.
+await page.waitForFunction(() => document.title.includes("Notificaciones"), undefined, { timeout: 15_000 });
 await checkA11y("/notifications");
 await page.getByRole("link", { name: "Notificaciones", exact: true }).first().waitFor({ timeout: 15_000 });
 
