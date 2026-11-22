@@ -214,6 +214,14 @@ Dentro de una asignatura (`/study/modules/…`), sección **Resumen y web de est
 
 Tu progreso del juego se guarda en tu cuenta: lo ves igual desde el móvil y el ordenador.
 
+## Novedades de la v3.0.1 (preview): Apple Fitness y Apple Salud
+
+- **Conectar el reloj y Salud:** Ajustes → Apple Fitness → «Generar token». Cópialo en el momento (no se vuelve a mostrar; si lo pierdes, revócalo y crea otro). Un Atajo del iPhone envía los datos con ese token; el mismo token sirve para entrenos y para Salud.
+- **Entrenos del reloj:** llegan a una **bandeja de borradores** en Entreno. Cada uno muestra una comparativa y qué haría («la guarda como: …»). Nada entra en tu diario hasta que aceptas: «Crear aparte» o «Completar» una sesión tuya (solo rellena lo que le falte). Lo importado de Apple no se comparte con la IA, tu entrenadora ni tu club.
+- **Salud diaria:** sueño, VFC, FC en reposo y peso. Si el campo está vacío se guarda; si coincide, se conserva; si **difiere de lo que anotaste a mano, no se pisa**: en Recuperación aparece un aviso para elegir qué valor queda. La VFC de Apple (SDNN) se puntúa solo contra su propia línea base.
+- **Unidades:** el Atajo puede mandar kcal o kJ, m/km/mi, h/min/s, kg/g/lb. Un número sin unidad se interpreta en la unidad del campo. Las horas sin zona se toman como hora de Madrid; el sueño cuenta para el día en que te despiertas.
+- **Si algo no llega:** Ajustes → Apple Fitness → «Diagnóstico de conexión» (último envío y última prueba) y «Probar envío» (pega tu token; usa datos de prueba y no guarda nada).
+
 ## Novedades de la v3.0 (preview)
 
 - **Hoy:** la portada te propone una sola cosa para ahora, con el motivo («Por qué»), y registra serie, toma, agua o gasto en uno o dos toques.

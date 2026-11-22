@@ -19,13 +19,15 @@ cd "$(dirname "$0")/../.." || exit 2
 
 # ─────────────── ACTUALIZAR EN CADA CIERRE DE VERSIÓN (CLAUDE.md, docs/como-trabajar.md) ───────────────
 # Última migración de prisma/migrations que debe estar aplicada en producción.
-EXPECTED_MIGRATION="20270701080000_v2_9_features"
+EXPECTED_MIGRATION="20270801080000_v3_1_features"
 # Páginas públicas (200 sin sesión) y la API de salud.
 PUBLIC_ROUTES=(/login /register /offline /legal/privacidad /legal/condiciones /legal/aviso /legal/accesibilidad)
 # Páginas privadas: sin sesión deben redirigir (302/307) a /login; con COOKIE_SESION, 200.
 PRIVATE_PAGES=(/ /training /nutrition /planning /study /recovery /goals /finance /settings /notifications)
 # API privadas GET: sin sesión deben dar 401.
-PRIVATE_API=(/api/notifications /api/ai/flashcards/due /api/training/history-import/template /api/coach/recovery-consent /api/training/apple-fitness/pending /api/settings/apple-fitness/token /api/settings/apple-fitness/test)
+PRIVATE_API=(/api/notifications /api/ai/flashcards/due /api/training/history-import/template /api/coach/recovery-consent /api/training/apple-fitness/pending /api/settings/apple-fitness/token)
+# API privadas que solo aceptan POST: un GET sin sesión debe dar 405 (el doctor nunca escribe, así que solo comprueba que existen).
+POST_ONLY_API=(/api/training/apple-fitness /api/recovery/apple-health /api/settings/apple-fitness/test)
 # Claves que, vacías o ausentes, impiden arrancar o dejan la web insegura.
 CRITICAL_KEYS=(AUTH_SECRET AUTH_URL POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB TOTP_ENCRYPTION_KEY STAFF_2FA_REQUIRED_FROM)
 # ─────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -335,6 +337,19 @@ check_web() {
     esac
   done
   [ "$bad" = 1 ] || ok "API privadas sin sesión → 401 (${#PRIVATE_API[@]})."
+
+  bad=0
+  for r in "${POST_ONLY_API[@]}"; do
+    req "$r"
+    case "$CODE" in
+      405) : ;;
+      200) bad=1; fallo "$r → 200 con GET." "una ruta solo-POST responde a GET (¿cambió el método?)." "$LOGS_WEB" ;;
+      5??) bad=1; fallo "$r → $CODE." "la API falla en el servidor." "$LOGS_WEB | grep -i error" ;;
+      000) bad=1; fallo "$r no responde." "la web se ha colgado." "$LOGS_WEB" ;;
+      *) bad=1; aviso "$r → $CODE con GET (se esperaba 405)." "¿ruta movida o ahora con GET? actualiza POST_ONLY_API en doctor.sh." ;;
+    esac
+  done
+  [ "$bad" = 1 ] || ok "API solo-POST: existen y rechazan GET con 405 (${#POST_ONLY_API[@]})."
 
   if [ -n "${COOKIE_SESION:-}" ]; then
     if [[ "$COOKIE_SESION" == *=* ]]; then COOKIE_HDR="$COOKIE_SESION"
