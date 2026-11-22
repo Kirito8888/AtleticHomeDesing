@@ -28,6 +28,7 @@ const LOAD: Record<string, () => Promise<unknown>> = {
   "planning/events/[id]": () => import("@/app/api/planning/events/[id]/route"),
   "study/modules/[id]": () => import("@/app/api/study/modules/[id]/route"),
   "training/apple-fitness/pending/[id]": () => import("@/app/api/training/apple-fitness/pending/[id]/route"),
+  "recovery/apple-health/conflicts/[id]": () => import("@/app/api/recovery/apple-health/conflicts/[id]/route"),
 };
 const SESSION_BODY = { date: "2026-10-05", type: "MIXED", status: "COMPLETED", durationSec: 600, sessionRpe: 3, title: "HACKEADA" };
 const HAS_DB = Boolean(process.env.DATABASE_URL);
@@ -37,6 +38,7 @@ const TESTED_HERE = [
   "tasks/[id]", "goals/[id]", "habits/[id]", "finance/accounts/[id]", "recovery/injuries/[id]", "training/sessions/[id]",
   "training/sessions/[id]/comments", "planning/cycles/[id]", "planning/events/[id]", "study/modules/[id]",
   "clubs/[id]/members/[memberId]", "clubs/[id]/fees/[feeId]", "training/apple-fitness/pending/[id]",
+  "recovery/apple-health/conflicts/[id]",
 ];
 /** Rutas con prueba negativa en otro fichero (ruta o servicio). */
 const TESTED_ELSEWHERE = [
@@ -107,6 +109,7 @@ describe.skipIf(!HAS_DB)("usuaria B contra recursos de A (BD real)", () => {
     R.session = (await prisma.trainingSession.create({ data: { userId: a, date: day, type: "STRENGTH", status: "COMPLETED", durationSec: 3600, sessionRpe: 5, title: "RI-SESION" } })).id;
     R.stravaSession = (await prisma.trainingSession.create({ data: { userId: a, date: day, type: "TRACK", status: "COMPLETED", durationSec: 3000, sessionRpe: 6, title: "RI-STRAVA", source: "STRAVA", externalId: `strava:ri-${t}` } })).id;
     R.apple = (await prisma.externalWorkout.create({ data: { userId: a, source: "APPLE_FITNESS", dedupeKey: `ri-${t}`, date: day, startedAt: day, activityName: "RI-APPLE", modality: "RUN", durationSec: 1800 } })).id;
+    R.health = (await prisma.healthSyncConflict.create({ data: { userId: a, date: day, metric: "RESTING_HR", currentValue: 50, incomingValue: 60 } })).id;
     R.comment = (await prisma.sessionComment.create({ data: { sessionId: R.session, athleteId: a, authorId: a, body: "RI-COMENTARIO" } })).id;
     R.cycle = (await prisma.trainingCycle.create({ data: { userId: a, level: "MESO", name: "RI-CICLO", startDate: day, endDate: new Date(Date.UTC(2026, 10, 5)) } })).id;
     R.event = (await prisma.calendarEvent.create({ data: { userId: a, type: "COMPETITION", title: "RI-EVENTO", startAt: day, priority: "A" } })).id;
@@ -141,6 +144,7 @@ describe.skipIf(!HAS_DB)("usuaria B contra recursos de A (BD real)", () => {
     { route: "study/modules/[id]", url: () => `/api/study/modules/${R.module}`, params: () => ({ id: R.module }), bodies: { PATCH: { name: "HACKEADA" } } },
     // v3.1 · bandeja de Apple Fitness: solo la dueña (ni con ?athleteId); POST merge/import/discard
     { route: "training/apple-fitness/pending/[id]", url: () => `/api/training/apple-fitness/pending/${R.apple}`, params: () => ({ id: R.apple }), bodies: { POST: { action: "discard" } } },
+    { route: "recovery/apple-health/conflicts/[id]", url: () => `/api/recovery/apple-health/conflicts/${R.health}`, params: () => ({ id: R.health }), bodies: { POST: { keep: "incoming" } } },
   ];
   const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
 
@@ -173,6 +177,7 @@ describe.skipIf(!HAS_DB)("usuaria B contra recursos de A (BD real)", () => {
     expect((await prisma.calendarEvent.findUnique({ where: { id: R.event } }))?.title).toBe("RI-EVENTO");
     expect((await prisma.studyModule.findUnique({ where: { id: R.module } }))?.name).toBe("RI-ASIGNATURA");
     expect((await prisma.externalWorkout.findUnique({ where: { id: R.apple } }))?.status).toBe("PENDING");
+    expect((await prisma.healthSyncConflict.findUnique({ where: { id: R.health } }))?.status).toBe("PENDING");
   });
 
   it("sesiones: entrenadora sin vínculo, revocada, pendiente, ADMIN global y staff de otro club → 403 (lectura y escritura)", async () => {

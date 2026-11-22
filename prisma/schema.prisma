@@ -116,6 +116,7 @@ model User {
   calendarFeeds          CalendarFeed[]
   personalTokens         PersonalToken[]
   externalWorkouts       ExternalWorkout[]
+  healthSyncConflicts    HealthSyncConflict[]
   sharedReports          SharedReport[]
   womenHealth            WomenHealth?
   healthLogs             HealthLog[]
@@ -858,6 +859,7 @@ model RecoveryMetrics {
   sleepHours     Float?
   sleepQuality   Int? // 1-5
   hrvRmssdMs     Float? // VFC (rMSSD, ms) medida al despertar
+  hrvSdnnMs      Float? // v3.1 · VFC de Apple Salud (SDNN, ms): otra medida; nunca se mezcla con la rMSSD
   restingHr      Int? // FC en reposo
   doms           Int? // 0-10 dolor muscular de aparición tardía
   domsAreas      MuscleGroup[]
@@ -875,12 +877,47 @@ model RecoveryMetrics {
   readinessScore Float? // 0-100
   readinessParts Json? // { tsb, hrv, sleep, rhr, doms }
   notes          String?
+  /// v3.1 · Último valor escrito por Apple Salud por métrica ({ sleepHours, hrvSdnnMs, restingHr, bodyWeightKg }).
+  /// Si el campo sigue valiendo eso, un nuevo envío lo sustituye sin aviso; si la usuaria lo cambió, hay conflicto.
+  healthSync     Json?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, date])
+}
+
+enum HealthMetric {
+  SLEEP_HOURS
+  HRV_SDNN
+  RESTING_HR
+  BODY_WEIGHT
+}
+
+enum HealthConflictStatus {
+  PENDING
+  KEPT_CURRENT
+  TOOK_INCOMING
+}
+
+/// v3.1 · Valor de Apple Salud distinto de uno anotado ese día: no se sobrescribe, la usuaria elige en /recovery.
+/// Uno por (usuaria, día, métrica). Salud: no va a la IA ni a la entrenadora.
+model HealthSyncConflict {
+  id            String               @id @default(cuid())
+  userId        String
+  date          DateTime             @db.Date
+  metric        HealthMetric
+  currentValue  Float
+  incomingValue Float
+  status        HealthConflictStatus @default(PENDING)
+  receivedAt    DateTime             @default(now())
+  resolvedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date, metric])
+  @@index([userId, status])
 }
 
 // =============================================================================

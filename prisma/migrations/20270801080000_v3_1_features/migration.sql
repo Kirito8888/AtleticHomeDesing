@@ -1,9 +1,34 @@
--- v3.1 · Apple Fitness: token personal, bandeja de entrenos y kcal; solo añade
+-- v3.1 · Apple Fitness (token, bandeja, kcal) y Apple Salud (VFC SDNN, conflictos); solo añade
+-- CreateEnum
+CREATE TYPE "HealthMetric" AS ENUM ('SLEEP_HOURS', 'HRV_SDNN', 'RESTING_HR', 'BODY_WEIGHT');
+
+-- CreateEnum
+CREATE TYPE "HealthConflictStatus" AS ENUM ('PENDING', 'KEPT_CURRENT', 'TOOK_INCOMING');
+
 -- CreateEnum
 CREATE TYPE "ExternalWorkoutStatus" AS ENUM ('PENDING', 'MERGED', 'IMPORTED', 'DISCARDED');
 
 -- AlterTable
+ALTER TABLE "RecoveryMetrics" ADD COLUMN     "healthSync" JSONB,
+ADD COLUMN     "hrvSdnnMs" DOUBLE PRECISION;
+
+-- AlterTable
 ALTER TABLE "TrainingSession" ADD COLUMN     "kcal" INTEGER;
+
+-- CreateTable
+CREATE TABLE "HealthSyncConflict" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "date" DATE NOT NULL,
+    "metric" "HealthMetric" NOT NULL,
+    "currentValue" DOUBLE PRECISION NOT NULL,
+    "incomingValue" DOUBLE PRECISION NOT NULL,
+    "status" "HealthConflictStatus" NOT NULL DEFAULT 'PENDING',
+    "receivedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "resolvedAt" TIMESTAMP(3),
+
+    CONSTRAINT "HealthSyncConflict_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "PersonalToken" (
@@ -42,6 +67,12 @@ CREATE TABLE "ExternalWorkout" (
 );
 
 -- CreateIndex
+CREATE INDEX "HealthSyncConflict_userId_status_idx" ON "HealthSyncConflict"("userId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "HealthSyncConflict_userId_date_metric_key" ON "HealthSyncConflict"("userId", "date", "metric");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "PersonalToken_tokenHash_key" ON "PersonalToken"("tokenHash");
 
 -- CreateIndex
@@ -52,6 +83,9 @@ CREATE INDEX "ExternalWorkout_userId_status_idx" ON "ExternalWorkout"("userId", 
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ExternalWorkout_userId_source_dedupeKey_key" ON "ExternalWorkout"("userId", "source", "dedupeKey");
+
+-- AddForeignKey
+ALTER TABLE "HealthSyncConflict" ADD CONSTRAINT "HealthSyncConflict_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PersonalToken" ADD CONSTRAINT "PersonalToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
