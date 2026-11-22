@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 
 import type { Prisma } from "@/generated/prisma/client";
-import { notFromStrava, STRAVA } from "@/lib/strava/policy";
+import { fromPrivateSource, notFromStrava } from "@/lib/strava/policy";
 import { generateJson } from "@/lib/ai/llm";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { addDays, round, startOfIsoWeek, toIsoDay } from "@/lib/dates";
@@ -30,7 +30,7 @@ export async function buildWeeklySnapshot(userId: string, weekStart: Date, opts:
   const baselineStart = addDays(weekStart, -BASELINE_DAYS);
 
   // La carga acumulada (PMC) se calcula con todas las sesiones: si hay de Strava en la ventana, no se envía
-  const stravaInWindow = await prisma.trainingSession.count({ where: { userId, source: STRAVA, date: { gte: baselineStart, lte: weekEnd } } });
+  const stravaInWindow = await prisma.trainingSession.count({ where: { userId, ...fromPrivateSource, date: { gte: baselineStart, lte: weekEnd } } });
   const [profile, loads, sessions, prevWeek, recovery, events, cycles] = await Promise.all([
     prisma.athleteProfile.findUnique({ where: { userId } }),
     prisma.dailyLoad.findMany({ where: { userId, date: { gte: baselineStart, lte: weekEnd } }, orderBy: { date: "asc" } }),

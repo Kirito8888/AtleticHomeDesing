@@ -11,7 +11,7 @@ describe("arquitectura: lib/ai no alcanza la salud cifrada", () => {
     expect(listSources("src/lib/ai").length).toBeGreaterThan(5);
   });
 
-  it("ninguna cadena de imports desde lib/ai llega a lib/health/{isak,cycle,women}*", () => {
+  it("ninguna cadena de imports desde lib/ai llega a lib/health/{isak,cycle,women}* ni a lib/apple-fitness", () => {
     const chains = forbiddenChains(listSources("src/lib/ai"));
     expect(chains.map((c) => c.join(" → "))).toEqual([]);
   });
@@ -25,6 +25,11 @@ describe("arquitectura: lib/ai no alcanza la salud cifrada", () => {
     const exists = (p: string) => p in files;
     const chains = forbiddenChains(["src/lib/ai/x.ts"], read, exists).map((c) => c.at(-1));
     expect(chains.sort()).toEqual(["src/lib/health/cycle-service", "src/lib/health/women"]);
+  });
+
+  it("pilla un import de lib/apple-fitness (v3.1: sus datos no van a la IA)", () => {
+    const read = () => 'import { listPending } from "@/lib/apple-fitness/inbox-service";';
+    expect(forbiddenChains(["src/lib/ai/x.ts"], read, () => false).map((c) => c.at(-1))).toEqual(["src/lib/apple-fitness/inbox-service"]);
   });
 
   it("no da falsos positivos con rutas parecidas", () => {

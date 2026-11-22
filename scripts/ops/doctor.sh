@@ -25,7 +25,7 @@ PUBLIC_ROUTES=(/login /register /offline /legal/privacidad /legal/condiciones /l
 # Páginas privadas: sin sesión deben redirigir (302/307) a /login; con COOKIE_SESION, 200.
 PRIVATE_PAGES=(/ /training /nutrition /planning /study /recovery /goals /finance /settings /notifications)
 # API privadas GET: sin sesión deben dar 401.
-PRIVATE_API=(/api/notifications /api/ai/flashcards/due /api/training/history-import/template /api/coach/recovery-consent)
+PRIVATE_API=(/api/notifications /api/ai/flashcards/due /api/training/history-import/template /api/coach/recovery-consent /api/training/apple-fitness/pending /api/settings/apple-fitness/token)
 # Claves que, vacías o ausentes, impiden arrancar o dejan la web insegura.
 CRITICAL_KEYS=(AUTH_SECRET AUTH_URL POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB TOTP_ENCRYPTION_KEY STAFF_2FA_REQUIRED_FROM)
 # ─────────────────────────────────────────────────────────────────────────────────────────────────────────

@@ -20,7 +20,7 @@ export interface Sample {
 }
 
 export interface ParsedActivity {
-  format: "FIT" | "GPX" | "TCX" | "Strava";
+  format: "FIT" | "GPX" | "TCX" | "Strava" | "Apple";
   device: string | null;
   sport: string | null;
   modality: Modality;

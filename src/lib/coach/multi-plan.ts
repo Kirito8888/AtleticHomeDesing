@@ -110,7 +110,7 @@ export async function previewAssignment(coach: CurrentUser, input: z.infer<typeo
     }
     // La carga de partida (CTL/ATL) incluye Strava: no se enseña ni se proyecta a la entrenadora
     if (await hasStravaIn(p.id, addDays(dateOnly(todayIso), -120), dateOnly(todayIso))) {
-      row.simulationNote = "La carga incluye actividad de Strava: se puede copiar, pero no simular";
+      row.simulationNote = "La carga incluye actividad importada (Strava o Apple Fitness): se puede copiar, pero no simular";
       return row;
     }
     const to = toIsoDay(addDays(dateOnly(lastDraft < todayIso ? todayIso : lastDraft), 14));

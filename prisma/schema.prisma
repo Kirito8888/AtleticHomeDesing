@@ -114,6 +114,8 @@ model User {
   oneRepMaxes            OneRepMax[]
   exerciseAliases        ExerciseAlias[]
   calendarFeeds          CalendarFeed[]
+  personalTokens         PersonalToken[]
+  externalWorkouts       ExternalWorkout[]
   sharedReports          SharedReport[]
   womenHealth            WomenHealth?
   healthLogs             HealthLog[]
@@ -533,6 +535,10 @@ model TrainingSession {
   // v1.10 · origen externo (p. ej. STRAVA) e id allí: sin duplicados; lo de Strava no va a la IA ni a la entrenadora
   source     String?
   externalId String?
+  // v3.1 · Calorías activas (solo las trae el reloj al fusionar un entreno de Apple Fitness)
+  kcal       Int?
+
+  externalWorkouts ExternalWorkout[]
 
   @@unique([userId, externalId])
   @@unique([userId, clientId])
@@ -1817,6 +1823,56 @@ model CalendarFeed {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+/// v3.1 · Token personal de envío (p. ej. Atajo de iOS → Apple Fitness). Uno por propósito; revocar = borrar. Solo el hash.
+model PersonalToken {
+  id         String    @id @default(cuid())
+  userId     String
+  purpose    String
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, purpose])
+}
+
+enum ExternalWorkoutStatus {
+  PENDING
+  MERGED
+  IMPORTED
+  DISCARDED
+}
+
+/// v3.1 · Bandeja de entrenos recibidos del reloj (borrador): nada entra en el diario hasta aceptarlo.
+/// Idempotente por (usuaria, origen, clave = día|inicio|modalidad). No va a la IA ni a la entrenadora.
+model ExternalWorkout {
+  id           String                @id @default(cuid())
+  userId       String
+  source       String
+  dedupeKey    String
+  date         DateTime              @db.Date
+  startedAt    DateTime
+  endedAt      DateTime?
+  activityName String
+  modality     TrackModality
+  durationSec  Int
+  distanceM    Float?
+  hrAvg        Int?
+  hrMax        Int?
+  kcal         Int?
+  status       ExternalWorkoutStatus @default(PENDING)
+  sessionId    String?
+  receivedAt   DateTime              @default(now())
+  resolvedAt   DateTime?
+
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session TrainingSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, source, dedupeKey])
+  @@index([userId, status])
 }
 
 /// Informe de solo lectura para la entrenadora (enlace con caducidad). Se guarda el hash del token.

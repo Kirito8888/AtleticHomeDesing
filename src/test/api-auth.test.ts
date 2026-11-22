@@ -13,11 +13,12 @@ const PUBLIC_ROUTES = new Set([
   "report/[token]/route.ts", // informe para la entrenadora: token de 32 bytes, caduca a los 7 días, revocable
   "shared/health/[token]/route.ts", // v1.6: resumen para la médica o el fisio, lo crea la propia persona: token, 7 días, revocable
   "passkeys/login-options/route.ts", // v1.7: reto aleatorio de un solo uso para entrar con llave; sin datos, limitado por IP
+  "training/apple-fitness/route.ts", // v3.1: envío del Atajo de iOS con token personal Bearer (hash en BD, revocable); límite por IP y por usuaria, solo escribe en la bandeja de borradores
   "csp-report/route.ts", // v1.8: informes de la CSP que manda el navegador; limitado por IP, 8 KB, sin datos de usuario
 ]);
 
 // Las rutas públicas con token deben limitar peticiones y validar el token.
-const TOKEN_ROUTES = ["calendar/ics/[token]/route.ts", "report/[token]/route.ts", "shared/health/[token]/route.ts"];
+const TOKEN_ROUTES = ["calendar/ics/[token]/route.ts", "report/[token]/route.ts", "shared/health/[token]/route.ts", "training/apple-fitness/route.ts"];
 
 const API = path.resolve(__dirname, "../app/api");
 
