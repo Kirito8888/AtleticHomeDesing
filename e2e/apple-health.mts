@@ -96,6 +96,40 @@ await p.waitForTimeout(1000);
 need((await p.getByTestId("health-conflicts").count()) === 0, "el aviso descartado no debe reabrirse");
 log("quedarme con lo anotado");
 
+// 7) Sin Atajos: importar el export.xml desde Ajustes (entrenos a la bandeja, métricas por día, lo anotado no se pisa)
+const plusDay = (iso: string, n: number) => new Date(Date.parse(`${iso}T12:00:00Z`) + n * 864e5).toISOString().slice(0, 10);
+const yest = plusDay(todayMadrid, -1);
+const exportXml = `<?xml version="1.0"?><HealthData>
+<Record type="HKCategoryTypeIdentifierSleepAnalysis" startDate="${plusDay(todayMadrid, -2)} 23:00:00 +0200" endDate="${yest} 06:30:00 +0200" value="HKCategoryValueSleepAnalysisAsleepCore"/>
+<Record type="HKQuantityTypeIdentifierHeartRateVariabilitySDNN" unit="ms" startDate="${yest} 03:00:00 +0200" endDate="${yest} 03:00:00 +0200" value="47"/>
+<Record type="HKQuantityTypeIdentifierBodyMass" unit="kg" startDate="${todayMadrid} 07:00:00 +0200" endDate="${todayMadrid} 07:00:00 +0200" value="66.5"/>
+<Workout workoutActivityType="HKWorkoutActivityTypeRunning" duration="40" durationUnit="min" startDate="${yest} 08:30:00 +0200" endDate="${yest} 09:10:00 +0200">
+ <WorkoutStatistics type="HKQuantityTypeIdentifierDistanceWalkingRunning" sum="6.5" unit="km"/>
+ <WorkoutStatistics type="HKQuantityTypeIdentifierActiveEnergyBurned" sum="420" unit="kcal"/>
+</Workout></HealthData>`;
+await p.goto(B + "/settings#apple-fitness", { waitUntil: "load" });
+await p.waitForTimeout(1500);
+await p.getByTestId("apple-file-import").locator("summary").click();
+await p.getByLabel("Fichero export.xml de Apple Health").setInputFiles({ name: "export.xml", mimeType: "text/xml", buffer: Buffer.from(exportXml) });
+const prev = p.getByLabel("Vista previa de Apple Health");
+await prev.getByText(/2 días · último/).waitFor();
+await prev.getByText(/1 entrenos · último: Correr/).waitFor();
+await noHScroll("importar archivo");
+await p.getByRole("button", { name: "Importar 2 días y 1 entrenos" }).click();
+await p.getByText(/2 días importados · 1 entrenos a la bandeja · 1 avisos en Recuperación/).waitFor();
+const pending = ((await (await p.request.get(B + "/api/training/apple-fitness/pending")).json()) as { items: unknown[] }).items;
+need(Array.isArray(pending) && pending.length === 1, `bandeja tras importar: ${JSON.stringify(pending).slice(0, 200)}`);
+const ry = (await p.request.get(B + `/api/recovery?from=${yest}&to=${yest}`).then((r) => r.json())) as Array<{ sleepHours: number; hrvSdnnMs: number; hrvRmssdMs: number | null }>;
+need(ry[0]?.sleepHours === 7.5 && ry[0]?.hrvSdnnMs === 47 && ry[0]?.hrvRmssdMs == null, `métricas importadas: ${JSON.stringify(ry[0])}`);
+// Reimportar el mismo fichero no duplica el entreno ni cambia nada
+await p.reload({ waitUntil: "load" });
+await p.waitForTimeout(1000);
+await p.getByTestId("apple-file-import").evaluate((d) => ((d as HTMLDetailsElement).open = true));
+await p.getByLabel("Fichero export.xml de Apple Health").setInputFiles({ name: "export.xml", mimeType: "text/xml", buffer: Buffer.from(exportXml) });
+await p.getByRole("button", { name: "Importar 2 días y 1 entrenos" }).click();
+await p.getByText(/0 entrenos a la bandeja \(1 ya estaban\)/).waitFor();
+log("importar export.xml: entrenos a la bandeja, métricas por día y reimportación sin duplicar");
+
 await browser.close();
 if (errors.length) {
   console.error("✘", errors.join("\n✘ "));
