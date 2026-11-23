@@ -152,14 +152,22 @@ export interface HealthDay {
   bodyWeightKg: number | null;
 }
 
+/** Fusiona días repetidos: gana el último valor de cada métrica. */
+export function mergeHealthDays(days: HealthDay[]): HealthDay[] {
+  const by = new Map<string, HealthDay>();
+  for (const d of days) {
+    const prev = by.get(d.date);
+    by.set(d.date, prev ? ({ ...prev, ...Object.fromEntries(Object.entries(d).filter(([, v]) => v != null)) } as HealthDay) : d);
+  }
+  return [...by.values()];
+}
+
 /** Un día o `{ days: [...] }` (hasta 14). Los días repetidos se fusionan: gana el último valor de cada métrica. */
 export const healthPayloadSchema = z
   .union([healthDaySchema, z.object({ days: z.array(healthDaySchema).min(1).max(14) }).transform((b) => b.days.flat())])
-  .transform((days) => {
-    const by = new Map<string, HealthDay>();
-    for (const d of days) {
-      const prev = by.get(d.date);
-      by.set(d.date, prev ? ({ ...prev, ...Object.fromEntries(Object.entries(d).filter(([, v]) => v != null)) } as HealthDay) : d);
-    }
-    return [...by.values()];
-  });
+  .transform(mergeHealthDays);
+
+/** Importación desde fichero (export.xml de Salud, leído en el navegador): hasta 400 días por envío. */
+export const healthImportSchema = z
+  .object({ days: z.array(healthDaySchema).min(1).max(400) })
+  .transform((b) => mergeHealthDays(b.days.flat()));

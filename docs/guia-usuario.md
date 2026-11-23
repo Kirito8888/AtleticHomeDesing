@@ -220,6 +220,7 @@ Tu progreso del juego se guarda en tu cuenta: lo ves igual desde el móvil y el 
 - **Entrenos del reloj:** llegan a una **bandeja de borradores** en Entreno. Cada uno muestra una comparativa y qué haría («la guarda como: …»). Nada entra en tu diario hasta que aceptas: «Crear aparte» o «Completar» una sesión tuya (solo rellena lo que le falte). Lo importado de Apple no se comparte con la IA, tu entrenadora ni tu club.
 - **Salud diaria:** sueño, VFC, FC en reposo y peso. Si el campo está vacío se guarda; si coincide, se conserva; si **difiere de lo que anotaste a mano, no se pisa**: en Recuperación aparece un aviso para elegir qué valor queda. La VFC de Apple (SDNN) se puntúa solo contra su propia línea base.
 - **Unidades:** el Atajo puede mandar kcal o kJ, m/km/mi, h/min/s, kg/g/lb. Un número sin unidad se interpreta en la unidad del campo. Las horas sin zona se toman como hora de Madrid; el sueño cuenta para el día en que te despiertas.
+- **Sin Atajos, con archivo:** Salud → tu foto → «Exportar todos los datos», descomprime el .zip y en Atlenza (Ajustes → Apple → «Sin Atajos…», o Recuperación) elige `export.xml`. Escoge desde qué día importar (por defecto, 30 días) y revisa la vista previa. Los entrenos llegan como borradores en Entreno; sueño, FC en reposo, VFC y peso entran por día, y si algo difiere de lo que anotaste verás un aviso en Recuperación (no se pisa). Reimportar el mismo fichero no duplica nada.
 - **Si algo no llega:** Ajustes → Apple Fitness → «Diagnóstico de conexión» (último envío y última prueba) y «Probar envío» (pega tu token; usa datos de prueba y no guarda nada).
 
 ## Novedades de la v3.0 (preview)
@@ -563,7 +564,7 @@ Además:
 **Recuperación**
 - **Antropometría:** perímetros y pliegues con tendencia.
 - **Citas y suplementos:** citas de fisio o médico con aviso la tarde anterior; suplementos con lote y «comprobado en la lista oficial». La app no dice si algo está permitido: compruébalo siempre. Desde aquí creas el **enlace para tu fisio**.
-- **Importar de Apple Health:** en el iPhone, Salud → tu foto → Exportar todos los datos; descomprime y elige `export.xml`. Se lee en el móvil y solo se envían sueño y FC en reposo por día.
+- **Importar de Apple Health:** en el iPhone, Salud → tu foto → Exportar todos los datos; descomprime y elige `export.xml`. Se lee en el móvil y solo se envían sueño, FC en reposo, VFC (SDNN), peso y el resumen de cada entreno; los entrenos van a la bandeja de Entreno y lo que difiera de lo anotado se avisa sin pisarlo.
 - **Mapa del dolor:** toca la zona en la silueta (delante y detrás) al anotar una molestia o una sensación. En «Sensaciones al terminar» el color indica cuánto duele: ámbar = leve (1–3), naranja = moderado (4–6), rojo = alto (7–8) y rojo intenso = muy alto (9–10).
 
 **Salud de la mujer** (cifrado; ni la IA ni tu entrenadora lo ven)

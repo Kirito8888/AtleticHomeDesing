@@ -27,7 +27,7 @@ PRIVATE_PAGES=(/ /training /nutrition /planning /study /recovery /goals /finance
 # API privadas GET: sin sesión deben dar 401.
 PRIVATE_API=(/api/notifications /api/ai/flashcards/due /api/training/history-import/template /api/coach/recovery-consent /api/training/apple-fitness/pending /api/settings/apple-fitness/token)
 # API privadas que solo aceptan POST: un GET sin sesión debe dar 405 (el doctor nunca escribe, así que solo comprueba que existen).
-POST_ONLY_API=(/api/training/apple-fitness /api/recovery/apple-health /api/settings/apple-fitness/test)
+POST_ONLY_API=(/api/training/apple-fitness /api/recovery/apple-health /api/settings/apple-fitness/test /api/training/apple-fitness/import /api/recovery/import/days)
 # Claves que, vacías o ausentes, impiden arrancar o dejan la web insegura.
 CRITICAL_KEYS=(AUTH_SECRET AUTH_URL POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB TOTP_ENCRYPTION_KEY STAFF_2FA_REQUIRED_FROM)
 # ─────────────────────────────────────────────────────────────────────────────────────────────────────────

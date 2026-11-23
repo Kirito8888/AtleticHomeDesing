@@ -217,7 +217,7 @@ case ";${FAKE_HTTP_MAP:-};" in *";$path="*) code="${FAKE_HTTP_MAP#*"$path="}"; c
 case ";${FAKE_HTTP_MAP:-};" in
   *";$path="*) ;;
   *) case "$path" in
-       /api/health) code=200 ;; /api/training/apple-fitness|/api/recovery/apple-health|/api/settings/apple-fitness/test) code=405 ;; /api/*) code=401 ;; /login|/register|/offline|/legal/*) code=200 ;;
+       /api/health) code=200 ;; /api/training/apple-fitness|/api/recovery/apple-health|/api/settings/apple-fitness/test|/api/training/apple-fitness/import|/api/recovery/import/days) code=405 ;; /api/*) code=401 ;; /login|/register|/offline|/legal/*) code=200 ;;
      esac ;;
 esac
 { printf 'HTTP/1.1 %s X\r\n' "$code"; [ "$code" = 307 ] && printf 'location: /login\r\n'; [ "$path" = /login ] && printf 'content-security-policy: x\r\n'; true; } > "$hdr"

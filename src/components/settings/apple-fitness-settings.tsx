@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { AppleImport } from "@/components/recovery/apple-import";
 import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { api } from "@/lib/client-api";
 import { formatDateTime } from "@/lib/format";
@@ -270,6 +271,12 @@ export function AppleFitnessSettings({ initial, baseUrl }: { initial: Status; ba
         <p className="mt-2 text-xs text-muted-foreground">
           Admite números con coma y unidades («7,2 km», «2008 kJ», «1 h 5 min», «148 lpm»); si falta la zona horaria, se toma la de Madrid. También vale <code>duration</code>, <code>durationMin</code> o <code>durationSec</code> en lugar de <code>end</code>, <code>distanceM</code> en metros, o varios entrenos en <code>{`{"workouts": [...]}`}</code> (máx. 50). Reenviar el mismo entreno no lo duplica.
         </p>
+      </details>
+      <details className="rounded-md border p-3" data-testid="apple-file-import">
+        <summary className="min-h-11 cursor-pointer py-2 font-medium">Sin Atajos: importar desde el archivo export.xml de Salud</summary>
+        <div className="mt-2">
+          <AppleImport />
+        </div>
       </details>
       <details className="rounded-md border p-3" data-testid="health-settings">
         <summary className="min-h-11 cursor-pointer py-2 font-medium">Apple Salud · métricas diarias (sueño, VFC, FC en reposo, peso)</summary>

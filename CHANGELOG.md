@@ -2,6 +2,16 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
+## Sin publicar — Apple Salud y Fitness desde el archivo `export.xml`
+
+**Sin migraciones ni cambios de esquema.** Alternativa a los Atajos de iOS (que en iOS 27 no ofrecen una acción fiable para leer entrenos): el `export.xml` de Salud se lee en el navegador y se importa desde Ajustes → Apple (o desde Recuperación).
+
+- **Entrenos** (`<Workout>`, con o sin `WorkoutStatistics`; km/m/mi, kcal/kJ, FC media y máxima) → **bandeja de borradores** de Entreno: nada entra en el diario sin aceptar; lo importado no llega a la IA, la entrenadora, el club, el informe ni el `.ics`. Reimportar no duplica.
+- **Por día:** sueño, FC en reposo, **VFC SDNN** (no rMSSD) y peso, con las mismas reglas que el Atajo: lo vacío se guarda, lo igual se conserva y lo que difiera de lo que anotaste **no se pisa** (aviso en Recuperación).
+- **Selector «Desde»** (por defecto, últimos 30 días) y vista previa antes de importar. El fichero no se sube: solo salen los totales diarios y el resumen de cada entreno.
+- **Arreglos:** antes `/api/recovery/import/days` **sobrescribía** lo anotado a mano y el sueño solapado (reloj + iPhone) se contaba dos veces; ahora usa el servicio de Apple Salud y une los intervalos.
+- `doctor.sh`: `POST_ONLY_API` suma `/api/training/apple-fitness/import` y `/api/recovery/import/days`.
+
 ## v3.0.1-preview — Apple Fitness y Apple Salud (22/11/2026)
 
 **Con migración aditiva:** `20270801080000_v3_1_features` (tablas `PersonalToken`, `ExternalWorkout`, `HealthSyncConflict`, `AppleDelivery`; columnas `TrainingSession.kcal`, `RecoveryMetrics.hrvSdnnMs` y `healthSync`, `ExternalWorkout.activityType`). Aunque el número sea de parche, **hay que actualizar con `update.sh`** (aplica la migración). Pasos en [`docs/migracion-v3-0-a-v3-0-1.md`](docs/migracion-v3-0-a-v3-0-1.md). Los rediseños de verticales (bloques I–Q) siguen pendientes.
