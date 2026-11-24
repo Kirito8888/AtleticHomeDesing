@@ -24,9 +24,14 @@ const toast = (re: RegExp) => page.locator("[data-sonner-toast]", { hasText: re 
 const balance = () => page.getByRole("region", { name: "Balance total" });
 
 // v2.11 B3 · O16: las acciones recargan solo su zona (GET JSON), sin repintado global de Next (peticiones RSC)
+// Las precargas de enlaces (next-router-prefetch / segment-prefetch) no repintan: no cuentan
 let rscCount = 0;
+const rscUrls: string[] = [];
 page.on("request", (r) => {
-  if (r.headers()["rsc"] === "1") rscCount++;
+  const h = r.headers();
+  if (h["rsc"] !== "1" || h["next-router-prefetch"] || h["next-router-segment-prefetch"]) return;
+  rscCount++;
+  rscUrls.push(new URL(r.url()).pathname);
 });
 
 const email = `v25h${Date.now()}@test.dev`;
@@ -71,6 +76,7 @@ await balance().getByText(/150,00\s€/).first().waitFor();
 // 4 · Gasto 30 €
 await page.waitForLoadState("networkidle");
 rscCount = 0;
+rscUrls.length = 0;
 await page.getByRole("button", { name: "Movimiento", exact: true }).click();
 await page.getByRole("radio", { name: "Gasto" }).click();
 await page.fill("#t-amount", "30");
@@ -82,7 +88,7 @@ await balance().getByText(/120,00\s€/).first().waitFor();
 await page.getByRole("list", { name: "Cuentas" }).getByText(/120,00\s€/).waitFor();
 await page.getByRole("region", { name: "Últimos movimientos" }).getByText("Súper").waitFor();
 await page.waitForTimeout(500);
-if (rscCount) errors.push(`anotar un gasto repintó la página entera (${rscCount} peticiones RSC)`);
+if (rscCount) errors.push(`anotar un gasto repintó la página entera (${rscCount} peticiones RSC: ${rscUrls.join(", ")})`);
 await noOverflow("/finance con movimientos");
 log("100 + 50 − 30 = 120 € en balance y tarjeta");
 

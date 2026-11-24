@@ -21,9 +21,14 @@ const minH = async (loc: ReturnType<typeof page.locator>, what: string) => {
   if (h < 43.5) errors.push(`${what} mide ${h}px (< 44)`);
 };
 const toast = (re: RegExp) => page.locator("[data-sonner-toast]", { hasText: re }).first().waitFor({ timeout: 8000 });
+// Las precargas de enlaces (next-router-prefetch / segment-prefetch) no repintan: no cuentan
 let rscCount = 0;
+const rscUrls: string[] = [];
 page.on("request", (r) => {
-  if (r.headers()["rsc"] === "1") rscCount++;
+  const h = r.headers();
+  if (h["rsc"] !== "1" || h["next-router-prefetch"] || h["next-router-segment-prefetch"]) return;
+  rscCount++;
+  rscUrls.push(new URL(r.url()).pathname);
 });
 
 const email = `macros${Date.now()}@test.dev`;
@@ -81,21 +86,23 @@ await page.getByRole("textbox", { name: "Energía", exact: true }).fill("1900");
 await page.getByRole("textbox", { name: "Hidratos", exact: true }).fill("200");
 await noOverflow("hoja de objetivo del día");
 rscCount = 0;
+rscUrls.length = 0;
 await page.getByTestId("day-target-save").click();
 await toast(/Objetivo del día guardado/);
 await page.getByTestId("day-target-source").getByText("Objetivo marcado a mano").waitFor();
 await page.getByText(/\/ 1900 kcal/).first().waitFor();
 await page.getByText(/\/ 200 g/).first().waitFor();
-if (rscCount) errors.push(`marcar objetivo repintó la página entera (${rscCount} peticiones RSC)`);
+if (rscCount) errors.push(`marcar objetivo repintó la página entera (${rscCount} peticiones RSC: ${rscUrls.join(", ")})`);
 log("objetivo manual 1900 kcal · 200 g prevalece sobre la regla (0 RSC)");
 
 rscCount = 0;
+rscUrls.length = 0;
 await minH(page.getByTestId("day-target-reset"), "«Volver al automático»");
 await page.getByTestId("day-target-reset").click();
 await toast(/Vuelve el objetivo automático/);
 await page.getByTestId("day-target-source").getByText(`Objetivo del ${dayName}`).waitFor();
 await page.getByText(/\/ 2600 kcal/).first().waitFor();
-if (rscCount) errors.push(`volver al automático repintó la página entera (${rscCount} peticiones RSC)`);
+if (rscCount) errors.push(`volver al automático repintó la página entera (${rscCount} peticiones RSC: ${rscUrls.join(", ")})`);
 log("«Volver al automático» recupera la regla del día (0 RSC)");
 
 // 4 · Un día de otra semana del día sin regla cae al objetivo general
