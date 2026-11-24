@@ -2,7 +2,7 @@
 
 > **Propuesta, no compromiso.** Base: `main` tras v3.0.1-preview + importación de `export.xml` (24/11/2026). Solo documentación: no cambia código, esquema ni dependencias.
 > Objetivo de la usuaria: tener centralizadas en Atlenza a todas las personas a las que lleva la planificación, **aunque no tengan cuenta**.
-> Versión propuesta: **v3.2** (el número lo decide la usuaria). El tramo movible I–Q de `docs/roadmap-v3-0.md` sigue pendiente; el orden entre ambos también lo decide ella.
+> Versión propuesta: **v3.2** (el número lo decide la usuaria). **Orden decidido (24/11/2026): primero se termina el tramo movible I–Q de `docs/roadmap-v3-0.md` y después los bloques E.**
 > **Confianza:** [Seguro] comprobado en el repo · [Probable] inferencia sólida · [Suponiendo] hueco sin prueba. **Esfuerzo** en sesiones de Claude Code (un bloque = una sesión, ≤ 4 tareas).
 > Bloques con prefijo **E** (Entrenadora) para no chocar con las letras de v3.0 (C–T) ni con v3.1 A–C (Apple).
 
@@ -17,10 +17,10 @@
 ## Puerta 0 · decisiones de la usuaria
 | # | Decisión | Valor por defecto propuesto | Bloquea | Confianza |
 |---|---|---|---|---|
-| 0.1 | Modelo de datos de la ficha | **`User` gestionada sin acceso** (`managedById`, email marcador no enrutable, sin contraseña, `Account` ni llave) + tabla `ManagedAthlete` con los datos de la ficha. Todo lo existente (planes, sesiones, PMC, marcas, tests) funciona sin duplicar modelos y reclamar la ficha (E10) es casi gratis. Alternativa descartada: tablas paralelas (duplicaría `PlanMeso`, `PlanDay`, `TrainingSession`, `PersonalRecord`…) | E1 en adelante | [Probable]; hay precedente: las cuentas demo (`demoAudience`, `lib/demo/service.ts`) |
+| 0.1 | Modelo de datos de la ficha | **DECIDIDO (24/11/2026): sí.** **`User` gestionada sin acceso** (`managedById`, email marcador no enrutable, sin contraseña, `Account` ni llave) + tabla `ManagedAthlete` con los datos de la ficha. Todo lo existente (planes, sesiones, PMC, marcas, tests) funciona sin duplicar modelos y reclamar la ficha (E10) es casi gratis. Alternativa descartada: tablas paralelas (duplicaría `PlanMeso`, `PlanDay`, `TrainingSession`, `PersonalRecord`…) | E1 en adelante | [Probable]; hay precedente: las cuentas demo (`demoAudience`, `lib/demo/service.ts`) |
 | 0.2 | Qué datos guarda una ficha | **DECIDIDO (24/11/2026):** alias elegido por la entrenadora (sin nombre real, email ni teléfono; la app no tiene campo para ellos), **año de nacimiento o categoría** en vez de la fecha completa, disciplina, marcas, umbrales, planes, sesiones, competiciones y tests de rendimiento. Nada de salud. Aviso en el alta: «no escribas el nombre real ni datos de contacto, tampoco en notas» | E1, E3, E6 | [Seguro] decisión de la usuaria |
 | 0.3 | Consentimiento y menores | Casilla «tengo su conformidad» + fecha (sin documento ni texto firmado); ficha solo desde 14 años. Se mantiene aunque haya alias: seguir siendo dato personal no cambia con el seudónimo | E1, E11 | [Probable] |
-| 0.4 | IA con datos de fichas | **Fuera** en v3.2 (ni la local): ni plan con IA, ni coach IA, ni informe. Se revisa tras E11 | E4, E6 | [Probable] |
+| 0.4 | IA con datos de fichas | **DECIDIDO (24/11/2026): permitida**, para herramientas futuras. Mismas reglas que con cuentas: IA local primero y `LOCAL_AI_ONLY`, nada de salud (las fichas no la tienen), alias en vez de nombre. La casilla de conformidad de E3 menciona el uso con IA; [Probable] un proveedor externo con datos de terceras pide revisarlo antes de activarlo | E4, E6 | [Seguro] decisión de la usuaria |
 | 0.5 | Cómo recibe el plan la atleta | PDF/impresión + enlace de solo lectura con token + `.ics`. La respuesta por enlace (E7) va aparte y es opcional | E5, E7 | [Probable] |
 | 0.6 | Cuotas | Apunte manual, como `OrgFee` (sin cobro, sin pasarela) | E9 | [Seguro] coherente con «sin Stripe» |
 | 0.7 | Varias entrenadoras sobre una ficha | No en v3.2: la ficha es de una entrenadora. Compartirla con el staff de un club, más adelante | E2 | [Probable] |
@@ -128,7 +128,6 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 | Qué | Por qué |
 |---|---|
 | Datos de salud en fichas (lesiones, recuperación, ciclo, ISAK) | Art. 9 de terceras sin cuenta; revisar con abogado |
-| IA sobre fichas | Puerta 0.4; terceras no han consentido el tratamiento con IA |
 | Cobros, chat o mensajería con la atleta | Igual que en clubes: pasarela, moderación y menores |
 | Importar contactos o datos de otras apps de entrenadoras | Scraping prohibido; sin API oficial evaluada |
 

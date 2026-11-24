@@ -1,7 +1,7 @@
 import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
-import { dueCounts } from "@/lib/ai/flashcards";
+import { dailyCap, dueCounts } from "@/lib/ai/flashcards";
 import { addDays, today, toIsoDay } from "@/lib/dates";
 import { budgetsStatus } from "@/lib/finance/service";
 import { cycleToday } from "@/lib/health/cycle-service";
@@ -32,7 +32,10 @@ export async function getDashboard(userId: string) {
     }),
     getDay(userId, day),
     budgetsStatus(userId, now),
-    dueCounts(userId).then((m) => [...m.values()].reduce((a, b) => a + b, 0)),
+    Promise.all([dueCounts(userId), dailyCap(userId)]).then(([m, c]) => {
+      const due = [...m.values()].reduce((a, b) => a + b, 0);
+      return c.remaining === null ? due : Math.min(due, c.remaining);
+    }),
     prisma.task.findMany({
       where: { userId, status: { in: ["TODO", "IN_PROGRESS"] }, OR: [{ dueDate: null }, { dueDate: { lte: addDays(now, 2) } }] },
       orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }],

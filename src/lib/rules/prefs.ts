@@ -124,6 +124,8 @@ export const prefsSchema = z.object({
   studyTrainingCutMin: z.number().int().min(0).max(300).default(60),
   studyBlockMin: z.number().int().min(15).max(120).default(30),
   studyHoursPerExam: z.number().min(1).max(300).default(15),
+  /** v3.2 K (V3-N03) · tope diario de tarjetas repasadas (0 = sin tope). Evita sesiones de repaso interminables. */
+  flashcardDailyCap: z.number().int().min(0).max(500).default(0),
   examHours: z.record(z.string().max(40), z.number().min(0).max(300)).default({}),
   /** v1.6 · añadir clases y exámenes (solo la asignatura) al calendario .ics. */
   icsStudy: z.boolean().default(false),

@@ -139,6 +139,7 @@ log(`N2: ${nNew} flashcards del paquete en «Administración»; repetir no dupli
 // 4 · resumen por prioridad
 await page.getByTestId("pack-summary-link").click();
 await page.getByTestId("summary").waitFor();
+await minH(page.getByTestId("summary-cards"), "«Crear flashcards» del resumen");
 const sum = await page.getByTestId("summary").innerText();
 for (const h of ["Si solo tengo 10 minutos", "Cae seguro", "Probable", "Si sobra tiempo", "Autoevaluación"]) if (!sum.includes(h)) errors.push(`resumen sin «${h}»`);
 if ((await page.getByTestId("summary-block").count()) < 2) errors.push("el resumen debe tener bloques");

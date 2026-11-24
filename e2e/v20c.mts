@@ -127,6 +127,27 @@ const after = (await call(inv, "GET", "/api/ai/flashcards/decks")).json as Array
 if (after.some((d) => d.id === deckId)) errors.push("la invitada sigue viendo el mazo tras quitarle el acceso");
 log("acceso retirado");
 
+// 6. v3.2 K (V3-N03) · tope diario: la dueña fija 2 tarjetas, repasa 2 y la cola se corta (también en el servidor)
+await go(own, "/study?tab=cards");
+await own.getByLabel("Tope diario de tarjetas").selectOption("10");
+await own.getByText("Hoy: 0 de 10 tarjetas").waitFor();
+await call(own, "PATCH", "/api/settings/prefs", { flashcardDailyCap: 2 });
+await go(own, "/study?tab=cards");
+await own.getByText("Hoy: 0 de 2 tarjetas").waitFor();
+await own.getByRole("button", { name: "Repasar" }).first().click();
+for (let i = 0; i < 2; i++) {
+  await own.getByRole("button", { name: /Pregunta/ }).click();
+  await own.getByRole("button", { name: "Bien" }).click();
+}
+await own.getByText(/Tope de hoy cumplido \(2 tarjetas\)/).waitFor();
+const capDue = (await call(own, "GET", `/api/ai/flashcards/due?deckId=${deckId}`)).json as unknown[];
+if (capDue.length !== 0) errors.push(`con el tope cumplido el servidor aún da ${capDue.length} tarjetas`);
+await go(own, "/study?tab=cards");
+await own.getByText(/Tope de hoy cumplido: 2 de 2/).waitFor();
+if (await own.getByRole("button", { name: "Repasar" }).first().isEnabled()) errors.push("«Repasar» sigue activo con el tope cumplido");
+await noHScroll(own, "tope diario 390 px");
+log("tope diario: 2 de 2 y la cola se corta en cliente y servidor");
+
 await browser.close();
 if (errors.length) {
   console.error("✘ errores:\n" + errors.join("\n"));
