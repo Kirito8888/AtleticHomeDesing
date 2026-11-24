@@ -404,24 +404,39 @@ async function detectPersonalRecords(
  * porque depende del TSB.
  */
 export async function recomputeDailyLoads(userId: string, from: Date): Promise<void> {
-  const profile = await prisma.athleteProfile.findUnique({ where: { userId } });
-  const seedRow = await prisma.dailyLoad.findUnique({
+  // v3.2 J · Dos guardados a la vez de la misma usuaria (reenvío sin conexión desde dos pestañas, o
+  // una sesión y su comentario) chocaban en `DailyLoad_userId_date_key` (500). Un candado por usuaria
+  // dentro de la transacción los pone en fila, y cada uno lee lo ya confirmado por el anterior.
+  const range = await prisma.$transaction(
+    async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`dailyload:${userId}`}, 0))`;
+      return recomputeLocked(tx, userId, from);
+    },
+    { timeout: 20_000, maxWait: 10_000 },
+  );
+  // El readiness depende del TSB: el del rango es el que se acaba de escribir (sin releerlo).
+  if (range) await refreshReadinessRange(userId, range.start, range.end, { tsbByDay: range.tsbByDay });
+}
+
+async function recomputeLocked(db: Prisma.TransactionClient, userId: string, from: Date) {
+  const profile = await db.athleteProfile.findUnique({ where: { userId } });
+  const seedRow = await db.dailyLoad.findUnique({
     where: { userId_date: { userId, date: addDays(dateOnly(from), -1) } },
   });
 
-  const first = await prisma.trainingSession.findFirst({
+  const first = await db.trainingSession.findFirst({
     where: { userId, status: "COMPLETED", tss: { not: null } },
     orderBy: { date: "asc" },
     select: { date: true },
   });
   if (!first) {
-    await prisma.dailyLoad.deleteMany({ where: { userId } });
-    return;
+    await db.dailyLoad.deleteMany({ where: { userId } });
+    return null;
   }
   let start = dateOnly(from);
   if (!seedRow && first.date < start) start = first.date;
 
-  const last = await prisma.trainingSession.findFirst({
+  const last = await db.trainingSession.findFirst({
     where: { userId, status: "COMPLETED" },
     orderBy: { date: "desc" },
     select: { date: true },
@@ -429,7 +444,7 @@ export async function recomputeDailyLoads(userId: string, from: Date): Promise<v
   const now = today();
   const end = last && last.date > now ? last.date : now;
 
-  const sums = await prisma.trainingSession.groupBy({
+  const sums = await db.trainingSession.groupBy({
     by: ["date"],
     where: { userId, status: "COMPLETED", tss: { not: null }, date: { gte: start, lte: end } },
     _sum: { tss: true },
@@ -447,15 +462,11 @@ export async function recomputeDailyLoads(userId: string, from: Date): Promise<v
     },
   );
 
-  await prisma.$transaction([
-    prisma.dailyLoad.deleteMany({ where: { userId, date: { gte: start } } }),
-    prisma.dailyLoad.createMany({
-      data: series.map((d) => ({ userId, date: dateOnly(d.date), tss: d.tss, ctl: d.ctl, atl: d.atl, tsb: d.tsb, acwr: d.acwr })),
-    }),
-  ]);
-
-  // El readiness depende del TSB: el del rango es el que se acaba de escribir (sin releerlo).
-  await refreshReadinessRange(userId, start, end, { tsbByDay: new Map(series.map((d) => [d.date, d.tsb])) });
+  await db.dailyLoad.deleteMany({ where: { userId, date: { gte: start } } });
+  await db.dailyLoad.createMany({
+    data: series.map((d) => ({ userId, date: dateOnly(d.date), tss: d.tss, ctl: d.ctl, atl: d.atl, tsb: d.tsb, acwr: d.acwr })),
+  });
+  return { start, end, tsbByDay: new Map(series.map((d) => [d.date, d.tsb])) };
 }
 
 /** Garantiza que la serie llega hasta hoy (los días sin entreno también hacen decaer la fatiga). */

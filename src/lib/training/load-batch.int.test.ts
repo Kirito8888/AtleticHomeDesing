@@ -117,7 +117,7 @@ describe.skipIf(!HAS_DB)("O4 · carga una vez y readiness en lote (BD real)", ()
     await measure("recomputeDailyLoads (10 sesiones, 5 días de recuperación)", () => training.recomputeDailyLoads(small, new Date(iso(1))));
     expect(counts["recomputeDailyLoads (10 sesiones, 30 días de recuperación)"]).toBe(counts["recomputeDailyLoads (10 sesiones, 5 días de recuperación)"]);
     // Antes (medido en el código de v2.6): 128 y 28 → 8 lecturas/escrituras de carga + 4 por día con recuperación.
-    expect(counts["recomputeDailyLoads (10 sesiones, 30 días de recuperación)"]).toBeLessThanOrEqual(9);
+    expect(counts["recomputeDailyLoads (10 sesiones, 30 días de recuperación)"]).toBeLessThanOrEqual(10); // v3.2 J: +1 por el candado por usuaria (constante)
   });
 
   it("importar VFC: un alta/actualización y el readiness en lote; mismos valores que fila a fila", async () => {

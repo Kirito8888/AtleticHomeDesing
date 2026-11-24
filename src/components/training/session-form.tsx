@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Activity, Dumbbell, Target } from "lucide-react";
 import { toast } from "sonner";
 
@@ -17,8 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/client-api";
-import { enqueue, isNetworkError } from "@/lib/offline/outbox";
-import { formatNum } from "@/lib/format";
+import { clearDraft, enqueue, enqueuePatch, isNetworkError, loadDraft, saveDraft } from "@/lib/offline/outbox";
+import { formatNum, formatTime } from "@/lib/format";
 import { disciplineForTrack } from "@/lib/training/disciplines";
 import type { PreviousByExercise } from "@/lib/training/previous-sets";
 import type { FormKind as Kind, SessionFormInitial } from "@/lib/training/form-initial";
@@ -37,6 +37,27 @@ interface Created {
   tssMethod: string | null;
   newPersonalRecords: Array<{ kind: string; value: number }>;
 }
+
+/** v3.2 J · Lo que se guarda en el borrador local (todo el formulario, para no perder series sin red). */
+type DraftState = {
+  clientId: string;
+  type: Kind;
+  date: string;
+  title: string;
+  minutes: string;
+  rpe: number | null;
+  notes: string;
+  tags: string;
+  feelings: FeelingValue[];
+  zones: Partial<Record<FatigueZone, number>>;
+  planned: boolean;
+  mixed: boolean;
+  blocks: ExerciseBlock[];
+  technical: TechnicalState;
+  track: TrackState;
+};
+
+const setsIn = (d: DraftState) => d.blocks.reduce((n, b) => n + b.sets.filter((x) => !x.pending).length, 0);
 
 function technicalFor(d?: EventDefaults): TechnicalState {
   const base = initialTechnical();
@@ -77,7 +98,7 @@ export function SessionForm({
   previous?: PreviousByExercise;
 }) {
   const router = useRouter();
-  const [clientId] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `c${Date.now()}${Math.random().toString(36).slice(2, 10)}`));
+  const [clientId, setClientId] = useState(() => (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `c${Date.now()}${Math.random().toString(36).slice(2, 10)}`));
   const [type, setType] = useState<Kind>(initial?.type ?? initialType);
   const [date, setDate] = useState(initial?.date ?? defaultDate);
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -96,6 +117,66 @@ export function SessionForm({
   const [restSignal, setRestSignal] = useState<{ n: number; sec?: number | null }>({ n: 0 });
 
   const [templateName, setTemplateName] = useState("");
+  // v3.2 J · Borrador local: cada cambio se copia en este dispositivo y se ofrece recuperarlo al volver
+  const draftKey = sessionId ? `edit:${sessionId}` : "new";
+  const [restorable, setRestorable] = useState<{ savedAt: number; data: DraftState } | null>(null);
+  const [queued, setQueued] = useState(false);
+  const dirty = useRef(false);
+  const firstRender = useRef(true);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snapshot: DraftState = { clientId, type, date, title, minutes, rpe, notes, tags, feelings, zones, planned, mixed, blocks, technical, track };
+  const snapshotJson = JSON.stringify(snapshot);
+
+  useEffect(() => {
+    let alive = true;
+    loadDraft(draftKey)
+      .then((d) => {
+        if (alive && d && !dirty.current) setRestorable({ savedAt: d.savedAt, data: d.data as DraftState });
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [draftKey]);
+
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    dirty.current = true;
+    setQueued(false);
+    const t = setTimeout(() => void saveDraft(draftKey, JSON.parse(snapshotJson)), 300);
+    saveTimer.current = t;
+    return () => clearTimeout(t);
+  }, [draftKey, snapshotJson]);
+
+  function restoreDraft() {
+    const d = restorable?.data;
+    if (!d) return;
+    setClientId(d.clientId || clientId);
+    setType(d.type);
+    setDate(d.date);
+    setTitle(d.title);
+    setMinutes(d.minutes);
+    setRpe(d.rpe);
+    setNotes(d.notes);
+    setTags(d.tags);
+    setFeelings(d.feelings ?? []);
+    setZones(d.zones ?? {});
+    setPlanned(d.planned);
+    setMixed(d.mixed);
+    setBlocks(d.blocks ?? []);
+    setTechnical(d.technical);
+    setTrack(d.track);
+    setRestorable(null);
+    toast.success("Registro recuperado");
+  }
+
+  function discardDraft() {
+    setRestorable(null);
+    void clearDraft(draftKey);
+  }
   const pendingCount = blocks.reduce((n, b) => n + b.sets.filter((x) => x.pending).length, 0);
 
   /** Cuerpo de la API a partir del formulario, o un mensaje si falta algo. */
@@ -159,20 +240,29 @@ export function SessionForm({
     if (typeof body === "string") return toast.error(body);
 
     setSaving(true);
+    // Lo que se envía o se encola ya no es un borrador: que no lo vuelva a escribir un guardado pendiente
+    if (saveTimer.current) clearTimeout(saveTimer.current);
     // Cada sesión nueva lleva un id del dispositivo: si se reenvía (sin conexión), no se duplica
     const withId = sessionId ? body : { ...body, clientId };
     try {
       const s = sessionId
         ? await api<Created>(`/api/training/sessions/${sessionId}`, { method: "PATCH", body })
         : await api<Created>("/api/training/sessions", { body: withId });
+      void clearDraft(draftKey);
+      dirty.current = false;
       const prs = s.newPersonalRecords.length ? ` · ${s.newPersonalRecords.length} marca(s) personal(es) 🎉` : "";
       toast.success(planned ? "Sesión planificada" : `Guardada${s.tss != null ? ` · ${formatNum(s.tss)} TSS` : ""}${prs}`);
       router.push(`/training/${s.id}`);
       router.refresh();
     } catch (err) {
-      if (!sessionId && isNetworkError(err)) {
+      if (isNetworkError(err)) {
         try {
-          await enqueue({ id: clientId, url: "/api/training/sessions", body: withId, label: title || "Sesión" });
+          // Sesión nueva: por su clientId. Cambios (completar la planificada): un PATCH por sesión, gana el último.
+          if (sessionId) await enqueuePatch(sessionId, `/api/training/sessions/${sessionId}`, body, title || "Cambios de la sesión");
+          else await enqueue({ id: clientId, url: "/api/training/sessions", body: withId, label: title || "Sesión" });
+          await clearDraft(draftKey);
+          dirty.current = false;
+          setQueued(true);
           toast.success("Sin conexión: la sesión queda guardada en el móvil y se enviará sola al volver la cobertura");
           // Sin red no se puede cargar otra página: se queda aquí; el aviso de arriba cuenta lo pendiente
           setSaving(false);
@@ -188,6 +278,21 @@ export function SessionForm({
 
   return (
     <form onSubmit={submit} className="grid gap-5">
+      {restorable ? (
+        <div role="status" data-testid="draft-restore" className="grid gap-2 rounded-md border border-dashed p-3 text-sm">
+          <p>
+            Tienes un registro sin terminar en este móvil ({setsIn(restorable.data)} serie(s), {formatTime(new Date(restorable.savedAt))}).
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" className="min-h-11" onClick={restoreDraft}>
+              Recuperar
+            </Button>
+            <Button type="button" variant="outline" className="min-h-11" onClick={discardDraft}>
+              Descartar
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <Tabs value={type} onValueChange={(v) => setType(v as Kind)}>
         <TabsList>
           <TabsTrigger value="STRENGTH">
@@ -314,6 +419,11 @@ export function SessionForm({
         </p>
       ) : null}
 
+      {queued ? (
+        <p role="status" data-testid="session-queued" className="rounded-md border border-dashed p-2 text-sm text-muted-foreground">
+          Guardada en este móvil: se enviará sola al volver la cobertura.
+        </p>
+      ) : null}
       <div data-sticky-action className="sticky bottom-20 z-10 md:bottom-4">
         <Button type="submit" size="lg" className="h-12 w-full text-base shadow-lg" disabled={saving}>
           {saving ? "Guardando…" : sessionId ? "Guardar cambios" : "Guardar sesión"}
