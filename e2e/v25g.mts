@@ -123,8 +123,10 @@ log("rutas existentes conservadas");
 
 // 7 · N9: una frase de una línea en la tarjeta de readiness y en el PMC (reglas puras, sin IA)
 {
-  const day = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-  const today = new Date().toISOString().slice(0, 10);
+  // Días de Madrid, como la app (con el día UTC, entre las 00:00 y la 01:00 de Madrid la recuperación caía en «ayer»)
+  const madrid = (ms: number) => new Date(ms).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+  const day = madrid(Date.now() - 86_400_000);
+  const today = madrid(Date.now());
   const s = await page.request.post(B + "/api/training/sessions", { data: { date: day, type: "MIXED", status: "COMPLETED", durationSec: 3600, sessionRpe: 7 } });
   if (!s.ok()) errors.push(`N9: crear sesión ${s.status()}`);
   const rec = await page.request.post(B + "/api/recovery", { data: { date: today, sleepHours: 5, sleepQuality: 2, doms: 7, fatigue: 4, stress: 4, mood: 2 } });
