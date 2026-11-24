@@ -122,6 +122,22 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 
 ### Tramo movible (v3.0 si da tiempo; si no, v3.1)
 
+> **Estado del tramo movible (revisado en el repo el 24/11/2026; la usuaria decide hacerlo antes de `docs/roadmap-entrenadora.md`):**
+> | Bloque | Estado | Qué hay ya [Seguro] |
+> |---|---|---|
+> | I · Rediseño Entreno | Pendiente | — |
+> | J · Entreno sin red | **Parcial** | Bandeja `lib/offline/outbox.ts` (v1.6) para sesiones enteras (`session-form`, `quick-log`) con `clientId`; faltan series de fuerza y tomas sueltas |
+> | K · Estudio + N03 | **Parcial** | `SaveToFlashcards` en Adaptar y en el pack de estudio; falta el tope diario de repasos y verificar «Resumir» |
+> | L · Rediseño Nutrición | Pendiente | — |
+> | M · Gasto adaptativo | Pendiente | — |
+> | N · Finanzas + exportación | **Parcial** | `GET /api/account/export` (JSON, arts. 15 y 20); falta la exportación guiada y el pie de autoría en exportaciones |
+> | O · Rediseño Clubes | Pendiente | — |
+> | P · Eventos de club | Pendiente | Sin modelo de eventos ni asistencia |
+> | Q · Recordatorios | Pendiente | Depende de P |
+>
+> **Orden recomendado ahora:** K → J → M → N → P → Q → I → L → O. Lo barato y a medias primero; las funciones nuevas después; los rediseños al final porque rompen E2E y el roadmap pedía decidirlos con uso real del rediseño de v3.0. Migración: P crea la de la versión (`v3_2_features`), que luego amplía E1.
+
+
 #### I · Rediseño Entreno
 | | |
 |---|---|
