@@ -48,7 +48,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <FocusGuard />
       <AppNav userName={user.name ?? user.email} hidden={prefs.hiddenModules} role={user.role} bar={bar} bell={<NotificationBell unread={unread} />} />
       <main id="main" tabIndex={-1} className="mx-auto w-full max-w-5xl px-4 pt-4 pb-24 outline-none sm:px-6 md:pb-10">
-        <OutboxSync />
+        <OutboxSync owner={user.id} />
         <ConnectionBanner />
         {/* v1.7 · el dominio reservado .invalid identifica las cuentas demo sin otra consulta */}
         {user.email?.endsWith("@demo.lifeos.invalid") ? (

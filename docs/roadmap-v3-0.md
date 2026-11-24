@@ -126,7 +126,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 > | Bloque | Estado | Qué hay ya [Seguro] |
 > |---|---|---|
 > | I · Rediseño Entreno | Pendiente | — |
-> | J · Entreno sin red | **Parcial** | Bandeja `lib/offline/outbox.ts` (v1.6) para sesiones enteras (`session-form`, `quick-log`) con `clientId`; faltan series de fuerza y tomas sueltas |
+> | J · Entreno sin red | **Hecho (24/11/2026), salvo tomas sueltas** | Series de fuerza sin red: borrador local del formulario, PATCH en la bandeja, dueña por envío, reintentos y purga al salir (`e2e:sinred`). Sin esquema: las series son idempotentes por el `clientId` de la sesión (POST) o por sustitución completa (PATCH). **Pendiente:** clave idempotente en las tomas de nutrición, agua y hábitos (`sendOrQueue`), que sí necesitaría campo → migración de la versión |
 > | K · Estudio + N03 | **Hecho (24/11/2026), salvo la tarea 1** | Tope diario de repasos (`flashcardDailyCap`) y «Crear flashcards» en el resumen del tema. La tarea 1 (composición de `/study`) pasa al tramo de rediseños (tras I) |
 > | L · Rediseño Nutrición | Pendiente | — |
 > | M · Gasto adaptativo | Pendiente | — |

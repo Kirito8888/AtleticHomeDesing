@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Activity, LogOut, Menu, Search } from "lucide-react";
 
 import { logoutAction } from "@/app/(auth)/actions";
+import { pending, purgeOutbox } from "@/lib/offline/outbox";
+import { confirmDialog } from "@/components/ui/confirm-dialog";
 import { activeHref, buildNav, moreActive, type NavItem } from "@/components/layout/nav-items";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -46,8 +48,20 @@ function NavLinks({ pathname, onNavigate, nav, touch }: { pathname: string; onNa
 }
 
 function LogoutButton() {
+  const ready = useRef(false);
+  // v3.2 J · Lo anotado sin red y sin enviar vive solo en este móvil: «Salir» lo borra (avisando antes)
+  async function beforeLogout(e: React.FormEvent<HTMLFormElement>) {
+    if (ready.current) return;
+    e.preventDefault();
+    const form = e.currentTarget;
+    const left = await pending().then((p) => p.length).catch(() => 0);
+    if (left && !(await confirmDialog({ title: "¿Salir con registros sin enviar?", description: `Tienes ${left} registro(s) anotados sin conexión que solo están en este móvil. Si sales ahora se borran.`, confirmLabel: "Salir y borrarlos", destructive: true }))) return;
+    await purgeOutbox();
+    ready.current = true;
+    form.requestSubmit();
+  }
   return (
-    <form action={logoutAction}>
+    <form action={logoutAction} onSubmit={beforeLogout}>
       <Button type="submit" variant="ghost" className="min-h-11 w-full justify-start gap-3 text-muted-foreground">
         <LogOut className="size-4" /> Salir
       </Button>
