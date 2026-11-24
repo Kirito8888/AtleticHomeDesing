@@ -7,10 +7,10 @@
 > Bloques con prefijo **E** (Entrenadora) para no chocar con las letras de v3.0 (C–T) ni con v3.1 A–C (Apple).
 
 ## Lo incómodo primero
-1. [Seguro] **Pasas a ser responsable del tratamiento de datos de terceras personas** que nunca han aceptado las condiciones de Atlenza. Hoy cada dato tiene dueña con cuenta, términos aceptados (`TERMS_VERSION`) y derechos RGPD ejercidos desde su propia cuenta. Una ficha sin cuenta no tiene nada de eso: el consentimiento lo recoges tú fuera de la app y la app solo puede **registrar** que lo tienes. El texto legal sigue provisional y pendiente de abogado.
+1. [Seguro] **Un alias que solo tú conoces es seudonimización, no anonimización** (RGPD, considerando 26): mientras tú puedas saber quién es, sigue siendo dato personal y tú eres la responsable del tratamiento. Decisión de la usuaria (24/11/2026): **fichas con alias, sin nombre real, contacto ni datos sensibles**. Eso baja mucho el riesgo, pero no lo hace desaparecer. Además, en atletismo las marcas con fecha y prueba son públicas: alias + marca exacta + competición permite reidentificar a cualquiera en una búsqueda de resultados.
 2. [Seguro] **Contradice la Puerta 0.5 de v3.0** («no abrir el uso a otras atletas»; el Bloque R se cerró con aislamiento estricto entre cuentas). Esto reabre esa decisión: hay que tomarla de forma explícita, no de rebote.
 3. [Probable] **Sin cuenta, la atleta no registra nada.** El «seguimiento» será solo lo que tú anotes, salvo que se habilite un enlace de respuesta sin cuenta (E7), que es la pieza con más riesgo (escritura pública). Si lo que buscas es que te devuelvan RPE y sensaciones, el valor real está en E7 o en que acaben teniendo cuenta (E10).
-4. [Probable] **Salud de terceras = art. 9.** Lesiones, recuperación, ciclo e ISAK de personas sin cuenta multiplican el riesgo. Defecto propuesto: **las fichas solo guardan datos deportivos** en v3.2; la salud queda fuera hasta revisión legal.
+4. [Seguro] **Decidido: nada de salud de terceras (art. 9).** Ni lesiones, ni recuperación, ni ciclo, ni ISAK. La app lo tiene que **impedir** (las rutas de salud dan 403 sobre una ficha), no basta con no rellenarlo.
 5. [Probable] **El modelo de datos recomendado (ficha = `User` gestionada sin acceso) tiene una trampa:** toda consulta que recorre usuarias (cron, push, Telegram, informe semanal, estadísticas de admin, limpieza de demo) debe excluirlas. Un filtro olvidado no rompe nada visible, pero manda trabajo a nadie o cuenta mal. Se blinda con una prueba de arquitectura en E1, no con cuidado.
 6. [Probable] **Tamaño:** 11 bloques, **15–20 sesiones** + cierre. Si solo quieres «tenerlo centralizado», el mínimo útil es **E1 → E2 → E3 → E11 → E4 → E5** (8–10 sesiones).
 
@@ -18,8 +18,8 @@
 | # | Decisión | Valor por defecto propuesto | Bloquea | Confianza |
 |---|---|---|---|---|
 | 0.1 | Modelo de datos de la ficha | **`User` gestionada sin acceso** (`managedById`, email marcador no enrutable, sin contraseña, `Account` ni llave) + tabla `ManagedAthlete` con los datos de la ficha. Todo lo existente (planes, sesiones, PMC, marcas, tests) funciona sin duplicar modelos y reclamar la ficha (E10) es casi gratis. Alternativa descartada: tablas paralelas (duplicaría `PlanMeso`, `PlanDay`, `TrainingSession`, `PersonalRecord`…) | E1 en adelante | [Probable]; hay precedente: las cuentas demo (`demoAudience`, `lib/demo/service.ts`) |
-| 0.2 | Qué datos guarda una ficha | Solo deportivos: perfil (disciplina, fecha de nacimiento, marcas, umbrales), planes, sesiones, competiciones, tests de rendimiento. **Sin** lesiones, recuperación, ciclo, salud de la mujer ni ISAK | E1, E3, E6 | [Probable] |
-| 0.3 | Consentimiento y menores | Ficha solo con consentimiento registrado (fecha + versión del texto que firmó, sin el documento). Mínimo 14 años (como la app); de 14 a 17, además nombre del tutor y fecha de su conformidad | E1, E11 | [Suponiendo] pendiente de abogado |
+| 0.2 | Qué datos guarda una ficha | **DECIDIDO (24/11/2026):** alias elegido por la entrenadora (sin nombre real, email ni teléfono; la app no tiene campo para ellos), **año de nacimiento o categoría** en vez de la fecha completa, disciplina, marcas, umbrales, planes, sesiones, competiciones y tests de rendimiento. Nada de salud. Aviso en el alta: «no escribas el nombre real ni datos de contacto, tampoco en notas» | E1, E3, E6 | [Seguro] decisión de la usuaria |
+| 0.3 | Consentimiento y menores | Casilla «tengo su conformidad» + fecha (sin documento ni texto firmado); ficha solo desde 14 años. Se mantiene aunque haya alias: seguir siendo dato personal no cambia con el seudónimo | E1, E11 | [Probable] |
 | 0.4 | IA con datos de fichas | **Fuera** en v3.2 (ni la local): ni plan con IA, ni coach IA, ni informe. Se revisa tras E11 | E4, E6 | [Probable] |
 | 0.5 | Cómo recibe el plan la atleta | PDF/impresión + enlace de solo lectura con token + `.ics`. La respuesta por enlace (E7) va aparte y es opcional | E5, E7 | [Probable] |
 | 0.6 | Cuotas | Apunte manual, como `OrgFee` (sin cobro, sin pasarela) | E9 | [Seguro] coherente con «sin Stripe» |
@@ -31,7 +31,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 #### E1 · Fundaciones: ficha gestionada sin acceso
 | | |
 |---|---|
-| Tareas | 1) **Esquema:** `User.managedById` (FK a la entrenadora, `onDelete: Restrict` para no perder fichas en silencio) y tabla `ManagedAthlete` (userId único, coachId, nombre visible, etiqueta/grupo, notas, `consentAt`, `consentVersion`, tutor y su fecha si es menor, `archivedAt`). Email marcador no enrutable generado. 2) **Sin acceso:** credenciales, OAuth, llave, recuperación y 2FA rechazan cuentas gestionadas; `requireUser` nunca las resuelve. 3) **Exclusión de procesos:** scheduler, push, Telegram, informe semanal, resumen diario, estadísticas de admin, `doctor.sh`/métricas y limpieza demo filtran `managedById: null`; helper único `realUsers()`. 4) **Prueba de arquitectura:** `architecture.test.ts` falla si un `prisma.user.findMany/count` fuera de `lib/managed/**` no usa el helper; tests de login rechazado |
+| Tareas | 1) **Esquema:** `User.managedById` (FK a la entrenadora, `onDelete: Restrict` para no perder fichas en silencio) y tabla `ManagedAthlete` (userId único, coachId, alias, año de nacimiento o categoría, etiqueta/grupo, notas, `consentAt`, `archivedAt`; **sin campos de nombre real ni contacto**). Email marcador no enrutable generado. 2) **Sin acceso:** credenciales, OAuth, llave, recuperación y 2FA rechazan cuentas gestionadas; `requireUser` nunca las resuelve. 3) **Exclusión de procesos:** scheduler, push, Telegram, informe semanal, resumen diario, estadísticas de admin, `doctor.sh`/métricas y limpieza demo filtran `managedById: null`; helper único `realUsers()`. 4) **Prueba de arquitectura:** `architecture.test.ts` falla si un `prisma.user.findMany/count` fuera de `lib/managed/**` no usa el helper; tests de login rechazado |
 | BD | **Sí** [Seguro]; crea `v3_2_features` |
 | Ses. | 2 [Probable] |
 | Terminado = | Una ficha existe, no puede entrar por ninguna vía y ningún job la toca (tests en verde) |
@@ -47,7 +47,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 #### E3 · Cartera de atletas (UI)
 | | |
 |---|---|
-| Tareas | 1) `/coach/athletes`: lista única de atletas con cuenta y fichas (distintivo «sin cuenta»), búsqueda, filtro por grupo, archivadas aparte. 2) Alta rápida en 1 pantalla: nombre, disciplina, fecha de nacimiento, grupo, casilla de consentimiento + versión (obligatoria). 3) Ficha: perfil deportivo, marcas, umbrales, competiciones, notas; editar y archivar. 4) E2E `e2e:entrenadora` a 390 px (alta, ficha, archivar, aislamiento) |
+| Tareas | 1) `/coach/athletes`: lista única de atletas con cuenta y fichas (distintivo «sin cuenta»), búsqueda, filtro por grupo, archivadas aparte. 2) Alta rápida en 1 pantalla: alias, disciplina, año o categoría, grupo y casilla de conformidad (obligatoria), con el aviso de no poner el nombre real. 3) Ficha: perfil deportivo, marcas, umbrales, competiciones, notas; editar y archivar. 4) E2E `e2e:entrenadora` a 390 px (alta, ficha, archivar, aislamiento) |
 | BD | No [Probable] (usa E1) |
 | Ses. | 1–2 [Probable] |
 | Terminado = | Dar de alta una ficha en ≤ 1 minuto a 390 px y verla junto a las atletas con cuenta |
@@ -55,10 +55,10 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 #### E11 · RGPD de las fichas (va **antes** de meter datos reales)
 | | |
 |---|---|
-| Tareas | 1) Exportar una ficha (JSON + CSV) para atender el art. 15/20 en nombre de la atleta. 2) Borrar una ficha de verdad (cascada) con confirmación escrita; limitación del tratamiento (art. 18) bloquea planificar, igual que con cuentas. 3) Retención: aviso en el panel a los N meses de archivada (N en prefs, no en el código). 4) `docs/rgpd`: registro de actividades de tratamiento y texto modelo de consentimiento para que la usuaria lo firme fuera; subir `TERMS_VERSION` si cambian las condiciones de la entrenadora |
+| Tareas | 1) Exportar una ficha (JSON + CSV) para atender el art. 15/20 en nombre de la atleta. 2) Borrar una ficha de verdad (cascada) con confirmación escrita; limitación del tratamiento (art. 18) bloquea planificar, igual que con cuentas. 3) Retención: aviso en el panel a los N meses de archivada (N en prefs, no en el código). 4) Las rutas de salud (recuperación, lesiones, ciclo, ISAK, salud de la mujer) responden 403 sobre una ficha (test). Al importar el PDF del plan en una ficha (E4), aviso si el texto contiene el nombre real; `docs/rgpd` con una nota breve del tratamiento |
 | BD | [Probable] No (campos en E1); [Suponiendo] sí si se quiere un histórico de consentimientos |
-| Ses. | 1–2 [Probable] |
-| Terminado = | Cualquier ficha se exporta y se borra entera desde la UI; hay texto modelo de consentimiento |
+| Ses. | 1 [Probable] (menos trabajo gracias al alias) |
+| Terminado = | Cualquier ficha se exporta y se borra entera desde la UI; ninguna ruta de salud acepta una ficha |
 
 #### E4 · Planificaciones por atleta
 | | |
@@ -116,7 +116,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 ## Orden recomendado y estimación
 | Tramo | Bloques | Sesiones | Confianza |
 |---|---|---|---|
-| Mínimo útil | E1 → E2 → E3 → E11 → E4 → E5 | 8–11 | [Probable] |
+| Mínimo útil | E1 → E2 → E3 → E11 → E4 → E5 | 8–10 | [Probable] |
 | Seguimiento | E6 → E8 → E9 | 3–4 | [Probable] |
 | Paso a cuenta y respuesta | E10 → E7 | 3–4 | [Suponiendo] |
 | Cierre | `e2e.sh all` + `e2e:entrenadora`, `test-migration.sh`, Semgrep, licencias, CHANGELOG, guía, `docs/migracion-v3-1-a-v3-2.md`, `doctor.sh` (`EXPECTED_MIGRATION`, rutas nuevas) | 1–2 | [Seguro] |
@@ -136,7 +136,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 - [Probable] Filtro olvidado de cuentas gestionadas en jobs o estadísticas → lo cubre la prueba de arquitectura de E1.
 - [Suponiendo] `plan-import` y otros servicios pueden suponer que la dueña es la usuaria de la sesión: E4 puede crecer.
 - [Probable] El enlace público (E5/E7) es superficie nueva sin cuenta: token con hash, caducidad, límite y `e2e:security`.
-- [Seguro] Ninguna decisión legal de la Puerta 0.2–0.3 está revisada por un abogado.
+- [Seguro] Puerta 0.2 decidida (alias, sin salud); la 0.3 sigue sin revisión de un abogado. [Probable] El PDF del plan puede llevar el nombre real en la portada: E4 avisa, pero no lo borra.
 
 ## Plantilla de encargo por bloque
 ```
