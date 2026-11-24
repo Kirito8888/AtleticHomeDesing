@@ -12,7 +12,7 @@ import { listMicroSessions } from "@/lib/study/study-history-service";
 import { today } from "@/lib/dates";
 import { DocumentsPanel } from "@/components/study/documents-panel";
 import { publicDocError } from "@/lib/ai/doc-error";
-import { listDecks } from "@/lib/ai/flashcards";
+import { dailyCap, listDecks } from "@/lib/ai/flashcards";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { aiAvailable } from "@/lib/ai/provider";
 import { pageUser } from "@/lib/auth/page";
@@ -25,7 +25,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
   const user = await pageUser();
   const { tab } = await searchParams;
   const aiConfigured = await aiAvailable(user.id);
-  const [me, docs, threads, decks, reports, storage, modules, microSessions, subjects] = await Promise.all([
+  const [me, docs, threads, decks, reports, storage, modules, microSessions, subjects, cap] = await Promise.all([
     prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { aiConsentAt: true } }),
     prisma.studyDocument.findMany({
       where: { userId: user.id },
@@ -39,6 +39,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
     listModules(user.id, toIsoDay(today())),
     listMicroSessions(user.id),
     knownSubjects(user.id),
+    dailyCap(user.id),
   ]);
   const aiConsent = me.aiConsentAt != null;
   const aiEnabled = aiConfigured && aiConsent;
@@ -128,7 +129,7 @@ export default async function StudyPage({ searchParams }: PageProps<"/study">) {
         </TabsContent>
         <TabsContent value="cards">
           <div className="grid gap-4">
-            <FlashcardReview decks={decks} />
+            <FlashcardReview decks={decks} cap={cap} />
             <ManualCards decks={decks.map((d) => d.name)} />
             <Link href="/study/exam" className="text-sm font-medium underline underline-offset-4">
               Examen simulado con tus tarjetas →

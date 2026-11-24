@@ -33,8 +33,18 @@ const GRADES = [
   { grade: 5, label: "Fácil" },
 ];
 
-export function FlashcardReview({ decks }: { decks: Deck[] }) {
+/** Tope diario de repaso (V3-N03): `remaining` null = sin tope. */
+export interface DailyCap {
+  cap: number;
+  reviewed: number;
+  remaining: number | null;
+}
+
+const CAP_OPTIONS = [0, 10, 20, 30, 50, 100];
+
+export function FlashcardReview({ decks, cap }: { decks: Deck[]; cap: DailyCap }) {
   const router = useRouter();
+  const capReached = cap.remaining === 0;
   const [queue, setQueue] = useState<Card[] | null>(null);
   const [flipped, setFlipped] = useState(false);
   const [done, setDone] = useState(0);
@@ -114,7 +124,7 @@ export function FlashcardReview({ decks }: { decks: Deck[] }) {
             )}
           </>
         ) : (
-          <p className="text-sm">¡Mazo al día! 🎉</p>
+          <p className="text-sm">{cap.remaining !== null && cap.reviewed + done >= cap.cap ? `Tope de hoy cumplido (${cap.cap} tarjetas). Mañana sigues.` : "¡Mazo al día! 🎉"}</p>
         )}
       </div>
     );
@@ -141,7 +151,7 @@ export function FlashcardReview({ decks }: { decks: Deck[] }) {
             <div className="text-xs text-muted-foreground">Compartido con {d.sharedWith}</div>
           ) : null}
         </div>
-        <Button size="sm" className="h-10" disabled={!d.due} onClick={() => start(d.id)}>
+        <Button size="sm" className="h-10" disabled={!d.due || capReached} onClick={() => start(d.id)}>
           Repasar
         </Button>
       </div>
@@ -162,6 +172,7 @@ export function FlashcardReview({ decks }: { decks: Deck[] }) {
 
   return decks.length ? (
     <div className="grid gap-4">
+      <CapControl cap={cap} />
       {mine.length ? (
         <section className="grid gap-2">
           <h3 className="text-sm font-medium">Mis mazos</h3>
@@ -177,5 +188,46 @@ export function FlashcardReview({ decks }: { decks: Deck[] }) {
     </div>
   ) : (
     <p className="text-sm text-muted-foreground">Genera flashcards desde tus apuntes.</p>
+  );
+}
+
+/** Tope diario: cuántas llevas hoy y selector (se guarda en tus preferencias). */
+function CapControl({ cap }: { cap: DailyCap }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  async function save(value: number) {
+    setBusy(true);
+    try {
+      await api("/api/settings/prefs", { method: "PATCH", body: { flashcardDailyCap: value } });
+      toast.success(value ? `Tope diario: ${value} tarjetas` : "Sin tope diario");
+      router.refresh();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm" data-testid="cards-cap">
+      <span role="status">
+        {cap.cap ? (cap.remaining === 0 ? `Tope de hoy cumplido: ${cap.reviewed} de ${cap.cap}. Mañana sigues.` : `Hoy: ${cap.reviewed} de ${cap.cap} tarjetas`) : `Hoy: ${cap.reviewed} tarjetas repasadas`}
+      </span>
+      <label className="flex min-h-11 items-center gap-2 text-xs text-muted-foreground">
+        Tope diario
+        <select
+          aria-label="Tope diario de tarjetas"
+          className="h-11 rounded-md border bg-transparent px-2 text-sm text-foreground"
+          value={cap.cap}
+          disabled={busy}
+          onChange={(e) => void save(Number(e.target.value))}
+        >
+          {[...new Set([...CAP_OPTIONS, cap.cap])].sort((a, b) => a - b).map((n) => (
+            <option key={n} value={n}>
+              {n ? `${n} tarjetas` : "Sin tope"}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
   );
 }

@@ -5,6 +5,8 @@ import { generateJson } from "@/lib/ai/llm";
 import { assertAiAllowed } from "@/lib/ai/guard";
 import { nextReview } from "@/lib/ai/sm2";
 import { ApiError } from "@/lib/api";
+import { localDay } from "@/lib/dates";
+import { getPrefs } from "@/lib/rules/prefs-service";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
@@ -156,6 +158,28 @@ export async function dueCards(userId: string, opts: { deckId?: string; limit: n
     .sort((a, b) => (a.reviews[0]?.dueAt ?? a.createdAt).getTime() - (b.reviews[0]?.dueAt ?? b.createdAt).getTime())
     .slice(0, opts.limit)
     .map((c) => ({ id: c.id, front: c.front, back: c.back, deckId: c.deckId }));
+}
+
+/** v3.2 K (V3-N03) · lo que queda del tope diario; `null` = sin tope (cap 0). */
+export function remainingToday(cap: number, reviewed: number): number | null {
+  return cap > 0 ? Math.max(0, cap - reviewed) : null;
+}
+
+/** Tarjetas distintas repasadas hoy (día de Madrid) por esta persona. */
+export async function reviewedToday(userId: string, now = new Date()): Promise<number> {
+  const rows = await prisma.flashcardReview.findMany({
+    where: { userId, lastReviewedAt: { gte: new Date(now.getTime() - 26 * 3600_000) } },
+    select: { lastReviewedAt: true },
+  });
+  const day = localDay(now);
+  return rows.filter((r) => r.lastReviewedAt && localDay(r.lastReviewedAt) === day).length;
+}
+
+/** Tope del día: cuántas lleva, el tope y cuántas le quedan (`remaining` null = sin tope). */
+export async function dailyCap(userId: string) {
+  const [prefs, reviewed] = await Promise.all([getPrefs(userId), reviewedToday(userId)]);
+  const cap = prefs.flashcardDailyCap;
+  return { cap, reviewed, remaining: remainingToday(cap, reviewed) };
 }
 
 /** Cuántas tarjetas tocan hoy por mazo (propios y compartidos). */

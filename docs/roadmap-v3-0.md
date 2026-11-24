@@ -127,7 +127,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 > |---|---|---|
 > | I · Rediseño Entreno | Pendiente | — |
 > | J · Entreno sin red | **Parcial** | Bandeja `lib/offline/outbox.ts` (v1.6) para sesiones enteras (`session-form`, `quick-log`) con `clientId`; faltan series de fuerza y tomas sueltas |
-> | K · Estudio + N03 | **Parcial** | `SaveToFlashcards` en Adaptar y en el pack de estudio; falta el tope diario de repasos y verificar «Resumir» |
+> | K · Estudio + N03 | **Hecho (24/11/2026), salvo la tarea 1** | Tope diario de repasos (`flashcardDailyCap`) y «Crear flashcards» en el resumen del tema. La tarea 1 (composición de `/study`) pasa al tramo de rediseños (tras I) |
 > | L · Rediseño Nutrición | Pendiente | — |
 > | M · Gasto adaptativo | Pendiente | — |
 > | N · Finanzas + exportación | **Parcial** | `GET /api/account/export` (JSON, arts. 15 y 20); falta la exportación guiada y el pie de autoría en exportaciones |

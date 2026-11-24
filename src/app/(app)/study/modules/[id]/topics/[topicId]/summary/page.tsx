@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { PageHeader } from "@/components/page-header";
 import { SummaryView } from "@/components/study/pack/summary-view";
+import { SaveToFlashcards } from "@/components/study/save-to-flashcards";
 import { getPack } from "@/lib/ai/study-pack";
 import { pageUser } from "@/lib/auth/page";
 import { prisma } from "@/lib/prisma";
@@ -22,7 +23,11 @@ export default async function TopicSummaryPage({ params }: PageProps<"/study/mod
         ← {topic.module.name}
       </Link>
       {pack?.summary ? (
-        <SummaryView summary={pack.summary} />
+        <div className="grid gap-3">
+          {/* v3.2 K (V3-N03) · desde el resumen también se guardan tarjetas (mismo origen que en la asignatura: las preguntas del paquete) */}
+          {pack.questions > 0 ? <SaveToFlashcards source={{ kind: "pack", topicId }} suggested={[topic.module.name, topic.name]} subject={topic.module.name} testId="summary-cards" /> : null}
+          <SummaryView summary={pack.summary} />
+        </div>
       ) : (
         <p role="status" className="rounded-lg border p-3 text-sm text-muted-foreground">
           Este tema aún no tiene resumen. Genera su paquete en la asignatura.
