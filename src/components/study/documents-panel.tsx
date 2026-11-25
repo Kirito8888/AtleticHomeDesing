@@ -32,7 +32,7 @@ const STATUS = { PENDING: "Pendiente", PROCESSING: "Procesando", EMBEDDED: "List
 type Live = Pick<DocItem, "status" | "error" | "chunks" | "flashcards">;
 const RUNNING = (st: DocItem["status"]) => st === "PENDING" || st === "PROCESSING";
 
-export function DocumentsPanel({ docs: serverDocs, aiEnabled, modules }: { docs: DocItem[]; aiEnabled: boolean; modules: { id: string; name: string }[] }) {
+export function DocumentsPanel({ docs: serverDocs, aiEnabled, modules, secondary = false }: { docs: DocItem[]; aiEnabled: boolean; modules: { id: string; name: string }[]; /** v3.2 K: con «Ahora toca» a la vista, «Subir» no es la acción principal. */ secondary?: boolean }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   // v1.8 · llegado desde «Compartir»: queda elegido, falta pulsar «Subir»
@@ -142,7 +142,7 @@ export function DocumentsPanel({ docs: serverDocs, aiEnabled, modules }: { docs:
             </Select>
           </Field>
         ) : null}
-        <Button type="submit" disabled={!aiEnabled || busy === "upload"}>
+        <Button type="submit" variant={secondary ? "outline" : "default"} disabled={!aiEnabled || busy === "upload"}>
           <Upload /> {busy === "upload" ? "Subiendo…" : "Subir"}
         </Button>
       </form>

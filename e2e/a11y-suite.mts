@@ -121,7 +121,7 @@ for (const t of THEMES) {
   const p = await newPage("light");
   await login(p);
   await req(p, "PATCH", "/api/settings/prefs", { highContrast: true, fontScale: 130 });
-  for (const r of ["/clubs", "/coach", "/finance"]) {
+  for (const r of ["/clubs", "/coach", "/finance", "/study"]) {
     await go(p, r);
     const where = `${r} (letra 130 + hc)`;
     if (await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) errors.push(`${where}: scroll horizontal`);
