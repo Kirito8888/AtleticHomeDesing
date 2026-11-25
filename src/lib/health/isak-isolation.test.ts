@@ -30,6 +30,7 @@ describe("aislamiento de la composición corporal", () => {
         "src/app/api/health/body-composition/import/route.ts",
         "src/app/api/health/body-composition/route.ts",
         "src/app/api/health/body-composition/preview/route.ts",
+        "src/lib/account/export-modules.ts",
         "src/lib/account/restore.ts",
         "src/lib/account/service.ts",
         "src/lib/security/rotate.ts",

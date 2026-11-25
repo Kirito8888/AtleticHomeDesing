@@ -619,7 +619,11 @@ Desde la v2.3 la página va ordenada en grupos con un índice arriba; las opcion
 - **Estado del servidor** (solo administración): versión, base de datos, migraciones, cola, planificador, espacio libre y última copia. Míralo después de cada actualización.
 - **Actividad reciente:** inicios de sesión, cambios de contraseña, 2FA… (se guarda 180 días).
 - **Entrenador / atletas:** invita a tu entrenador y elige qué puede ver (carga, sesiones, recuperación, planificación, informes) y si puede planificarte.
-- **Tus datos:** descargar todo en JSON, CSV de entrenos y finanzas, y **borrar la cuenta** (definitivo).
+- **Tus datos:** exportar en JSON, CSV de entrenos y finanzas, y **borrar la cuenta** (definitivo).
+  - **Exportar por módulos** (Ajustes → Tus datos → «Exportar mis datos», o **Privacidad y derechos → Exportar mis datos**): marcas qué módulos quieres (Entreno, Recuperación, Nutrición, Plan y calendario, Finanzas, Estudio, Entrenadora y comentarios, Clubes) y ves qué lleva cada uno. Tu cuenta va siempre.
+  - **Lo cifrado no sale salvo que lo pidas:** ciclo, salud de la mujer, composición corporal (ISAK), bienestar y la nota/ubicación de «entreno sola». Si marcas «Incluir mis datos de salud cifrados», el archivo los lleva **sin cifrar**: guárdalo en un sitio seguro. Para una **copia con la que restaurar** en otra cuenta, márcalo.
+  - **Solo lo tuyo:** de lo que escribió tu entrenadora solo queda que existe (fecha), sin su texto, nombre ni correo; de los clubes, tus membresías y tus cuotas.
+  - Las exportaciones (JSON, PDF del manual, informes compartidos, informe de salud y calendario `.ics`) llevan el aviso de autoría; los CSV, no, para no romper las hojas de cálculo.
 
 ## Novedades de v2.8 (Estudio)
 - **Resumir e Informe:** puedes corregir el texto antes de guardarlo; al guardar se mantiene el formato corto para TDAH.

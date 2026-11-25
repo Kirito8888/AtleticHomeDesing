@@ -130,12 +130,12 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 > | K · Estudio + N03 | **Hecho (24/11/2026), salvo la tarea 1** | Tope diario de repasos (`flashcardDailyCap`) y «Crear flashcards» en el resumen del tema. La tarea 1 (composición de `/study`) pasa al tramo de rediseños (tras I) |
 > | L · Rediseño Nutrición | Pendiente | — |
 > | M · Gasto adaptativo | **Hecho (24/11/2026)** | `/nutrition/gasto`: estimación determinista sin IA (comida + tendencia del peso, 4 semanas), «Aún calibrando» sin datos, borrador semanal con topes → «Aceptar» escribe `NutritionGoal`; sin esquema ni migración (`e2e:gasto`) |
-> | N · Finanzas + exportación | **Parcial** | `GET /api/account/export` (JSON, arts. 15 y 20); falta la exportación guiada y el pie de autoría en exportaciones |
+> | N · Finanzas + exportación | **Hecho (25/11/2026), salvo la tarea 1** | Exportación guiada por módulos en `/settings/privacy#exportar` (lo cifrado solo si se marca; sin datos de terceros) y pie de autoría en PDF, informes, `.ics` y JSON (`e2e:exportar`). La tarea 1 (composición de `/finance`) pasa al tramo de rediseños, junto a I, L y O |
 > | O · Rediseño Clubes | Pendiente | — |
 > | P · Eventos de club | Pendiente | Sin modelo de eventos ni asistencia |
 > | Q · Recordatorios | Pendiente | Depende de P |
 >
-> **Orden recomendado ahora:** K → J → M → N → P → Q → I → L → O. Lo barato y a medias primero; las funciones nuevas después; los rediseños al final porque rompen E2E y el roadmap pedía decidirlos con uso real del rediseño de v3.0. Migración: P crea la de la versión (`v3_2_features`), que luego amplía E1.
+> **Orden recomendado ahora:** K → J → M → N → P → Q → I → L → O (y el rediseño de `/finance`, que era la tarea 1 de N, junto a I, L y O). Lo barato y a medias primero; las funciones nuevas después; los rediseños al final porque rompen E2E y el roadmap pedía decidirlos con uso real del rediseño de v3.0. Migración: P crea la de la versión (`v3_2_features`), que luego amplía E1.
 
 
 #### I · Rediseño Entreno
@@ -180,7 +180,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 #### N · Rediseño Finanzas + exportación guiada (V3-N06)
 | | |
 |---|---|
-| Tareas | 1) Composición de `/finance` con los principios de G (las zonas de B3 se conservan). 2) **V3-N06:** exportación guiada de los datos de la usuaria (no solo ops), con lo cifrado fuera salvo petición expresa de la propia usuaria. 3) **V3-L02 prioridad 5:** pie de autoría en exportaciones (manual PDF, informe semanal, `.ics`, informe para la médica) sin datos de la instalación. 4) Adaptar `v25h`, `v25k` |
+| Tareas | 1) ~~Composición de `/finance` con los principios de G (las zonas de B3 se conservan)~~ **→ pasa al tramo de rediseños (junto a I, L y O; 25/11/2026)**. 2) **V3-N06:** exportación guiada de los datos de la usuaria (no solo ops), con lo cifrado fuera salvo petición expresa de la propia usuaria. 3) **V3-L02 prioridad 5:** pie de autoría en exportaciones (manual PDF, informe semanal, `.ics`, informe para la médica) sin datos de la instalación. 4) Adaptar `v25h`, `v25k` |
 | BD | No [Probable] |
 | Ses. | 1–2 [Probable] |
 | Por qué | Finanzas no tiene funciones nuevas en la auditoría; N06 refuerza RGPD (art. 20) y es barata |

@@ -1,3 +1,4 @@
+import { AUTHORSHIP_NOTICE } from "@/lib/legal/notice";
 import { formatNum } from "@/lib/format";
 /**
  * Informe de solo lectura para la entrenadora: HTML autocontenido, sin
@@ -69,5 +70,5 @@ h1{font-size:1.4rem;margin:.2rem 0}h2{font-size:1.1rem;margin-top:1.6rem}h3{font
 table{border-collapse:collapse;width:100%;font-size:.9rem;display:block;overflow-x:auto}th,td{border-bottom:1px solid #ddd;padding:4px 8px;text-align:left;white-space:nowrap}
 .muted{color:#666;font-size:.85rem}
 @media (prefers-color-scheme:dark){body{background:#111;color:#eee}th,td{border-color:#333}.muted{color:#aaa}}
-</style></head><body><h1>Informe de ${esc(d.athlete)}</h1><p class="muted">Del ${esc(d.from)} al ${esc(d.to)} · enlace de solo lectura, caduca el ${esc(d.expiresAt)}. Generado con Atlenza.</p>${sections.join("")}</body></html>`;
+</style></head><body><h1>Informe de ${esc(d.athlete)}</h1><p class="muted">Del ${esc(d.from)} al ${esc(d.to)} · enlace de solo lectura, caduca el ${esc(d.expiresAt)}. Generado con Atlenza.</p>${sections.join("")}<footer class="muted" style="margin-top:2rem">${esc(AUTHORSHIP_NOTICE)}</footer></body></html>`;
 }

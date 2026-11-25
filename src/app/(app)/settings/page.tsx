@@ -849,14 +849,12 @@ export default async function SettingsPage({
           <Section
             id="datos"
             title="Tus datos"
-            description="Descarga una copia completa (JSON) o elimina tu cuenta."
+            description="Exporta tus datos por módulos (JSON, o CSV) o elimina tu cuenta. Lo cifrado solo sale si lo pides."
           >
             <div className="grid gap-6">
               <div className="grid gap-2">
                 <Button asChild variant="outline">
-                  <a href="/api/account/export" download>
-                    Descargar todos mis datos (JSON)
-                  </a>
+                  <a href="/settings/privacy#exportar">Exportar mis datos (JSON): elegir módulos</a>
                 </Button>
                 <div className="grid grid-cols-2 gap-2">
                   <Button asChild variant="outline" size="sm">

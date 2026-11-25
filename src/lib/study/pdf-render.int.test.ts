@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+import { AUTHORSHIP_NOTICE } from "@/lib/legal/notice";
+
 import { buildManualPdf, createPdfQueue, pageTexts, renderPdf } from "./pdf-render";
 import { allCodes, fakeManual, locateCodes, manualAiSchema, normalizeManual } from "./practical-manual";
 
@@ -14,6 +16,13 @@ describe.skipIf(!hasChromium)("renderizador PDF", () => {
     const pdf = await renderPdf("<html><body><p>Hola</p></body></html>");
     expect(Buffer.from(pdf.slice(0, 5)).toString()).toBe("%PDF-");
     expect((await pageTexts(pdf)).join("")).toContain("Hola");
+  }, 60_000);
+
+  it("cada página lleva el pie de autoría (v3.2 N) y nada de la instalación", async () => {
+    const pdf = await renderPdf("<html><body><p>Hola</p></body></html>");
+    const text = (await pageTexts(pdf)).join(" ");
+    expect(text.replace(/\s+/g, " ")).toContain(AUTHORSHIP_NOTICE);
+    expect(text).not.toMatch(/localhost|https?:\/\//);
   }, 60_000);
 
   it("el índice lleva la página real de cada receta", async () => {

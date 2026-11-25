@@ -15,6 +15,7 @@ import { listBodyComposition } from "@/lib/health/isak-service";
 import { getWomen } from "@/lib/health/women-service";
 import { recordConsent } from "@/lib/privacy/service";
 import { toIsoDay } from "@/lib/dates";
+import { EXPORT_MODULE_KEYS, type ExportSelection, shapeExport } from "./export-modules";
 import { listWellbeing } from "@/lib/recovery/wellbeing-service";
 
 /** Re-autenticación para operaciones sensibles. Limitada para no servir de oráculo de fuerza bruta. */
@@ -63,11 +64,16 @@ export async function setAiConsent(userId: string, enabled: boolean, ctx: AuditC
 }
 
 /**
- * Exportación completa (derecho de acceso/portabilidad). Sin hash de
- * contraseña ni rutas internas del servidor; los fragmentos vectorizados se
+ * Exportación de mis datos (derechos de acceso y portabilidad, arts. 15 y 20), por módulos (v3.2 N).
+ * Sin hash de contraseña ni rutas internas del servidor; los fragmentos vectorizados se
  * omiten porque son derivados de los apuntes (que se pueden volver a subir).
+ * Lo cifrado solo sale con `opts.sensitive`. Nada de otras personas: de los comentarios ajenos, vínculos
+ * y contactos de seguridad solo queda fecha, papel y estado (sin texto, nombre ni correo).
  */
-export async function exportAccount(userId: string) {
+export async function exportAccount(userId: string, opts: Partial<ExportSelection> = {}) {
+  const selection: ExportSelection = { modules: opts.modules ?? [...EXPORT_MODULE_KEYS], sensitive: opts.sensitive === true };
+  // v3.2 N · Lo cifrado (ciclo, salud de la mujer, ISAK, bienestar, «entreno sola») solo se descifra si la usuaria lo pide
+  const withSecrets = selection.sensitive && dataKeyConfigured();
   const where = { userId };
   const [
     user,
@@ -129,10 +135,7 @@ export async function exportAccount(userId: string) {
     // v2.0 · Mi propio progreso SM-2 (también el de mazos compartidos conmigo); nunca el de otras personas.
     prisma.flashcardReview.findMany({ where }),
     prisma.coachReport.findMany({ where }),
-    prisma.coachAthlete.findMany({
-      where: { OR: [{ coachId: userId }, { athleteId: userId }] },
-      include: { coach: { select: { name: true, email: true } }, athlete: { select: { name: true, email: true } } },
-    }),
+    prisma.coachAthlete.findMany({ where: { OR: [{ coachId: userId }, { athleteId: userId }] } }),
     // v2.0 · Mis membresías de club y mis propias cuotas (nunca las de otras personas del club).
     prisma.orgMember.findMany({ where, include: { org: { select: { name: true } }, fees: true } }),
   ]);
@@ -143,14 +146,14 @@ export async function exportAccount(userId: string) {
     prisma.mealTemplate.findMany({ where, include: { items: true } }),
     prisma.planMeso.findMany({ where, orderBy: { startDate: "asc" }, include: { days: { orderBy: { key: "asc" } }, feedback: true } }),
     // Datos del ciclo descifrados para su dueña (si el servidor tiene la clave).
-    dataKeyConfigured() ? getCycle(userId, 36500) : Promise.resolve(null),
+    withSecrets ? getCycle(userId, 36500) : Promise.resolve(null),
     prisma.oneRepMax.findMany({ where, orderBy: [{ nameKey: "asc" }, { effectiveFrom: "asc" }] }),
     prisma.exerciseAlias.findMany({ where }),
     // Enlaces compartidos: solo metadatos (el hash del token no sirve a nadie).
     prisma.sharedReport.findMany({ where, omit: { tokenHash: true } }),
     prisma.calendarFeed.findMany({ where, omit: { tokenHash: true } }),
     // Salud de la mujer descifrada para su dueña (si el servidor tiene la clave).
-    dataKeyConfigured() ? getWomen(userId) : Promise.resolve(null),
+    withSecrets ? getWomen(userId) : Promise.resolve(null),
     // v2.1 · Curvas propias, protocolos propios (sin el seguimiento de las atletas: es de ellas) y lo que me compartieron con mi seguimiento.
     prisma.referenceCurve.findMany({ where: { createdById: userId } }),
     prisma.physioProtocol.findMany({ where: { ownerId: userId }, include: { shares: { select: { athleteId: true, createdAt: true } } } }),
@@ -172,7 +175,7 @@ export async function exportAccount(userId: string) {
     prisma.habit.findMany({ where, include: { logs: { select: { date: true }, orderBy: { date: "asc" } } } }),
     prisma.equipment.findMany({ where }),
     // Los de sus sesiones (de quien sea) y los que escribió en sesiones de sus atletas
-    prisma.sessionComment.findMany({ where: { OR: [{ athleteId: userId }, { authorId: userId }] }, orderBy: { createdAt: "asc" }, include: { author: { select: { name: true, email: true } } } }),
+    prisma.sessionComment.findMany({ where: { OR: [{ athleteId: userId }, { authorId: userId }] }, orderBy: { createdAt: "asc" } }),
     prisma.studySelfTestAttempt.findMany({ where, orderBy: { takenAt: "asc" }, omit: { userId: true } }),
     prisma.studyMicroSession.findMany({ where, orderBy: { completedAt: "asc" }, omit: { userId: true } }),
   ]);
@@ -187,7 +190,7 @@ export async function exportAccount(userId: string) {
     prisma.healthReport.findMany({ where, omit: { tokenHash: true } }),
     prisma.safetyContact.findMany({
       where: { OR: [{ userId }, { contactId: userId }] },
-      select: { status: true, createdAt: true, userId: true, owner: { select: { name: true, email: true } }, contact: { select: { name: true, email: true } } },
+      select: { status: true, createdAt: true, userId: true, contact: { select: { name: true, email: true } } },
     }),
     prisma.safetyTrip.findMany({ where, orderBy: { startedAt: "asc" } }),
     prisma.recipe.findMany({ where }),
@@ -205,8 +208,8 @@ export async function exportAccount(userId: string) {
     prisma.consent.findMany({ where, orderBy: { createdAt: "asc" }, omit: { userId: true } }),
     prisma.privacyRequest.findMany({ where, orderBy: { createdAt: "asc" }, omit: { userId: true } }),
     prisma.routineProfile.findMany({ where, include: { tests: { orderBy: { date: "asc" } } } }),
-    dataKeyConfigured() ? listWellbeing(userId, toIsoDay(new Date()), 36500) : Promise.resolve(null),
-    dataKeyConfigured() ? listBodyComposition(userId) : Promise.resolve(null),
+    withSecrets ? listWellbeing(userId, toIsoDay(new Date()), 36500) : Promise.resolve(null),
+    withSecrets ? listBodyComposition(userId) : Promise.resolve(null),
     prisma.injuryPhoto.findMany({ where, select: { id: true, injuryId: true, mime: true, takenOn: true, createdAt: true } }),
     prisma.mealPlanEntry.findMany({ where, orderBy: { date: "asc" }, include: { recipe: { select: { name: true } } } }),
     prisma.supplementLog.findMany({ where, orderBy: { date: "asc" }, select: { supplementId: true, date: true, supplement: { select: { name: true } } } }),
@@ -232,10 +235,15 @@ export async function exportAccount(userId: string) {
     prisma.pageUsage.findMany({ where, orderBy: [{ week: "asc" }, { path: "asc" }], select: { path: true, week: true, count: true } }),
     prisma.trashItem.findMany({ where, orderBy: { deletedAt: "asc" }, select: { kind: true, label: true, data: true, deletedAt: true } }),
   ]);
-  // Lo cifrado (nota y ubicación de «entreno sola») se entrega descifrado a su dueña, o se omite sin clave
-  const safetyTripsOut = safetyTrips.map(({ data, ...t }) => ({ ...t, details: data && dataKeyConfigured() ? openJson(data) : null }));
-  const safetyContactsOut = safetyContacts.map((c) => ({ status: c.status, createdAt: c.createdAt, role: c.userId === userId ? "MY_CONTACT" : "I_AM_CONTACT", person: c.userId === userId ? c.contact : c.owner }));
-  return {
+  // Lo cifrado (nota y ubicación de «entreno sola») va descifrado solo si la usuaria lo pidió; si no, ni la clave `details`
+  const safetyTripsOut = safetyTrips.map(({ data, ...t }) => (withSecrets ? { ...t, details: data ? openJson(data) : null } : t));
+  // Contactos: la persona que yo elegí es mío; si yo soy el contacto de otra, solo queda que lo soy (nada de su identidad)
+  const safetyContactsOut = safetyContacts.map((c) => ({ status: c.status, createdAt: c.createdAt, role: c.userId === userId ? "MY_CONTACT" : "I_AM_CONTACT", ...(c.userId === userId ? { person: c.contact } : {}) }));
+  // Comentarios: el texto que escribí yo; de los ajenos solo que existen (fecha y sesión), sin texto ni autor
+  const commentsOut = sessionComments.map((c) => ({ id: c.id, sessionId: c.sessionId, createdAt: c.createdAt, writtenByMe: c.authorId === userId, aboutMe: c.athleteId === userId, ...(c.authorId === userId ? { body: c.body } : {}) }));
+  // Vínculos con entrenadoras o atletas: mi papel, estado, permisos y fechas; sin nombre ni correo de la otra persona
+  const linksOut = coachLinks.map((l) => ({ id: l.id, status: l.status, canPlan: l.canPlan, scopes: l.scopes, createdAt: l.createdAt, acceptedAt: l.acceptedAt, myRole: l.coachId === userId ? "COACH" : "ATHLETE" }));
+  const full = {
     exportedAt: new Date().toISOString(),
     format: "lifeos-export/2",
     user,
@@ -252,7 +260,7 @@ export async function exportAccount(userId: string) {
       physicalTests: testResults,
       fvSeries,
       equipment,
-      comments: sessionComments,
+      comments: commentsOut,
       minimums,
       weekTemplates,
       prehabRoutines,
@@ -285,7 +293,7 @@ export async function exportAccount(userId: string) {
     },
     nutrition: { ownFoods, entries: macros, goals: nutritionGoals, favorites: mealTemplates, hydration, recipes, shopping, mealPlan: mealPlan.map(({ recipe, ...m }) => ({ ...m, recipeName: recipe.name })), sweatTests },
     study: { documents: studyDocuments, chatThreads, flashcardDecks, flashcardReviews, classSlots, sessions: studySessions, habits, planBlocks: studyPlanBlocks, grades, assignments, selfTestAttempts, microSessions },
-    coach: { reports: coachReports, links: coachLinks, sharedReports },
+    coach: { reports: coachReports, links: linksOut, sharedReports },
     clubs: { memberships: clubMemberships },
     training21: { referenceCurves, physioProtocols, physioReceived },
     calendarFeeds,
@@ -296,6 +304,7 @@ export async function exportAccount(userId: string) {
     goals: { goals, weeklyReviews },
     app: { notifications: inbox, pageUsage, trash },
   };
+  return shapeExport(full, selection);
 }
 
 /**

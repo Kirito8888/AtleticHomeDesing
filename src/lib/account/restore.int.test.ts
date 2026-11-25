@@ -64,7 +64,8 @@ describe.skipIf(!HAS_DB)("restaurar una exportación (BD real)", () => {
   it("restaura entrenos, recuperación y hábitos; no en una cuenta con datos", async () => {
     const { exportAccount } = await import("./service");
     const { restoreExport } = await import("./restore");
-    const data = JSON.parse(JSON.stringify(await exportAccount(from)));
+    // Una copia para restaurar necesita lo cifrado (bienestar): se pide expresamente (v3.2 N)
+    const data = JSON.parse(JSON.stringify(await exportAccount(from, { sensitive: true })));
     const r = await restoreExport(to, data);
     expect(r.counts).toMatchObject({ sesiones: 2, "días de recuperación": 1, hábitos: 1 });
     const s = await prisma.trainingSession.findFirstOrThrow({ where: { userId: to, type: "TECHNICAL" }, include: { technical: true } });
