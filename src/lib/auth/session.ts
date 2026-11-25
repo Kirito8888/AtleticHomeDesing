@@ -6,6 +6,7 @@ import { ApiError, enforceRateLimit } from "@/lib/api";
 import { TERMS_VERSION } from "@/lib/auth/constants";
 import { recoveryConsented } from "@/lib/coach/recovery-consent";
 import { prisma } from "@/lib/prisma";
+import { managedGrant } from "@/lib/managed/rules";
 import { staffGate } from "@/lib/auth/staff-gate";
 import { isMutation, mutationLimitExempt, requestContext, secondFactorExempt, termsExempt } from "@/lib/request-context";
 
@@ -86,7 +87,7 @@ export async function resolveAthleteId(
   if (!athleteId || athleteId === user.id) return user.id;
   // El ADMIN global no es un acceso libre a datos deportivos: pasa por el mismo vínculo, ámbito y art. 18 que una entrenadora.
   if (user.role !== "COACH" && user.role !== "ADMIN") throw new ApiError(403, "Sin permiso sobre este atleta");
-  const [link, memberships] = await Promise.all([
+  const [link, memberships, athlete] = await Promise.all([
     prisma.coachAthlete.findUnique({ where: { coachId_athleteId: { coachId: user.id, athleteId } } }),
     prisma.orgMember.findMany({
       where: {
@@ -97,11 +98,13 @@ export async function resolveAthleteId(
       },
       select: { scopes: true, canPlan: true },
     }),
+    prisma.user.findUnique({ where: { id: athleteId }, select: { processingRestrictedAt: true, managedById: true, managedProfile: { select: { archivedAt: true } } } }),
   ]);
-  const grants: Grant[] = [...(link?.status === "ACTIVE" ? [link] : []), ...memberships];
+  // v3.3 E2 · Ficha gestionada (atleta sin cuenta): la entrenadora que la lleva tiene permiso implícito (sin RECOVERY; archivada = solo lectura)
+  const managed = athlete?.managedById === user.id ? [managedGrant(athlete.managedProfile?.archivedAt)] : [];
+  const grants: Grant[] = [...(link?.status === "ACTIVE" ? [link] : []), ...memberships, ...managed];
   if (!grants.length) throw new ApiError(403, "Sin vínculo activo con este atleta");
   // v1.7 · Limitación del tratamiento (art. 18): el entrenador deja de ver nada mientras dure
-  const athlete = await prisma.user.findUnique({ where: { id: athleteId }, select: { processingRestrictedAt: true } });
   if (athlete?.processingRestrictedAt) throw new ApiError(403, "El atleta ha limitado el tratamiento de sus datos");
   const grant = mergeGrants(grants);
   // Recuperación y lesiones es salud (art. 9): el ámbito solo vale con el consentimiento expreso de la atleta (`COACH_RECOVERY`)
@@ -134,12 +137,14 @@ export async function readableScopes(user: CurrentUser, athleteIds: string[]): P
       },
       select: { userId: true, scopes: true, canPlan: true },
     }),
-    prisma.user.findMany({ where: { id: { in: others }, processingRestrictedAt: { not: null } }, select: { id: true } }),
+    prisma.user.findMany({ where: { id: { in: others } }, select: { id: true, processingRestrictedAt: true, managedById: true, managedProfile: { select: { archivedAt: true } } } }),
   ]);
-  const blocked = new Set(restricted.map((r) => r.id));
+  const blocked = new Set(restricted.filter((r) => r.processingRestrictedAt).map((r) => r.id));
   const grants = new Map<string, Grant[]>();
   for (const l of links) grants.set(l.athleteId, [...(grants.get(l.athleteId) ?? []), l]);
   for (const m of memberships) grants.set(m.userId, [...(grants.get(m.userId) ?? []), m]);
+  // v3.3 E2 · fichas gestionadas de esta entrenadora (permiso implícito, sin RECOVERY)
+  for (const r of restricted) if (r.managedById === user.id) grants.set(r.id, [...(grants.get(r.id) ?? []), managedGrant(r.managedProfile?.archivedAt)]);
   const merged = new Map<string, Grant>();
   for (const [id, g] of grants) if (!blocked.has(id)) merged.set(id, mergeGrants(g));
   const needsConsent = [...merged].filter(([, g]) => g.scopes.includes("RECOVERY")).map(([id]) => id);

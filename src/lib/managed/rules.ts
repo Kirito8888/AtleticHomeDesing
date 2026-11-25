@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { CoachScope } from "@/generated/prisma/enums";
+
 /**
  * Suite de entrenadora (v3.3 E1): reglas puras de las fichas gestionadas (atletas sin cuenta).
  * Una ficha guarda SOLO alias, año de nacimiento o categoría, disciplina, grupo y notas: nunca nombre real, email,
@@ -42,3 +44,10 @@ export type ManagedCreate = z.infer<typeof managedCreateSchema>;
 export function ageOk(birthYear: number | undefined, year: number): boolean {
   return birthYear === undefined || birthYear <= latestBirthYear(year);
 }
+
+/**
+ * Permiso implícito de la entrenadora sobre sus fichas (E2). La ficha no concede nada ella misma (no tiene cuenta): la dueña ve y
+ * planifica lo deportivo. **Nunca RECOVERY** (salud, art. 9: las fichas no la tienen). Una ficha archivada es solo lectura.
+ */
+export const MANAGED_SCOPES: CoachScope[] = ["LOAD", "SESSIONS", "PLANNING", "REPORTS"];
+export const managedGrant = (archivedAt: Date | null | undefined): { scopes: CoachScope[]; canPlan: boolean } => ({ scopes: [...MANAGED_SCOPES], canPlan: !archivedAt });
