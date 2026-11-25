@@ -1,5 +1,6 @@
 import "server-only";
 
+import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 
 import { dateOnly, isoDate, today, toIsoDay } from "@/lib/dates";
@@ -9,10 +10,25 @@ import { todayMaxTemp } from "@/lib/weather";
 
 import { waterTarget } from "./hydration";
 
-export const waterSchema = z.object({ date: isoDate, ml: z.number().int().min(50).max(3000) });
+export const waterSchema = z.object({ date: isoDate, ml: z.number().int().min(50).max(3000), clientKey: z.string().trim().min(1).max(120).optional() });
 
 export async function addWater(userId: string, input: z.infer<typeof waterSchema>) {
-  return prisma.hydrationLog.create({ data: { userId, date: dateOnly(input.date), ml: input.ml }, select: { id: true } });
+  const { clientKey } = input;
+  const find = () => prisma.hydrationLog.findUnique({ where: { userId_clientKey: { userId, clientKey: clientKey! } }, select: { id: true } });
+  if (clientKey) {
+    const dup = await find();
+    if (dup) return dup;
+  }
+  try {
+    return await prisma.hydrationLog.create({ data: { userId, date: dateOnly(input.date), ml: input.ml, clientKey }, select: { id: true } });
+  } catch (err) {
+    // Dos reenvíos a la vez de la misma toma: gana el primero
+    if (clientKey && err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const dup = await find();
+      if (dup) return dup;
+    }
+    throw err;
+  }
 }
 
 /** Deshace la última anotación del día. */

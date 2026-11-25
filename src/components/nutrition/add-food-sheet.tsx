@@ -133,7 +133,7 @@ export function AddFoodSheet({ date, menus = [], recents = [], triggerLabel, tri
   async function add(body: Record<string, unknown>) {
     setBusy(true);
     try {
-      const r = await sendOrQueue("/api/nutrition/entries", { date, mealType: meal, ...body }, `Comida: ${String(body.customName ?? picked?.name ?? "alimento")}`);
+      const r = await sendOrQueue("/api/nutrition/entries", { date, mealType: meal, ...body }, `Comida: ${String(body.customName ?? picked?.name ?? "alimento")}`, "POST", { idempotent: true });
       toast.success(r === "queued" ? "Sin conexión: se añadirá al volver la cobertura" : "Añadido");
       setPicked(null);
       setCustom(null);

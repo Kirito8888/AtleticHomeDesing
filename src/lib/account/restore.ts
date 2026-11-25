@@ -116,9 +116,9 @@ export async function restoreExport(userId: string, data: unknown) {
     ["molestias", get(data, "recovery", "injuries"), Prisma.InjuryScalarFieldEnum, (d) => prisma.injury.create({ data: d as never })],
     ["eventos", get(data, "planning", "calendarEvents"), Prisma.CalendarEventScalarFieldEnum, (d) => prisma.calendarEvent.create({ data: { ...d, cycleId: null } as never })],
     ["tareas", get(data, "planning", "tasks"), Prisma.TaskScalarFieldEnum, (d) => prisma.task.create({ data: d as never })],
-    ["comidas", get(data, "nutrition", "entries"), Prisma.MacrosScalarFieldEnum, (d) => prisma.macros.create({ data: { ...d, foodProductId: null, customName: (d.customName as string | null) ?? "Alimento (restaurado)" } as never })],
+    ["comidas", get(data, "nutrition", "entries"), Prisma.MacrosScalarFieldEnum, (d) => prisma.macros.create({ data: { ...d, clientKey: null, foodProductId: null, customName: (d.customName as string | null) ?? "Alimento (restaurado)" } as never })],
     ["objetivos de nutrición", get(data, "nutrition", "goals"), Prisma.NutritionGoalScalarFieldEnum, (d) => prisma.nutritionGoal.create({ data: d as never })],
-    ["agua", get(data, "nutrition", "hydration"), Prisma.HydrationLogScalarFieldEnum, (d) => prisma.hydrationLog.create({ data: d as never })],
+    ["agua", get(data, "nutrition", "hydration"), Prisma.HydrationLogScalarFieldEnum, (d) => prisma.hydrationLog.create({ data: { ...d, clientKey: null } as never })],
     ["bloques de estudio", get(data, "study", "sessions"), Prisma.StudySessionScalarFieldEnum, (d) => prisma.studySession.create({ data: { ...d, moduleId: null, clientKey: null } as never })],
     // v1.6
     ["mínimas", get(data, "training", "minimums"), Prisma.MinimumScalarFieldEnum, (d) => prisma.minimum.create({ data: d as never })],

@@ -152,6 +152,63 @@ if (s3.length !== 1 || s3[0].id !== planned.id) errors.push(`PATCH sin red: ${s3
 else if (!s3[0].strength?._count.sets) errors.push("PATCH sin red: la sesión sigue sin series");
 log("planificada completada sin red: mismas series, misma sesión");
 
+// 4b · Tomas y agua: respuesta perdida + bandeja = una sola (clave idempotente, v3.2 J)
+const waterMl = async () => ((await (await page.request.get(`${B}/api/nutrition/water?date=${madridDay}`)).json()) as { ml: number }).ml;
+const mealsNamed = async (name: string) => {
+  const d = (await (await page.request.get(`${B}/api/nutrition/entries?date=${madridDay}`)).json()) as { entries: Array<{ customName: string | null }> };
+  return d.entries.filter((e) => e.customName === name).length;
+};
+await page.goto(B + "/nutrition");
+await page.waitForLoadState("networkidle");
+const ml0 = await waterMl();
+let cutWater = false;
+await page.route("**/api/nutrition/water", async (route) => {
+  if (route.request().method() === "POST" && !cutWater) {
+    cutWater = true;
+    await route.fetch(); // llega al servidor y se guarda
+    return route.abort("internetdisconnected");
+  }
+  return route.continue();
+});
+await page.getByRole("button", { name: "+250 ml" }).first().click();
+await page.getByTestId("outbox-pending").waitFor({ timeout: 8000 }).catch(() => errors.push("agua perdida: no se encola"));
+await page.unrouteAll({ behavior: "ignoreErrors" });
+await page.getByTestId("outbox-pending").getByRole("button", { name: "Enviar ahora" }).click().catch(() => undefined);
+await page.getByTestId("outbox-pending").waitFor({ state: "detached", timeout: 15000 }).catch(() => errors.push("agua perdida: no se vacía la bandeja"));
+const ml1 = await waterMl();
+if (ml1 - ml0 !== 250) errors.push(`agua perdida: suma ${ml1 - ml0} ml (se esperaban 250, sin duplicar)`);
+log("agua: respuesta perdida, una sola anotación");
+
+// Toma de comida: el mismo cuerpo con la misma clave llega dos veces (primer envío + bandeja)
+const mealName = `Toma sin red ${Date.now()}`;
+const meal = { date: madridDay, mealType: "LUNCH", customName: mealName, quantityG: 100, kcal: 100, proteinG: 5, carbsG: 10, fatG: 2, clientKey: `e2e-${Date.now()}` };
+for (let i = 0; i < 2; i++) {
+  const r = await page.request.post(B + "/api/nutrition/entries", { data: meal });
+  if (!r.ok()) errors.push(`toma: reenvío ${i + 1} → ${r.status()}`);
+}
+if ((await mealsNamed(mealName)) !== 1) errors.push(`toma: ${await mealsNamed(mealName)} entradas con la misma clave (se esperaba 1)`);
+log("toma: la misma clave no duplica");
+
+// Una toma de otra cuenta en la bandeja no se envía con esta sesión
+const alienName = `Toma ajena ${Date.now()}`;
+await page.evaluate(
+  ([name, day]) =>
+    new Promise<void>((resolve) => {
+      const req = indexedDB.open("lifeos-outbox", 2);
+      req.onsuccess = () => {
+        const tx = req.result.transaction("items", "readwrite");
+        tx.objectStore("items").put({ id: "ajena-toma", url: "/api/nutrition/entries", method: "POST", owner: "otra-cuenta", label: name, createdAt: Date.now(), body: { date: day, mealType: "LUNCH", customName: name, quantityG: 100, kcal: 100, proteinG: 5, carbsG: 10, fatG: 2, clientKey: "ajena-toma" } });
+        tx.oncomplete = () => resolve();
+      };
+    }),
+  [alienName, madridDay] as const,
+);
+await page.reload();
+await page.waitForLoadState("networkidle");
+await page.waitForTimeout(1500);
+if ((await mealsNamed(alienName)) !== 0) errors.push("se ha enviado una toma de otra cuenta con esta sesión");
+log("toma de otra cuenta: no se envía");
+
 // 5 · Lo que otra cuenta dejó en este móvil no se envía con esta sesión (y se borra)
 const t4 = `Ajena ${Date.now()}`;
 await page.goto(B + "/training");

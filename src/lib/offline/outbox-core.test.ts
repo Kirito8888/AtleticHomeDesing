@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { DRAFT_TTL_MS, outboxId, outcome, partitionByOwner, usableDraft, type OutboxItem } from "./outbox-core";
+import { DRAFT_TTL_MS, outboxId, outcome, partitionByOwner, usableDraft, withClientKey, type OutboxItem } from "./outbox-core";
 
 const item = (id: string, createdAt: number, owner?: string): OutboxItem => ({ id, url: "/api/training/sessions", body: {}, label: id, createdAt, owner });
 
@@ -53,5 +53,18 @@ describe("usableDraft", () => {
     expect(usableDraft(d, null, now)).toBe(false);
     expect(usableDraft({ ...d, savedAt: now - DRAFT_TTL_MS }, "u1", now)).toBe(false);
     expect(usableDraft(null, "u1", now)).toBe(false);
+  });
+});
+
+describe("withClientKey", () => {
+  it("añade la clave a un cuerpo objeto sin tocar el resto", () => {
+    expect(withClientKey({ date: "2026-11-25", ml: 250 }, "k1")).toEqual({ date: "2026-11-25", ml: 250, clientKey: "k1" });
+  });
+  it("no pisa una clave que ya trae el cuerpo", () => {
+    expect(withClientKey({ ml: 250, clientKey: "propia" }, "k1")).toEqual({ ml: 250, clientKey: "propia" });
+  });
+  it("deja intactos los cuerpos que no son objeto", () => {
+    expect(withClientKey(null, "k1")).toBeNull();
+    expect(withClientKey([1], "k1")).toEqual([1]);
   });
 });

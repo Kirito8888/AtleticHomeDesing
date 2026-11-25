@@ -26,7 +26,7 @@ export function QuickLog({ day, hidden, setHref }: { day: string; hidden: readon
   async function water() {
     setBusy(true);
     try {
-      const r = await sendOrQueue("/api/nutrition/water", { date: day, ml: 250 }, "Agua +250 ml");
+      const r = await sendOrQueue("/api/nutrition/water", { date: day, ml: 250 }, "Agua +250 ml", "POST", { idempotent: true });
       toast.success(r === "queued" ? "Sin conexión: el agua se apuntará al volver la cobertura" : "Agua +250 ml apuntada");
       if (r === "sent") router.refresh();
     } catch (e) {

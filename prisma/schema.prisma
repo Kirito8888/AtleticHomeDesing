@@ -1354,10 +1354,13 @@ model Macros {
   sodiumMg      Float?
   potassiumMg   Float?
   createdAt     DateTime @default(now())
+  /// v3.2 J · Idempotencia de la bandeja sin conexión (uuid del cliente); null = anotado sin bandeja.
+  clientKey     String?
 
   user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   foodProduct FoodProduct? @relation(fields: [foodProductId], references: [id], onDelete: SetNull)
 
+  @@unique([userId, clientKey])
   @@index([userId, date])
 }
 
@@ -2264,9 +2267,12 @@ model HydrationLog {
   date      DateTime @db.Date
   ml        Int
   createdAt DateTime @default(now())
+  /// v3.2 J · Idempotencia de la bandeja sin conexión (uuid del cliente); null = anotado sin bandeja.
+  clientKey String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, clientKey])
   @@index([userId, date])
 }
 

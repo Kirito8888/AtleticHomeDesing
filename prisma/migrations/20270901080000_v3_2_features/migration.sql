@@ -1,6 +1,12 @@
--- v3.2: eventos del club y asistencia (solo añade)
+-- v3.2: eventos del club, asistencia y claves idempotentes de la bandeja (solo añade)
 -- CreateEnum
 CREATE TYPE "RsvpAnswer" AS ENUM ('YES', 'NO', 'MAYBE');
+
+-- AlterTable
+ALTER TABLE "HydrationLog" ADD COLUMN     "clientKey" TEXT;
+
+-- AlterTable
+ALTER TABLE "Macros" ADD COLUMN     "clientKey" TEXT;
 
 -- AlterTable
 ALTER TABLE "OrgFee" ADD COLUMN     "eventId" TEXT;
@@ -39,6 +45,12 @@ CREATE INDEX "OrgEventResponse_memberId_idx" ON "OrgEventResponse"("memberId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "OrgEventResponse_eventId_memberId_key" ON "OrgEventResponse"("eventId", "memberId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "HydrationLog_userId_clientKey_key" ON "HydrationLog"("userId", "clientKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Macros_userId_clientKey_key" ON "Macros"("userId", "clientKey");
 
 -- CreateIndex
 CREATE INDEX "OrgFee_eventId_idx" ON "OrgFee"("eventId");
