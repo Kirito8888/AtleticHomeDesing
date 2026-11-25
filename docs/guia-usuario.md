@@ -214,6 +214,15 @@ Dentro de una asignatura (`/study/modules/…`), sección **Resumen y web de est
 
 Tu progreso del juego se guarda en tu cuenta: lo ves igual desde el móvil y el ordenador.
 
+## Novedades de la v3.2
+
+- **Entreno sin red:** en el gimnasio sin cobertura sigue anotando series, comidas, agua y hábitos: se guardan en el móvil y se envían solos al volver la red (o con «Enviar ahora»). Si cierras la pestaña, el formulario de sesión te ofrece «Recuperar» el borrador (dura 24 h). Al pulsar «Salir» se borra lo pendiente: avisa antes.
+- **Eventos del club:** en tu club, «Eventos» muestra los próximos con tres botones (Sí · No · Quizá); un toque responde. Solo ves tu respuesta, no la de otras personas. Si el evento tiene cuota, tu «Sí» la apunta como pendiente (no se cobra desde Atlenza). Recibirás un único recordatorio si no has respondido, entre las 9 y las 21 h. «Añadir al calendario» y tu calendario `.ics` incluyen los eventos.
+- **Gasto adaptativo:** Nutrición → «Gasto» estima cuánto gastas a partir de lo que comes y cómo cambia tu peso. Hasta tener unas tres semanas de datos dice «Aún calibrando». La propuesta semanal es un borrador con topes de seguridad; tú aceptas. Las menores de 18 solo ven «mantener». No sustituye a un dietista-nutricionista.
+- **Exportar tus datos:** Ajustes → Privacidad → «Exportar mis datos»: elige módulos. Lo cifrado (ciclo, salud de la mujer, composición corporal, bienestar) solo sale si marcas la casilla aparte. Nunca incluye datos de otras personas.
+- **Estudio:** puedes limitar cuántas tarjetas repasas al día («Hoy: X de N»); el resumen de cada tema tiene «Crear flashcards».
+- **Pantallas más claras:** Entreno, Nutrición, Clubes, Finanzas y Estudio muestran una acción principal y pliegan el detalle («Más detalles», «Cocina y herramientas», «Más de Finanzas»…). Los botones miden al menos 44 px.
+
 ## Novedades de la v3.0.1 (preview): Apple Fitness y Apple Salud
 
 - **Conectar el reloj y Salud:** Ajustes → Apple Fitness → «Generar token». Cópialo en el momento (no se vuelve a mostrar; si lo pierdes, revócalo y crea otro). Un Atajo del iPhone envía los datos con ese token; el mismo token sirve para entrenos y para Salud.

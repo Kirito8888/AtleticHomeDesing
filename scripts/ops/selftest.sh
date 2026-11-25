@@ -248,6 +248,7 @@ if FAKE_HTTP_MAP='/api/health=500;/login=500' "${DX[@]}" --web >"$T/d5.txt" 2>&1
 if FAKE_HTTP_MAP='/study=200' "${DX[@]}" --web >"$T/d6.txt" 2>&1; then bad "doctor no vio la ruta privada abierta"; else grep -q 'SIN sesión' "$T/d6.txt" && ok "doctor --web: privada con 200 sin sesión → ERROR"; fi
 if FAKE_HTTP_MAP='/api/recovery/apple-health=500' "${DX[@]}" --web >"$T/d6b.txt" 2>&1; then bad "doctor no marcó el 500 de una ruta solo-POST"; else grep -q '/api/recovery/apple-health → 500' "$T/d6b.txt" && ok "doctor --web: ruta solo-POST con 500 → ERROR"; fi
 FAKE_HTTP_MAP='/api/training/apple-fitness=404' "${DX[@]}" --web >"$T/d6c.txt" 2>&1 || true; grep -q 'se esperaba 405' "$T/d6c.txt" && ok "doctor --web: ruta solo-POST movida (404) → aviso"
+FAKE_HTTP_MAP='/api/clubs/0/events/0/ics=404' "${DX[@]}" --web >"$T/d6d.txt" 2>&1 || true; grep -q '/api/clubs/0/events/0/ics → 404 sin sesión' "$T/d6d.txt" && ok "doctor --web: ruta de eventos del club movida (404) → aviso"
 grep -q 'API solo-POST' "$T/d3.txt" && ok "doctor --web: sana comprueba las rutas solo-POST"
 FAKE_HTTP_MAP='/api/health=000' "${DX[@]}" --web >"$T/d7.txt" 2>&1 || true; grep -q 'no responde' "$T/d7.txt" && ok "doctor --web: sin respuesta → ERROR y no sigue"
 # --all con docker simulado: termina, solo lee (queue-failed sin acciones) y no filtra secretos

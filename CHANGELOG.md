@@ -2,15 +2,26 @@
 
 Formato: una entrada por versión, lo más reciente arriba. Cómo actualizar el servidor entre versiones: [`manual_docker_debian.md` § 8](manual_docker_debian.md#actualizar-a-una-nueva-versión).
 
-## Sin publicar — Apple Salud y Fitness desde el archivo `export.xml`
+## v3.2.0 — Entreno sin red, clubes con eventos, gasto adaptativo y rediseños (25/11/2026)
 
-**Sin migraciones ni cambios de esquema.** Alternativa a los Atajos de iOS (que en iOS 27 no ofrecen una acción fiable para leer entrenos): el `export.xml` de Salud se lee en el navegador y se importa desde Ajustes → Apple (o desde Recuperación).
+**Con migración aditiva:** `20270901080000_v3_2_features` (tablas `OrgEvent` y `OrgEventResponse`, enum `RsvpAnswer`, `OrgFee.eventId`, y `clientKey` único por usuaria en `Macros` y `HydrationLog`). Hay que actualizar con `update.sh`. Pasos en [`docs/migracion-v3-0-a-v3-2.md`](docs/migracion-v3-0-a-v3-2.md). Sin dependencias ni variables nuevas.
+
+**Funciones**
+- **Entreno sin red (J):** las series de fuerza, tomas de comida, agua y hábitos se guardan en una bandeja local con dueña y se reenvían al volver la red sin duplicar; borrador del formulario de sesión (24 h) con «Recuperar / Descartar»; «Salir» borra bandeja y borradores. Arreglo: dos guardados a la vez daban 500 al recalcular la carga.
+- **Eventos del club (P, Q):** el staff crea eventos; cada atleta responde sí/no/quizá en un toque y solo ve lo suyo; el resumen con nombres es del staff. Un «sí» a un evento con importe apunta una cuota pendiente (sin cobro). Recordatorio único a quien no ha respondido (9–21 h de Madrid, sin importes ni nombres), resumen de recuentos al staff y los eventos salen en el `.ics` y en «Añadir al calendario».
+- **Gasto adaptativo (M):** `/nutrition/gasto` estima tu gasto con comida y peso (4 semanas), sin IA y con «Aún calibrando» si no hay datos; propone un ajuste semanal con topes de seguridad que solo se aplica si aceptas.
+- **Exportación guiada (N):** eliges módulos en Ajustes → Privacidad; lo cifrado (ciclo, salud de la mujer, ISAK, bienestar) solo sale si lo marcas y nunca hay datos de terceras personas. Pie de autoría en manual PDF, informes, `.ics` y JSON.
+- **Estudio (K):** tope diario de repasos de flashcards y «Crear flashcards» desde el resumen del tema.
+- **Rediseños (I, L, O, N, K):** Entreno (sesión con «Más detalles» plegado, «¿Por qué?» en cada número de Rendimiento), Nutrición («+ Alimento» con Menús · Recientes · Buscar), Clubes (tarjeta «Ahora»), Finanzas y Estudio (tarjeta «Ahora toca»): una acción principal por pantalla, detalle plegado y objetivos táctiles ≥ 44 px.
+Alternativa a los Atajos de iOS (que en iOS 27 no ofrecen una acción fiable para leer entrenos): el `export.xml` de Salud se lee en el navegador y se importa desde Ajustes → Apple (o desde Recuperación).
 
 - **Entrenos** (`<Workout>`, con o sin `WorkoutStatistics`; km/m/mi, kcal/kJ, FC media y máxima) → **bandeja de borradores** de Entreno: nada entra en el diario sin aceptar; lo importado no llega a la IA, la entrenadora, el club, el informe ni el `.ics`. Reimportar no duplica.
 - **Por día:** sueño, FC en reposo, **VFC SDNN** (no rMSSD) y peso, con las mismas reglas que el Atajo: lo vacío se guarda, lo igual se conserva y lo que difiera de lo que anotaste **no se pisa** (aviso en Recuperación).
 - **Selector «Desde»** (por defecto, últimos 30 días) y vista previa antes de importar. El fichero no se sube: solo salen los totales diarios y el resumen de cada entreno.
 - **Arreglos:** antes `/api/recovery/import/days` **sobrescribía** lo anotado a mano y el sueño solapado (reloj + iPhone) se contaba dos veces; ahora usa el servicio de Apple Salud y une los intervalos.
 - `doctor.sh`: `POST_ONLY_API` suma `/api/training/apple-fitness/import` y `/api/recovery/import/days`.
+
+**Verificación del cierre:** vitest 294 ficheros / 2080 tests, `e2e.sh all`, Semgrep (0 hallazgos), licencias (372), `npm audit` (0), contraste de tokens y `test-migration.sh` (antes = después, esquema idéntico).
 
 ## v3.0.1-preview — Apple Fitness y Apple Salud (22/11/2026)
 

@@ -132,10 +132,10 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 > | M · Gasto adaptativo | **Hecho (24/11/2026)** | `/nutrition/gasto`: estimación determinista sin IA (comida + tendencia del peso, 4 semanas), «Aún calibrando» sin datos, borrador semanal con topes → «Aceptar» escribe `NutritionGoal`; sin esquema ni migración (`e2e:gasto`) |
 > | N · Finanzas + exportación | **Hecho (25/11/2026), tarea 1 incluida** | Exportación guiada por módulos en `/settings/privacy#exportar` (lo cifrado solo si se marca; sin datos de terceros) y pie de autoría en PDF, informes, `.ics` y JSON (`e2e:exportar`). La tarea 1 (composición de `/finance`) pasa al tramo de rediseños, junto a I, L y O |
 > | O · Rediseño Clubes | **Hecho (25/11/2026)** | Tarjeta «Ahora» en el club, una acción rellena, enlaces a 44 px y ámbitos comprobados sobre el HTML (`eventos` § 9, `a11y`) |
-> | P · Eventos de club | Pendiente | Sin modelo de eventos ni asistencia |
-> | Q · Recordatorios | Pendiente | Depende de P |
+> | P · Eventos de club | **Hecho (25/11/2026)** | `OrgEvent`/`OrgEventResponse`, respuesta en 1 toque, la atleta solo ve lo suyo (`e2e:eventos`; migración `v3_2_features`) |
+> | Q · Recordatorios | **Hecho (25/11/2026)** | Aviso único a quien no responde, resumen de recuentos al staff y eventos en el `.ics` (`event-reminders*`) |
 >
-> **Orden recomendado ahora:** K → J → M → N → P → Q → I → L → O (y el rediseño de `/finance`, que era la tarea 1 de N, junto a I, L y O). Lo barato y a medias primero; las funciones nuevas después; los rediseños al final porque rompen E2E y el roadmap pedía decidirlos con uso real del rediseño de v3.0. Migración: P crea la de la versión (`v3_2_features`), que luego amplía E1.
+> **Tramo movible I–Q: CERRADO en v3.2.0 (25/11/2026).** Orden seguido: K → J → M → N → P → Q → I → L → O (y el rediseño de `/finance`, que era la tarea 1 de N, junto a I, L y O). Lo barato y a medias primero; las funciones nuevas después; los rediseños al final porque rompen E2E y el roadmap pedía decidirlos con uso real del rediseño de v3.0. Migración: P crea la de la versión (`v3_2_features`), que luego amplía E1.
 
 
 #### I · Rediseño Entreno
