@@ -66,6 +66,7 @@ await addTx("Gasto", "40", "Cine", "Banco", "Ocio");
 log("preparado: 160 € en Comida y 40 € en Ocio");
 
 // 1 · Pantalla de presupuestos desde Finanzas
+await page.getByTestId("finance-more").locator("summary").click();
 await page.getByRole("link", { name: "Presupuestos del mes" }).click();
 await page.waitForURL(/\/finance\/budgets/);
 await page.getByRole("heading", { name: "Presupuestos del mes" }).waitFor();

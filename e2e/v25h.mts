@@ -4,6 +4,8 @@ import { execFileSync } from "node:child_process";
 
 import { chromium } from "playwright-core";
 
+import { filledActions, openFolds, setLargeHc, smallTargets, WCAG22, a11y } from "./a11y.mjs";
+
 const B = process.env.BASE_URL ?? "http://localhost:3000";
 const log = (...a: unknown[]) => console.log("✔", ...a);
 const errors: string[] = [];
@@ -168,6 +170,29 @@ await page.goto(B + "/finance/more");
 await page.getByText("Fondo de emergencia").first().waitFor();
 await noOverflow("/finance/more");
 log("presupuestos y temporada en su página");
+
+// 6 · v3.2 N · composición: una acción principal, «Más de Finanzas» plegado, ≥ 44 px, letra grande + hc
+await page.goto(B + "/finance");
+await page.getByRole("region", { name: "Últimos movimientos" }).waitFor();
+if ((await filledActions(page)) !== 1) errors.push(`/finance: ${await filledActions(page)} acciones rellenas (esperadas 1: «Movimiento»)`);
+if (await openFolds(page)) errors.push("/finance: pliegue abierto por defecto");
+let bad = await smallTargets(page, "main", { includeInline: true });
+if (bad.length) errors.push(`/finance (cerrado): objetivos < 44 px: ${bad.join(", ")}`);
+await page.getByTestId("finance-more").locator("summary").click();
+for (const n of ["Presupuestos del mes", "Presupuestos y temporada", "Viajes y plazos"]) await page.getByRole("link", { name: n }).waitFor();
+bad = await smallTargets(page, "main", { includeInline: true });
+if (bad.length) errors.push(`/finance (abierto): objetivos < 44 px: ${bad.join(", ")}`);
+for (const v of await a11y(page, "/finance rediseñado", WCAG22)) errors.push(v);
+await setLargeHc(page, true);
+await page.goto(B + "/finance");
+await page.getByRole("region", { name: "Últimos movimientos" }).waitFor();
+await page.getByTestId("finance-more").locator("summary").click();
+bad = await smallTargets(page, "main", { includeInline: true });
+if (bad.length) errors.push(`/finance (letra 130 + hc): objetivos < 44 px: ${bad.join(", ")}`);
+await noOverflow("/finance con letra 130 + hc");
+for (const v of await a11y(page, "/finance (letra 130 + hc)", WCAG22)) errors.push(v);
+await setLargeHc(page, false);
+log("composición: 1 acción principal, pliegue «Más de Finanzas», ≥ 44 px y letra grande");
 
 await browser.close();
 if (errors.length) {
