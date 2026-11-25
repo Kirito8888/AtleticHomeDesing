@@ -55,6 +55,16 @@ export async function feedIcs(token: string): Promise<string | null> {
       select: { id: true, title: true, startAt: true, endAt: true, allDay: true, location: true },
     }),
   ]);
+  // v3.2 Q · eventos de mis clubes (solo club, título, hora y lugar; sin importe; no los que respondí «No»)
+  const clubEvents = await prisma.orgEvent.findMany({
+    where: {
+      startsAt: { gte: addDays(now, -7), lte: addDays(now, 180) },
+      org: { members: { some: { userId: feed.userId, status: "ACTIVE" } } },
+      responses: { none: { answer: "NO", member: { userId: feed.userId } } },
+    },
+    select: { id: true, title: true, startsAt: true, location: true, org: { select: { name: true } } },
+    take: 500,
+  });
   await prisma.calendarFeed.update({ where: { id: feed.id }, data: { lastUsedAt: new Date() } });
   // v1.6 · clases y exámenes solo si lo activas en Ajustes (y solo la asignatura)
   const study = (await getPrefs(feed.userId)).icsStudy ? studyIcsEvents(await listSlots(feed.userId), toIsoDay(now), 120) : [];
@@ -63,6 +73,7 @@ export async function feedIcs(token: string): Promise<string | null> {
       .filter((s) => s.status !== "SKIPPED")
       .map((s) => ({ uid: `s-${s.id}`, title: cleanTitle(s.title ?? SESSION_TYPE_LABEL[s.type] ?? "Entreno"), start: s.date, allDay: true })),
     ...events.map((e) => ({ uid: `e-${e.id}`, title: e.title, start: e.startAt, end: e.endAt, allDay: e.allDay, location: e.location })),
+    ...clubEvents.map((e) => ({ uid: `c-${e.id}`, title: `${e.org.name} · ${e.title}`, start: e.startsAt, end: null, allDay: false, location: e.location })),
     ...study,
   ];
   return buildIcs("Atlenza · Entrenos y competiciones", list);

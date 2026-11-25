@@ -7,8 +7,9 @@ export async function register() {
   (await import("@/lib/env")).env();
   const { startScheduler } = await import("@/lib/scheduler");
   startScheduler();
-  const { startIngestWorker, startPackWorker } = await import("@/lib/jobs/queue");
+  const { startIngestWorker, startPackWorker, startEventReminderWorker } = await import("@/lib/jobs/queue");
   const { log } = await import("@/lib/log");
   startIngestWorker().catch((err) => log.error("no se pudo arrancar la cola", { job: "ingest", err }));
   startPackWorker().catch((err) => log.error("no se pudo arrancar la cola", { job: "study-pack", err }));
+  startEventReminderWorker().catch((err) => log.error("no se pudo arrancar la cola", { job: "event-reminder", err }));
 }

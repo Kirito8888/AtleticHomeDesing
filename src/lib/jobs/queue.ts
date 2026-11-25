@@ -12,6 +12,9 @@ export const INGEST_QUEUE = "ingest-document";
 /** v2.6 · Generación del paquete de estudio de un tema (varias llamadas a la IA, una tras otra). */
 export const PACK_QUEUE = "study-pack";
 
+/** v3.2 Q · Recordatorios de asistencia a eventos del club (un trabajo por evento y miembro). */
+export const EVENT_REMINDER_QUEUE = "event-reminder";
+
 const g = globalThis as unknown as { __lifeosBoss?: Promise<PgBoss> };
 
 function connectionString(): string {
@@ -89,6 +92,26 @@ export async function startPackWorker(queue = PACK_QUEUE): Promise<void> {
     await runPack(job.data.userId, job.data.topicId, { documentIds: job.data.documentIds });
   });
   log.info("trabajador del paquete de estudio activo", { job: "study-pack" });
+}
+
+const eventReminderOptions = { retryLimit: 1, expireInSeconds: 5 * 60 };
+
+/** Encola recordatorios; `singletonKey` evita duplicar el trabajo del mismo evento y miembro mientras siga en la cola. */
+export async function enqueueEventReminders(jobs: Array<{ eventId: string; memberId: string }>, queue = EVENT_REMINDER_QUEUE): Promise<void> {
+  const boss = await getBoss();
+  await ensureQueue(boss, queue, eventReminderOptions);
+  for (const j of jobs) await boss.send(queue, j, { singletonKey: `${j.eventId}:${j.memberId}`, expireInSeconds: eventReminderOptions.expireInSeconds });
+}
+
+/** Trabajador de recordatorios: de uno en uno (cada aviso revalida permisos, horario y tope). */
+export async function startEventReminderWorker(queue = EVENT_REMINDER_QUEUE, send?: Parameters<typeof import("@/lib/clubs/event-reminders-service").sendEventReminder>[2]): Promise<void> {
+  const boss = await getBoss();
+  await ensureQueue(boss, queue, eventReminderOptions);
+  const { sendEventReminder } = await import("@/lib/clubs/event-reminders-service");
+  await boss.work<{ eventId: string; memberId: string }>(queue, { batchSize: 1 }, async ([job]) => {
+    await sendEventReminder(job.data, new Date(), send);
+  });
+  log.info("trabajador de recordatorios de eventos activo", { job: "event-reminder" });
 }
 
 /** Arranca el trabajador (una ingesta a la vez para no saturar la cuota de Gemini). */

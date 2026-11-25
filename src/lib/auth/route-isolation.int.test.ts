@@ -39,7 +39,7 @@ const TESTED_HERE = [
   "training/sessions/[id]/comments", "planning/cycles/[id]", "planning/events/[id]", "study/modules/[id]",
   "clubs/[id]/members/[memberId]", "clubs/[id]/fees/[feeId]", "training/apple-fitness/pending/[id]",
   "recovery/apple-health/conflicts/[id]",
-  "clubs/[id]/events/[eventId]", "clubs/[id]/events/[eventId]/response",
+  "clubs/[id]/events/[eventId]", "clubs/[id]/events/[eventId]/response", "clubs/[id]/events/[eventId]/ics",
 ];
 /** Rutas con prueba negativa en otro fichero (ruta o servicio). */
 const TESTED_ELSEWHERE = [
@@ -244,6 +244,7 @@ describe.skipIf(!HAS_DB)("usuaria B contra recursos de A (BD real)", () => {
     const list = await import("@/app/api/clubs/[id]/events/route");
     const one = await import("@/app/api/clubs/[id]/events/[eventId]/route");
     const resp = await import("@/app/api/clubs/[id]/events/[eventId]/response/route");
+    const icsR = await import("@/app/api/clubs/[id]/events/[eventId]/ics/route");
     const soon = new Date(Date.now() + 2 * 864e5);
     const evX = (await prisma.orgEvent.create({ data: { orgId: orgX, title: "RI-EVENTO", startsAt: soon } })).id;
     as("staffY", "COACH");
@@ -252,12 +253,17 @@ describe.skipIf(!HAS_DB)("usuaria B contra recursos de A (BD real)", () => {
       expect((await list.POST(req(`/api/clubs/${org}/events`, "POST", { title: "x", startsAt: "2030-01-01T10:00" }), ctx({ id: org }))).status).toBe(404);
       expect((await resp.PUT(req(`/api/clubs/${org}/events/${evX}/response`, "PUT", { answer: "YES" }), ctx({ id: org, eventId: evX }))).status).toBe(404);
     }
+    expect((await icsR.GET(req(`/api/clubs/${orgX}/events/${evX}/ics`, "GET"), ctx({ id: orgX, eventId: evX }))).status).toBe(404);
     // evento de X con el id del club propio (Y): tampoco
+    expect((await icsR.GET(req(`/api/clubs/${orgY}/events/${evX}/ics`, "GET"), ctx({ id: orgY, eventId: evX }))).status).toBe(404);
     expect((await one.PATCH(req(`/api/clubs/${orgY}/events/${evX}`, "PATCH", { title: "hack" }), ctx({ id: orgY, eventId: evX }))).status).toBe(404);
     expect((await one.DELETE(req(`/api/clubs/${orgY}/events/${evX}`, "DELETE"), ctx({ id: orgY, eventId: evX }))).status).toBe(404);
     expect((await resp.PUT(req(`/api/clubs/${orgY}/events/${evX}/response`, "PUT", { answer: "YES" }), ctx({ id: orgY, eventId: evX }))).status).toBe(404);
-    // la atleta del club no edita ni borra (solo staff)
+    // la atleta del club no edita ni borra (solo staff), pero sí descarga su .ics
     as("a");
+    const okIcs = await icsR.GET(req(`/api/clubs/${orgX}/events/${evX}/ics`, "GET"), ctx({ id: orgX, eventId: evX }));
+    expect(okIcs.status).toBe(200);
+    expect(await okIcs.text()).toContain("BEGIN:VEVENT");
     expect((await one.PATCH(req(`/api/clubs/${orgX}/events/${evX}`, "PATCH", { title: "hack" }), ctx({ id: orgX, eventId: evX }))).status).toBe(404);
     expect((await one.DELETE(req(`/api/clubs/${orgX}/events/${evX}`, "DELETE"), ctx({ id: orgX, eventId: evX }))).status).toBe(404);
     expect((await resp.PUT(req(`/api/clubs/${orgX}/events/${evX}/response`, "PUT", { answer: "YES" }), ctx({ id: orgX, eventId: evX }))).status).toBe(200);

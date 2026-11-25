@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 
 import { attendanceSummary, type EventCreate, madridWallToInstant, type Rsvp } from "./events";
 import { parseAmount } from "./fees";
+import { remindedCount } from "./event-reminders-service";
 import { requireOrgRole } from "./service";
 
 const isPast = (startsAt: Date, now = new Date()) => localDay(startsAt) < localDay(now);
@@ -34,6 +35,7 @@ export async function listEvents(user: CurrentUser, orgId: string) {
     ? await prisma.orgMember.findMany({ where: { orgId, status: "ACTIVE" }, include: { user: { select: { name: true, email: true } } }, orderBy: { createdAt: "asc" } })
     : [];
   const roster = members.map((m) => ({ id: m.id, name: m.user.name ?? m.user.email }));
+  const reminded = staff ? await remindedCount(events.map((e) => e.id)) : null;
   const now = new Date();
   return {
     role: me.role,
@@ -46,6 +48,7 @@ export async function listEvents(user: CurrentUser, orgId: string) {
       past: isPast(e.startsAt, now),
       myAnswer: (e.responses.find((r) => r.memberId === me.id)?.answer ?? null) as Rsvp | null,
       myFee: e.fees[0] ? { id: e.fees[0].id, status: e.fees[0].status, paidAt: e.fees[0].paidAt?.toISOString().slice(0, 10) ?? null } : null,
+      reminded: reminded?.get(e.id) ?? null,
       summary: staff ? attendanceSummary(e.responses, roster) : null,
     })),
   };

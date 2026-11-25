@@ -21,6 +21,8 @@ export interface EventRow {
   past: boolean;
   myAnswer: Rsvp | null;
   myFee: { status: "PENDING" | "PAID"; paidAt: string | null } | null;
+  /** Solo staff: a cuántas personas se avisó (sin nombres). */
+  reminded?: number | null;
   summary: { yes: number; no: number; maybe: number; none: number; names: Record<Rsvp | "NONE", string[]> } | null;
 }
 
@@ -101,11 +103,23 @@ export function EventList({ orgId, events, canDelete }: { orgId: string; events:
                 </button>
               ))}
             </div>
+            {!e.past ? (
+              <a
+                href={`/api/clubs/${orgId}/events/${e.id}/ics`}
+                className="flex min-h-11 items-center text-xs text-primary underline underline-offset-2"
+                data-testid={`event-ics-${e.id}`}
+              >
+                Añadir al calendario
+              </a>
+            ) : null}
             {e.summary ? (
               <details>
                 <summary className="flex min-h-11 cursor-pointer items-center text-xs text-muted-foreground" data-testid={`summary-${e.id}`}>
                   Sí {e.summary.yes} · No {e.summary.no} · Quizá {e.summary.maybe} · Sin respuesta {e.summary.none}
                 </summary>
+                <p className="text-xs text-muted-foreground" data-testid={`reminded-${e.id}`}>
+                  Recordatorio enviado a {e.reminded ?? 0}
+                </p>
                 <dl className="grid gap-1 text-xs">
                   {(["YES", "NO", "MAYBE", "NONE"] as const).map((k) => (
                     <div key={k} className="flex gap-2">

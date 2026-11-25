@@ -22,6 +22,7 @@ import { runSafetyJob } from "@/lib/health/safety-service";
 import { flushMetrics, pruneMetrics } from "@/lib/admin/metrics";
 import { runWatchJob } from "@/lib/admin/watch";
 import { withJobLock } from "@/lib/job-lock";
+import { runEventRemindersJob, runEventSummaryJob } from "@/lib/clubs/event-reminders-service";
 import { pollTelegram } from "@/lib/telegram/link";
 import { runCatalogSyncJob } from "@/lib/nutrition/catalog-sync";
 import { runStravaSyncJob } from "@/lib/strava/service";
@@ -322,6 +323,8 @@ async function tick() {
     await job("prune", () => pruneAuditJob());
     await job("digest", () => runDailyDigestJob());
     await job("reminders", () => runRemindersJob());
+    await job("event-reminders", () => runEventRemindersJob());
+    await job("event-summary", () => runEventSummaryJob());
     await job("period", () => runPeriodReminderJob());
     await job("appointments", () => runAppointmentReminders());
     await job("deadlines", () => runDeadlineReminders());
