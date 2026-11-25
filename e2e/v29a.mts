@@ -31,6 +31,7 @@ await Promise.all([page.waitForURL((u) => !u.pathname.startsWith("/login")), pag
 
 // 1 · Acceso desde /nutrition
 await page.goto(B + "/nutrition");
+await page.getByTestId("nutrition-more").locator("summary").click(); // v3.2 L: los enlaces de cocina van plegados
 await page.getByRole("link", { name: "Composición corporal" }).click();
 await page.waitForURL("**/nutrition/composition");
 await page.getByRole("heading", { name: "Composición corporal" }).first().waitFor();
