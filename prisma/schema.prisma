@@ -183,6 +183,36 @@ model User {
   physioShares           PhysioProtocolShare[]  @relation("PhysioShareAthlete")
   physioSharesGiven      PhysioProtocolShare[]  @relation("PhysioShareBy")
   stravaLink             StravaLink?
+  // v3.3 · Suite de entrenadora: ficha gestionada (atleta sin cuenta). `managedById` = la entrenadora que la lleva; sin contraseña, sin Account, sin llave
+  managedById            String?
+  managedBy              User?                  @relation("ManagedUsers", fields: [managedById], references: [id], onDelete: Restrict)
+  managedUsers           User[]                 @relation("ManagedUsers")
+  managedProfile         ManagedAthlete?        @relation("ManagedProfileUser")
+  managedAthletesOwned   ManagedAthlete[]       @relation("ManagedProfileCoach")
+
+  @@index([managedById])
+}
+
+/// v3.3 · Datos de una ficha gestionada (atleta sin cuenta). SOLO alias, año o categoría, disciplina, grupo y notas:
+/// nunca nombre real, email, teléfono ni datos de salud (art. 9). El alias es seudonimización, no anonimización.
+model ManagedAthlete {
+  id         String    @id @default(cuid())
+  userId     String    @unique
+  user       User      @relation("ManagedProfileUser", fields: [userId], references: [id], onDelete: Cascade)
+  coachId    String
+  coach      User      @relation("ManagedProfileCoach", fields: [coachId], references: [id], onDelete: Restrict)
+  alias      String
+  birthYear  Int?
+  category   String?
+  discipline String?
+  group      String?
+  notes      String?
+  consentAt  DateTime
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([coachId, archivedAt])
 }
 
 /// Códigos de recuperación de 2FA (un solo uso). Solo se guarda su hash.

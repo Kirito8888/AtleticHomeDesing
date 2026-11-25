@@ -1,5 +1,7 @@
 import "server-only";
 
+import { notManaged } from "@/lib/managed/service";
+
 import { randomBytes } from "node:crypto";
 
 import { purgeUser } from "@/lib/account/service";
@@ -23,7 +25,7 @@ const MAX_DEMOS = 10;
  * contraseña aleatoria mostrada una sola vez y borrado automático a los 30 días.
  */
 export async function createDemoAccount(audience: Audience) {
-  if ((await prisma.user.count({ where: { demoExpiresAt: { not: null } } })) >= MAX_DEMOS) throw new ApiError(400, `Como mucho ${MAX_DEMOS} cuentas demo a la vez: borra alguna`);
+  if ((await prisma.user.count({ where: { ...notManaged, demoExpiresAt: { not: null } } })) >= MAX_DEMOS) throw new ApiError(400, `Como mucho ${MAX_DEMOS} cuentas demo a la vez: borra alguna`);
   const day = toIsoDay(today());
   const { spec, sessions, recovery, water } = demoSeries(audience, day, randomBytes(4).readUInt32LE());
   const email = `demo-${audience.toLowerCase()}-${randomBytes(3).toString("hex")}@demo.lifeos.invalid`;
@@ -51,7 +53,7 @@ export async function createDemoAccount(audience: Audience) {
 }
 
 export const listDemoAccounts = () =>
-  prisma.user.findMany({ where: { demoExpiresAt: { not: null } }, orderBy: { createdAt: "desc" }, select: { id: true, email: true, demoAudience: true, demoExpiresAt: true } });
+  prisma.user.findMany({ where: { ...notManaged, demoExpiresAt: { not: null } }, orderBy: { createdAt: "desc" }, select: { id: true, email: true, demoAudience: true, demoExpiresAt: true } });
 
 export async function deleteDemoAccount(id: string) {
   const u = await prisma.user.findUnique({ where: { id }, select: { demoExpiresAt: true } });
@@ -61,7 +63,7 @@ export async function deleteDemoAccount(id: string) {
 
 /** Lo llama el job diario de conservación: borra las demo caducadas (con sus ficheros). */
 export async function pruneExpiredDemos(now = new Date()) {
-  const expired = await prisma.user.findMany({ where: { demoExpiresAt: { lt: now } }, select: { id: true } });
+  const expired = await prisma.user.findMany({ where: { ...notManaged, demoExpiresAt: { lt: now } }, select: { id: true } });
   for (const u of expired) await purgeUser(u.id);
   return expired.length;
 }

@@ -1,3 +1,4 @@
+import { notManaged } from "@/lib/managed/service";
 import "server-only";
 
 import { z } from "zod";
@@ -94,6 +95,7 @@ export async function acceptTerms(userId: string, ctx: AuditContext = {}) {
 /** Listado para el panel: sin ningún dato de salud ni de contenido. */
 export async function listUsersForAdmin() {
   const users = await prisma.user.findMany({
+    where: notManaged,
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
@@ -123,8 +125,9 @@ export async function listUsersForAdmin() {
 
 async function otherUser(adminId: string, userId: string) {
   if (adminId === userId) throw new ApiError(400, "No puedes hacerlo con tu propia cuenta");
-  const u = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, role: true } });
-  if (!u) throw new ApiError(404, "Usuario no encontrado");
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { id: true, email: true, role: true, managedById: true } });
+  // Una ficha gestionada no es una cuenta: la administración no la suspende, ni le cambia el rol, ni le emite restablecimientos
+  if (!u || u.managedById) throw new ApiError(404, "Usuario no encontrado");
   return u;
 }
 
