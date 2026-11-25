@@ -232,7 +232,7 @@ await b.waitForFunction(async () => Boolean(await caches.match("/finance")), nul
   const created = await (
     await a.request.post(B + "/api/training/sessions", {
       data: {
-        date: new Date().toISOString().slice(0, 10),
+        date: new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }),
         type: "STRENGTH",
         discipline: "STRENGTH",
         status: "COMPLETED",

@@ -58,7 +58,7 @@ const api = <T = unknown,>(p: Page, method: string, url: string, body?: unknown)
 const stamp = Date.now();
 const mail = (k: string) => `v24a-${k}-${stamp}@e2e.test`;
 const pw = { at: newUser(mail("at"), "Atleta v24a", "ATHLETE"), co: newUser(mail("co"), "Entrenadora v24a", "COACH") };
-const day = (back: number) => new Date(Date.now() - back * 86_400_000).toISOString().slice(0, 10);
+const day = (back: number) => new Date(Date.now() - back * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
 const seedCtx = await newCtx("198.51.100.230", "light");
 const seed = await seedCtx.newPage();

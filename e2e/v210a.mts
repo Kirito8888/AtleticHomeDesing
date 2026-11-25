@@ -45,7 +45,7 @@ const exercises = (await (await page.request.get(B + "/api/training/exercises"))
 const list = Array.isArray(exercises) ? exercises : exercises.exercises;
 const squat = list.find((e) => e.name === "Sentadilla trasera");
 if (!squat) throw new Error("falta el ejercicio Sentadilla trasera en el catálogo");
-const day = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+const day = new Date(Date.now() - 3 * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 const r = await page.request.post(B + "/api/training/sessions", {
   data: {
     date: day,
@@ -88,7 +88,7 @@ log("«Hecha» arranca el descanso de 90 s; pausar, +30 s y terminar no pierden 
 await page.getByRole("textbox", { name: "Peso serie 1" }).fill("82,5");
 await page.getByRole("button", { name: /^Guardar sesión$/ }).click();
 await page.waitForURL(/\/training\/(?!new$)[a-z0-9]+$/);
-const sessions = (await (await page.request.get(`${B}/api/training/sessions?from=${day}&to=${new Date().toISOString().slice(0, 10)}`)).json()) as Array<{ id: string; date: string }>;
+const sessions = (await (await page.request.get(`${B}/api/training/sessions?from=${day}&to=${new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" })}`)).json()) as Array<{ id: string; date: string }>;
 const today = sessions.find((x) => x.id !== prevId);
 if (!today) throw new Error("no aparece la sesión nueva");
 const detail = (await (await page.request.get(`${B}/api/training/sessions/${today.id}`)).json()) as { strength?: { sets: Array<{ weightKg: number; restSec: number | null }> } };

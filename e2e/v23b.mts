@@ -51,7 +51,7 @@ async function login(page: Page, tag: string) {
 }
 const post = (p: Page, url: string, body: unknown) =>
   p.evaluate(([u, b]) => fetch(u as string, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(b) }).then((r) => r.status), [url, body] as const);
-const iso = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
+const iso = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
 for (const scheme of ["light", "dark"] as const) {
   const ctx = await newCtx(scheme === "light" ? "198.51.100.241" : "198.51.100.242", scheme);
