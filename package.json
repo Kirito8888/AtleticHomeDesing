@@ -42,6 +42,7 @@
     "e2e:sinred": "tsx e2e/sinred.mts",
     "e2e:gasto": "tsx e2e/gasto.mts",
     "e2e:exportar": "tsx e2e/exportar.mts",
+    "e2e:eventos": "tsx e2e/eventos.mts",
     "e2e:apple": "tsx e2e/apple.mts",
     "e2e:health": "tsx e2e/apple-health.mts",
     "e2e:applediag": "tsx e2e/apple-diag.mts",

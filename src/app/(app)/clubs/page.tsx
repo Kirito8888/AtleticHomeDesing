@@ -4,6 +4,7 @@ import { AcceptInvite, CreateClub } from "@/components/clubs/club-forms";
 import { PageHeader } from "@/components/page-header";
 import { pageUser } from "@/lib/auth/page";
 import { coachHubLinks } from "@/lib/clubs/club-layout";
+import { unansweredByClub } from "@/lib/clubs/events-service";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Clubes · Atlenza" };
@@ -12,11 +13,12 @@ const ROLE_LABEL = { ADMIN: "Administradora", COACH: "Entrenadora", ATHLETE: "At
 
 export default async function ClubsPage() {
   const user = await pageUser();
-  const [memberships, myCoaches, planLinks] = await Promise.all([
+  const [memberships, myCoaches, planLinks, unanswered] = await Promise.all([
     prisma.orgMember.findMany({ where: { userId: user.id }, include: { org: { select: { id: true, name: true } } }, orderBy: { createdAt: "asc" } }),
     // Solo vínculos propios (coach de la usuaria): nada de datos deportivos ni de salud.
     prisma.coachAthlete.findMany({ where: { athleteId: user.id }, include: { coach: { select: { name: true, email: true } } }, orderBy: { createdAt: "asc" } }),
     prisma.coachAthlete.count({ where: { coachId: user.id, status: "ACTIVE", canPlan: true } }),
+    unansweredByClub(user.id),
   ]);
   const pending = memberships.filter((m) => m.status === "PENDING");
   const active = memberships.filter((m) => m.status === "ACTIVE");
@@ -40,9 +42,12 @@ export default async function ClubsPage() {
             <ul className="grid gap-2">
               {active.map((m) => (
                 <li key={m.id}>
-                  <Link href={`/clubs/${m.orgId}`} className="flex min-h-11 items-center justify-between gap-2 rounded-md border px-3 py-2 hover:bg-accent">
+                  <Link href={`/clubs/${m.orgId}#eventos`} className="flex min-h-11 items-center justify-between gap-2 rounded-md border px-3 py-2 hover:bg-accent">
                     <span className="min-w-0 truncate">{m.org.name}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">{ROLE_LABEL[m.role]}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {unanswered.get(m.orgId) ? `${unanswered.get(m.orgId)} sin responder · ` : ""}
+                      {ROLE_LABEL[m.role]}
+                    </span>
                   </Link>
                 </li>
               ))}

@@ -1,11 +1,13 @@
 import { notFound } from "next/navigation";
 
 import { FeeForm, FeeToggle, InviteMember, RemoveMember } from "@/components/clubs/club-forms";
+import { EventForm, EventList } from "@/components/clubs/event-list";
 import { PageHeader } from "@/components/page-header";
 import { pageUser } from "@/lib/auth/page";
 import { ApiError } from "@/lib/api";
 import { clubSections } from "@/lib/clubs/club-layout";
 import { loadClubPanel } from "@/lib/clubs/club-panel";
+import { listEvents } from "@/lib/clubs/events-service";
 import { feeSummary, formatAmount } from "@/lib/clubs/fees";
 import { listFees } from "@/lib/clubs/service";
 import { addDays, today, toIsoDay } from "@/lib/dates";
@@ -24,7 +26,7 @@ export default async function ClubPage(props: PageProps<"/clubs/[id]">) {
   const staff = me.role !== "ATHLETE";
   const panel = staff ? await loadClubPanel(user, id).catch((e) => (e instanceof ApiError ? null : Promise.reject(e))) : null;
   if (staff && !panel) notFound();
-  const fees = await listFees(user, id);
+  const [fees, { events }] = await Promise.all([listFees(user, id), listEvents(user, id)]);
   const todayIso = toIsoDay(today());
   const summary = feeSummary(fees.map((f) => ({ amountCents: f.amountCents, status: f.status, dueDate: toIsoDay(f.dueDate) })), todayIso);
   const isAdmin = me.role === "ADMIN";
@@ -46,6 +48,19 @@ export default async function ClubPage(props: PageProps<"/clubs/[id]">) {
         </nav>
       ) : null}
       <div className="grid gap-6">
+        <section id="eventos" aria-label="Eventos del club" className="grid scroll-mt-20 gap-2">
+          <h2 className={h2}>Eventos</h2>
+          <p className="text-xs text-muted-foreground">Responde en un toque. Solo ves tu respuesta; Atlenza no cobra nada ni tiene chat.</p>
+          <EventList orgId={id} events={events} canDelete={staff} />
+          {staff ? (
+            <details className="rounded-md border">
+              <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm font-medium">Crear un evento</summary>
+              <div className="p-3 pt-0">
+                <EventForm orgId={id} canFee={isAdmin} />
+              </div>
+            </details>
+          ) : null}
+        </section>
         {panel ? (
           <>
             <section id="alertas" aria-label="Alertas de grupo" className="grid scroll-mt-20 gap-2">
@@ -171,6 +186,7 @@ export default async function ClubPage(props: PageProps<"/clubs/[id]">) {
                   <li key={f.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-1.5">
                     <span className="min-w-0">
                       {f.concept}
+                      {f.event ? " · evento" : ""}
                       {isAdmin ? ` · ${f.member.user.name ?? f.member.user.email}` : ""}
                       <span className="block text-xs text-muted-foreground">
                         {formatAmount(f.amountCents)} · vence {formatDate(f.dueDate, { day: "numeric", month: "short" })} ·{" "}

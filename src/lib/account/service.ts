@@ -137,7 +137,7 @@ export async function exportAccount(userId: string, opts: Partial<ExportSelectio
     prisma.coachReport.findMany({ where }),
     prisma.coachAthlete.findMany({ where: { OR: [{ coachId: userId }, { athleteId: userId }] } }),
     // v2.0 · Mis membresías de club y mis propias cuotas (nunca las de otras personas del club).
-    prisma.orgMember.findMany({ where, include: { org: { select: { name: true } }, fees: true } }),
+    prisma.orgMember.findMany({ where, include: { org: { select: { name: true } }, fees: true, eventResponses: { select: { answer: true, updatedAt: true, event: { select: { title: true, startsAt: true } } } } } }),
   ]);
   const [securityEvents, injuries, sessionTemplates, mealTemplates, planMesos, cycle, oneRepMaxes, exerciseAliases, sharedReports, calendarFeeds, women, referenceCurves, physioProtocols, physioReceived, externalWorkouts, personalTokens, healthSyncConflicts, appleDeliveries] = await Promise.all([
     prisma.securityEvent.findMany({ where, orderBy: { createdAt: "desc" }, omit: { userId: true } }),

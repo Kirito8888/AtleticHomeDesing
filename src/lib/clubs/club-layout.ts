@@ -2,11 +2,11 @@
 export type ClubRole = "ADMIN" | "COACH" | "ATHLETE";
 export type UserRole = "ATHLETE" | "COACH" | "ADMIN" | string;
 
-export type ClubSectionId = "alertas" | "cumplimiento" | "calendario" | "miembros" | "cuotas";
+export type ClubSectionId = "eventos" | "alertas" | "cumplimiento" | "calendario" | "miembros" | "cuotas";
 
-/** Staff: lo accionable primero (alertas), luego seguimiento, luego gestión. Atleta: solo sus cuotas. */
+/** Todos: eventos primero (responder). Staff: luego alertas, seguimiento y gestión. Atleta: además sus cuotas. */
 export function clubSections({ role, hasPanel }: { role: ClubRole; hasPanel: boolean }): Array<{ id: ClubSectionId; label: string }> {
-  const out: Array<{ id: ClubSectionId; label: string }> = [];
+  const out: Array<{ id: ClubSectionId; label: string }> = [{ id: "eventos", label: "Eventos" }];
   if (hasPanel) {
     out.push({ id: "alertas", label: "Alertas" }, { id: "cumplimiento", label: "Cumplimiento" }, { id: "calendario", label: "Calendario" }, { id: "miembros", label: "Miembros" });
   }

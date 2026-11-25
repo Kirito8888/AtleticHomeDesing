@@ -351,6 +351,13 @@ enum FeeStatus {
   PAID
 }
 
+/// v3.2 P · Respuesta de asistencia a un evento del club.
+enum RsvpAnswer {
+  YES
+  NO
+  MAYBE
+}
+
 model Organization {
   id          String   @id @default(cuid())
   name        String
@@ -359,6 +366,7 @@ model Organization {
 
   members OrgMember[]
   fees    OrgFee[]
+  events  OrgEvent[]
 }
 
 model OrgMember {
@@ -373,9 +381,10 @@ model OrgMember {
   createdAt   DateTime        @default(now())
   acceptedAt  DateTime?
 
-  org  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  user User         @relation("OrgMemberUser", fields: [userId], references: [id], onDelete: Cascade)
-  fees OrgFee[]
+  org            Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user           User               @relation("OrgMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+  fees           OrgFee[]
+  eventResponses OrgEventResponse[]
 
   @@unique([orgId, userId])
   @@index([userId])
@@ -393,13 +402,51 @@ model OrgFee {
   status       FeeStatus @default(PENDING)
   paidAt       DateTime? @db.Date
   recordedById String?
+  /// v3.2 P · cuota nacida de responder «Sí» a un evento con importe (sin cobro: solo apunte)
+  eventId      String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   org    Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   member OrgMember    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  event  OrgEvent?    @relation(fields: [eventId], references: [id], onDelete: SetNull)
 
   @@index([orgId, dueDate])
+  @@index([memberId])
+  @@index([eventId])
+}
+
+/// v3.2 P · Evento del club (entreno conjunto, competición, reunión). Lo crea el staff; responde cada miembro.
+model OrgEvent {
+  id          String   @id @default(cuid())
+  orgId       String
+  title       String
+  startsAt    DateTime
+  location    String?
+  /// Importe de la cuota por asistente (céntimos). Solo lo pone la ADMIN del club.
+  feeCents    Int?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  org       Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  responses OrgEventResponse[]
+  fees      OrgFee[]
+
+  @@index([orgId, startsAt])
+}
+
+model OrgEventResponse {
+  id        String     @id @default(cuid())
+  eventId   String
+  memberId  String
+  answer    RsvpAnswer
+  updatedAt DateTime   @updatedAt
+
+  event  OrgEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  member OrgMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, memberId])
   @@index([memberId])
 }
 
@@ -1380,12 +1427,12 @@ model StudyModule {
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  documents  StudyDocument[]
-  topics     StudyTopic[]
-  progress   QuestProgress[]
-  selfTests  StudySelfTestAttempt[]
-  planBlocks StudyPlanBlock[]
+  user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents     StudyDocument[]
+  topics        StudyTopic[]
+  progress      QuestProgress[]
+  selfTests     StudySelfTestAttempt[]
+  planBlocks    StudyPlanBlock[]
   studySessions StudySession[]
 
   @@unique([userId, name])
