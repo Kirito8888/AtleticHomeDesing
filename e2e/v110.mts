@@ -78,6 +78,7 @@ if (!/20 \/ 950 mg/.test(calcio)) errors.push(`la media de calcio no refleja la 
 await api("put", "/api/account/ai-consent", { enabled: true });
 await go("/nutrition");
 const jpeg = Buffer.from("/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAAA//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AN//Z", "base64");
+await page.getByTestId("nutrition-more").locator("summary").click(); // v3.2 L: la foto vive en «Cocina y herramientas»
 await page.getByLabel("Anotar desde una foto (IA)").setInputFiles({ name: "plato.jpg", mimeType: "image/jpeg", buffer: jpeg });
 const photo = page.getByRole("group", { name: "Alimentos de la foto" });
 await photo.waitFor({ timeout: 30_000 });

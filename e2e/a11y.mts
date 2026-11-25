@@ -27,13 +27,14 @@ export async function a11y(page: Page, where: string, tags: string[] = WCAG21): 
 
 /** Controles táctiles visibles de <main> por debajo de 44 px (la misma comprobación que v23b; casillas y radios
  *  los cubre su <label>; los enlaces en línea dentro de un párrafo no cuentan). */
-export const smallTargets = (p: Page) =>
-  p.evaluate(() =>
-    [...document.querySelectorAll<HTMLElement>("main a, main button:not([role=switch]), main select, main summary, main input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file]), main [role=tab]")]
+export const smallTargets = (p: Page, root = "main") =>
+  p.evaluate((root) =>
+    [...document.querySelectorAll<HTMLElement>(["a", "button:not([role=switch])", "select", "summary", "input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file])", "[role=tab]"].map((t) => `${root} ${t}`).join(","))]
       .filter((e) => {
         if (e.tagName === "A" && e.closest("p")) return false;
         const r = e.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && r.height < 43.5;
       })
       .map((e) => `${e.tagName.toLowerCase()}:${(e.getAttribute("aria-label") || e.textContent || "").trim().slice(0, 24)}@${Math.round(e.getBoundingClientRect().height)}`),
+    root,
   );

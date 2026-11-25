@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 
 import { chromium } from "playwright-core";
 
-import { a11y } from "./a11y.mjs";
+import { a11y, smallTargets } from "./a11y.mjs";
 
 const B = process.env.BASE_URL ?? "http://localhost:3000";
 const log = (...a: unknown[]) => console.log("✔", ...a);
@@ -168,6 +168,55 @@ log("menús de comidas: guardar, cargar en una toma y desde «+ Alimento» en un
   await noOverflow("/nutrition recientes");
 }
 log("recientes: lista en «+ Alimento» y alta con la cantidad habitual en un toque");
+
+// 9 · Rediseño de Nutrición (v3.2 L): una acción principal, objetivos ≥ 44 px, «Hoy» como entrada, 0 RSC
+{
+  const rsc: string[] = [];
+  page.on("request", (r) => {
+    const h = r.headers();
+    if (h["rsc"] === "1" && !h["next-router-prefetch"] && !h["next-router-segment-prefetch"]) rsc.push(new URL(r.url()).pathname);
+  });
+  const filled = () => page.evaluate((sel) => [...document.querySelectorAll<HTMLElement>(sel)].filter((e) => e.getBoundingClientRect().width > 0).length, "main button.bg-primary, main a.bg-primary");
+  await page.goto(B + "/nutrition");
+  if ((await page.getByTestId("nutrition-today").count()) !== 0) errors.push("hoy: no debe haber enlace «Hoy»");
+  if ((await filled()) !== 1) errors.push(`/nutrition: ${await filled()} botones rellenos en main (se espera 1: «+ Alimento»)`);
+  const small = await smallTargets(page);
+  if (small.length) errors.push(`/nutrition: controles < 44 px: ${small.join(", ")}`);
+  if (await page.getByTestId("nutrition-more").evaluate((e) => (e as HTMLDetailsElement).open)) errors.push("«Cocina y herramientas» debe ir plegado");
+  await page.getByTestId("nutrition-more").locator("summary").click();
+  const small2 = await smallTargets(page);
+  if (small2.length) errors.push(`/nutrition con «Cocina y herramientas» abierto: controles < 44 px: ${small2.join(", ")}`);
+  await page.getByTestId("nutrition-more").locator("summary").click();
+  // Otro día → «Hoy» vuelve a hoy
+  const other = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date(Date.now() + 3 * 864e5));
+  await page.goto(`${B}/nutrition?date=${other}`);
+  await page.getByTestId("nutrition-today").tap();
+  await page.waitForURL((u) => u.pathname === "/nutrition" && !u.search);
+  // «+ Alimento»: pestañas Menús / Recientes / Buscar; una sola acción rellena visible; todo ≥ 44 px
+  await page.getByRole("button", { name: /Alimento/ }).first().click();
+  const dlg = page.getByRole("dialog");
+  const tabs = await dlg.getByRole("tab").allInnerTexts();
+  if (tabs.join("|") !== "Menús|Recientes|Buscar") errors.push(`«+ Alimento»: pestañas «${tabs.join("|")}»`);
+  for (const t of tabs) {
+    await dlg.getByRole("tab", { name: t }).click();
+    const bad = await smallTargets(page, "[role=dialog]");
+    if (bad.length) errors.push(`«+ Alimento» › ${t}: controles < 44 px: ${bad.join(", ")}`);
+    const f = await page.evaluate(() => [...document.querySelectorAll<HTMLElement>("[role=dialog] button.bg-primary")].filter((e) => e.getBoundingClientRect().width > 0).length);
+    if (f > 1) errors.push(`«+ Alimento» › ${t}: ${f} botones rellenos`);
+  }
+  await dlg.getByRole("button", { name: "Añadir a mano" }).waitFor();
+  await dlg.getByRole("button", { name: "Escanear código" }).waitFor();
+  // Alta desde Recientes sin RSC
+  await dlg.getByRole("tab", { name: "Recientes" }).click();
+  rsc.length = 0;
+  await dlg.getByRole("button", { name: /^Tostada/ }).click();
+  await dlg.getByRole("button", { name: "Añadir", exact: true }).click();
+  await page.getByText("Añadido").first().waitFor();
+  await page.waitForTimeout(800);
+  if (rsc.length) errors.push(`añadir desde Recientes provocó ${rsc.length} petición(es) RSC: ${rsc.join(", ")}`);
+  await noOverflow("/nutrition rediseño");
+}
+log("rediseño de Nutrición: 1 acción principal, ≥ 44 px, «Hoy», pestañas y 0 RSC");
 
 await browser.close();
 if (errors.length) {

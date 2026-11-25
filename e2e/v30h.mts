@@ -56,10 +56,11 @@ await reg.getByRole("button", { name: /Agua/ }).tap();
 if (!(await wait).ok()) errors.push("agua no guardada");
 log("agua en 1 toque");
 
-// 3 · Toma: 2 toques (abrir + guardar) con alimento manual
+// 3 · Toma: abrir + «Buscar › Añadir a mano» + guardar (v3.2 L: Menús y Recientes dan 2 toques; lo manual es la vía secundaria)
 await reg.getByRole("button", { name: /Toma/ }).tap();
 const sheet = page.getByRole("dialog");
-await sheet.getByRole("tab", { name: "Manual" }).tap();
+await sheet.getByRole("tab", { name: "Buscar" }).tap();
+await sheet.getByRole("button", { name: "Añadir a mano" }).tap();
 const tab = sheet.getByRole("tabpanel");
 await tab.locator("#m-name").fill("Tostada H");
 for (const [n, v] of [["qty", "40"], ["kcal", "120"], ["p", "4"], ["c", "20"], ["g", "2"]]) await tab.locator(`#m-${n}`).fill(v);

@@ -56,6 +56,8 @@ export function AddFoodSheet({ date, menus = [], recents = [], triggerLabel, tri
   const [custom, setCustom] = useState<RecentFood | null>(null);
   const [grams, setGrams] = useState<number | null>(100);
   const [busy, setBusy] = useState(false);
+  // Escanear y «a mano» son vías secundarias dentro de «Buscar» (una sola acción principal por vista).
+  const [mode, setMode] = useState<"search" | "scan" | "manual">("search");
   const sortedMenus = sortForMeal(menus, meal);
   const sortedRecents = sortRecentsForMeal(recents, meal);
 
@@ -123,6 +125,7 @@ export function AddFoodSheet({ date, menus = [], recents = [], triggerLabel, tri
   const onCode = useCallback(async (code: string) => {
     try {
       const f = await api<Food>(`/api/nutrition/products/${code}`);
+      setMode("search");
       setPicked(f);
       setGrams(f.servingSizeG ?? 100);
     } catch (e) {
@@ -137,6 +140,7 @@ export function AddFoodSheet({ date, menus = [], recents = [], triggerLabel, tri
       toast.success(r === "queued" ? "Sin conexión: se añadirá al volver la cobertura" : "Añadido");
       setPicked(null);
       setCustom(null);
+      setMode("search");
       setOpen(false);
       if (r === "sent") refresh();
     } catch (e) {
@@ -149,7 +153,7 @@ export function AddFoodSheet({ date, menus = [], recents = [], triggerLabel, tri
   const f = (k: FormData, n: string) => Number(String(k.get(n) ?? "0").replace(",", ".")) || 0;
 
   return (
-    <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setPicked(null); setCustom(null); } }}>
+    <Sheet open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setPicked(null); setCustom(null); setMode("search"); } }}>
       <SheetTrigger asChild>
         <Button size={triggerClassName ? "default" : "sm"} className={triggerClassName}>
           <Plus /> {triggerLabel ?? "Alimento"}
@@ -197,12 +201,11 @@ export function AddFoodSheet({ date, menus = [], recents = [], triggerLabel, tri
             </div>
           </div>
         ) : (
-          <Tabs defaultValue={recents.length ? "search" : menus.length ? "menus" : "search"}>
-            <TabsList>
-              <TabsTrigger value="menus">Menús</TabsTrigger>
-              <TabsTrigger value="search">Buscar</TabsTrigger>
-              <TabsTrigger value="scan">Escanear</TabsTrigger>
-              <TabsTrigger value="manual">Manual</TabsTrigger>
+          <Tabs defaultValue={recents.length ? "recents" : menus.length ? "menus" : "search"}>
+            <TabsList className="h-auto min-h-11 w-full">
+              <TabsTrigger value="menus" className="min-h-11">Menús</TabsTrigger>
+              <TabsTrigger value="recents" className="min-h-11">Recientes</TabsTrigger>
+              <TabsTrigger value="search" className="min-h-11">Buscar</TabsTrigger>
             </TabsList>
             <TabsContent value="menus" className="grid gap-2">
               {sortedMenus.length ? (
@@ -230,8 +233,8 @@ export function AddFoodSheet({ date, menus = [], recents = [], triggerLabel, tri
                 <p className="text-sm text-muted-foreground">Aún no tienes menús. Pulsa ★ en una toma para guardar sus alimentos con un nombre.</p>
               )}
             </TabsContent>
-            <TabsContent value="search" className="grid gap-2">
-              {sortedRecents.length && query.trim().length < 2 ? (
+            <TabsContent value="recents" className="grid gap-2">
+              {sortedRecents.length ? (
                 <section aria-labelledby="recientes-titulo" className="grid gap-1">
                   <h3 id="recientes-titulo" className="text-sm font-semibold">
                     Recientes / Habituales
@@ -256,66 +259,90 @@ export function AddFoodSheet({ date, menus = [], recents = [], triggerLabel, tri
                     ))}
                   </ul>
                 </section>
-              ) : null}
-              <div className="relative">
-                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input className="pl-8" placeholder="p.ej. hacendado yogur griego" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Buscar alimento" />
-              </div>
-              {warning ? <p className="text-xs text-muted-foreground">{warning}</p> : null}
-              {searching ? <p className="text-sm text-muted-foreground">Buscando…</p> : null}
-              <ul className="grid gap-1">
-                {results.map((r) => (
-                  <li key={r.id}>
-                    <button type="button" onClick={() => pick(r)} className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left hover:bg-accent">
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium">{r.name}</span>
-                        <span className="block truncate text-xs text-muted-foreground">{r.brand ?? "—"}</span>
-                      </span>
-                      <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{r.kcalPer100g != null ? `${formatNum(r.kcalPer100g)} kcal` : "s/d"}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              ) : (
+                <p className="text-sm text-muted-foreground">Aún no hay recientes: lo que añadas aparecerá aquí con tu cantidad habitual.</p>
+              )}
             </TabsContent>
-            <TabsContent value="scan">
-              <BarcodeScanner onCode={onCode} />
-            </TabsContent>
-            <TabsContent value="manual">
-              <form
-                className="grid gap-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const k = new FormData(e.currentTarget);
-                  void add({
-                    customName: String(k.get("name") ?? ""),
-                    quantityG: f(k, "qty"),
-                    kcal: f(k, "kcal"),
-                    proteinG: f(k, "p"),
-                    carbsG: f(k, "c"),
-                    fatG: f(k, "g"),
-                  });
-                }}
-              >
-                <Field label="Alimento" htmlFor="m-name">
-                  <Input id="m-name" name="name" required />
-                </Field>
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    ["qty", "Cantidad (g)"],
-                    ["kcal", "Kcal"],
-                    ["p", "Proteína (g)"],
-                    ["c", "Hidratos (g)"],
-                    ["g", "Grasa (g)"],
-                  ].map(([n, l]) => (
-                    <Field key={n} label={l} htmlFor={`m-${n}`}>
-                      <Input id={`m-${n}`} name={n} inputMode="decimal" required />
-                    </Field>
-                  ))}
+            <TabsContent value="search" className="grid gap-2">
+              {mode === "scan" ? (
+                <div className="grid gap-2">
+                  <BarcodeScanner onCode={onCode} />
+                  <Button type="button" variant="outline" onClick={() => setMode("search")}>
+                    Volver a buscar
+                  </Button>
                 </div>
-                <Button type="submit" disabled={busy}>
-                  Añadir
-                </Button>
-              </form>
+              ) : mode === "manual" ? (
+                <div className="grid gap-3">
+                  <form
+                  className="grid gap-3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const k = new FormData(e.currentTarget);
+                    void add({
+                      customName: String(k.get("name") ?? ""),
+                      quantityG: f(k, "qty"),
+                      kcal: f(k, "kcal"),
+                      proteinG: f(k, "p"),
+                      carbsG: f(k, "c"),
+                      fatG: f(k, "g"),
+                    });
+                  }}
+                >
+                  <Field label="Alimento" htmlFor="m-name">
+                    <Input id="m-name" name="name" required />
+                  </Field>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      ["qty", "Cantidad (g)"],
+                      ["kcal", "Kcal"],
+                      ["p", "Proteína (g)"],
+                      ["c", "Hidratos (g)"],
+                      ["g", "Grasa (g)"],
+                    ].map(([n, l]) => (
+                      <Field key={n} label={l} htmlFor={`m-${n}`}>
+                        <Input id={`m-${n}`} name={n} inputMode="decimal" required />
+                      </Field>
+                    ))}
+                  </div>
+                  <Button type="submit" disabled={busy}>
+                    Añadir
+                  </Button>
+                </form>
+                  <Button type="button" variant="outline" onClick={() => setMode("search")}>
+                    Volver a buscar
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input className="pl-8" placeholder="p.ej. hacendado yogur griego" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Buscar alimento" />
+                  </div>
+                  {warning ? <p className="text-xs text-muted-foreground">{warning}</p> : null}
+                  {searching ? <p className="text-sm text-muted-foreground">Buscando…</p> : null}
+                  <ul className="grid gap-1">
+                    {results.map((r) => (
+                      <li key={r.id}>
+                        <button type="button" onClick={() => pick(r)} className="flex min-h-11 w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-left hover:bg-accent">
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-medium">{r.name}</span>
+                            <span className="block truncate text-xs text-muted-foreground">{r.brand ?? "—"}</span>
+                          </span>
+                          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{r.kcalPer100g != null ? `${formatNum(r.kcalPer100g)} kcal` : "s/d"}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button type="button" variant="outline" onClick={() => setMode("scan")}>
+                      Escanear código
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => setMode("manual")}>
+                      Añadir a mano
+                    </Button>
+                  </div>
+                </>
+              )}
             </TabsContent>
           </Tabs>
         )}

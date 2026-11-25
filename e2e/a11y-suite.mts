@@ -65,6 +65,9 @@ const iso = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toL
   await login(p);
   for (const [v, d] of [[40, 30], [44, 1]] as const) await req(p, "POST", "/api/training/tests", { test: "cmj", value: v, date: iso(d) });
   await req(p, "POST", "/api/tasks", { title: "Entregar práctica", dueDate: iso(-2) });
+  // Nutrición con datos (L): toma de ayer (para «Repetir de ayer»), toma de hoy y un menú guardado
+  for (const [d, name] of [[1, "Avena ayer"], [0, "Tostada"]] as const) await req(p, "POST", "/api/nutrition/entries", { date: iso(d), mealType: "BREAKFAST", customName: name, quantityG: 80, kcal: 210, proteinG: 7, carbsG: 38, fatG: 3 });
+  await req(p, "POST", "/api/nutrition/meal-templates", { name: "Menú desayuno", date: iso(0), mealType: "BREAKFAST" });
   await p.context().close();
 }
 

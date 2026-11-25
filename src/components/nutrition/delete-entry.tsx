@@ -15,7 +15,7 @@ export function DeleteEntry({ id, name }: { id: string; name: string }) {
     <Button
       variant="ghost"
       size="icon"
-      className="size-8"
+      className="size-9 max-md:size-11"
       aria-label={`Quitar ${name}`}
       onClick={async () => {
         try {
@@ -41,7 +41,7 @@ export function IronToggle({ id, name, initial }: { id: string; name: string; in
       aria-pressed={on}
       aria-label={on ? `Quitar «rico en hierro» de ${name}` : `Marcar ${name} como rico en hierro`}
       title="Rico en hierro"
-      className={on ? "rounded px-1 text-xs font-semibold text-rose-700 dark:text-rose-400" : "rounded px-1 text-xs text-muted-foreground opacity-50 hover:opacity-100"}
+      className={on ? "grid min-h-11 min-w-11 place-items-center rounded px-1 text-xs font-semibold text-rose-700 dark:text-rose-400" : "grid min-h-11 min-w-11 place-items-center rounded px-1 text-xs text-muted-foreground opacity-50 hover:opacity-100"}
       onClick={async () => {
         setOn(!on);
         try {
