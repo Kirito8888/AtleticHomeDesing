@@ -22,13 +22,13 @@ export function TemplateChips({ templates, activeId }: { templates: TemplateChip
     <nav aria-label="Plantillas" className="mb-4 flex flex-wrap gap-1.5">
       {templates.map((t) => (
         <span key={t.id} className={cn("inline-flex items-center rounded-full border text-xs", t.id === activeId && "border-primary bg-primary/10")}>
-          <Link href={`/training/new?template=${t.id}`} className="py-1.5 pr-1 pl-3 font-medium">
+          <Link href={`/training/new?template=${t.id}`} className="flex min-h-11 items-center pr-1 pl-3 font-medium">
             {t.name}
           </Link>
           <button
             type="button"
             aria-label={`Borrar plantilla ${t.name}`}
-            className="rounded-full p-1.5 text-muted-foreground hover:text-foreground"
+            className="flex size-11 items-center justify-center rounded-full text-muted-foreground hover:text-foreground"
             onClick={async () => {
               if (!(await confirmDialog({ title: `¿Borrar la plantilla «${t.name}»?`, confirmLabel: "Borrar", destructive: true }))) return;
               try {

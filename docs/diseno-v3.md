@@ -11,7 +11,7 @@ Cada principio lleva una regla que se puede comprobar en una revisión. Los bloq
 | # | Principio | Regla comprobable | Ya existe así | Falta (bloque) |
 |---|---|---|---|---|
 | 1 | **Una acción principal por pantalla** | Como mucho un `Button` de variante por defecto (relleno) por pantalla, normalmente en `PageHeader action`; el resto, `outline`/`ghost` o enlace | Entreno (`+ Sesión`), Estudio (tras G ya no lleva «Crear plan» ni «Pregunta a tus datos» en su cabecera) | Panel de inicio (H), Finanzas (M), Nutrición (K) |
-| 2 | **Detalle bajo demanda** | Lo secundario va plegado (`<details>`, pestañas, hoja) o en la pantalla hija; la primera vista cabe en 390 × 844 sin desplazarse para lo principal | Pestañas de Estudio, «Más» del móvil | Sesión y rendimiento (I), recuperación (J) |
+| 2 | **Detalle bajo demanda** | Lo secundario va plegado (`<details>`, pestañas, hoja) o en la pantalla hija; la primera vista cabe en 390 × 844 sin desplazarse para lo principal | Pestañas de Estudio, «Más» del móvil | Sesión y rendimiento (**I, hecho**: «Más detalles» y «¿Por qué?»), recuperación (J) |
 | 3 | **Borrador → aceptar en todo** | Nada escribe en el plan, los datos de salud o el presupuesto sin un paso explícito de aceptación; el borrador se ve igual en todas las verticales | `ai-plan-actions`, `plan-versions`, `manual-plan`, `multi-plan`, `routine-wizard`, `voice-session`, `food-ai`, `route-plan` | Un componente común de borrador (I–O, cuando se toque cada vertical) |
 | 4 | **Estados vacíos que enseñan** | Una pantalla sin datos usa `EmptyState` con qué es, por qué sirve y el primer paso (un enlace o botón) | `EmptyState` en las listas | «Hoy» (H) y cada vertical (I–O) |
 | 5 | **Modo foco** | Lo que la usuaria oculta en Ajustes → Módulos (`prefs.hiddenModules`) desaparece del menú, de la barra y del panel; nunca se borra nada | `buildNav`, panel, bienvenida | La barra móvil también lo respeta desde G |
@@ -101,7 +101,7 @@ Las rutas `/study/plan`, `/study/ask` y la pestaña «coach» siguen bajo `/stud
 - `globals.css`: en móvil (`< 48rem`) `scroll-padding-top` = cabecera y `scroll-padding-bottom` = barra inferior; si la pantalla tiene una barra de acción fija (`data-sticky-action`: «Guardar sesión», asistente del plan con IA) el margen inferior sube a la altura de las dos.
 - `FocusGuard` (`layout/focus-guard.tsx`), montado en el layout: en cada `focusin` mide la cabecera, la barra inferior y las barras de acción pegadas abajo y, si el elemento enfocado queda debajo, desplaza lo justo (`obscuredShift`, con test). Dentro de hojas y diálogos no actúa (quedan por encima de las barras).
 - `e2e:v30g` tabula 35 veces en Inicio, Entreno, Nueva sesión, Plan, Estudio, Finanzas y Ajustes (y la hoja «Más»): cada foco tiene contorno visible y no se solapa con ninguna barra.
-- Queda abierta la excepción de axe `/training/new target-size` (los chips en reposo bajo «Guardar sesión»; no es el foco): pasa al **Bloque I**, que rediseña la barra de acción de la sesión.
+- La excepción de axe `/training/new target-size` se cerró en v3.2 I: la barra «Guardar sesión» solo se pega cuando hay cambios (`ALLOWED` de `e2e:a11y` queda vacío).
 
 ## 7. Nombres (V3-D02)
 

@@ -152,6 +152,17 @@ log("rutas existentes conservadas");
   const api = (await (await page.request.get(B + "/api/training/pmc?days=14")).json()) as { explanation?: string | null };
   if (!api.explanation) errors.push("N9: la API del PMC no devuelve explanation");
   log("frases de readiness y PMC:", r1, "|", p1);
+  // v3.2 I · «por qué» de cada número de Rendimiento (plegado, solo carga)
+  await page.goto(B + "/training/performance", { waitUntil: "load" });
+  const whys = page.getByTestId("stat-why");
+  if ((await whys.count()) < 5) errors.push(`I: faltan «¿Por qué?» en Rendimiento (${await whys.count()} de 5)`);
+  const sums = page.locator("summary", { hasText: "¿Por qué?" });
+  for (let i = 0; i < (await sums.count()); i++) {
+    await sums.nth(i).click();
+    const t = (await whys.nth(i).innerText()).trim();
+    if (!t || /sueño|VFC|readiness|agujetas|bienestar/i.test(t)) errors.push(`I: «por qué» vacío o con recuperación: «${t}»`);
+  }
+  log("cada número de Rendimiento explica de dónde sale");
 }
 
 await browser.close();

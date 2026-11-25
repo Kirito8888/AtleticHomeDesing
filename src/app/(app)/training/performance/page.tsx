@@ -3,7 +3,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { Stat } from "@/components/stat";
 import { StatusLabel, tsbStatus } from "@/components/status";
-import { explainPmc } from "@/lib/training/explain";
+import { explainAcwr, explainAtl, explainCtl, explainE1rmChange, explainPmc, explainRamp, explainTsb } from "@/lib/training/explain";
 import { AttemptsScatter, E1rmChart, MarksChart, PmcCharts } from "@/components/charts/lazy";
 import { SeasonGoals } from "@/components/training/season-goals";
 import type { PmcPoint } from "@/components/training/pmc-charts";
@@ -137,6 +137,12 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
             </span>
           ) : null}
         </div>
+        {change ? (
+          <details className="text-xs text-muted-foreground">
+            <summary className="flex min-h-11 cursor-pointer items-center underline underline-offset-2">¿Por qué?</summary>
+            <p data-testid="e1rm-why" className="pb-2">{explainE1rmChange(change, days)}</p>
+          </details>
+        ) : null}
         {exercises.length ? (
           <>
             <nav aria-label="Ejercicio" className="flex gap-1.5 overflow-x-auto pb-1">
@@ -200,20 +206,21 @@ export default async function PerformancePage({ searchParams }: PageProps<"/trai
       {cur ? (
         <Card className="mb-6 py-4">
           <CardContent className="grid grid-cols-2 gap-4 px-4 sm:grid-cols-3 lg:grid-cols-5">
-            <Stat label="Fitness (CTL)" value={formatNum(cur.ctl)} swatch="--series-1" />
-            <Stat label="Fatiga (ATL)" value={formatNum(cur.atl)} swatch="--series-2" />
+            <Stat label="Fitness (CTL)" value={formatNum(cur.ctl)} swatch="--series-1" why={explainCtl(cur.ctl)} />
+            <Stat label="Fatiga (ATL)" value={formatNum(cur.atl)} swatch="--series-2" why={explainAtl(cur.atl, cur.ctl)} />
             <Stat
               label="Forma (TSB)"
               value={formatNum(cur.tsb)}
               swatch="--series-3"
+              why={explainTsb(cur.tsb)}
               hint={
                 <StatusLabel status={tsbStatus(cur.tsb)} className="text-xs">
                   {cur.tsb < -25 ? "Fatiga alta" : cur.tsb < -10 ? "Cargando" : "Fresco"}
                 </StatusLabel>
               }
             />
-            <Stat label="ACWR" value={cur.acwr != null ? formatNum(cur.acwr, 2) : "—"} hint={cur.acwr == null ? "Necesita 28 días" : "Zona 0,8–1,3"} />
-            <Stat className="col-span-2 sm:col-span-1" label="Rampa CTL (7 d)" value={cur.rampRate != null ? formatNum(cur.rampRate) : "—"} hint="> 5–8 = agresiva" />
+            <Stat label="ACWR" why={explainAcwr(cur.acwr)} value={cur.acwr != null ? formatNum(cur.acwr, 2) : "—"} hint={cur.acwr == null ? "Necesita 28 días" : "Zona 0,8–1,3"} />
+            <Stat className="col-span-2 sm:col-span-1" label="Rampa CTL (7 d)" why={explainRamp(cur.rampRate)} value={cur.rampRate != null ? formatNum(cur.rampRate) : "—"} hint="> 5–8 = agresiva" />
             <p data-testid="pmc-why" className="col-span-full text-xs text-muted-foreground">
               {explainPmc(cur)}
             </p>

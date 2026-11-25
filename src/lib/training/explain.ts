@@ -61,6 +61,41 @@ export function explainPmc(n: PmcNow): string {
   return `${tsbBase(n.tsb)}${nuance ? `; ${nuance}` : ""}.`;
 }
 
+/** v3.2 I · «Por qué» de cada número de Rendimiento. Reglas y rangos, sin IA ni BD; solo carga deportiva. */
+export function explainCtl(ctl: number): string {
+  const lvl = ctl < 10 ? "base aún baja" : ctl < 40 ? "base moderada" : ctl < 70 ? "base sólida" : "base alta";
+  return `Fitness (CTL) ${formatNum(ctl)}: media ponderada de tu carga de ~6 semanas; ${lvl}. Sube y baja despacio.`;
+}
+
+export function explainAtl(atl: number, ctl: number): string {
+  const rel = atl > ctl * 1.3 ? "bastante por encima de tu fitness" : atl > ctl ? "algo por encima de tu fitness" : "por debajo de tu fitness";
+  return `Fatiga (ATL) ${formatNum(atl)}: media de tu carga de ~1 semana, ${rel}. Reacciona rápido a cada sesión.`;
+}
+
+export function explainTsb(tsb: number): string {
+  const zone =
+    tsb < -25 ? "Por debajo de −25: fatiga alta acumulada." : tsb < -10 ? "Entre −25 y −10: bloque de carga." : tsb <= 5 ? "Entre −10 y +5: equilibrio." : tsb <= 25 ? "Entre +5 y +25: fresca." : "Por encima de +25: descanso largo, el fitness empieza a bajar.";
+  return `Forma (TSB) ${formatNum(tsb)} = fitness − fatiga. ${zone}`;
+}
+
+export function explainAcwr(acwr: number | null | undefined): string {
+  if (acwr == null) return "ACWR = carga de 7 días ÷ media de 28: necesita 28 días de datos para calcularse.";
+  const z = acwr > 1.5 ? "pico de carga" : acwr > 1.3 ? "por encima de la zona 0,8–1,3" : acwr >= 0.8 ? "dentro de la zona 0,8–1,3" : "por debajo de la zona 0,8–1,3 (carga baja frente a tu media)";
+  return `ACWR ${formatNum(acwr, 2)} = carga de 7 días ÷ media de 28: ${z}.`;
+}
+
+export function explainRamp(ramp: number | null | undefined): string {
+  if (ramp == null) return "Rampa = cuánto cambió el fitness en 7 días: aún sin datos suficientes.";
+  const z = ramp > 8 ? "agresiva (> 8)" : ramp > 5 ? "exigente (5–8)" : ramp >= 0 ? "sostenible (≤ 5)" : "negativa: el fitness baja";
+  return `Rampa ${formatNum(ramp)}/sem = cambio del fitness en 7 días: ${z}.`;
+}
+
+/** Cambio del 1RM estimado en el periodo (primera y última fecha con datos). */
+export function explainE1rmChange(c: { kg: number; pct: number }, days: number): string {
+  const sign = c.kg >= 0 ? "+" : "";
+  return `e1RM: ${sign}${formatNum(c.kg, 1)} kg (${sign}${formatNum(c.pct, 1)} %) entre la primera y la última sesión de los últimos ${days} días; mejor serie estimada (Brzycki hasta 10 reps al fallo, Epley de 11 a 15) con el RIR de tu RPE.`;
+}
+
 export interface ReadinessNow {
   score: number | null | undefined;
   label?: keyof typeof READINESS_LABEL | null;

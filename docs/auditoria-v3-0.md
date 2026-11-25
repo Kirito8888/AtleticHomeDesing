@@ -134,7 +134,7 @@ Criterios nuevos de 2.2 (nivel AA según el W3C): 2.4.11 foco no oculto, 2.5.8 t
 | `--input` sobre fondo/tarjeta (claro y oscuro) | 1.4.11 no-texto | 1,26:1 claro · 1,47–1,57:1 oscuro | Oscurecer el borde de todos los campos es un cambio visual global; los campos tienen etiqueta visible y `.hc` ya cumple (≥ 3:1) | G |
 | `--status-warning`, `--status-serious` (claro y `.hc` claro) | 1.4.11 no-texto | 1,83:1 · 2,64:1 | Siempre con icono + texto (`StatusLabel`), no son el único medio; tocarlos cambia la paleta validada para daltonismo | G |
 | `--chart-4`, `--chart-5` (claro, presupuestos) | 1.4.11 no-texto | 1,72:1 · 2,15:1 | La barra de presupuestos lleva leyenda con nombre, importe y % | G |
-| `/training/new`: chips bajo «Guardar sesión» | 2.5.8 `target-size` (axe) | Chips de 44 px tapados por la barra fija `sticky bottom-20` al cargar | El foco ya no queda tapado (G: `scroll-padding` + `FocusGuard`, `e2e:v30g`); el solape en reposo pide rediseñar la barra de acción de la sesión | I |
+| `/training/new`: chips bajo «Guardar sesión» | 2.5.8 `target-size` (axe) | **Cerrada en v3.2 I.** | La barra «Guardar sesión» solo se pega (`sticky`) cuando hay cambios; en reposo queda en su sitio al final del formulario y no tapa nada. Con cambios, a media pantalla tapa por construcción lo de debajo: `e2e:v210a` lo mide con la página al final. |
 | `--border` decorativo | 1.4.11 (aviso) | 1,25:1 | Separador, no identifica un control | — |
 
 **Alcance propuesto V3-A01:** checklist WCAG 2.2 AA por plantilla de página (no por las 91), axe en CI por vertical, 1 pasada manual con teclado y 1 con lector de pantalla, y una página «Declaración de accesibilidad» en `/legal`.

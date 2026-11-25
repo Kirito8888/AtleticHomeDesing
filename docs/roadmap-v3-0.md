@@ -125,7 +125,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 > **Estado del tramo movible (revisado en el repo el 24/11/2026; la usuaria decide hacerlo antes de `docs/roadmap-entrenadora.md`):**
 > | Bloque | Estado | Qué hay ya [Seguro] |
 > |---|---|---|
-> | I · Rediseño Entreno | Pendiente | — |
+> | I · Rediseño Entreno | **Hecho (25/11/2026)** | Objetivos ≥ 44 px en el registrador, sesión con «Más detalles» plegado y barra de guardar solo pegada con cambios, «¿Por qué?» en cada número de Rendimiento (`explain.ts`). Sin esquema (`e2e:v210a`, `a11y`) |
 > | J · Entreno sin red | **Hecho (24–25/11/2026)** | Series de fuerza sin red: borrador local del formulario, PATCH en la bandeja, dueña por envío, reintentos y purga al salir (`e2e:sinred`). Sin esquema: las series son idempotentes por el `clientId` de la sesión (POST) o por sustitución completa (PATCH). Tomas de comida y agua llevan `clientKey` (columna en `Macros` y `HydrationLog`, migración `v3_2_features`); los hábitos son idempotentes por estado final, sin campo |
 > | K · Estudio + N03 | **Hecho (24/11/2026), salvo la tarea 1** | Tope diario de repasos (`flashcardDailyCap`) y «Crear flashcards» en el resumen del tema. La tarea 1 (composición de `/study`) pasa al tramo de rediseños (tras I) |
 > | L · Rediseño Nutrición | Pendiente | — |

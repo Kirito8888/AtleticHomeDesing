@@ -161,6 +161,7 @@ await page.getByLabel("Fatiga en hombro").selectOption("8");
 await page.fill("#minutes", "60");
 await radio("RPE de la sesión", "7").click();
 await Promise.all([page.waitForURL(sessionUrl), page.getByRole("button", { name: "Guardar cambios" }).click()]);
+await page.getByText("Plan frente a hecho", { exact: true }).first().click(); // v3.2 I: plegado
 await page.getByText("kg del día: 77,5").waitFor();
 await go(`${B}/planning/plan/${todayDay.id}`);
 await page.getByText("3 × 5").first().waitFor();

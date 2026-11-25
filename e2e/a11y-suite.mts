@@ -18,10 +18,7 @@ const errors: string[] = [];
 
 /** Excepciones conocidas: «ruta regla» → bloque destino. Mantener en sincronía con docs/auditoria-v3-0.md. */
 const ALLOWED: Record<string, "I" | "T"> = {
-  // La barra fija «Guardar sesión» (sticky bottom-20) se superpone en reposo a los chips que quedan debajo; al
-  // desplazarse se liberan. El foco por teclado ya no queda tapado (V3-A07, G: scroll-padding + FocusGuard,
-  // lo prueba e2e:v30g); quitar el solape pide rediseñar la barra de acción de la sesión: Bloque I.
-  "/training/new target-size": "I",
+  // (vacío) La excepción `/training/new target-size` se cerró en v3.2 I: la barra «Guardar sesión» solo se pega con cambios.
 };
 
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });

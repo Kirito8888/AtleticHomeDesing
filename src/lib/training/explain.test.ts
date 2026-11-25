@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { explainPmc, explainReadiness } from "./explain";
+import { explainAcwr, explainAtl, explainCtl, explainE1rmChange, explainPmc, explainRamp, explainReadiness, explainTsb } from "./explain";
 
 const base = { ctl: 40, atl: 40, acwr: 1, rampRate: 2 };
 
@@ -56,5 +56,35 @@ describe("explainReadiness", () => {
   });
   it("sin componentes, solo la etiqueta", () => {
     expect(explainReadiness({ score: 80, label: "READY", parts: {} })).toBe("Listo.");
+  });
+});
+
+describe("«por qué» de cada número de Rendimiento (v3.2 I)", () => {
+  it("CTL y ATL describen el nivel sin inventar", () => {
+    expect(explainCtl(5)).toMatch(/base aún baja/);
+    expect(explainCtl(80)).toMatch(/base alta/);
+    expect(explainAtl(60, 40)).toMatch(/bastante por encima/);
+    expect(explainAtl(30, 40)).toMatch(/por debajo/);
+  });
+  it("TSB usa los mismos cortes que tsbStatus", () => {
+    expect(explainTsb(-30)).toMatch(/fatiga alta/);
+    expect(explainTsb(-15)).toMatch(/bloque de carga/);
+    expect(explainTsb(0)).toMatch(/equilibrio/);
+    expect(explainTsb(10)).toMatch(/fresca/);
+    expect(explainTsb(30)).toMatch(/descanso largo/);
+  });
+  it("ACWR y rampa: sin datos lo dicen, y marcan zonas", () => {
+    expect(explainAcwr(null)).toMatch(/28 días/);
+    expect(explainAcwr(1)).toMatch(/dentro de la zona/);
+    expect(explainAcwr(1.6)).toMatch(/pico/);
+    expect(explainAcwr(0.5)).toMatch(/por debajo/);
+    expect(explainRamp(undefined)).toMatch(/sin datos/);
+    expect(explainRamp(9)).toMatch(/agresiva/);
+    expect(explainRamp(6)).toMatch(/exigente/);
+    expect(explainRamp(-2)).toMatch(/baja/);
+  });
+  it("e1RM: cita kg, % y periodo", () => {
+    expect(explainE1rmChange({ kg: 5, pct: 4 }, 90)).toMatch(/\+5.*\+4.*90 días/);
+    expect(explainE1rmChange({ kg: -2, pct: -1.5 }, 30)).not.toMatch(/\+/);
   });
 });

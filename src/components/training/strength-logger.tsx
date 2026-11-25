@@ -99,7 +99,7 @@ function ExercisePicker({ exercises, onPick }: { exercises: ExerciseOption[]; on
             <li key={e.id}>
               <button
                 type="button"
-                className="flex w-full items-center gap-2 rounded px-2 py-2 text-left text-sm hover:bg-accent"
+                className="flex min-h-11 w-full items-center gap-2 rounded px-2 py-2 text-left text-sm hover:bg-accent"
                 onClick={() => {
                   onPick(e.id);
                   setQ("");
@@ -217,7 +217,7 @@ export function StrengthLogger({
                     </button>
                     <button
                       type="button"
-                      className={cn("rounded border px-2 py-1", s.isWarmup && "border-primary text-foreground")}
+                      className={cn("rounded border px-2 py-1 max-md:min-h-11", s.isWarmup && "border-primary text-foreground")}
                       aria-pressed={s.isWarmup}
                       onClick={() => setField(block.key, i, { isWarmup: !s.isWarmup })}
                     >
@@ -267,7 +267,7 @@ export function StrengthLogger({
                         aria-checked={s.rpe === r}
                         onClick={() => setField(block.key, i, { rpe: s.rpe === r ? null : r })}
                         className={cn(
-                          "h-8 min-w-9 shrink-0 rounded-full border px-2 text-xs font-medium tabular-nums",
+                          "h-8 min-w-9 shrink-0 max-md:h-11 max-md:min-w-11 rounded-full border px-2 text-xs font-medium tabular-nums",
                           s.rpe === r ? "border-primary bg-primary text-primary-foreground" : "hover:bg-accent",
                         )}
                       >
