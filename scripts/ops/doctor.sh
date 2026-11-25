@@ -19,7 +19,7 @@ cd "$(dirname "$0")/../.." || exit 2
 
 # ─────────────── ACTUALIZAR EN CADA CIERRE DE VERSIÓN (CLAUDE.md, docs/como-trabajar.md) ───────────────
 # Última migración de prisma/migrations que debe estar aplicada en producción.
-EXPECTED_MIGRATION="20270901080000_v3_2_features"
+EXPECTED_MIGRATION="20271001080000_v3_3_features"
 # Páginas públicas (200 sin sesión) y la API de salud.
 PUBLIC_ROUTES=(/login /register /offline /legal/privacidad /legal/condiciones /legal/aviso /legal/accesibilidad)
 # Páginas privadas: sin sesión deben redirigir (302/307) a /login; con COOKIE_SESION, 200.

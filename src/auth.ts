@@ -92,7 +92,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (gate.blocked) throw fail("locked", new TooManyAttempts());
         if (gate.delayMs) await new Promise((r) => setTimeout(r, gate.delayMs));
 
-        if (!user?.passwordHash) {
+        if (!user?.passwordHash || user.managedById) {
           await verifyAgainstDummy(parsed.data.password); // mismo tiempo exista o no el email
           await recordLoginFailure(email, ip);
           throw fail("credentials");

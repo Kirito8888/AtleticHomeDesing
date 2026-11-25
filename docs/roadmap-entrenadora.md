@@ -2,7 +2,7 @@
 
 > **Propuesta, no compromiso.** Base: `main` tras v3.0.1-preview + importación de `export.xml` (24/11/2026). Solo documentación: no cambia código, esquema ni dependencias.
 > Objetivo de la usuaria: tener centralizadas en Atlenza a todas las personas a las que lleva la planificación, **aunque no tengan cuenta**.
-> Versión propuesta: **v3.2** (el número lo decide la usuaria). **Orden decidido (24/11/2026): primero se termina el tramo movible I–Q de `docs/roadmap-v3-0.md` y después los bloques E.**
+> Versión: **v3.3** (v3.2.0 ya está cerrada y fusionada; la Suite lleva migración nueva `20271001080000_v3_3_features`) (el número lo decide la usuaria). **Orden decidido (24/11/2026): primero se termina el tramo movible I–Q de `docs/roadmap-v3-0.md` y después los bloques E.**
 > **Confianza:** [Seguro] comprobado en el repo · [Probable] inferencia sólida · [Suponiendo] hueco sin prueba. **Esfuerzo** en sesiones de Claude Code (un bloque = una sesión, ≤ 4 tareas).
 > Bloques con prefijo **E** (Entrenadora) para no chocar con las letras de v3.0 (C–T) ni con v3.1 A–C (Apple).
 
@@ -26,13 +26,13 @@
 | 0.7 | Varias entrenadoras sobre una ficha | No en v3.2: la ficha es de una entrenadora. Compartirla con el staff de un club, más adelante | E2 | [Probable] |
 
 ## Bloques
-Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimadas. Migración única de la versión: `<AAAAMMDDhhmmss>_v3_2_features`, creada en E1 con `regen-mig.sh` (antes `snapshot.sh --before 20270701080000_v2_9_features 20270801080000_v3_1_features`), solo aditiva, regenerada si otro bloque añade algo.
+Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimadas. Migración única de la versión: `20271001080000_v3_3_features`, creada en E1 con `regen-mig.sh` (antes `snapshot.sh --before 20270701080000_v2_9_features 20270801080000_v3_1_features`), solo aditiva, regenerada si otro bloque añade algo.
 
 #### E1 · Fundaciones: ficha gestionada sin acceso
 | | |
 |---|---|
 | Tareas | 1) **Esquema:** `User.managedById` (FK a la entrenadora, `onDelete: Restrict` para no perder fichas en silencio) y tabla `ManagedAthlete` (userId único, coachId, alias, año de nacimiento o categoría, etiqueta/grupo, notas, `consentAt`, `archivedAt`; **sin campos de nombre real ni contacto**). Email marcador no enrutable generado. 2) **Sin acceso:** credenciales, OAuth, llave, recuperación y 2FA rechazan cuentas gestionadas; `requireUser` nunca las resuelve. 3) **Exclusión de procesos:** scheduler, push, Telegram, informe semanal, resumen diario, estadísticas de admin, `doctor.sh`/métricas y limpieza demo filtran `managedById: null`; helper único `realUsers()`. 4) **Prueba de arquitectura:** `architecture.test.ts` falla si un `prisma.user.findMany/count` fuera de `lib/managed/**` no usa el helper; tests de login rechazado |
-| BD | **Sí** [Seguro]; crea `v3_2_features` |
+| BD | **Sí** [Seguro]; crea `v3_3_features` |
 | Ses. | 2 [Probable] |
 | Terminado = | Una ficha existe, no puede entrar por ninguna vía y ningún job la toca (tests en verde) |
 
@@ -119,7 +119,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 | Mínimo útil | E1 → E2 → E3 → E11 → E4 → E5 | 8–10 | [Probable] |
 | Seguimiento | E6 → E8 → E9 | 3–4 | [Probable] |
 | Paso a cuenta y respuesta | E10 → E7 | 3–4 | [Suponiendo] |
-| Cierre | `e2e.sh all` + `e2e:entrenadora`, `test-migration.sh`, Semgrep, licencias, CHANGELOG, guía, `docs/migracion-v3-1-a-v3-2.md`, `doctor.sh` (`EXPECTED_MIGRATION`, rutas nuevas) | 1–2 | [Seguro] |
+| Cierre | `e2e.sh all` + `e2e:entrenadora`, `test-migration.sh`, Semgrep, licencias, CHANGELOG, guía, `docs/migracion-v3-2-a-v3-3.md`, `doctor.sh` (`EXPECTED_MIGRATION`, rutas nuevas) | 1–2 | [Seguro] |
 
 - E1 antes que todo; E11 antes de cargar fichas reales; E5 antes que E7; E10 en cualquier momento tras E4.
 - Nada de esto se despliega a mitad de versión (incidente de v2.5).

@@ -1,5 +1,7 @@
 import "server-only";
 
+import { notManaged } from "@/lib/managed/service";
+
 import { readFile, writeFile } from "node:fs/promises";
 
 import { env } from "@/lib/env";
@@ -90,7 +92,7 @@ export async function reencryptAll() {
         [
           {
             name: "2FA",
-            read: (skip) => prisma.user.findMany({ where: { totpSecret: { not: null } }, select: { id: true, totpSecret: true }, skip, take: BATCH, orderBy: { id: "asc" } }).then((r) => r.map((u) => ({ id: u.id, data: u.totpSecret }))),
+            read: (skip) => prisma.user.findMany({ where: { ...notManaged, totpSecret: { not: null } }, select: { id: true, totpSecret: true }, skip, take: BATCH, orderBy: { id: "asc" } }).then((r) => r.map((u) => ({ id: u.id, data: u.totpSecret }))),
             write: (id, s) => prisma.user.update({ where: { id }, data: { totpSecret: s } }),
           },
         ],

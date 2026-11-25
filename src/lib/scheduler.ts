@@ -1,5 +1,6 @@
 import "server-only";
 
+import { notManaged } from "@/lib/managed/service";
 import { generateWeeklyCoachReport } from "@/lib/ai/coach";
 import { addDays, dateOnly, localDay, startOfIsoWeek, today, toIsoDay } from "@/lib/dates";
 import { formatEur, formatTime } from "@/lib/format";
@@ -60,6 +61,7 @@ export async function runWeeklyCoachJob(): Promise<number> {
   const weekEnd = addDays(weekStart, 6);
   const users = await prisma.user.findMany({
     where: {
+      ...notManaged,
       aiConsentAt: { not: null },
       processingRestrictedAt: null,
       // v1.9 · con su IA propia o, si el servidor tiene clave, con la del servidor
@@ -116,7 +118,7 @@ export async function pruneAuditJob(now = new Date()): Promise<number> {
  * de integridad semanal (los lunes, solo si encuentra algo). Por push a las cuentas ADMIN.
  */
 export async function runAdminOpsJob(now = new Date(), weekday = madridWeekday()): Promise<number> {
-  const admins = await prisma.user.findMany({ where: { role: "ADMIN", pushSubscriptions: { some: {} } }, select: { id: true } });
+  const admins = await prisma.user.findMany({ where: { ...notManaged, role: "ADMIN", pushSubscriptions: { some: {} } }, select: { id: true } });
   if (!admins.length) return 0;
   let sent = 0;
   const day = toIsoDay(today());
@@ -144,7 +146,7 @@ export async function runDailyDigestJob(hour = madridHour()): Promise<number> {
   const day = today();
   const tomorrow = addDays(day, 1);
   const users = await prisma.user.findMany({
-    where: { pushSubscriptions: { some: {} }, notificationLogs: { none: { key: `digest:${toIsoDay(day)}` } } },
+    where: { ...notManaged, pushSubscriptions: { some: {} }, notificationLogs: { none: { key: `digest:${toIsoDay(day)}` } } },
     select: {
       id: true,
       trainingSessions: { where: { date: day, status: "PLANNED" }, select: { title: true, type: true } },
@@ -189,7 +191,7 @@ export async function runRemindersJob(hour = madridHour(), weekday = madridWeekd
   const day = today();
   const key = toIsoDay(day);
   const users = await prisma.user.findMany({
-    where: { pushSubscriptions: { some: {} } },
+    where: { ...notManaged, pushSubscriptions: { some: {} } },
     select: {
       id: true,
       athleteProfile: { select: { prefs: true } },
@@ -232,7 +234,7 @@ export async function runRemindersJob(hour = madridHour(), weekday = madridWeekd
 export async function runPeriodReminderJob(hour = madridHour(), weekday = madridWeekday()): Promise<number> {
   if (weekday !== 6 || hour < 19 || !dataKeyConfigured()) return 0;
   const day = toIsoDay(today());
-  const users = await prisma.user.findMany({ where: { pushSubscriptions: { some: {} }, womenHealth: { isNot: null } }, select: { id: true, womenHealth: { select: { data: true } } } });
+  const users = await prisma.user.findMany({ where: { ...notManaged, pushSubscriptions: { some: {} }, womenHealth: { isNot: null } }, select: { id: true, womenHealth: { select: { data: true } } } });
   let sent = 0;
   for (const u of users) {
     try {
@@ -261,6 +263,7 @@ export async function runWeeklyReviewJob(hour = madridHour(), weekday = madridWe
   const monday = startOfIsoWeek(today());
   const users = await prisma.user.findMany({
     where: {
+      ...notManaged,
       weeklyReviews: { none: { weekStart: monday } },
       OR: [{ trainingSessions: { some: { date: { gte: monday } } } }, { studySessions: { some: { date: { gte: monday } } } }],
     },

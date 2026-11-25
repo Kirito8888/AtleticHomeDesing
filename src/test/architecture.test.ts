@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { forbiddenChains, listSources } from "./architecture";
@@ -45,5 +46,47 @@ describe("arquitectura: lib/ai no alcanza la salud cifrada", () => {
   it("no da falsos positivos con rutas parecidas", () => {
     const read = () => 'import "@/lib/health/safety-service";';
     expect(forbiddenChains(["src/lib/ai/x.ts"], read, () => false)).toEqual([]);
+  });
+});
+
+/**
+ * v3.3 E1 · Suite de entrenadora: una ficha gestionada (atleta sin cuenta) es un `User` sin acceso. Toda consulta que RECORRE
+ * usuarias (cron, push, informes, rotación de claves, panel de admin…) debe excluirla con `notManaged`; una consulta por
+ * lista de ids (`id: { in: … }`) ya viene acotada por quien la llama y no barre. Un filtro olvidado no rompe nada visible,
+ * pero mandaría trabajo o IA a una ficha: por eso lo vigila un test y no la memoria.
+ */
+describe("arquitectura: los barridos de usuarias excluyen las fichas gestionadas", () => {
+  const callsOf = (src: string): string[] => {
+    const out: string[] = [];
+    for (const m of src.matchAll(/prisma\.user\.(findMany|count|groupBy)\(/g)) {
+      let depth = 1;
+      let i = (m.index ?? 0) + m[0].length;
+      const start = i;
+      while (i < src.length && depth > 0) {
+        const c = src[i++];
+        if (c === "(") depth++;
+        else if (c === ")") depth--;
+      }
+      out.push(src.slice(start, i));
+    }
+    return out;
+  };
+  const sweeps = (src: string) => callsOf(src).filter((c) => !/notManaged|id:\s*\{\s*in:/.test(c));
+
+  it("el detector funciona: pilla un barrido sin filtro y deja pasar los filtrados y los de lista de ids", () => {
+    expect(sweeps("prisma.user.findMany({ where: { role: 'ADMIN' } })")).toHaveLength(1);
+    expect(sweeps("prisma.user.findMany({ where: { ...notManaged, role: 'ADMIN' } })")).toHaveLength(0);
+    expect(sweeps("prisma.user.findMany({ where: { id: { in: ids } } })")).toHaveLength(0);
+  });
+
+  it("ningún barrido de usuarias del código de la app se deja sin filtrar", () => {
+    const files = [...listSources("src/lib"), ...listSources("src/app")].filter((f) => !/\.test\.|\/generated\//.test(f));
+    const offenders: string[] = [];
+    for (const f of files) {
+      const text = readFileSync(f, "utf8");
+      if (sweeps(text).length) offenders.push(f);
+    }
+    // `users.ts` solo cuenta si hay alguna cuenta (alta del primer ADMIN): una ficha exige una entrenadora previa, así que no cambia el resultado
+    expect(offenders.filter((f) => !f.endsWith("src/lib/auth/users.ts"))).toEqual([]);
   });
 });
