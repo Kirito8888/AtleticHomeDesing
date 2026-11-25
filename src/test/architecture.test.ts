@@ -32,6 +32,11 @@ describe("arquitectura: lib/ai no alcanza la salud cifrada", () => {
     expect(forbiddenChains(["src/lib/ai/x.ts"], read, () => false).map((c) => c.at(-1))).toEqual(["src/lib/recovery/health-sync-service"]);
   });
 
+  it("pilla un import de lib/nutrition/expenditure (v3.2 M: el gasto adaptativo usa el peso y no va a la IA)", () => {
+    const read = () => 'import { expenditureFor } from "@/lib/nutrition/expenditure-service";';
+    expect(forbiddenChains(["src/lib/ai/x.ts"], read, () => false).map((c) => c.at(-1))).toEqual(["src/lib/nutrition/expenditure-service"]);
+  });
+
   it("pilla un import de lib/apple-fitness (v3.1: sus datos no van a la IA)", () => {
     const read = () => 'import { listPending } from "@/lib/apple-fitness/inbox-service";';
     expect(forbiddenChains(["src/lib/ai/x.ts"], read, () => false).map((c) => c.at(-1))).toEqual(["src/lib/apple-fitness/inbox-service"]);

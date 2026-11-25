@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, normalize } from "node:path";
 
 /** Módulos de salud cifrada (V3-S13) y la bandeja de Apple Fitness (v3.1: origen privado) que la IA nunca debe poder alcanzar. */
-export const FORBIDDEN = /(^|\/)lib\/(health\/(isak|cycle|women)|apple-fitness(\/|$)|recovery\/health-sync)/;
+export const FORBIDDEN = /(^|\/)lib\/(health\/(isak|cycle|women)|apple-fitness(\/|$)|recovery\/health-sync|nutrition\/expenditure)/;
 
 const SPEC = /(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*import\s+)["']([^"']+)["']/gm;
 

@@ -66,6 +66,9 @@ export function NutritionDayZone({ initial, date, showIron }: { initial: Nutriti
           <Link href="/nutrition/plan">Plan semanal</Link>
         </Button>
         <Button asChild variant="outline" size="sm">
+          <Link href="/nutrition/gasto">Gasto energético</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
           <Link href="/nutrition/sweat">Sudoración</Link>
         </Button>
         <Button asChild variant="outline" size="sm">

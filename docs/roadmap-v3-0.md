@@ -129,7 +129,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 > | J · Entreno sin red | **Hecho (24/11/2026), salvo tomas sueltas** | Series de fuerza sin red: borrador local del formulario, PATCH en la bandeja, dueña por envío, reintentos y purga al salir (`e2e:sinred`). Sin esquema: las series son idempotentes por el `clientId` de la sesión (POST) o por sustitución completa (PATCH). **Pendiente:** clave idempotente en las tomas de nutrición, agua y hábitos (`sendOrQueue`), que sí necesitaría campo → migración de la versión |
 > | K · Estudio + N03 | **Hecho (24/11/2026), salvo la tarea 1** | Tope diario de repasos (`flashcardDailyCap`) y «Crear flashcards» en el resumen del tema. La tarea 1 (composición de `/study`) pasa al tramo de rediseños (tras I) |
 > | L · Rediseño Nutrición | Pendiente | — |
-> | M · Gasto adaptativo | Pendiente | — |
+> | M · Gasto adaptativo | **Hecho (24/11/2026)** | `/nutrition/gasto`: estimación determinista sin IA (comida + tendencia del peso, 4 semanas), «Aún calibrando» sin datos, borrador semanal con topes → «Aceptar» escribe `NutritionGoal`; sin esquema ni migración (`e2e:gasto`) |
 > | N · Finanzas + exportación | **Parcial** | `GET /api/account/export` (JSON, arts. 15 y 20); falta la exportación guiada y el pie de autoría en exportaciones |
 > | O · Rediseño Clubes | Pendiente | — |
 > | P · Eventos de club | Pendiente | Sin modelo de eventos ni asistencia |
