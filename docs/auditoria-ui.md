@@ -65,7 +65,7 @@ Leyenda: (M) medido en navegador · (E) estático, pendiente de confirmar con da
 **Decisión que necesito:** ¿apruebas v2.3-A tal cual, o primero amplío la medición con datos sintéticos (B) para convertir los «E» en «M»?
 
 ## Cierre en v2.3 B4
-Resueltos: P1-1, P2-1, P2-13 y P3-4 (medidos con `e2e:v23d`, 55 rutas a 390 px, claro y oscuro). Quedan P3-1…P3-3 (sin reproducir con datos).
+Resueltos: P2-2…P2-12 (comprobado y completado en v3.2 I: chips RPE, «Calent.», «Hecha», buscador de ejercicio, plantillas y «borrar» de comentarios; `e2e:v210a` mide la sesión rellena), P1-1, P2-1, P2-13 y P3-4 (medidos con `e2e:v23d`, 55 rutas a 390 px, claro y oscuro). Quedan P3-1…P3-3 (sin reproducir con datos).
 
 ## Cierre en v2.4 B2 (16/10/2026)
 P3-1…P3-3 medidos con `e2e:v24b` (sesión sintética de fuerza, técnica y pista con cifras y textos largos; 390 px, claro y oscuro; `/training/[id]` ×3, `/training/performance` con «Ver como tabla», `/training/javelin`, `/training/new` con importación GPX, pestaña Técnica y «Vídeo contado»). **No se reproduce ningún recorte ni scroll horizontal**: ninguna tabla desborda su tarjeta y ninguna rejilla `grid-cols-3` corta texto o cifras. P3-2 era además un falso positivo (la tabla ya va en `max-h-80 overflow-auto`). **Sin cambios de código de producto**; la E2E queda como vigilante (con autocomprobación de que el medidor detecta una tabla desbordada).

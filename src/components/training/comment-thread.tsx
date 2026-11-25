@@ -59,7 +59,7 @@ export function CommentThread({ sessionId, athleteId, initial }: { sessionId: st
                   {c.fromCoach ? " · entrenador/a" : ""} · {when(c.createdAt)}
                 </span>
                 {c.mine ? (
-                  <button type="button" className="underline-offset-2 hover:underline" onClick={() => remove(c.id)} aria-label="Borrar mi comentario">
+                  <button type="button" className="min-h-11 px-2 underline-offset-2 hover:underline" onClick={() => remove(c.id)} aria-label="Borrar mi comentario">
                     borrar
                   </button>
                 ) : null}

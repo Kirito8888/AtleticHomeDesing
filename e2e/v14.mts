@@ -232,6 +232,7 @@ await go(B + "/training");
 await page.getByRole("region", { name: "Esta semana" }).waitFor();
 if ((await page.getByRole("region", { name: "Esta semana" }).getByRole("link").count()) !== 7) errors.push("semana: no hay 7 días");
 await go(B + "/training/new?type=TRACK");
+if (!(await page.getByLabel("Añadir molestia").isVisible())) await page.getByText("Más detalles (opcional)").click(); // v3.2 I
 await page.getByLabel("Añadir molestia").selectOption("KNEE");
 await radio("Dolor Rodilla", "6").click();
 await page.getByRole("button", { name: /^Guardar sesión$/ }).click();

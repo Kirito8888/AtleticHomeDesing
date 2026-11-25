@@ -7,6 +7,7 @@ export function Stat({
   unit,
   hint,
   swatch,
+  why,
   className,
 }: {
   label: string;
@@ -15,6 +16,8 @@ export function Stat({
   hint?: React.ReactNode;
   /** Variable CSS del color de la serie que representa (identidad, no texto). */
   swatch?: string;
+  /** v3.2 I · de dónde sale el número (plegado bajo «¿Por qué?»). */
+  why?: string;
   className?: string;
 }) {
   return (
@@ -27,6 +30,12 @@ export function Stat({
         {value}
         {unit ? <span className="ml-0.5 text-sm font-normal text-muted-foreground">{unit}</span> : null}
       </div>
+      {why ? (
+        <details className="text-xs text-muted-foreground">
+          <summary className="flex min-h-11 cursor-pointer items-center underline underline-offset-2">¿Por qué?</summary>
+          <p data-testid="stat-why" className="pb-2">{why}</p>
+        </details>
+      ) : null}
       {hint ? <div className="text-xs text-muted-foreground">{hint}</div> : null}
     </div>
   );

@@ -5,7 +5,7 @@ import { mkdirSync } from "node:fs";
 
 import { chromium, type Page } from "playwright-core";
 
-import { a11y } from "./a11y.mjs";
+import { a11y, smallTargets, WCAG22 } from "./a11y.mjs";
 
 const out = process.env.SHOTS_DIR ?? "e2e/screenshots";
 mkdirSync(out, { recursive: true });
@@ -69,12 +69,26 @@ if ((await page.getByRole("textbox", { name: "Peso serie 1" }).inputValue()).rep
 if (!(await page.getByRole("textbox", { name: "Repeticiones serie 1" }).inputValue()).startsWith("5")) errors.push("las repeticiones no se precargan");
 await page.getByTestId("pending-warning").getByText(/2 series de referencia/).waitFor();
 await noHScroll("precarga 390 px");
-errors.push(...(await a11y(page, "/training/new (precarga)")));
+errors.push(...(await a11y(page, "/training/new (precarga)", WCAG22)));
+{
+  // v3.2 I · registrar una serie a 390 px: ningún objetivo < 44 px (con la barra de guardar en reposo y con ella pegada)
+  const bad = await smallTargets(page);
+  if (bad.length) errors.push(`precarga: controles < 44 px: ${bad.join(", ")}`);
+}
 await page.screenshot({ path: `${out}/v210a-01-precarga.png`, fullPage: true });
 log("pesos y repeticiones de la sesión anterior precargados como referencia");
 
 // «Hecha» en la serie 1 arranca el descanso prescrito (90 s) y no toca los datos.
 await page.getByRole("button", { name: "Hecha serie 1" }).click();
+{
+  const bad = await smallTargets(page);
+  if (bad.length) errors.push(`serie hecha y descanso en marcha: controles < 44 px: ${bad.join(", ")}`);
+  // La barra de guardar se pega abajo con cambios y, a media pantalla, tapa por construcción lo que queda debajo (axe lo mide como
+  // solape); se comprueba con la página al final, donde la barra está en su sitio y no tapa nada.
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  errors.push(...(await a11y(page, "/training/new (serie hecha, final)", WCAG22)));
+  await page.evaluate(() => window.scrollTo(0, 0));
+}
 await page.getByTestId("rest-remaining").getByText(/^1:(30|29)$/).waitFor({ timeout: 5000 });
 await page.getByTestId("pending-warning").getByText(/1 serie de referencia/).waitFor();
 await page.getByRole("button", { name: "Pausar descanso" }).click();
@@ -85,6 +99,7 @@ if ((await page.getByRole("button", { name: "Hecha serie 1" }).getAttribute("ari
 log("«Hecha» arranca el descanso de 90 s; pausar, +30 s y terminar no pierden la serie");
 
 // Se guarda solo lo marcado.
+if (await page.getByTestId("session-more").evaluate((d) => (d as HTMLDetailsElement).open)) errors.push("«Más detalles» debería ir plegado en una sesión nueva");
 await page.getByRole("textbox", { name: "Peso serie 1" }).fill("82,5");
 await page.getByRole("button", { name: /^Guardar sesión$/ }).click();
 await page.waitForURL(/\/training\/(?!new$)[a-z0-9]+$/);

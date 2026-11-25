@@ -12,6 +12,7 @@ import { type FeelingValue, FeelingsPicker } from "@/components/training/feeling
 import { FATIGUE_ZONES, type FatigueZone } from "@/lib/training/zone-fatigue";
 import { IMPLEMENTS, initialTechnical, TechnicalLogger, technicalPayload, type TechnicalState } from "@/components/training/technical-logger";
 import { initialTrack, TrackLogger, trackPayload, type TrackState } from "@/components/training/track-logger";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -126,6 +127,11 @@ export function SessionForm({
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const snapshot: DraftState = { clientId, type, date, title, minutes, rpe, notes, tags, feelings, zones, planned, mixed, blocks, technical, track };
   const snapshotJson = JSON.stringify(snapshot);
+  // v3.2 I · «Guardar» solo se pega abajo cuando hay algo que guardar; en reposo queda en su sitio del formulario
+  const initialJson = useRef(snapshotJson);
+  const changed = snapshotJson !== initialJson.current;
+  // Detalle plegado (principio 2): se abre solo si ya trae algo, para no esconder datos
+  const [moreOpen, setMoreOpen] = useState(() => !!(initial?.notes || initial?.tags?.length || initial?.feelings?.length || Object.keys(initial?.zoneFatigue ?? {}).length || initial?.planned || initial?.mixed));
 
   useEffect(() => {
     let alive = true;
@@ -169,6 +175,7 @@ export function SessionForm({
     setBlocks(d.blocks ?? []);
     setTechnical(d.technical);
     setTrack(d.track);
+    if (d.notes || d.tags || d.feelings?.length || Object.keys(d.zones ?? {}).length || d.planned || d.mixed) setMoreOpen(true);
     setRestorable(null);
     toast.success("Registro recuperado");
   }
@@ -346,70 +353,75 @@ export function SessionForm({
         <Chips label="RPE de la sesión" options={RPE} value={rpe} onChange={setRpe} allowDeselect />
       </Field>
 
-      {!planned ? (
-        <Field label="Sensaciones al terminar" hint="¿Alguna molestia? Toca la zona y marca el dolor. Avisa en Inicio si hace falta.">
-          <FeelingsPicker value={feelings} onChange={setFeelings} />
+      <details data-testid="session-more" className="rounded-md border" open={moreOpen} onToggle={(e) => setMoreOpen((e.currentTarget as HTMLDetailsElement).open)}>
+        <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm font-medium">Más detalles (opcional)</summary>
+        <div className="grid gap-5 p-3">
+        {!planned ? (
+          <Field label="Sensaciones al terminar" hint="¿Alguna molestia? Toca la zona y marca el dolor. Avisa en Inicio si hace falta.">
+            <FeelingsPicker value={feelings} onChange={setFeelings} />
+          </Field>
+        ) : null}
+        {!planned ? (
+          <Field label="Fatiga por zona (opcional)" hint="0 = nada · 10 = muy cargada. Entra en el semáforo de Inicio.">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {(Object.keys(FATIGUE_ZONES) as FatigueZone[]).map((z) => (
+                <label key={z} className="flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-sm">
+                  {FATIGUE_ZONES[z]}
+                  <select
+                    aria-label={`Fatiga en ${FATIGUE_ZONES[z].toLowerCase()}`}
+                    className="h-8 max-md:h-11 rounded-md border bg-background px-1 tabular-nums"
+                    value={zones[z] ?? ""}
+                    onChange={(e) => {
+                      const { [z]: _drop, ...rest } = zones;
+                      void _drop;
+                      setZones(e.target.value === "" ? rest : { ...rest, [z]: Number(e.target.value) });
+                    }}
+                  >
+                    <option value="">—</option>
+                    {Array.from({ length: 11 }, (_, i) => (
+                      <option key={i} value={i}>
+                        {i}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+          </Field>
+        ) : null}
+
+        <Field label="Notas" htmlFor="notes">
+          <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Sensaciones, molestias, condiciones…" />
         </Field>
-      ) : null}
-      {!planned ? (
-        <Field label="Fatiga por zona (opcional)" hint="0 = nada · 10 = muy cargada. Entra en el semáforo de Inicio.">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {(Object.keys(FATIGUE_ZONES) as FatigueZone[]).map((z) => (
-              <label key={z} className="flex items-center justify-between gap-2 rounded-md border px-2 py-1 text-sm">
-                {FATIGUE_ZONES[z]}
-                <select
-                  aria-label={`Fatiga en ${FATIGUE_ZONES[z].toLowerCase()}`}
-                  className="h-8 max-md:h-11 rounded-md border bg-background px-1 tabular-nums"
-                  value={zones[z] ?? ""}
-                  onChange={(e) => {
-                    const { [z]: _drop, ...rest } = zones;
-                    void _drop;
-                    setZones(e.target.value === "" ? rest : { ...rest, [z]: Number(e.target.value) });
-                  }}
-                >
-                  <option value="">—</option>
-                  {Array.from({ length: 11 }, (_, i) => (
-                    <option key={i} value={i}>
-                      {i}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
+        <Field label="Etiquetas (diario técnico)" htmlFor="tags" hint="Separadas por comas: salida, bloqueo, viento…">
+          <Input id="tags" value={tags} maxLength={200} onChange={(e) => setTags(e.target.value)} placeholder="bloqueo, brazo largo" />
+        </Field>
+
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input type="checkbox" className="size-4" checked={mixed} onChange={(e) => setMixed(e.target.checked)} />
+          Sesión mixta: guardar a la vez fuerza, técnica y pista (rellena cada pestaña)
+        </label>
+
+        <label className="flex min-h-11 items-center gap-2 text-sm">
+          <input type="checkbox" className="size-4" checked={planned} onChange={(e) => setPlanned(e.target.checked)} />
+          Guardar como planificada (no suma carga)
+        </label>
+
+        <div className="rounded-md border p-3 text-sm">
+          <p className="font-medium">Guardar como plantilla</p>
+          <div className="mt-3 flex gap-2">
+            <Input
+              aria-label="Nombre de la plantilla"
+              placeholder="p.ej. Fuerza A"
+              value={templateName}
+              maxLength={80}
+              onChange={(e) => setTemplateName(e.target.value)}
+            />
+            <Button type="button" variant="outline" onClick={saveTemplate}>
+              Guardar plantilla
+            </Button>
           </div>
-        </Field>
-      ) : null}
-
-      <Field label="Notas" htmlFor="notes">
-        <Textarea id="notes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Sensaciones, molestias, condiciones…" />
-      </Field>
-      <Field label="Etiquetas (diario técnico)" htmlFor="tags" hint="Separadas por comas: salida, bloqueo, viento…">
-        <Input id="tags" value={tags} maxLength={200} onChange={(e) => setTags(e.target.value)} placeholder="bloqueo, brazo largo" />
-      </Field>
-
-      <label className="flex min-h-11 items-center gap-2 text-sm">
-        <input type="checkbox" className="size-4" checked={mixed} onChange={(e) => setMixed(e.target.checked)} />
-        Sesión mixta: guardar a la vez fuerza, técnica y pista (rellena cada pestaña)
-      </label>
-
-      <label className="flex min-h-11 items-center gap-2 text-sm">
-        <input type="checkbox" className="size-4" checked={planned} onChange={(e) => setPlanned(e.target.checked)} />
-        Guardar como planificada (no suma carga)
-      </label>
-
-      <details className="rounded-md border p-3 text-sm">
-        <summary className="min-h-11 cursor-pointer py-3 font-medium">Guardar como plantilla</summary>
-        <div className="mt-3 flex gap-2">
-          <Input
-            aria-label="Nombre de la plantilla"
-            placeholder="p.ej. Fuerza A"
-            value={templateName}
-            maxLength={80}
-            onChange={(e) => setTemplateName(e.target.value)}
-          />
-          <Button type="button" variant="outline" onClick={saveTemplate}>
-            Guardar plantilla
-          </Button>
+        </div>
         </div>
       </details>
 
@@ -424,7 +436,7 @@ export function SessionForm({
           Guardada en este móvil: se enviará sola al volver la cobertura.
         </p>
       ) : null}
-      <div data-sticky-action className="sticky bottom-20 z-10 md:bottom-4">
+      <div data-sticky-action className={cn("z-10", changed && "sticky bottom-20 border-t bg-background/95 py-2 md:bottom-4")}>
         <Button type="submit" size="lg" className="h-12 w-full text-base shadow-lg" disabled={saving}>
           {saving ? "Guardando…" : sessionId ? "Guardar cambios" : "Guardar sesión"}
         </Button>

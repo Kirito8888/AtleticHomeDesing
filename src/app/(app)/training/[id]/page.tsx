@@ -86,7 +86,7 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
         action={
           <div className="flex gap-2">
             {isEditableType(s.type) || s.status === "PLANNED" ? (
-              <Button asChild variant="outline" size="sm">
+              <Button asChild variant={s.status === "PLANNED" ? "default" : "outline"} size="sm">
                 <Link href={`/training/${s.id}/edit`}>
                   <Pencil /> {s.status === "PLANNED" ? "Registrar" : "Editar"}
                 </Link>
@@ -192,10 +192,9 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
           ))}
           <p className="text-sm text-muted-foreground">Tonelaje: {formatNum(s.strength.tonnageKg ?? 0)} kg</p>
           {pvd?.length ? (
-            <Card className="gap-2 py-4">
-              <CardHeader className="px-4">
-                <CardTitle className="text-base">Plan frente a hecho</CardTitle>
-              </CardHeader>
+            <details className="rounded-lg border">
+              <summary className="flex min-h-11 cursor-pointer items-center px-4 text-base font-semibold">Plan frente a hecho</summary>
+            <Card className="gap-2 border-0 py-4 shadow-none">
               <CardContent className="overflow-x-auto px-4">
                 <table className="w-full text-xs tabular-nums" aria-label="Plan frente a hecho">
                   <thead className="text-muted-foreground">
@@ -222,6 +221,7 @@ export default async function SessionPage({ params }: PageProps<"/training/[id]"
                 </table>
               </CardContent>
             </Card>
+            </details>
           ) : null}
         </div>
       ) : null}
