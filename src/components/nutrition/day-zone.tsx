@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AddFoodSheet } from "@/components/nutrition/add-food-sheet";
 import { DeleteEntry, IronToggle } from "@/components/nutrition/delete-entry";
 import { FoodPhoto } from "@/components/nutrition/food-ai";
-import { LoadTemplate, MealShortcuts, SaveMealFavorite } from "@/components/nutrition/meal-shortcuts";
+import { LoadTemplate, MenuManager, RepeatYesterday, SaveMealFavorite } from "@/components/nutrition/meal-shortcuts";
 import { MEAL_LABEL } from "@/components/nutrition/meals";
 import { WaterCard } from "@/components/nutrition/water-card";
 import { PageHeader } from "@/components/page-header";
@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ZoneProvider, useZoneData } from "@/components/zone-refresh";
-import { addDays, dateOnly, toIsoDay } from "@/lib/dates";
+import { addDays, dateOnly, today, toIsoDay } from "@/lib/dates";
 import { capitalizeFirst, formatDate, formatNum } from "@/lib/format";
 import { DayTargetSheet } from "@/components/nutrition/day-target-sheet";
 import { CARB_DAY_LABEL } from "@/lib/nutrition/carbs";
@@ -27,6 +27,7 @@ export function NutritionDayZone({ initial, date, showIron }: { initial: Nutriti
   const totals = day.totals as Record<"kcal" | "proteinG" | "carbsG" | "fatG", number>;
   const prev = toIsoDay(addDays(dateOnly(date), -1));
   const next = toIsoDay(addDays(dateOnly(date), 1));
+  const isToday = date === toIsoDay(today());
   const meals = Object.keys(MEAL_LABEL) as Array<keyof typeof MEAL_LABEL>;
 
   return (
@@ -54,30 +55,15 @@ export function NutritionDayZone({ initial, date, showIron }: { initial: Nutriti
           </Link>
         </Button>
       </div>
-
-      <nav aria-label="Cocina" className="mb-4 flex flex-wrap gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link href="/nutrition/shopping">Lista de la compra</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/nutrition/recipes">Recetas</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/nutrition/plan">Plan semanal</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/nutrition/gasto">Gasto energético</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/nutrition/sweat">Sudoración</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/nutrition/micros">Micronutrientes y mis alimentos</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/nutrition/composition">Composición corporal</Link>
-        </Button>
-      </nav>
+      {!isToday ? (
+        <div className="mb-4 flex justify-center">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/nutrition" data-testid="nutrition-today">
+              Hoy
+            </Link>
+          </Button>
+        </div>
+      ) : null}
 
       <Card className="mb-4 py-4">
         <CardContent className="grid gap-3 px-4 sm:grid-cols-2">
@@ -111,8 +97,7 @@ export function NutritionDayZone({ initial, date, showIron }: { initial: Nutriti
       <div id="agua" className="mb-4 scroll-mt-20">
         <WaterCard date={date} ml={water.ml} target={water.target} hot={water.hot} hasSession={water.hasSession} maxTemp={water.maxTemp} />
       </div>
-      <FoodPhoto date={date} />
-      <MealShortcuts date={date} yesterday={yesterday} favorites={favorites} />
+      <RepeatYesterday date={date} yesterday={yesterday} />
 
       <div className="grid gap-3">
         {meals
@@ -155,6 +140,31 @@ export function NutritionDayZone({ initial, date, showIron }: { initial: Nutriti
           })}
         {!day.entries.length ? <p className="text-sm text-muted-foreground">Nada registrado este día.</p> : null}
       </div>
+      <details data-testid="nutrition-more" className="mt-4 rounded-lg border">
+        <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm font-medium">Cocina y herramientas</summary>
+        <div className="grid gap-4 px-3 pb-3">
+          <nav aria-label="Cocina" className="grid">
+            {(
+              [
+                ["/nutrition/shopping", "Lista de la compra"],
+                ["/nutrition/recipes", "Recetas"],
+                ["/nutrition/plan", "Plan semanal"],
+                ["/nutrition/gasto", "Gasto energético"],
+                ["/nutrition/sweat", "Sudoración"],
+                ["/nutrition/micros", "Micronutrientes y mis alimentos"],
+                ["/nutrition/composition", "Composición corporal"],
+              ] as const
+            ).map(([href, label]) => (
+              <Link key={href} href={href} className="flex min-h-11 items-center justify-between border-b py-2 text-sm last:border-b-0">
+                {label}
+                <ChevronRight className="size-4 text-muted-foreground" />
+              </Link>
+            ))}
+          </nav>
+          <FoodPhoto date={date} />
+          <MenuManager date={date} favorites={favorites} />
+        </div>
+      </details>
       <p className="mt-6 text-xs text-muted-foreground">
         Datos de alimentos de{" "}
         <a href="https://world.openfoodfacts.org" target="_blank" rel="noopener" className="underline underline-offset-2">

@@ -34,7 +34,7 @@ function SheetContent({ className, children, ...props }: React.ComponentProps<ty
         {...props}
       >
         {children}
-        <SheetPrimitive.Close className="absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:outline-none">
+        <SheetPrimitive.Close className="absolute top-2 right-2 grid size-11 place-items-center rounded-xs md:top-3 md:right-3 md:size-9 opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:outline-none">
           <XIcon className="size-5" />
           <span className="sr-only">Cerrar</span>
         </SheetPrimitive.Close>

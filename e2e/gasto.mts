@@ -41,6 +41,7 @@ const madridToday = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/M
 
 // 1 · Sin datos: calibrando, sin número inventado; se llega desde Nutrición
 await page.goto(B + "/nutrition");
+await page.getByTestId("nutrition-more").locator("summary").click();
 await page.getByRole("link", { name: "Gasto energético" }).click();
 await page.waitForURL("**/nutrition/gasto");
 const card = page.getByTestId("expenditure-estimate");

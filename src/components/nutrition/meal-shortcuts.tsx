@@ -59,79 +59,73 @@ export function sortForMeal(templates: MealTemplateSummary[], mealType: string) 
   return [...templates.filter((t) => t.mealType === mealType), ...templates.filter((t) => t.mealType !== mealType)];
 }
 
-/** Atajos: repetir comidas de ayer y cargar menús (comidas habituales) por toma en un toque. */
-export function MealShortcuts({
-  date,
-  yesterday,
-  favorites,
-}: {
-  date: string;
-  yesterday: { fromDay: string; meals: Array<{ mealType: Meal; items: number; kcal: number }> };
-  favorites: MealTemplateSummary[];
-}) {
+/** «Repetir de ayer»: una toma entera de ayer en un toque (atajo visible; `outline`, ≥ 44 px en móvil). */
+export function RepeatYesterday({ date, yesterday }: { date: string; yesterday: { fromDay: string; meals: Array<{ mealType: Meal; items: number; kcal: number }> } }) {
   const { busy, run } = useRun();
-  if (!yesterday.meals.length && !favorites.length) return null;
+  if (!yesterday.meals.length) return null;
   return (
-    <div className="mb-4 grid gap-3">
-      {yesterday.meals.length ? (
-        <section aria-label="Repetir de ayer" className="grid gap-1.5">
-          <h2 className="text-xs font-medium text-muted-foreground">Repetir de ayer</h2>
-          <div className="flex flex-wrap gap-1.5">
-            {yesterday.meals.map((m) => (
-              <Button
-                key={m.mealType}
-                size="sm"
-                variant="outline"
+    <section aria-label="Repetir de ayer" className="mb-4 grid gap-1.5">
+      <h2 className="text-xs font-medium text-muted-foreground">Repetir de ayer</h2>
+      <div className="flex flex-wrap gap-1.5">
+        {yesterday.meals.map((m) => (
+          <Button
+            key={m.mealType}
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() =>
+              run(
+                () => api("/api/nutrition/meals/copy", { body: { fromDate: yesterday.fromDay, toDate: date, mealType: m.mealType } }),
+                `${MEAL_LABEL[m.mealType]} de ayer añadido`,
+              )
+            }
+          >
+            <Repeat /> {MEAL_LABEL[m.mealType]} · {m.kcal} kcal
+          </Button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** Gestión de menús (cargar o borrar), dentro de «Cocina y herramientas». Para cargar a una toma, lo habitual es «+ Alimento › Menús». */
+export function MenuManager({ date, favorites }: { date: string; favorites: MealTemplateSummary[] }) {
+  const { busy, run } = useRun();
+  if (!favorites.length) return null;
+  return (
+    <section aria-label="Menús de comidas" className="grid gap-1.5">
+      <h2 className="text-xs font-medium text-muted-foreground">Menús · un toque los añade a su toma</h2>
+      {groupByMeal(favorites).map((g) => (
+        <div key={g.key} role="group" aria-label={`Menús de ${g.label.toLowerCase()}`} className="flex flex-wrap items-center gap-1.5">
+          <span className="w-full text-xs text-muted-foreground">{g.label}</span>
+          {g.items.map((f) => (
+            <span key={f.id} className="inline-flex items-center rounded-md border text-sm">
+              <button
+                type="button"
                 disabled={busy}
-                onClick={() =>
-                  run(
-                    () => api("/api/nutrition/meals/copy", { body: { fromDate: yesterday.fromDay, toDate: date, mealType: m.mealType } }),
-                    `${MEAL_LABEL[m.mealType]} de ayer añadido`,
-                  )
-                }
+                title={f.foods.join(", ")}
+                className="flex min-h-11 items-center gap-1.5 py-1.5 pr-1 pl-3"
+                onClick={() => run(() => api(`/api/nutrition/meal-templates/${f.id}/apply`, { body: { date } }), `«${f.name}» cargado`)}
               >
-                <Repeat /> {MEAL_LABEL[m.mealType]} · {m.kcal} kcal
-              </Button>
-            ))}
-          </div>
-        </section>
-      ) : null}
-      {favorites.length ? (
-        <section aria-label="Menús de comidas" className="grid gap-1.5">
-          <h2 className="text-xs font-medium text-muted-foreground">Menús · un toque los añade a su toma</h2>
-          {groupByMeal(favorites).map((g) => (
-            <div key={g.key} role="group" aria-label={`Menús de ${g.label.toLowerCase()}`} className="flex flex-wrap items-center gap-1.5">
-              <span className="w-full text-xs text-muted-foreground">{g.label}</span>
-              {g.items.map((f) => (
-                <span key={f.id} className="inline-flex items-center rounded-md border text-sm">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    title={f.foods.join(", ")}
-                    className="flex min-h-9 items-center gap-1.5 py-1.5 pr-1 pl-3"
-                    onClick={() => run(() => api(`/api/nutrition/meal-templates/${f.id}/apply`, { body: { date } }), `«${f.name}» cargado`)}
-                  >
-                    <Star className="size-3.5 fill-current text-amber-500" /> {f.name} · {f.kcal} kcal
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={`Borrar menú ${f.name}`}
-                    className="p-1.5 text-muted-foreground hover:text-foreground"
-                    onClick={async () => {
-                      if (await confirmDialog({ title: `¿Borrar el menú «${f.name}»?`, description: "Lo ya registrado no cambia.", confirmLabel: "Borrar", destructive: true })) {
-                        void run(() => api(`/api/nutrition/meal-templates/${f.id}`, { method: "DELETE" }), "Menú borrado");
-                      }
-                    }}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </span>
-              ))}
-            </div>
+                <Star className="size-3.5 fill-current text-amber-500" /> {f.name} · {f.kcal} kcal
+              </button>
+              <button
+                type="button"
+                aria-label={`Borrar menú ${f.name}`}
+                className="grid size-11 place-items-center text-muted-foreground hover:text-foreground"
+                onClick={async () => {
+                  if (await confirmDialog({ title: `¿Borrar el menú «${f.name}»?`, description: "Lo ya registrado no cambia.", confirmLabel: "Borrar", destructive: true })) {
+                    void run(() => api(`/api/nutrition/meal-templates/${f.id}`, { method: "DELETE" }), "Menú borrado");
+                  }
+                }}
+              >
+                <X className="size-3.5" />
+              </button>
+            </span>
           ))}
-        </section>
-      ) : null}
-    </div>
+        </div>
+      ))}
+    </section>
   );
 }
 

@@ -149,7 +149,8 @@ log("molestia registrada (rodilla, dolor 7)");
 // 6. Nutrición manual
 await go(B + "/nutrition");
 await page.getByRole("button", { name: "Alimento" }).click();
-await page.getByRole("tab", { name: "Manual" }).click();
+await page.getByRole("tab", { name: "Buscar" }).click();
+await page.getByRole("button", { name: "Añadir a mano" }).click();
 await page.fill("#m-name", "Arroz con pollo"); await page.fill("#m-qty", "350"); await page.fill("#m-kcal", "620");
 await page.fill("#m-p", "42"); await page.fill("#m-c", "80"); await page.fill("#m-g", "12");
 await page.getByRole("tabpanel").getByRole("button", { name: "Añadir" }).click();
@@ -162,6 +163,7 @@ await page.getByRole("button", { name: /como menú/ }).first().click();
 await page.getByLabel("Nombre del menú").fill("Comida de prueba");
 await page.getByRole("button", { name: "Guardar menú" }).click();
 await toast("«Comida de prueba» guardado en menús");
+await page.getByTestId("nutrition-more").locator("summary").click(); // v3.2 L: la gestión de menús vive en «Cocina y herramientas»
 await page.getByRole("region", { name: "Menús de comidas" }).getByRole("button", { name: /^Comida de prueba ·/ }).click();
 await toast("«Comida de prueba» cargado");
 await page.waitForFunction(() => document.body.innerText.split("Arroz con pollo").length - 1 >= 2);
