@@ -200,7 +200,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 | Ses. | 2 [Probable] |
 | Por qué / descartes | Impacto medio, patrón Spond. **Fuera:** cobros (intermediario y normativa financiera) y chat (moderación y menores) |
 
-#### Q · Recordatorios de asistencia (V3-N04, parte B)
+#### Q · Recordatorios de asistencia (V3-N04, parte B) — HECHO 25/11/2026 (ver `docs/estado.md`; sin migración)
 | | |
 |---|---|
 | Tareas | 1) Recordatorio push/Telegram a quien no ha respondido (cola pg-boss, con tope). 2) Resumen para la entrenadora. 3) Pruebas de menores y ámbitos (art. 18). 4) Entrada en el `.ics` **sin** datos de salud |

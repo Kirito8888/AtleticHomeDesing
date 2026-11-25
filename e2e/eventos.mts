@@ -152,9 +152,25 @@ const sum = await coa.locator("[data-testid^=summary-]").first().innerText();
 if (!/Sí 1 · No 0 · Quizá 0 · Sin respuesta 3/.test(sum)) fail(`resumen de la entrenadora: «${sum}»`);
 await coa.locator("[data-testid^=summary-]").first().click();
 await coa.getByText("Atleta Uno").first().waitFor();
+// v3.2 Q: el staff ve cuántas personas recibieron el aviso (sin nombres)
+if (!/Recordatorio enviado a \d+/.test(await coa.locator("[data-testid^=reminded-]").first().innerText())) fail("el staff no ve «Recordatorio enviado a N»");
 if ((await coa.getByRole("heading", { name: "Cuotas" }).count()) !== 0) fail("la entrenadora ve cuotas");
 await noHScroll(coa, "eventos entrenadora 390 px");
 errors.push(...(await a11y(coa, "club · eventos (entrenadora)")));
+// v3.2 Q: «Añadir al calendario» → .ics con el pie de autoría, sin importe ni datos de salud
+await go(at1, `/clubs/${clubId}`);
+const icsLink = at1.locator("[data-testid^=event-ics-]").first();
+const icsBox = await icsLink.boundingBox();
+if (!icsBox || icsBox.height < 44) fail(`enlace del calendario < 44 px (${icsBox?.height})`);
+const icsHref = (await icsLink.getAttribute("href"))!;
+const icsRes = await at1.evaluate(async (h) => {
+  const r = await fetch(h);
+  return { type: r.headers.get("content-type"), text: (await r.text()).replace(/\r\n[ \t]/g, "") };
+}, icsHref);
+if (!/text\/calendar/.test(icsRes.type ?? "") || !icsRes.text.includes("BEGIN:VEVENT")) fail("el .ics del evento no es un calendario");
+if (!icsRes.text.includes("X-WR-CALDESC:")) fail("el .ics del evento no lleva el pie de autoría");
+if (/10,50|1050|cuota/i.test(icsRes.text)) fail("el .ics del evento lleva el importe");
+log("recordatorios (staff ve el recuento) y .ics del evento sin importe y con pie");
 await go(at2, `/clubs/${clubId}`);
 await at2.locator("li[data-testid^=event-]", { hasText: "Entreno conjunto" }).waitFor();
 const at2Text = await at2.locator("#eventos").innerText();

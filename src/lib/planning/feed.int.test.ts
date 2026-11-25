@@ -32,6 +32,24 @@ describe.skipIf(!HAS_DB)("calendario .ics (BD real)", () => {
     expect((await prisma.calendarFeed.findFirst({ where: { userId } }))?.tokenHash).not.toBe(token);
   });
 
+  it("eventos del club (v3.2 Q): entran con club, hora y lugar; sin importe; no los de «No» ni los de otro club", async () => {
+    const org = await prisma.organization.create({ data: { name: "Club ICS", createdById: userId } });
+    const other = await prisma.organization.create({ data: { name: "Club Ajeno", createdById: userId } });
+    const member = await prisma.orgMember.create({ data: { orgId: org.id, userId, role: "ATHLETE", status: "ACTIVE" } });
+    const soon = new Date(Date.now() + 3 * 864e5);
+    await prisma.orgEvent.create({ data: { orgId: org.id, title: "Salida larga", startsAt: soon, location: "Parque", feeCents: 9900 } });
+    const no = await prisma.orgEvent.create({ data: { orgId: org.id, title: "Descartado", startsAt: soon } });
+    await prisma.orgEventResponse.create({ data: { eventId: no.id, memberId: member.id, answer: "NO" } });
+    await prisma.orgEvent.create({ data: { orgId: other.id, title: "De otro club", startsAt: soon } });
+    const { AUTHORSHIP_NOTICE } = await import("@/lib/legal/notice");
+    const ics = (await svc.feedIcs(await svc.createFeed(userId)))!.replace(/\r\n[ \t]/g, "");
+    expect(ics).toContain("SUMMARY:Club ICS · Salida larga");
+    expect(ics).toContain("LOCATION:Parque");
+    expect(ics).toContain(`X-WR-CALDESC:${AUTHORSHIP_NOTICE.replace(/,/g, "\\,")}`);
+    expect(ics).not.toMatch(/Descartado|De otro club|99|€/);
+    await prisma.organization.deleteMany({ where: { id: { in: [org.id, other.id] } } });
+  });
+
   it("un enlace nuevo invalida el anterior; revocar lo apaga; basura → null", async () => {
     const a = await svc.createFeed(userId);
     const b = await svc.createFeed(userId);
