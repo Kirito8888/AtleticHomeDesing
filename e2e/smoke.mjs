@@ -71,6 +71,7 @@ await page.getByRole("radiogroup", { name: "RPE serie 3" }).getByRole("radio", {
 await page.fill("#minutes", "60");
 await page.getByRole("radiogroup", { name: "RPE de la sesión" }).getByRole("radio", { name: "7", exact: true }).click();
 await shot("02-strength-form");
+await page.getByText("Más detalles (opcional)").click(); // v3.2 I: la plantilla va en el pliegue
 await page.getByText("Guardar como plantilla").click();
 await page.getByLabel("Nombre de la plantilla").fill("Fuerza A");
 await page.getByRole("button", { name: "Guardar plantilla" }).click();
