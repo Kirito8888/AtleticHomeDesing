@@ -27,14 +27,34 @@ export async function a11y(page: Page, where: string, tags: string[] = WCAG21): 
 
 /** Controles táctiles visibles de <main> por debajo de 44 px (la misma comprobación que v23b; casillas y radios
  *  los cubre su <label>; los enlaces en línea dentro de un párrafo no cuentan). */
-export const smallTargets = (p: Page, root = "main") =>
-  p.evaluate((root) =>
+export const smallTargets = (p: Page, root = "main", opts: { includeInline?: boolean } = {}) =>
+  p.evaluate(([root, inline]) =>
     [...document.querySelectorAll<HTMLElement>(["a", "button:not([role=switch])", "select", "summary", "input:not([type=checkbox]):not([type=radio]):not([type=hidden]):not([type=file])", "[role=tab]"].map((t) => `${root} ${t}`).join(","))]
       .filter((e) => {
-        if (e.tagName === "A" && e.closest("p")) return false;
+        if (!inline && e.tagName === "A" && e.closest("p")) return false;
         const r = e.getBoundingClientRect();
         return r.width > 0 && r.height > 0 && r.height < 43.5;
       })
       .map((e) => `${e.tagName.toLowerCase()}:${(e.getAttribute("aria-label") || e.textContent || "").trim().slice(0, 24)}@${Math.round(e.getBoundingClientRect().height)}`),
-    root,
+    [root, !!opts.includeInline] as const,
   );
+
+/** v3.2 O/N/K · Una sola acción principal: botones y enlaces rellenos (bg-primary) visibles dentro de <main>. */
+export const filledActions = (p: Page) =>
+  p.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>("main button, main a")].filter((e) => {
+      const r = e.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && /(^|\s)bg-primary(\s|$)/.test(e.className) && !e.closest("details:not([open])");
+    }).length,
+  );
+
+/** Pliegues `<details>` abiertos por defecto dentro de <main>. */
+export const openFolds = (p: Page) => p.evaluate(() => document.querySelectorAll("main details[open]").length);
+
+export const hScroll = (p: Page) => p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
+
+/** Letra grande (130 %) + contraste alto: el peor caso para desbordes y objetivos táctiles. */
+export const setLargeHc = (p: Page, on: boolean) =>
+  p.evaluate(async (on) => {
+    await fetch("/api/settings/prefs", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ fontScale: on ? 130 : 100, highContrast: on }) });
+  }, on);

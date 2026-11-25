@@ -131,7 +131,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 > | L · Rediseño Nutrición | **Hecho (25/11/2026)** | `/nutrition` con una acción principal y «Hoy» como entrada; «+ Alimento» con Menús · Recientes · Buscar (Escanear y Manual dentro de Buscar); cocina y menús plegados; objetivos ≥ 44 px. Sin esquema; zona intacta (`v25f` § 9, `a11y`) |
 > | M · Gasto adaptativo | **Hecho (24/11/2026)** | `/nutrition/gasto`: estimación determinista sin IA (comida + tendencia del peso, 4 semanas), «Aún calibrando» sin datos, borrador semanal con topes → «Aceptar» escribe `NutritionGoal`; sin esquema ni migración (`e2e:gasto`) |
 > | N · Finanzas + exportación | **Hecho (25/11/2026), salvo la tarea 1** | Exportación guiada por módulos en `/settings/privacy#exportar` (lo cifrado solo si se marca; sin datos de terceros) y pie de autoría en PDF, informes, `.ics` y JSON (`e2e:exportar`). La tarea 1 (composición de `/finance`) pasa al tramo de rediseños, junto a I, L y O |
-> | O · Rediseño Clubes | Pendiente | — |
+> | O · Rediseño Clubes | **Hecho (25/11/2026)** | Tarjeta «Ahora» en el club, una acción rellena, enlaces a 44 px y ámbitos comprobados sobre el HTML (`eventos` § 9, `a11y`) |
 > | P · Eventos de club | Pendiente | Sin modelo de eventos ni asistencia |
 > | Q · Recordatorios | Pendiente | Depende de P |
 >

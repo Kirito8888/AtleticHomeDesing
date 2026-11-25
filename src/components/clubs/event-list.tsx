@@ -53,7 +53,7 @@ export function EventList({ orgId, events, canDelete }: { orgId: string; events:
       {events.map((e) => {
         const mine = local[e.id] ?? e.myAnswer;
         return (
-          <li key={e.id} data-testid={`event-${e.id}`} className="grid gap-2 rounded-md border p-3 text-sm">
+          <li key={e.id} id={`ev-${e.id}`} data-testid={`event-${e.id}`} className="grid scroll-mt-20 gap-2 rounded-md border p-3 text-sm">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="font-medium">{e.title}</p>
@@ -97,7 +97,7 @@ export function EventList({ orgId, events, canDelete }: { orgId: string; events:
                   aria-pressed={mine === a}
                   disabled={e.past || busy === e.id}
                   onClick={() => answer(e, a)}
-                  className="min-h-11 rounded-md border px-3 text-sm font-medium aria-pressed:border-primary aria-pressed:bg-primary aria-pressed:text-primary-foreground disabled:opacity-60"
+                  className="min-h-11 rounded-md border px-3 text-sm font-medium aria-pressed:border-2 aria-pressed:border-primary aria-pressed:bg-primary/15 aria-pressed:font-semibold aria-pressed:text-foreground disabled:opacity-60"
                 >
                   {RSVP_LABEL[a]}
                 </button>

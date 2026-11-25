@@ -7,7 +7,7 @@ import { mkdirSync } from "node:fs";
 
 import { chromium, type Page } from "playwright-core";
 
-import { a11y } from "./a11y.mjs";
+import { a11y, filledActions, hScroll, openFolds, setLargeHc, smallTargets, WCAG22 } from "./a11y.mjs";
 
 const out = process.env.SHOTS_DIR ?? "e2e/screenshots";
 mkdirSync(out, { recursive: true });
@@ -196,6 +196,46 @@ log("nadie ve ni responde eventos de otro club");
 await go(at2, "/clubs");
 await at2.getByText(/2 sin responder/).waitFor();
 log("«2 sin responder» en la lista de clubes");
+
+// 9. v3.2 O · rediseño: una acción principal, pliegues cerrados, ≥ 44 px (también enlaces en línea) y ámbitos intactos.
+//    Plegar no es control de acceso: se comprueba el HTML completo (no solo el texto visible).
+const recheck = async (p: Page, u: string, who: string, max: number) => {
+  await go(p, u);
+  const n = await filledActions(p);
+  if (n > max) fail(`${who} ${u}: ${n} acciones rellenas (máx. ${max})`);
+  if (await openFolds(p)) fail(`${who} ${u}: pliegues abiertos por defecto`);
+  const bad = await smallTargets(p, "main", { includeInline: true });
+  if (bad.length) fail(`${who} ${u}: objetivos < 44 px: ${bad.join(", ")}`);
+  if (await hScroll(p)) fail(`${who} ${u}: scroll horizontal`);
+  for (const v of await a11y(p, `${who} ${u}`, WCAG22)) fail(v);
+};
+// atleta 2 (sin responder): tarjeta «Ahora» con «Responder», nada de otras personas en el HTML
+await go(at2, `/clubs/${clubId}`);
+await at2.getByTestId("club-now").waitFor();
+const at2Html = await at2.locator("main").innerHTML();
+if (/Atleta Uno|Sin respuesta|Cuotas del club|id="miembros"|id="alertas"|Recordatorio enviado/.test(at2Html)) fail("O: el HTML de la atleta 2 contiene datos de otras personas o del staff");
+await recheck(at2, `/clubs/${clubId}`, "atleta", 1);
+await recheck(at2, "/clubs", "atleta", 0);
+// entrenadora y directora: el «Ahora» lleva el resumen, sin botón relleno; la entrenadora sigue sin cuotas
+await recheck(coa, `/clubs/${clubId}`, "entrenadora", 0);
+if (/id="cuotas"|Apunte contable/.test(await coa.locator("main").innerHTML())) fail("O: la entrenadora tiene la sección de cuotas en el HTML");
+await recheck(adm, `/clubs/${clubId}`, "directora", 0);
+await recheck(coa, "/clubs", "entrenadora", 0);
+await recheck(coa, "/coach", "entrenadora", 0);
+await recheck(coa, "/coach/multi", "entrenadora", 1);
+// letra grande + contraste alto
+for (const [who, p, u] of [["atleta", at2, `/clubs/${clubId}`], ["entrenadora", coa, `/clubs/${clubId}`], ["entrenadora", coa, "/coach"]] as const) {
+  await setLargeHc(p, true);
+  await go(p, u);
+  const bad = await smallTargets(p, "main", { includeInline: true });
+  if (bad.length) fail(`${who} ${u} (letra 130 + hc): objetivos < 44 px: ${bad.join(", ")}`);
+  if (await hScroll(p)) fail(`${who} ${u} (letra 130 + hc): scroll horizontal`);
+  for (const v of await a11y(p, `${who} ${u} (letra 130 + hc)`, WCAG22)) fail(v);
+  await setLargeHc(p, false);
+}
+// el otro club sigue en 404 tras el cambio visual
+if ((await (await at2.goto(B + `/clubs/${otherId}`))?.status()) !== 404) fail("O: /clubs/{otro} ya no da 404");
+log("O: una acción principal, pliegues cerrados, ≥ 44 px, letra grande + hc y ámbitos intactos");
 
 await browser.close();
 if (errors.length) {

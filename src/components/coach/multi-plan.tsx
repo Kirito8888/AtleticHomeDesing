@@ -143,7 +143,7 @@ export function MultiPlan({ athletes, templates, plans, defaultStart }: { athlet
         </p>
       ) : null}
       {!origin ? <p className="text-muted-foreground">Guarda antes una semana tipo o crea un plan propio en Planificación.</p> : null}
-      <Button className="min-h-11" disabled={busy || !picked.size || !origin} onClick={run}>
+      <Button className="min-h-11" variant={nOk ? "outline" : "default"} disabled={busy || !picked.size || !origin} onClick={run}>
         {busy ? "Calculando…" : `Previsualizar (${picked.size})`}
       </Button>
 
@@ -191,7 +191,7 @@ export function MultiPlan({ athletes, templates, plans, defaultStart }: { athlet
           ))}
           {nOk ? (
             <div className="grid gap-2 rounded-md border p-3">
-              <label className="flex items-start gap-2">
+              <label className="flex min-h-11 items-start gap-2">
                 <input type="checkbox" className="mt-0.5 size-4" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
                 <span>Confirmo crear un borrador en {nOk} atleta(s). No se activa ni se crean sesiones hasta que cada una lo acepte.</span>
               </label>

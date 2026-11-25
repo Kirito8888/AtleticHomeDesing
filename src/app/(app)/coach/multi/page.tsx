@@ -17,7 +17,7 @@ export default async function MultiPlanPage() {
     <>
       <PageHeader title="Planificar varios atletas" description="Copia una semana tipo o un plan propio como borrador. Nada se activa sin que la atleta lo acepte." />
       <p className="mb-3 text-sm">
-        <Link href="/coach" className="underline underline-offset-2">
+        <Link href="/coach" className="inline-flex min-h-11 items-center underline underline-offset-2">
           ← Mis atletas
         </Link>
       </p>
