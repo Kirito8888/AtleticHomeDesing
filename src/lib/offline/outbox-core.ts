@@ -5,7 +5,18 @@
  * - una sesión nueva lleva `clientId` (único por usuaria en la BD): reenviarla no crea otra;
  * - completar o editar una sesión es un PATCH que sustituye todas sus series: reenviarlo deja lo mismo.
  * Por eso no hace falta esquema ni migración.
+ *
+ * Tomas de comida y agua (cierre del bloque): sí llevan `clientKey` (uuid del cliente, único por usuaria en
+ * `Macros` y `HydrationLog`). Se genera ANTES del primer intento: si el servidor guardó y se perdió la
+ * respuesta, el reenvío desde la bandeja lleva la misma clave y no duplica. Los hábitos no la necesitan:
+ * la bandeja envía el estado final (`done`) y el servidor lo fija sobre `@@unique([habitId, date])`.
  */
+
+/** Añade la clave idempotente a un cuerpo objeto (la del llamante no se pisa si ya trae una). */
+export function withClientKey(body: unknown, key: string): unknown {
+  if (body && typeof body === "object" && !Array.isArray(body)) return { clientKey: key, ...(body as object) };
+  return body;
+}
 
 export type OutboxMethod = "POST" | "PATCH";
 

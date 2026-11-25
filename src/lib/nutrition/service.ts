@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 
-import type { Prisma } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import { ApiError } from "@/lib/api";
 import { addDays, dateOnly, isoDate, toIsoDay, today } from "@/lib/dates";
 import { env } from "@/lib/env";
@@ -124,6 +124,9 @@ export async function getFoodByBarcode(barcode: string) {
 
 export const mealTypeEnum = z.enum(["BREAKFAST", "MID_MORNING", "LUNCH", "SNACK", "DINNER", "PRE_WORKOUT", "POST_WORKOUT", "OTHER"]);
 
+/** v3.2 J · uuid del cliente: reenviar la misma toma desde la bandeja no la duplica. */
+export const clientKeySchema = z.string().trim().min(1).max(120).optional();
+
 export const createEntrySchema = z.union([
   z.object({
     date: isoDate,
@@ -132,6 +135,7 @@ export const createEntrySchema = z.union([
     barcode: z.string().optional(),
     quantityG: z.number().positive().max(5000),
     ironRich: z.boolean().optional(),
+    clientKey: clientKeySchema,
   }).refine((d) => d.foodProductId || d.barcode, "Indica foodProductId o barcode"),
   z.object({
     date: isoDate,
@@ -144,15 +148,37 @@ export const createEntrySchema = z.union([
     fatG: z.number().min(0).max(1000),
     fiberG: z.number().min(0).max(500).nullish(),
     ironRich: z.boolean().optional(),
+    clientKey: clientKeySchema,
   }),
 ]);
 
 export async function createEntry(userId: string, input: z.infer<typeof createEntrySchema>) {
+  const { clientKey } = input;
+  if (clientKey) {
+    const dup = await findEntry(userId, clientKey);
+    if (dup) return dup;
+  }
+  try {
+    return await insertEntry(userId, input);
+  } catch (err) {
+    // Dos reenvíos a la vez de la misma toma: gana el primero
+    if (clientKey && err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      const dup = await findEntry(userId, clientKey);
+      if (dup) return dup;
+    }
+    throw err;
+  }
+}
+
+const entryInclude = { foodProduct: { select: { name: true, brand: true, imageUrl: true } } } as const;
+const findEntry = (userId: string, clientKey: string) => prisma.macros.findUnique({ where: { userId_clientKey: { userId, clientKey } }, include: entryInclude });
+
+async function insertEntry(userId: string, input: z.infer<typeof createEntrySchema>) {
   const date = dateOnly(input.date);
   if ("customName" in input) {
     const { date: _d, ...rest } = input;
     void _d;
-    return prisma.macros.create({ data: { userId, date, ...rest } });
+    return prisma.macros.create({ data: { userId, date, ...rest }, include: entryInclude });
   }
   const product = input.foodProductId
     ? await prisma.foodProduct.findUnique({ where: { id: input.foodProductId } })
@@ -170,8 +196,9 @@ export async function createEntry(userId: string, input: z.infer<typeof createEn
       ...macrosForQuantity(product, input.quantityG),
       ...microsForQuantity(product, input.quantityG),
       ironRich: input.ironRich ?? false,
+      clientKey: input.clientKey,
     },
-    include: { foodProduct: { select: { name: true, brand: true, imageUrl: true } } },
+    include: entryInclude,
   });
 }
 

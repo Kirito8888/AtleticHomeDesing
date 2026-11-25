@@ -19,7 +19,7 @@ export function WaterCard({ date, ml, target, hot, hasSession, maxTemp }: { date
     try {
       // Sumar agua funciona sin conexión (bandeja); quitar no
       if (!init.method && init.body) {
-        if ((await sendOrQueue(url, init.body, `Agua +${(init.body as { ml: number }).ml} ml`)) === "queued") {
+        if ((await sendOrQueue(url, init.body, `Agua +${(init.body as { ml: number }).ml} ml`, "POST", { idempotent: true })) === "queued") {
           // Sin red no se puede refrescar la página: se queda como está
           toast.success("Sin conexión: el agua se apuntará al volver la cobertura");
           return;

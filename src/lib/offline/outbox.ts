@@ -1,6 +1,6 @@
 "use client";
 
-import { type Draft, type OutboxItem, type OutboxMethod, outcome, outboxId, partitionByOwner, usableDraft } from "@/lib/offline/outbox-core";
+import { type Draft, type OutboxItem, type OutboxMethod, outcome, outboxId, partitionByOwner, usableDraft, withClientKey } from "@/lib/offline/outbox-core";
 import { purgePrivateCaches } from "@/lib/offline/private-cache";
 
 /**
@@ -161,14 +161,17 @@ export const isNetworkError = (e: unknown) => e instanceof TypeError || (typeof 
  * v1.7 · Envía y, si no hay red, lo deja en la bandeja (agua, hábitos, comidas). Devuelve «queued»
  * cuando quedó pendiente. Los errores del servidor se lanzan igual que con `api`.
  */
-export async function sendOrQueue(url: string, body: unknown, label: string, method: OutboxMethod = "POST"): Promise<"sent" | "queued"> {
+export async function sendOrQueue(url: string, body: unknown, label: string, method: OutboxMethod = "POST", opts: { idempotent?: boolean } = {}): Promise<"sent" | "queued"> {
+  // Con `idempotent` la clave nace antes del primer envío: si se pierde la respuesta, el reenvío lleva la misma
+  const key = opts.idempotent ? crypto.randomUUID() : null;
+  const payload = key ? withClientKey(body, key) : body;
   try {
-    const res = await fetch(url, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const res = await fetch(url, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
     if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? `Error ${res.status}`);
     return "sent";
   } catch (e) {
     if (!isNetworkError(e)) throw e;
-    await enqueue({ id: crypto.randomUUID(), url, body, label, method });
+    await enqueue({ id: key ?? crypto.randomUUID(), url, body: payload, label, method });
     return "queued";
   }
 }
