@@ -13,10 +13,10 @@ describe("navegación global v2.3", () => {
   });
 
   it("la entrenadora ve Mis atletas; la administración, ambos", () => {
-    expect(hrefs(buildNav({ role: "COACH" }))).toContain("/coach");
+    expect(hrefs(buildNav({ role: "COACH" }))).toContain("/coach/athletes");
     expect(hrefs(buildNav({ role: "COACH" }))).not.toContain("/admin");
     const a = hrefs(buildNav({ role: "ADMIN" }));
-    expect(a).toContain("/coach");
+    expect(a).toContain("/coach/athletes");
     expect(a).toContain("/admin");
   });
 
@@ -118,7 +118,7 @@ describe("v3.0 G · menú por intención y barra móvil configurable (V3-D01, V3
     expect(buildNav({ hidden: ["finance"], bar: ["/finance", "/study", "/study", "/admin"] }).bar.map((i) => i.href)).toEqual(["/", "/study", "/training", "/planning"]);
   });
   it("«Mis atletas» solo es candidato para quien lo ve", () => {
-    expect(buildNav({ bar: ["/coach"] }).bar.map((i) => i.href)).not.toContain("/coach");
-    expect(buildNav({ role: "COACH", bar: ["/coach"] }).bar.map((i) => i.href)[1]).toBe("/coach");
+    expect(buildNav({ bar: ["/coach/athletes"] }).bar.map((i) => i.href)).not.toContain("/coach/athletes");
+    expect(buildNav({ role: "COACH", bar: ["/coach/athletes"] }).bar.map((i) => i.href)[1]).toBe("/coach/athletes");
   });
 });
