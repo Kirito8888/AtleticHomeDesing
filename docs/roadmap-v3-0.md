@@ -192,7 +192,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 | BD | No [Seguro] |
 | Ses. | 1 [Probable] |
 
-#### P · Asistencia a eventos del club (V3-N04, parte A)
+#### P · Asistencia a eventos del club (V3-N04, parte A) — HECHO 25/11/2026 (ver `docs/estado.md`; la migración se llama `v3_2_features`)
 | | |
 |---|---|
 | Tareas | 1) **Esquema:** evento de club (fecha, título, lugar opcional) y respuesta por miembro (sí/no/quizá) enlazados a `OrgMember`; **crea `v3_0_features`** (`snapshot.sh` antes). 2) API con aislamiento por club (miembro solo ve su club; entrenadora solo los suyos). 3) UI: lista de eventos, responder en 1 toque, resumen de asistencia. 4) Cuota del evento como «pagada/pendiente» con `OrgFee` (**sin cobro ni chat**) |

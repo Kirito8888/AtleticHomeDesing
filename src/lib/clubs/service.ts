@@ -117,7 +117,7 @@ export async function listFees(user: CurrentUser, orgId: string) {
   return prisma.orgFee.findMany({
     where: { orgId, ...(me.role === "ADMIN" ? {} : { memberId: me.id }) },
     orderBy: { dueDate: "desc" },
-    include: { member: { select: { user: { select: { name: true, email: true } } } } },
+    include: { member: { select: { user: { select: { name: true, email: true } } } }, event: { select: { title: true } } },
   });
 }
 

@@ -39,12 +39,13 @@ const TESTED_HERE = [
   "training/sessions/[id]/comments", "planning/cycles/[id]", "planning/events/[id]", "study/modules/[id]",
   "clubs/[id]/members/[memberId]", "clubs/[id]/fees/[feeId]", "training/apple-fitness/pending/[id]",
   "recovery/apple-health/conflicts/[id]",
+  "clubs/[id]/events/[eventId]", "clubs/[id]/events/[eventId]/response",
 ];
 /** Rutas con prueba negativa en otro fichero (ruta o servicio). */
 const TESTED_ELSEWHERE = [
   /^ai-plan\//, /^ai\/flashcards\//, /^ai\/study\/pack\//, /^account\/passkeys\//, /^finance\/(receipts|transactions|trips)\//,
   /^recovery\/(injuries\/\[id\]\/photos|photos|physio)/, /^training\/(reference-curves|exercises)\//, /^planning\/(manual\/day|plan\/day)/,
-  /^study\/(modules\/\[id\]\/documents|quest-progress|self-test-history|topics)/, /^trash\//, /^safety\/contacts\//, /^clubs\/\[id\]\/(fees|members)$/,
+  /^study\/(modules\/\[id\]\/documents|quest-progress|self-test-history|topics)/, /^trash\//, /^safety\/contacts\//, /^clubs\/\[id\]\/(fees|members|events)$/,
 ];
 /** Sin vínculo con una cuenta (token, lista cerrada, solo ADMIN o gestionada por Auth.js). */
 const EXCLUDED = [/^admin\//, /^auth\//, /^calendar\/ics\//, /^report\/\[token\]$/, /^shared\/health\//, /^export\//];
@@ -237,5 +238,29 @@ describe.skipIf(!HAS_DB)("usuaria B contra recursos de A (BD real)", () => {
     expect([403, 404, 400]).toContain((await m.PATCH(req(`/api/clubs/${orgX}/members/${memberX}`, "PATCH", { role: "ADMIN" }), ctx({ id: orgX, memberId: memberX }))).status);
     expect((await prisma.orgMember.findUnique({ where: { id: memberX } }))?.role).toBe("ATHLETE");
     expect((await prisma.orgFee.findUnique({ where: { id: feeX } }))?.status).toBe("PENDING");
+  });
+
+  it("clubes (v3.2 P): eventos y respuestas de un club no se tocan desde otro (404)", async () => {
+    const list = await import("@/app/api/clubs/[id]/events/route");
+    const one = await import("@/app/api/clubs/[id]/events/[eventId]/route");
+    const resp = await import("@/app/api/clubs/[id]/events/[eventId]/response/route");
+    const soon = new Date(Date.now() + 2 * 864e5);
+    const evX = (await prisma.orgEvent.create({ data: { orgId: orgX, title: "RI-EVENTO", startsAt: soon } })).id;
+    as("staffY", "COACH");
+    for (const org of [orgX]) {
+      expect((await list.GET(req(`/api/clubs/${org}/events`, "GET"), ctx({ id: org }))).status).toBe(404);
+      expect((await list.POST(req(`/api/clubs/${org}/events`, "POST", { title: "x", startsAt: "2030-01-01T10:00" }), ctx({ id: org }))).status).toBe(404);
+      expect((await resp.PUT(req(`/api/clubs/${org}/events/${evX}/response`, "PUT", { answer: "YES" }), ctx({ id: org, eventId: evX }))).status).toBe(404);
+    }
+    // evento de X con el id del club propio (Y): tampoco
+    expect((await one.PATCH(req(`/api/clubs/${orgY}/events/${evX}`, "PATCH", { title: "hack" }), ctx({ id: orgY, eventId: evX }))).status).toBe(404);
+    expect((await one.DELETE(req(`/api/clubs/${orgY}/events/${evX}`, "DELETE"), ctx({ id: orgY, eventId: evX }))).status).toBe(404);
+    expect((await resp.PUT(req(`/api/clubs/${orgY}/events/${evX}/response`, "PUT", { answer: "YES" }), ctx({ id: orgY, eventId: evX }))).status).toBe(404);
+    // la atleta del club no edita ni borra (solo staff)
+    as("a");
+    expect((await one.PATCH(req(`/api/clubs/${orgX}/events/${evX}`, "PATCH", { title: "hack" }), ctx({ id: orgX, eventId: evX }))).status).toBe(404);
+    expect((await one.DELETE(req(`/api/clubs/${orgX}/events/${evX}`, "DELETE"), ctx({ id: orgX, eventId: evX }))).status).toBe(404);
+    expect((await resp.PUT(req(`/api/clubs/${orgX}/events/${evX}/response`, "PUT", { answer: "YES" }), ctx({ id: orgX, eventId: evX }))).status).toBe(200);
+    expect(await prisma.orgEvent.findUnique({ where: { id: evX } })).toMatchObject({ title: "RI-EVENTO" });
   });
 });

@@ -3,12 +3,12 @@ import { describe, expect, it } from "vitest";
 import { clubSections, coachHubLinks } from "./club-layout";
 
 describe("clubSections", () => {
-  it("staff: alertas primero y cuotas solo para administradora", () => {
-    expect(clubSections({ role: "COACH", hasPanel: true }).map((s) => s.id)).toEqual(["alertas", "cumplimiento", "calendario", "miembros"]);
-    expect(clubSections({ role: "ADMIN", hasPanel: true }).map((s) => s.id)).toEqual(["alertas", "cumplimiento", "calendario", "miembros", "cuotas"]);
+  it("staff: eventos y alertas primero y cuotas solo para administradora", () => {
+    expect(clubSections({ role: "COACH", hasPanel: true }).map((s) => s.id)).toEqual(["eventos", "alertas", "cumplimiento", "calendario", "miembros"]);
+    expect(clubSections({ role: "ADMIN", hasPanel: true }).map((s) => s.id)).toEqual(["eventos", "alertas", "cumplimiento", "calendario", "miembros", "cuotas"]);
   });
-  it("atleta: solo cuotas, sin paneles de staff", () => {
-    expect(clubSections({ role: "ATHLETE", hasPanel: false }).map((s) => s.id)).toEqual(["cuotas"]);
+  it("atleta: eventos y cuotas, sin paneles de staff", () => {
+    expect(clubSections({ role: "ATHLETE", hasPanel: false }).map((s) => s.id)).toEqual(["eventos", "cuotas"]);
   });
 });
 
