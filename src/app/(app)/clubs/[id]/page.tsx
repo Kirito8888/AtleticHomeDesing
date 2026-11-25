@@ -37,7 +37,7 @@ export default async function ClubPage(props: PageProps<"/clubs/[id]">) {
   return (
     <>
       <PageHeader title={me.org.name} description={`Tu rol: ${ROLE_LABEL[me.role]}.`} />
-      {sections.length > 1 ? (
+      {panel && sections.length > 1 ? (
         <nav aria-label="Secciones del club" className="mb-4 flex flex-wrap gap-2">
           {sections.map((x) => (
             <a key={x.id} href={`#${x.id}`} className="flex min-h-11 items-center rounded-md border px-3 text-sm hover:bg-accent">
