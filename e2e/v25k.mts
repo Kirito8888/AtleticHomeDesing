@@ -5,6 +5,8 @@ import { mkdirSync } from "node:fs";
 
 import { chromium } from "playwright-core";
 
+import { a11y, filledActions, openFolds, setLargeHc, smallTargets, WCAG22 } from "./a11y.mjs";
+
 const B = process.env.BASE_URL ?? "http://localhost:3000";
 const log = (...a: unknown[]) => console.log("✔", ...a);
 const errors: string[] = [];
@@ -266,6 +268,58 @@ if (!(await open.count())) {
   await toast(/ya están/);
   if (cardsIn(DECK) !== nNew) errors.push("N2: la segunda vez duplicó tarjetas");
   log(`N2: ${nNew} flashcards desde Resumir en «${DECK}»; repetir no duplica`);
+}
+
+// v3.2 K · composición de /study: una tarea a la vista, una sola acción principal, detalle plegado, ≥ 44 px
+{
+  const madrid = (plus: number) => new Date(Date.now() + plus * 864e5).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+  const check = async (where: string, filled: number) => {
+    await page.goto(B + "/study");
+    await page.getByTestId("storage-meter").waitFor();
+    const n = await filledActions(page);
+    if (n !== filled) errors.push(`${where}: ${n} acciones rellenas (esperadas ${filled})`);
+    if (await openFolds(page)) errors.push(`${where}: pliegue abierto por defecto`);
+    const bad = await smallTargets(page, "main", { includeInline: true });
+    if (bad.length) errors.push(`${where}: objetivos < 44 px: ${bad.join(", ")}`);
+    await noOverflow(where);
+  };
+  // sin tarea: «Subir» sigue siendo la acción principal y no hay tarjeta
+  await check("/study sin tarea", 1);
+  if (await page.getByTestId("study-now").count()) errors.push("/study sin tarea: hay tarjeta «Ahora toca»");
+  // examen cercano → tarjeta con «Empezar» y «Subir» pasa a outline
+  await page.request.post(B + "/api/study/modules", { data: { name: "Fisiología K", examDate: madrid(9) } });
+  await check("/study con examen cercano", 1);
+  await page.getByTestId("study-now").getByText("Fisiología K").waitFor();
+  if (!/Examen en \d+ días/.test(await page.getByTestId("study-now").innerText())) errors.push("/study: la tarjeta no dice cuántos días faltan");
+  // bloque de hoy (día de Madrid) sin hacer → manda sobre el examen
+  psql(`insert into "StudyPlanBlock"(id,"userId",subject,date,minutes,done,"createdAt") values ('kb${Date.now()}','${uid}','Repaso de bloque','${madrid(0)}',25,false,now())`);
+  await check("/study con bloque de hoy", 1);
+  await page.getByTestId("study-now").getByText("Repaso de bloque").waitFor();
+  await page.getByTestId("study-now").getByRole("link", { name: /Empezar/ }).click();
+  await page.waitForURL(/tab=steps/);
+  await page.getByRole("tabpanel").first().waitFor();
+  // temporizador único: tras «Foco libre» hay un solo reloj y el formulario de pasos desaparece
+  await page.fill("#micro-subject", "Fisiología K");
+  await page.getByRole("button", { name: "Foco libre (sin IA)" }).click();
+  await page.getByRole("timer").first().waitFor();
+  if ((await page.getByRole("timer").count()) !== 1) errors.push("/study?tab=steps: más de un temporizador a la vez");
+  // pliegue: los cuatro accesos están dentro y cerrados
+  await page.goto(B + "/study");
+  await page.getByTestId("study-more").locator("summary").click();
+  for (const n of ["Horario y exámenes", "Horas de estudio", "Exámenes y notas", "Trabajos y entregas"]) await page.getByRole("link", { name: n }).waitFor();
+  const bad = await smallTargets(page, "main", { includeInline: true });
+  if (bad.length) errors.push(`/study (pliegue abierto): objetivos < 44 px: ${bad.join(", ")}`);
+  for (const v of await a11y(page, "/study rediseñado", WCAG22)) errors.push(v);
+  await setLargeHc(page, true);
+  await page.goto(B + "/study");
+  await page.getByTestId("study-now").waitFor();
+  await page.getByTestId("study-more").locator("summary").click();
+  const bad2 = await smallTargets(page, "main", { includeInline: true });
+  if (bad2.length) errors.push(`/study (letra 130 + hc): objetivos < 44 px: ${bad2.join(", ")}`);
+  await noOverflow("/study con letra 130 + hc");
+  for (const v of await a11y(page, "/study (letra 130 + hc)", WCAG22)) errors.push(v);
+  await setLargeHc(page, false);
+  log("K: una tarea a la vista, 1 acción principal, accesos plegados, ≥ 44 px, letra grande y un solo temporizador");
 }
 
 await browser.close();

@@ -207,6 +207,7 @@ const dd = (n) => new Date(d0.getTime() - n * 86_400_000).toLocaleDateString("es
 const csv = { name: "extracto.csv", mimeType: "text/csv", buffer: Buffer.from(`Titular: BEA\nFecha;Concepto;Importe;Saldo\n${dd(3)};LICENCIA FEDERATIVA;-95,00;0\n${dd(2)};CAFETERIA;-1,50;0\n${dd(2)};CAFETERIA;-1,50;0\n`) };
 for (const round of [1, 2]) {
   await go(B + "/finance");
+  await page.getByTestId("finance-more").locator("summary").click();
   await page.getByRole("button", { name: "Importar" }).click();
   await page.locator("#imp-file").setInputFiles(csv);
   await page.getByRole("table", { name: "Primeras líneas del extracto" }).waitFor();

@@ -116,6 +116,23 @@ for (const t of THEMES) {
   log(`${t.name}: ${ROUTES.length} rutas de 8 verticales sin violaciones serias/críticas nuevas`);
   await p.context().close();
 }
+// v3.2 O/N/K: rutas rediseñadas con letra grande (130 %) y contraste alto: sin desbordes ni objetivos < 44 px (incluidos enlaces en línea)
+{
+  const p = await newPage("light");
+  await login(p);
+  await req(p, "PATCH", "/api/settings/prefs", { highContrast: true, fontScale: 130 });
+  for (const r of ["/clubs", "/coach", "/finance", "/study"]) {
+    await go(p, r);
+    const where = `${r} (letra 130 + hc)`;
+    if (await p.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)) errors.push(`${where}: scroll horizontal`);
+    const bad = await smallTargets(p, "main", { includeInline: true });
+    if (bad.length) errors.push(`${where}: controles < 44 px: ${bad.join(", ")}`);
+    for (const v of await a11y(p, where, WCAG22)) errors.push(v);
+  }
+  await req(p, "PATCH", "/api/settings/prefs", { highContrast: false, fontScale: 100 });
+  log("rutas rediseñadas con letra 130 + contraste alto: sin desbordes ni objetivos pequeños");
+  await p.context().close();
+}
 // Una excepción que no aparece no rompe (algunas dependen de la posición de desplazamiento), pero se avisa
 for (const k of Object.keys(ALLOWED)) console.log(seen.has(k) ? `· excepción vigente (${ALLOWED[k]}): ${k}` : `⚠ excepción no vista, ¿resuelta?: ${k}`);
 

@@ -94,7 +94,10 @@ export function QuickTransaction({
   competitions = [],
   defaultOpen = false,
   hideTrigger = false,
+  secondary = false,
 }: {
+  /** v3.2 N: sin cuentas aún, «Cuenta» es la acción principal y «Movimiento» pasa a outline. */
+  secondary?: boolean;
   /** «Hoy»: se abre al montarse y sin botón propio (el botón vive en la barra de registro). */
   defaultOpen?: boolean;
   hideTrigger?: boolean;
@@ -144,7 +147,7 @@ export function QuickTransaction({
     >
       {hideTrigger ? null : (
         <SheetTrigger asChild>
-          <Button size="sm">
+          <Button size="sm" variant={secondary ? "outline" : "default"}>
             <Plus /> Movimiento
           </Button>
         </SheetTrigger>

@@ -127,11 +127,11 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 > |---|---|---|
 > | I · Rediseño Entreno | **Hecho (25/11/2026)** | Objetivos ≥ 44 px en el registrador, sesión con «Más detalles» plegado y barra de guardar solo pegada con cambios, «¿Por qué?» en cada número de Rendimiento (`explain.ts`). Sin esquema (`e2e:v210a`, `a11y`) |
 > | J · Entreno sin red | **Hecho (24–25/11/2026)** | Series de fuerza sin red: borrador local del formulario, PATCH en la bandeja, dueña por envío, reintentos y purga al salir (`e2e:sinred`). Sin esquema: las series son idempotentes por el `clientId` de la sesión (POST) o por sustitución completa (PATCH). Tomas de comida y agua llevan `clientKey` (columna en `Macros` y `HydrationLog`, migración `v3_2_features`); los hábitos son idempotentes por estado final, sin campo |
-> | K · Estudio + N03 | **Hecho (24/11/2026), salvo la tarea 1** | Tope diario de repasos (`flashcardDailyCap`) y «Crear flashcards» en el resumen del tema. La tarea 1 (composición de `/study`) pasa al tramo de rediseños (tras I) |
+> | K · Estudio + N03 | **Hecho (24/11/2026), tarea 1 incluida (25/11/2026)** | Tope diario de repasos (`flashcardDailyCap`) y «Crear flashcards» en el resumen del tema. Composición de `/study`: tarjeta «Ahora toca», accesos plegados, «Subir» secundaria con tarea, un solo temporizador (`v25k` § final) |
 > | L · Rediseño Nutrición | **Hecho (25/11/2026)** | `/nutrition` con una acción principal y «Hoy» como entrada; «+ Alimento» con Menús · Recientes · Buscar (Escanear y Manual dentro de Buscar); cocina y menús plegados; objetivos ≥ 44 px. Sin esquema; zona intacta (`v25f` § 9, `a11y`) |
 > | M · Gasto adaptativo | **Hecho (24/11/2026)** | `/nutrition/gasto`: estimación determinista sin IA (comida + tendencia del peso, 4 semanas), «Aún calibrando» sin datos, borrador semanal con topes → «Aceptar» escribe `NutritionGoal`; sin esquema ni migración (`e2e:gasto`) |
-> | N · Finanzas + exportación | **Hecho (25/11/2026), salvo la tarea 1** | Exportación guiada por módulos en `/settings/privacy#exportar` (lo cifrado solo si se marca; sin datos de terceros) y pie de autoría en PDF, informes, `.ics` y JSON (`e2e:exportar`). La tarea 1 (composición de `/finance`) pasa al tramo de rediseños, junto a I, L y O |
-> | O · Rediseño Clubes | Pendiente | — |
+> | N · Finanzas + exportación | **Hecho (25/11/2026), tarea 1 incluida** | Exportación guiada por módulos en `/settings/privacy#exportar` (lo cifrado solo si se marca; sin datos de terceros) y pie de autoría en PDF, informes, `.ics` y JSON (`e2e:exportar`). La tarea 1 (composición de `/finance`) pasa al tramo de rediseños, junto a I, L y O |
+> | O · Rediseño Clubes | **Hecho (25/11/2026)** | Tarjeta «Ahora» en el club, una acción rellena, enlaces a 44 px y ámbitos comprobados sobre el HTML (`eventos` § 9, `a11y`) |
 > | P · Eventos de club | Pendiente | Sin modelo de eventos ni asistencia |
 > | Q · Recordatorios | Pendiente | Depende de P |
 >
@@ -157,7 +157,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 #### K · Rediseño Estudio + V3-N03
 | | |
 |---|---|
-| Tareas | 1) Composición de `/study` con los principios de G (TDAH: una tarea a la vista, temporizador único). 2) **V3-N03:** tope diario de repasos (pref). 3) **V3-N03:** «guardar a flashcards» desde Resumir donde falte (N2 lo cubrió en parte en v2.8: verificar antes). 4) Adaptar `e2e:practica`, `quest` y las de estudio |
+| Tareas | 1) ~~Composición de `/study` con los principios de G (TDAH: una tarea a la vista, temporizador único)~~ **hecha el 25/11/2026**. 2) **V3-N03:** tope diario de repasos (pref). 3) **V3-N03:** «guardar a flashcards» desde Resumir donde falte (N2 lo cubrió en parte en v2.8: verificar antes). 4) Adaptar `e2e:practica`, `quest` y las de estudio |
 | BD | No [Probable] |
 | Ses. | 1–2 [Probable] |
 | Por qué | Estudio es de lo más usado; N03 es barata y reduce sobrecarga |
@@ -180,7 +180,7 @@ Columnas: **BD** = ¿toca `prisma/schema.prisma`? · **Ses.** = sesiones estimad
 #### N · Rediseño Finanzas + exportación guiada (V3-N06)
 | | |
 |---|---|
-| Tareas | 1) ~~Composición de `/finance` con los principios de G (las zonas de B3 se conservan)~~ **→ pasa al tramo de rediseños (junto a I, L y O; 25/11/2026)**. 2) **V3-N06:** exportación guiada de los datos de la usuaria (no solo ops), con lo cifrado fuera salvo petición expresa de la propia usuaria. 3) **V3-L02 prioridad 5:** pie de autoría en exportaciones (manual PDF, informe semanal, `.ics`, informe para la médica) sin datos de la instalación. 4) Adaptar `v25h`, `v25k` |
+| Tareas | 1) ~~Composición de `/finance` con los principios de G (las zonas de B3 se conservan)~~ **→ hecha el 25/11/2026 (una acción principal, «Más de Finanzas» plegado, zona intacta; `v25h` § 6)**. 2) **V3-N06:** exportación guiada de los datos de la usuaria (no solo ops), con lo cifrado fuera salvo petición expresa de la propia usuaria. 3) **V3-L02 prioridad 5:** pie de autoría en exportaciones (manual PDF, informe semanal, `.ics`, informe para la médica) sin datos de la instalación. 4) Adaptar `v25h`, `v25k` |
 | BD | No [Probable] |
 | Ses. | 1–2 [Probable] |
 | Por qué | Finanzas no tiene funciones nuevas en la auditoría; N06 refuerza RGPD (art. 20) y es barata |

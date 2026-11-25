@@ -17,7 +17,7 @@ export function CategorizeTx({ id, description, categories }: { id: string; desc
   const [busy, setBusy] = useState(false);
   if (!open) {
     return (
-      <button type="button" className="text-xs underline underline-offset-2" onClick={() => setOpen(true)} aria-label={`Categorizar ${description}`}>
+      <button type="button" className="inline-flex min-h-11 items-center text-xs underline underline-offset-2" onClick={() => setOpen(true)} aria-label={`Sin categoría: categorizar ${description}`}>
         Sin categoría
       </button>
     );
@@ -40,6 +40,7 @@ export function CategorizeTx({ id, description, categories }: { id: string; desc
       <Button
         type="button"
         size="sm"
+        variant="secondary"
         className="h-8"
         disabled={!cat || busy}
         onClick={async () => {

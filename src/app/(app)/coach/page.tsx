@@ -118,7 +118,7 @@ export default async function CoachPage() {
       ) : (
         <p className="text-sm text-muted-foreground">
           Ningún atleta te ha dado acceso a sus sesiones. Las invitaciones se gestionan en{" "}
-          <Link href="/settings" className="underline underline-offset-2">
+          <Link href="/settings" className="inline-flex min-h-11 items-center underline underline-offset-2">
             Ajustes
           </Link>
           .

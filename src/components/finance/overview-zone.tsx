@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Wallet } from "lucide-react";
+import { ChevronRight, Wallet } from "lucide-react";
 
 import { EmptyState } from "@/components/empty-state";
 import { ArchiveAccountButton, ArchivedAccounts } from "@/components/finance/account-archive";
@@ -43,7 +43,7 @@ export function FinanceOverviewZone({
           <div className="flex gap-2">
             <NewAccount first={!money.length} />
             <div id="nuevo-movimiento" className="scroll-mt-20">
-              <QuickTransaction accounts={accounts} categories={categories} frequent={frequent} today={today} competitions={competitions} />
+              <QuickTransaction secondary={!money.length} accounts={accounts} categories={categories} frequent={frequent} today={today} competitions={competitions} />
             </div>
           </div>
         }
@@ -101,19 +101,25 @@ export function FinanceOverviewZone({
         )}
       </section>
 
-      <nav aria-label="Más finanzas" className="flex flex-wrap gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link href="/finance/budgets">Presupuestos del mes</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/finance/more">Presupuestos y temporada</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/finance/trips">Viajes y plazos</Link>
-        </Button>
-        {money.length ? <BankImport accounts={money.map((a) => ({ id: a.id, name: a.name }))} profiles={profiles} /> : null}
-        <ManageFinance accounts={accounts} categories={categories} today={today} />
-      </nav>
+      <details data-testid="finance-more" className="rounded-lg border">
+        <summary className="flex min-h-11 cursor-pointer items-center px-3 text-sm font-medium">Más de Finanzas</summary>
+        <nav aria-label="Más finanzas" className="grid px-3 pb-2">
+          {[
+            { href: "/finance/budgets", label: "Presupuestos del mes" },
+            { href: "/finance/more", label: "Presupuestos y temporada" },
+            { href: "/finance/trips", label: "Viajes y plazos" },
+          ].map((l) => (
+            <Link key={l.href} href={l.href} className="flex min-h-11 items-center justify-between border-b py-2 text-sm last:border-b-0">
+              {l.label}
+              <ChevronRight className="size-4 text-muted-foreground" aria-hidden />
+            </Link>
+          ))}
+          <div className="flex flex-wrap gap-2 pt-2">
+            {money.length ? <BankImport accounts={money.map((a) => ({ id: a.id, name: a.name }))} profiles={profiles} /> : null}
+            <ManageFinance accounts={accounts} categories={categories} today={today} />
+          </div>
+        </nav>
+      </details>
     </ZoneProvider>
   );
 }

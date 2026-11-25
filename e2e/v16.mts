@@ -394,6 +394,7 @@ log("clases y exámenes en el calendario .ics (opcional)");
 const bank = (await api("post", "/api/finance/accounts", { name: "Banco", type: "ASSET" })) as { id: string };
 await api("post", "/api/finance/transactions", { mode: "simple", kind: "EXPENSE", date: madrid, description: "Tren al autonómico", amountCents: 4550, moneyAccountId: bank.id });
 await go(B + "/finance");
+await page.getByTestId("finance-more").locator("summary").click();
 await page.getByRole("link", { name: "Viajes y plazos" }).click();
 await page.waitForURL(/\/finance\/trips/);
 await page.getByLabel("Competición").selectOption({ label: `${plusDays(madrid, 5)} · Autonómico E2E` });

@@ -1,8 +1,10 @@
+import { ArrowRight } from "lucide-react";
 import { notFound } from "next/navigation";
 
 import { FeeForm, FeeToggle, InviteMember, RemoveMember } from "@/components/clubs/club-forms";
 import { EventForm, EventList } from "@/components/clubs/event-list";
 import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
 import { pageUser } from "@/lib/auth/page";
 import { ApiError } from "@/lib/api";
 import { clubSections } from "@/lib/clubs/club-layout";
@@ -11,7 +13,7 @@ import { listEvents } from "@/lib/clubs/events-service";
 import { feeSummary, formatAmount } from "@/lib/clubs/fees";
 import { listFees } from "@/lib/clubs/service";
 import { addDays, today, toIsoDay } from "@/lib/dates";
-import { formatDate, SESSION_TYPE_LABEL } from "@/lib/format";
+import { formatDate, formatDateTime, SESSION_TYPE_LABEL } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Club · Atlenza" };
@@ -31,12 +33,41 @@ export default async function ClubPage(props: PageProps<"/clubs/[id]">) {
   const summary = feeSummary(fees.map((f) => ({ amountCents: f.amountCents, status: f.status, dueDate: toIsoDay(f.dueDate) })), todayIso);
   const isAdmin = me.role === "ADMIN";
 
+  // v3.2 O · «Ahora» como en Hoy: el próximo evento. La atleta solo ve su propio estado; el resumen es del staff (ya viene filtrado).
+  const next = events.find((e) => !e.past && (staff || !e.myAnswer)) ?? null;
+
   const sections = clubSections({ role: me.role, hasPanel: !!panel });
   const h2 = "text-sm font-medium";
 
   return (
     <>
       <PageHeader title={me.org.name} description={`Tu rol: ${ROLE_LABEL[me.role]}.`} />
+      {next ? (
+        <section aria-label="Ahora" data-testid="club-now" className="mb-4 grid gap-3 rounded-lg border border-primary/40 bg-primary/5 p-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ahora</p>
+            <h2 className="text-lg font-semibold leading-tight">{next.title}</h2>
+            <p className="text-sm text-muted-foreground">
+              {formatDateTime(next.startsAt, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+              {next.location ? ` · ${next.location}` : ""}
+            </p>
+            {staff && next.summary ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Sí {next.summary.yes} · No {next.summary.no} · Quizá {next.summary.maybe} · Sin respuesta {next.summary.none}
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">Por qué: aún no has respondido a este evento.</p>
+            )}
+          </div>
+          {!staff ? (
+            <Button asChild className="h-12 w-full sm:w-auto">
+              <a href={`#ev-${next.id}`}>
+                Responder <ArrowRight />
+              </a>
+            </Button>
+          ) : null}
+        </section>
+      ) : null}
       {panel && sections.length > 1 ? (
         <nav aria-label="Secciones del club" className="mb-4 flex flex-wrap gap-2">
           {sections.map((x) => (

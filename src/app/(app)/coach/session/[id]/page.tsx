@@ -34,7 +34,7 @@ export default async function CoachSessionPage({ params, searchParams }: PagePro
     <>
       <PageHeader title={s.title ?? SESSION_TYPE_LABEL[s.type]} description={formatDate(s.date, { weekday: "long", day: "numeric", month: "long" })} />
       <p className="mb-3 text-xs">
-        <Link href="/coach" className="underline underline-offset-2">
+        <Link href="/coach" className="inline-flex min-h-11 items-center underline underline-offset-2">
           ← Mis atletas
         </Link>
       </p>

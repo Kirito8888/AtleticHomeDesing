@@ -82,11 +82,11 @@ export function Receipts({ transactionId, receipts }: { transactionId: string; r
   return (
     <span className="flex shrink-0 items-center gap-1">
       {receipts.map((r, i) => (
-        <a key={r.id} href={`/api/finance/receipts/${r.id}`} target="_blank" rel="noopener" className="text-xs underline underline-offset-2" aria-label={`Justificante ${i + 1}`}>
+        <a key={r.id} href={`/api/finance/receipts/${r.id}`} target="_blank" rel="noopener" className="inline-flex min-h-11 items-center text-xs underline underline-offset-2" aria-label={`Justificante ${i + 1}`}>
           {r.mime === "application/pdf" ? "PDF" : "Foto"}
         </a>
       ))}
-      <label className="cursor-pointer rounded p-1 text-muted-foreground hover:bg-accent" aria-label="Adjuntar justificante" title="Adjuntar justificante">
+      <label className="flex size-11 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-accent" aria-label="Adjuntar justificante" title="Adjuntar justificante">
         <Paperclip className="size-4" aria-hidden />
         <input
           ref={input}
