@@ -199,7 +199,8 @@ log("cuenta 1500 € − gasto 23,45 € = 1476,55 €");
 
 // Importar extracto CSV (estilo banca española, con títulos arriba); la segunda vez no duplica
 const d0 = new Date();
-const dd = (n) => { const x = new Date(d0.getTime() - n * 86_400_000); return `${String(x.getDate()).padStart(2, "0")}/${String(x.getMonth() + 1).padStart(2, "0")}/${x.getFullYear()}`; };
+// dd/mm/aaaa del día de Madrid (el contenedor va en UTC: getDate() daba otro día entre las 00:00 y la 01:00/02:00 de Madrid)
+const dd = (n) => new Date(d0.getTime() - n * 86_400_000).toLocaleDateString("es-ES", { timeZone: "Europe/Madrid", day: "2-digit", month: "2-digit", year: "numeric" });
 const csv = { name: "extracto.csv", mimeType: "text/csv", buffer: Buffer.from(`Titular: BEA\nFecha;Concepto;Importe;Saldo\n${dd(3)};LICENCIA FEDERATIVA;-95,00;0\n${dd(2)};CAFETERIA;-1,50;0\n${dd(2)};CAFETERIA;-1,50;0\n`) };
 for (const round of [1, 2]) {
   await go(B + "/finance");
@@ -257,7 +258,7 @@ await go(B + "/training/performance?days=30");
 await page.getByText("Carga: fitness, fatiga y forma").waitFor();
 // e1RM: con dos días de sentadilla aparece la gráfica
 const exList = await (await page.request.get(B + "/api/training/exercises?q=Sentadilla trasera")).json();
-const prevDay = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+const prevDay = new Date(Date.now() - 3 * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 const s2 = await page.request.post(B + "/api/training/sessions", {
   data: { date: prevDay, type: "STRENGTH", strength: { sets: [{ exerciseId: exList[0].id, reps: 5, weightKg: 95 }] } },
 });

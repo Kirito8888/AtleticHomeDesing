@@ -127,7 +127,7 @@ log("previsualización con escenarios; sin escrituras");
 
 // 3. Sin confirmar no se puede asignar; el servidor también lo exige
 if (!(await coa.getByRole("button", { name: /Asignar a 2/ }).isDisabled())) errors.push("Asignar activo sin confirmar");
-const noConfirm = await call(coa, "POST", "/api/coach/multi-plan", { action: "apply", source: { kind: "template", id: "x" }, start: new Date().toISOString().slice(0, 10), athleteIds: [], confirm: false });
+const noConfirm = await call(coa, "POST", "/api/coach/multi-plan", { action: "apply", source: { kind: "template", id: "x" }, start: new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }), athleteIds: [], confirm: false });
 if (noConfirm.status !== 422 && noConfirm.status !== 400) errors.push(`apply sin confirm → ${noConfirm.status}`);
 await coa.getByLabel(/Confirmo crear un borrador/).check();
 await coa.getByRole("button", { name: /Asignar a 2/ }).click();

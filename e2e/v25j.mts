@@ -53,10 +53,10 @@ await page.goto(B + "/finance");
 await page.waitForLoadState("networkidle");
 await addAccount("Banco", "1000");
 
-const month = new Date().toISOString().slice(0, 7);
+// Mes de Madrid, como la app (con UTC, el día 1 de 00:00 a 01:00/02:00 aún era el mes anterior)
+const month = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }).slice(0, 7);
 const prevMonth = (() => {
-  const d = new Date();
-  d.setUTCDate(1);
+  const d = new Date(`${month}-01T12:00:00Z`);
   d.setUTCMonth(d.getUTCMonth() - 1);
   return d.toISOString().slice(0, 7);
 })();

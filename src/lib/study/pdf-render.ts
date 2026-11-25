@@ -4,6 +4,7 @@ import type { Browser } from "playwright-core";
 import { getDocumentProxy } from "unpdf";
 
 import { ApiError } from "@/lib/api";
+import { AUTHORSHIP_NOTICE } from "@/lib/legal/notice";
 import { allCodes, locateCodes, type Manual, renderManualHtml, samePages } from "@/lib/study/practical-manual";
 
 const TIMEOUT_MS = 30_000;
@@ -98,11 +99,14 @@ async function renderUnlocked(html: string): Promise<Uint8Array> {
     const page = await ctx.newPage();
     page.setDefaultTimeout(TIMEOUT_MS);
     await page.setContent(html, { waitUntil: "load" });
-    return new Uint8Array(await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true }));
+    return new Uint8Array(await page.pdf({ format: "A4", printBackground: true, preferCSSPageSize: true, displayHeaderFooter: true, headerTemplate: "<span></span>", footerTemplate: FOOTER }));
   } finally {
     await ctx.close().catch(() => undefined);
   }
 }
+
+/** v3.2 N (V3-L02 p5) · Pie de autoría en cada página: la frase única, sin datos de la instalación. */
+const FOOTER = `<div style="width:100%;font-size:7px;font-family:sans-serif;color:#555;text-align:center;padding:0 12mm">${AUTHORSHIP_NOTICE.replace(/[&<>"]/g, (c) => `&#${c.charCodeAt(0)};`)}</div>`;
 
 /** Renderiza HTML a PDF A4 con su propio turno de la cola (un render a la vez). */
 export const renderPdf = (html: string): Promise<Uint8Array> => pdfQueue.run(() => renderUnlocked(html));

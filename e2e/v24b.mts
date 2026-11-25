@@ -100,7 +100,7 @@ const check = async (p: Page, url: string, tag: string, shot?: string) => {
 const stamp = Date.now();
 const email = `v24b-at-${stamp}@e2e.test`;
 const pw = newUser(email, "Atleta v24b");
-const day = (back: number) => new Date(Date.now() - back * 86_400_000).toISOString().slice(0, 10);
+const day = (back: number) => new Date(Date.now() - back * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 const seedP = await newPage("198.51.100.231", "light");
 await login(seedP, email, pw);
 await go(seedP, "/");

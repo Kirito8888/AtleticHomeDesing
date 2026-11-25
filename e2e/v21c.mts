@@ -84,8 +84,8 @@ log("curva global con cita guardada; sin cita se rechaza");
 const at = await newPage();
 await login(at, mail("at"), pw.at);
 const d = new Date();
-const birth = `${d.getUTCFullYear() - 15}-01-01`;
-const iso = (dt: Date) => dt.toISOString().slice(0, 10);
+const birth = `${Number(d.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }).slice(0, 4)) - 15}-01-01`; // año de Madrid, no UTC
+const iso = (dt: Date) => dt.toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }); // día de Madrid, como la app
 await call(at, "PATCH", "/api/profile", { birthDate: birth, sex: "FEMALE" });
 await call(at, "POST", "/api/training/tests", { test: "cmj", value: 40, date: iso(new Date(d.getTime() - 200 * 86_400_000)) });
 await call(at, "POST", "/api/training/tests", { test: "cmj", value: 47, date: iso(d) });

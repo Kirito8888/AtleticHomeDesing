@@ -62,7 +62,7 @@ const mid = `a11ymod${stamp}`;
 psql(`insert into "StudyModule"(id,"userId",name,"updatedAt") values ('${mid}','${uid}','Bioquímica',now())`);
 psql(`insert into "StudyTopic"(id,"userId","moduleId",name,tag) values ('a1${stamp}','${uid}','${mid}','Ciclo de Krebs','red'),('a2${stamp}','${uid}','${mid}','Glucólisis','yellow')`);
 
-const iso = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
+const iso = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 {
   const p = await newPage("light");
   await login(p);

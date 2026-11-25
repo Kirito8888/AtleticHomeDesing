@@ -93,7 +93,7 @@ await shot(at1, "01-invitacion-aceptada");
 log("las tres aceptan; el consentimiento de las atletas es suyo");
 
 // 3. Una sesión planificada de la atleta 1 (vía API con su sesión)
-const day = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10);
+const day = new Date(Date.now() + 2 * 864e5).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 const r = await at1.evaluate(
   async (d) => (await fetch("/api/training/sessions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ date: d, type: "MIXED", status: "PLANNED", title: "Series 6x60" }) })).status,
   day,

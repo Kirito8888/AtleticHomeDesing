@@ -19,6 +19,10 @@ const go = async (p: Page, u: string) => {
   await p.goto(B + u, { waitUntil: "load" });
   await p.waitForLoadState("networkidle").catch(() => {});
 };
+// Día, día de la semana y hora de Madrid, como la app (con UTC fallaba de 00:00 a 01:00/02:00 de Madrid: el sábado aún era «viernes»)
+const madridDay = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
+const madridWeekday = new Date(`${madridDay}T12:00:00Z`).getUTCDay();
+const madridHour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Madrid", hour: "2-digit", hourCycle: "h23" }).format(new Date()));
 const email = `v30h-${Date.now()}@e2e.test`;
 const pw = execFileSync("npm", ["run", "-s", "user", "--", "create", email, "--name", "Atleta H", "--role", "ATHLETE", "--accept-terms"], { encoding: "utf8" }).match(/Contraseña: (\S+)/)?.[1];
 if (!pw) throw new Error("no se pudo crear la cuenta");
@@ -36,12 +40,15 @@ const now = page.getByLabel("Ahora");
 await now.waitFor();
 const reg = page.getByLabel("Registrar");
 for (const n of [/Serie/, /Toma/, /Agua/, /Gasto/]) if (!(await reg.getByText(n).first().isVisible())) errors.push(`falta «${n}» en Registrar`);
-const weekend = [0, 6].includes(new Date().getUTCDay());
+const weekend = [0, 6].includes(madridWeekday);
+// Una cuenta nueva solo tiene acción principal en fin de semana (revisión) o de 06:00 a 23:00 (comida); de noche entre semana: «Todo al día»
+const hasMain = weekend || (madridHour >= 6 && madridHour < 23);
 const nowText = await now.innerText();
 if (weekend && !/revisión semanal/i.test(nowText)) errors.push(`fin de semana sin aviso de revisión en «Ahora»: ${nowText}`);
 if (!weekend && /revisión semanal/i.test(nowText)) errors.push("entre semana aparece la revisión semanal");
-if (!(await page.getByTestId("now-why").count())) errors.push("«Ahora» sin su porqué");
-log(`Ahora y Registrar visibles (${weekend ? "fin de semana" : "entre semana"})`);
+if (hasMain && !(await page.getByTestId("now-why").count())) errors.push("«Ahora» sin su porqué");
+if (!hasMain && !/Todo al día/.test(nowText)) errors.push(`de noche entre semana «Ahora» debía decir «Todo al día»: ${nowText}`);
+log(`Ahora y Registrar visibles (${weekend ? "fin de semana" : "entre semana"}, ${madridHour} h de Madrid)`);
 
 // 2 · Agua: 1 toque
 const wait = page.waitForResponse((r) => r.url().includes("/api/nutrition/water") && r.request().method() === "POST");
@@ -79,7 +86,7 @@ await page.waitForURL(/\/training\/new/);
 log("serie → registrador");
 
 // 6 · Sesión planificada hoy: es la acción principal con su porqué
-psql(`insert into "TrainingSession"(id,"userId",date,type,status,title,"createdAt","updatedAt") select 'v30h'||substr(md5(random()::text),1,12), id, (now() at time zone 'Europe/Madrid')::date, 'STRENGTH','PLANNED','Fuerza H',now(),now() from "User" where email='${email}'`);
+psql(`insert into "TrainingSession"(id,"userId",date,type,status,title,"createdAt","updatedAt") select 'v30h'||substr(md5(random()::text),1,12), id, '${madridDay}'::date, 'STRENGTH','PLANNED','Fuerza H',now(),now() from "User" where email='${email}'`);
 await go(page, "/");
 const t = await page.getByLabel("Ahora").innerText();
 if (!/Fuerza H/.test(t)) errors.push(`la sesión planificada no es la acción principal: ${t}`);

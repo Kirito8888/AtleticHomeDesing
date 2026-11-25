@@ -28,7 +28,7 @@ const go = async (p: Page, u: string) => {
   await p.goto(B + u, { waitUntil: "load" });
   await p.waitForLoadState("networkidle").catch(() => {});
 };
-const iso = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toISOString().slice(0, 10);
+const iso = (daysAgo: number) => new Date(Date.now() - daysAgo * 86_400_000).toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" });
 
 // 1. Declaración pública (sin sesión)
 {

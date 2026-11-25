@@ -123,7 +123,7 @@ ${box("ok", "✔ Comprobar", r.checks)}${box("ko", "✘ Si falla", r.pitfalls)}$
 }
 
 const CSS = `
-@page { size: A4; margin: 12mm 15mm 12mm 11mm; }
+@page { size: A4; margin: 12mm 15mm 15mm 11mm; }
 ${LETTERS.split("").map((l, i) => `@page sec-${l} { @right-middle { content: "${l}"; background: ${TAB_COLORS[i]}; color: #fff; font: 700 11pt sans-serif; width: 9mm; height: 26mm; text-align: center; line-height: 26mm; border-radius: 3mm 0 0 3mm; margin-right: -15mm; } }`).join("\n")}
 html { font: 8.8pt/1.3 "DejaVu Sans", Arial, sans-serif; color: #111; }
 h1 { font-size: 22pt; margin: 40mm 0 4mm } h2 { font-size: 13pt; margin: 0 0 3mm; padding: 1.5mm 2mm; color: #fff }

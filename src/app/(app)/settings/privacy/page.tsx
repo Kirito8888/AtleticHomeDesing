@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageHeader } from "@/components/page-header";
+import { GuidedExport } from "@/components/privacy/guided-export";
 import { PrivacyRequestForm, RestrictionToggle } from "@/components/privacy/privacy-controls";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,10 +60,7 @@ export default async function PrivacyPage() {
             <ul className="grid gap-1.5">
               <li>
                 <span className="font-medium">{RIGHTS.ACCESS} y {RIGHTS.PORTABILITY}:</span>{" "}
-                <a className="underline underline-offset-2" href="/api/account/export" download>
-                  descargar todo (JSON)
-                </a>{" "}
-                o CSV en Ajustes → Tus datos.
+                elige módulos y descárgalos abajo (JSON), o CSV en Ajustes → Tus datos.
               </li>
               <li>
                 <span className="font-medium">{RIGHTS.RECTIFICATION}:</span> edita el dato donde está (perfil, sesiones, comidas…) o pídelo abajo.
@@ -99,6 +97,14 @@ export default async function PrivacyPage() {
                 ))}
               </ul>
             ) : null}
+          </CardContent>
+        </Card>
+        <Card className="h-fit gap-3 py-4 lg:col-span-2">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base">Exportar mis datos</CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <GuidedExport />
           </CardContent>
         </Card>
         <Card className="h-fit gap-3 py-4 lg:col-span-2" data-testid="shared-device-notice">
