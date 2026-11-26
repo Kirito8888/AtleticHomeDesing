@@ -277,6 +277,9 @@ for (const fila of ["Tirada / competición", "Series / alta carga"]) {
 }
 await page.getByRole("button", { name: "Guardar reglas de macros" }).click();
 await toast(/Reglas de macros guardadas/);
+// Si el test cruza la medianoche de Madrid entre el paso 7 y este, «hoy» ya es otro día: la competición se crea también para ese día
+const madridNow = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid" }).format(new Date());
+if (madridNow !== madrid) await page.request.post(B + "/api/planning/events", { data: { type: "COMPETITION", title: "Control de otoño (día nuevo)", startAt: madridNow, location: "Pista" } });
 await go(B + "/nutrition");
 await page.getByTestId("day-target-source").getByText(/Día de (tirada|series)/).waitFor(); // hoy hay competición de jabalina
 await page.getByText(/\/ 400 g/).first().waitFor();

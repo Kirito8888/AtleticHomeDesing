@@ -93,7 +93,7 @@ for (const [role, ip, tag] of [["ATHLETE", "198.51.100.231", "v23at"], ["COACH",
     if (scheme === "light" && role === "COACH") await page.screenshot({ path: `${out}/v23a-01-mas.png` });
     if (role === "COACH" && scheme === "light") {
       await sheet.getByRole("link", { name: "Mis atletas" }).tap();
-      await page.waitForURL("**/coach");
+      await page.waitForURL("**/coach/athletes");
     }
     await ctx.close();
     log(`${role}/${scheme}: barra, ≤ 2 toques, sin scroll horizontal`);
