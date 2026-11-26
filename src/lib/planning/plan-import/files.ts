@@ -1,5 +1,6 @@
 import { unzipSync } from "fflate";
 
+import { parsePlanDocx } from "./docx";
 import { pdfLines } from "./extract";
 import { parsePlanPdf } from "./parse";
 import type { ParsedMeso } from "./types";
@@ -21,6 +22,15 @@ export type ParsedUpload = { mesos: ParsedMeso[]; skipped: Array<{ name: string;
 
 const isZip = (b: Uint8Array) => b.length > 4 && b[0] === 0x50 && b[1] === 0x4b && b[2] === 0x03 && b[3] === 0x04;
 const isPdf = (b: Uint8Array) => new TextDecoder("latin1").decode(b.subarray(0, 1024)).includes("%PDF-");
+/** Un .docx es un zip con `word/document.xml` (no un zip de PDF). */
+const isDocx = (b: Uint8Array) => {
+  if (!isZip(b)) return false;
+  try {
+    return Boolean(unzipSync(b, { filter: (f) => f.name === "word/document.xml" && f.originalSize <= PLAN_LIMITS.pdfBytes })["word/document.xml"]);
+  } catch {
+    return false;
+  }
+};
 const baseName = (n: string) => n.split(/[\\/]/).pop() ?? n;
 
 /** Abre un zip y devuelve solo sus PDF, con límites de número y de tamaño descomprimido. */
@@ -56,12 +66,27 @@ export function pdfsFromZip(bytes: Uint8Array): UploadFile[] {
 export async function parsePlanUpload(files: UploadFile[]): Promise<ParsedUpload> {
   const pdfs: UploadFile[] = [];
   const skipped: ParsedUpload["skipped"] = [];
-  for (const f of files) {
-    if (isZip(f.bytes)) pdfs.push(...pdfsFromZip(f.bytes));
-    else if (isPdf(f.bytes)) pdfs.push(f);
-    else skipped.push({ name: f.name, reason: "No es un PDF ni un zip." });
-  }
   const mesos: ParsedMeso[] = [];
+  const addMeso = (name: string, parsed: ParsedMeso | null, what: string) => {
+    if (!parsed) skipped.push({ name, reason: what });
+    else if (!parsed.days.length) skipped.push({ name, reason: "No se encontró ningún día." });
+    else if (mesos.some((m) => m.code === parsed.code)) skipped.push({ name, reason: `${parsed.code} está repetido.` });
+    else mesos.push(parsed);
+  };
+  for (const f of files) {
+    if (isDocx(f.bytes)) {
+      let parsed: ParsedMeso | null = null;
+      try {
+        parsed = parsePlanDocx(f.bytes);
+      } catch {
+        skipped.push({ name: f.name, reason: "No se pudo leer el Word." });
+        continue;
+      }
+      addMeso(f.name, parsed, "No es un plan en Word reconocible (falta «Inicio: dd/mm/aaaa» o las sesiones «LUNES dd/mm · …» con su tabla).");
+    } else if (isZip(f.bytes)) pdfs.push(...pdfsFromZip(f.bytes));
+    else if (isPdf(f.bytes)) pdfs.push(f);
+    else skipped.push({ name: f.name, reason: "No es un PDF, un Word (.docx) ni un zip." });
+  }
   for (const f of pdfs) {
     let parsed: ParsedMeso | null = null;
     try {

@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 
 import { FichaEdit } from "@/components/coach/ficha-edit";
+import { PlanImportSheet } from "@/components/planning/plan-import-sheet";
 import { Button } from "@/components/ui/button";
 import { pageUser } from "@/lib/auth/page";
 import { addDays, toIsoDay, today } from "@/lib/dates";
@@ -30,6 +31,7 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
     prisma.trainingSession.findFirst({ where: { userId: id, status: "PLANNED", date: { gte: now } }, orderBy: { date: "asc" }, select: { date: true, title: true, type: true } }),
     prisma.trainingSession.findMany({ where: { userId: id, date: { gte: addDays(now, -14), lte: addDays(now, 14) } }, orderBy: { date: "desc" }, take: 20, select: { id: true, date: true, title: true, type: true, status: true } }),
   ]);
+  const hasPlan = (await prisma.planMeso.count({ where: { userId: id } })) > 0;
   const end = lastDay._max.date ? toIsoDay(lastDay._max.date) : null;
   const ps = planState(end, todayIso);
   const planText = ps.state === "none" ? "Sin plan activo" : ps.state === "ending" ? `⚠ El plan acaba en ${ps.days} ${ps.days === 1 ? "día" : "días"}` : `Plan activo hasta ${formatDate(lastDay._max.date!)}`;
@@ -61,6 +63,21 @@ export default async function FichaPage({ params }: { params: Promise<{ id: stri
           </Button>
         )}
       </section>
+      {hasPlan ? (
+        <Link href={`/coach/athletes/${id}/plan`} className="mb-3 flex min-h-11 items-center justify-between rounded-lg border px-3 text-sm font-medium hover:bg-accent" data-testid="ficha-plan-link">
+          Ver el plan completo <ArrowRight className="size-4" aria-hidden />
+        </Link>
+      ) : null}
+      {!f.archivedAt ? (
+        <details data-testid="ficha-plan" className="mb-3 rounded-lg border px-3">
+          <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">Plan (subir Word o PDF)</summary>
+          <div className="grid gap-2 pb-3 text-sm">
+            <p className="text-muted-foreground">Sube el plan de esta atleta (Word de mesociclo, PDF «día a día» o zip). Verás una vista previa y nada se guarda hasta que confirmes.</p>
+            <PlanImportSheet athleteId={id} label="Subir plan" />
+
+          </div>
+        </details>
+      ) : null}
       <details data-testid="ficha-sessions" className="mb-3 rounded-lg border px-3">
         <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium">Sesiones (±2 semanas)</summary>
         {recent.length ? (

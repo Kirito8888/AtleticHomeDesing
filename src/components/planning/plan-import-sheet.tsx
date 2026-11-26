@@ -36,7 +36,7 @@ type Result = { mesos: string[]; days: number; sessionsCreated: number; sessions
 const MAX_BYTES = 30 * 1024 * 1024;
 
 /** Planificación → Importar: sube el zip (o los PDF «día a día»), revisa y confirma. */
-export function PlanImportSheet() {
+export function PlanImportSheet({ athleteId, label = "Importar plan" }: { athleteId?: string; label?: string } = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
@@ -51,6 +51,7 @@ export function PlanImportSheet() {
   function form() {
     const f = new FormData();
     for (const file of files) f.append("files", file);
+    if (athleteId) f.append("athleteId", athleteId);
     return f;
   }
 
@@ -66,6 +67,7 @@ export function PlanImportSheet() {
     try {
       const f = new FormData();
       for (const file of list) f.append("files", file);
+      if (athleteId) f.append("athleteId", athleteId);
       setPreview(await api<Preview>("/api/planning/import", { form: f }));
     } catch (e) {
       toast.error((e as Error).message);
@@ -97,21 +99,27 @@ export function PlanImportSheet() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button size="sm" variant="outline" aria-label="Importar plan">
-          <FileUp /> <span className="hidden sm:inline">Importar plan</span>
-        </Button>
+        {athleteId ? (
+          <Button variant="outline" className="h-11" data-testid="ficha-import">
+            <FileUp /> {label}
+          </Button>
+        ) : (
+          <Button size="sm" variant="outline" aria-label="Importar plan">
+            <FileUp /> <span className="hidden sm:inline">{label}</span>
+          </Button>
+        )}
       </SheetTrigger>
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Importar planificación</SheetTitle>
           <SheetDescription>
-            Sube el zip de tu plan o sus PDF «día a día». Los PDF no se guardan: solo se queda el plan ya ordenado por días. Puedes volver a subir una versión nueva
+            Sube el zip del plan, sus PDF «día a día» o un Word (.docx) de mesociclo. El fichero no se guarda: solo se queda el plan ya ordenado por días (el nombre de la cabecera de un Word no se importa). Puedes volver a subir una versión nueva
             del plan: se actualiza lo pendiente y no se toca lo que ya hiciste.
           </SheetDescription>
         </SheetHeader>
         <div className="grid gap-4">
-          <Field label="Plan (.zip o .pdf)" htmlFor="plan-file">
-            <Input id="plan-file" type="file" multiple accept=".zip,.pdf,application/zip,application/pdf" onChange={(e) => void analyse([...(e.target.files ?? [])])} />
+          <Field label="Plan (.zip, .pdf o Word .docx)" htmlFor="plan-file">
+            <Input id="plan-file" type="file" multiple accept=".zip,.pdf,.docx,application/zip,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(e) => void analyse([...(e.target.files ?? [])])} />
           </Field>
           {busy === "preview" ? <p className="text-sm text-muted-foreground">Leyendo el plan… (unos segundos)</p> : null}
 
