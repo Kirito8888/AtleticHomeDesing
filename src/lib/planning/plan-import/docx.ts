@@ -148,8 +148,9 @@ export function parseDocBlocks(blocks: DocBlock[]): ParsedMeso | null {
   if (!validDay(start.y, start.m, start.d)) return null;
   const startIso = iso(start.y, start.m, start.d);
   const endM = lines.map((l) => /Final:?\s*.*?(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(l)).find(Boolean);
-  const durM = lines.map((l) => /unos\s+(\d{2,3})\s*min/i.exec(l)).find(Boolean);
-  const durationMin = durM ? Number(durM[1]) : null;
+  // «unos 75 min» o un rango «unos 60-65 min» (se usa el valor alto: es el tiempo a reservar)
+  const durM = lines.map((l) => /unos\s+(\d{2,3})(?:\s*[-–]\s*(\d{2,3}))?\s*min/i.exec(l)).find(Boolean);
+  const durationMin = durM ? Math.max(Number(durM[1]), Number(durM[2] ?? 0)) : null;
   const nameInDoc = lines.some((l) => /^Nombre:?\s+\S/i.test(l));
 
   const titleLine = blocks.flatMap((b) => (b.t === "p" ? [b.text] : [])).find((t) => /^Mesociclo\s+\d+/i.test(t) || /mesociclo\s+\d+\s*·/i.test(t)) ?? "";
