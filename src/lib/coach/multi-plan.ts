@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import { ApiError } from "@/lib/api";
+import { managedGrant } from "@/lib/managed/rules";
 import { mergeGrants, type CurrentUser, type Grant } from "@/lib/auth/session";
 import { addDays, dateOnly, isoDate, today, toIsoDay } from "@/lib/dates";
 import { createManualDraftFromDays, planSourceDays, templateSourceDays, type DraftSourceDay } from "@/lib/planning/manual-plan";
@@ -35,11 +36,13 @@ async function loadGrants(coach: CurrentUser, ids: string[]): Promise<Map<string
       where: { userId: { in: ids }, role: "ATHLETE", status: "ACTIVE", org: { members: { some: { userId: coach.id, role: { in: ["ADMIN", "COACH"] }, status: "ACTIVE" } } } },
       select: { userId: true, scopes: true, canPlan: true },
     }),
-    prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, processingRestrictedAt: true } }),
+    prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, processingRestrictedAt: true, managedById: true, managedProfile: { select: { archivedAt: true } } } }),
   ]);
   const by = new Map<string, Grant[]>();
   for (const l of links) by.set(l.athleteId, [...(by.get(l.athleteId) ?? []), l]);
   for (const m of members) by.set(m.userId, [...(by.get(m.userId) ?? []), m]);
+  // v3.3 E2 · fichas gestionadas de esta entrenadora (permiso implícito, sin RECOVERY; archivada = solo lectura)
+  for (const u of users) if (u.managedById === coach.id) by.set(u.id, [...(by.get(u.id) ?? []), managedGrant(u.managedProfile?.archivedAt)]);
   const restricted = new Map(users.map((u) => [u.id, Boolean(u.processingRestrictedAt)]));
   const out = new Map<string, GrantInfo>();
   for (const id of ids) {
@@ -52,7 +55,7 @@ async function loadGrants(coach: CurrentUser, ids: string[]): Promise<Map<string
 /** Atletas de la entrenadora (vínculo o club) con si se les puede planificar y por qué no. Más sus semanas tipo y planes propios. */
 export async function multiPlanOverview(coach: CurrentUser) {
   if (!isStaff(coach)) throw new ApiError(403, "Solo entrenadoras");
-  const [links, members, templates, plans] = await Promise.all([
+  const [links, members, templates, plans, managed] = await Promise.all([
     prisma.coachAthlete.findMany({ where: { coachId: coach.id, status: "ACTIVE" }, select: { athlete: { select: { id: true, name: true, email: true } } } }),
     prisma.orgMember.findMany({
       where: { role: "ATHLETE", status: "ACTIVE", org: { members: { some: { userId: coach.id, role: { in: ["ADMIN", "COACH"] }, status: "ACTIVE" } } } },
@@ -60,8 +63,10 @@ export async function multiPlanOverview(coach: CurrentUser) {
     }),
     prisma.weekTemplate.findMany({ where: { userId: coach.id }, select: { id: true, name: true }, orderBy: { name: "asc" } }),
     prisma.planMeso.findMany({ where: { userId: coach.id, source: "MANUAL" }, select: { code: true, name: true }, orderBy: { createdAt: "desc" } }),
+    // v3.3 E2 · fichas gestionadas activas (atletas sin cuenta)
+    prisma.managedAthlete.findMany({ where: { coachId: coach.id, archivedAt: null }, select: { user: { select: { id: true, name: true, email: true } } } }),
   ]);
-  const people = new Map([...links.map((l) => l.athlete), ...members.map((m) => m.user)].filter((p) => p.id !== coach.id).map((p) => [p.id, p]));
+  const people = new Map([...links.map((l) => l.athlete), ...members.map((m) => m.user), ...managed.map((m) => m.user)].filter((p) => p.id !== coach.id).map((p) => [p.id, p]));
   const ids = [...people.keys()];
   const grants = await loadGrants(coach, ids);
   const { rejected } = filterEligible(ids, grants);

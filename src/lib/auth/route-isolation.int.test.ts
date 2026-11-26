@@ -40,6 +40,7 @@ const TESTED_HERE = [
   "clubs/[id]/members/[memberId]", "clubs/[id]/fees/[feeId]", "training/apple-fitness/pending/[id]",
   "recovery/apple-health/conflicts/[id]",
   "clubs/[id]/events/[eventId]", "clubs/[id]/events/[eventId]/response", "clubs/[id]/events/[eventId]/ics",
+  "coach/athletes/[id]",
 ];
 /** Rutas con prueba negativa en otro fichero (ruta o servicio). */
 const TESTED_ELSEWHERE = [
@@ -128,6 +129,9 @@ describe.skipIf(!HAS_DB)("usuaria B contra recursos de A (BD real)", () => {
   });
   afterAll(async () => {
     await prisma.organization.deleteMany({ where: { id: { in: [orgX, orgY].filter(Boolean) } } });
+    // fichas gestionadas (v3.3): primero ellas, porque la entrenadora no se puede borrar con fichas a su cargo (Restrict)
+    await prisma.managedAthlete.deleteMany({ where: { coachId: { in: Object.values(U) } } });
+    await prisma.user.deleteMany({ where: { managedById: { in: Object.values(U) } } });
     await prisma.user.deleteMany({ where: { id: { in: Object.values(U) } } });
   });
 
@@ -268,5 +272,23 @@ describe.skipIf(!HAS_DB)("usuaria B contra recursos de A (BD real)", () => {
     expect((await one.DELETE(req(`/api/clubs/${orgX}/events/${evX}`, "DELETE"), ctx({ id: orgX, eventId: evX }))).status).toBe(404);
     expect((await resp.PUT(req(`/api/clubs/${orgX}/events/${evX}/response`, "PUT", { answer: "YES" }), ctx({ id: orgX, eventId: evX }))).status).toBe(200);
     expect(await prisma.orgEvent.findUnique({ where: { id: evX } })).toMatchObject({ title: "RI-EVENTO" });
+  });
+
+  it("fichas (v3.3 E3): editar o archivar la ficha de otra entrenadora, o una cuenta normal, da 404 y no cambia nada", async () => {
+    const ficha = await import("@/app/api/coach/athletes/[id]/route");
+    const { createManagedAthlete } = await import("@/lib/managed/service");
+    const f = await createManagedAthlete({ id: U.staffX, role: "COACH" }, { alias: "RI-FICHA", category: "Sub-18", consent: true });
+    as("staffY", "COACH");
+    expect((await ficha.PATCH(req(`/api/coach/athletes/${f.userId}`, "PATCH", { alias: "hack", archived: true }), ctx({ id: f.userId }))).status).toBe(404);
+    as("admin", "ADMIN");
+    expect((await ficha.PATCH(req(`/api/coach/athletes/${f.userId}`, "PATCH", { archived: true }), ctx({ id: f.userId }))).status).toBe(404);
+    as("staffX", "COACH");
+    // una cuenta normal no es una ficha, ni siquiera para una entrenadora con vínculo
+    expect((await ficha.PATCH(req(`/api/coach/athletes/${U.a}`, "PATCH", { alias: "x" }), ctx({ id: U.a }))).status).toBe(404);
+    // un campo de nombre real o contacto se rechaza (esquema estricto)
+    expect((await ficha.PATCH(req(`/api/coach/athletes/${f.userId}`, "PATCH", { email: "x@y.es" }), ctx({ id: f.userId }))).status).toBe(400);
+    expect(await prisma.managedAthlete.findUnique({ where: { userId: f.userId } })).toMatchObject({ alias: "RI-FICHA", archivedAt: null });
+    expect((await ficha.PATCH(req(`/api/coach/athletes/${f.userId}`, "PATCH", { archived: true }), ctx({ id: f.userId }))).status).toBe(200);
+    expect((await prisma.managedAthlete.findUnique({ where: { userId: f.userId } }))?.archivedAt).toBeInstanceOf(Date);
   });
 });

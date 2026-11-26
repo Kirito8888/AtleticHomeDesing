@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { CoachScope } from "@/generated/prisma/enums";
+
 /**
  * Suite de entrenadora (v3.3 E1): reglas puras de las fichas gestionadas (atletas sin cuenta).
  * Una ficha guarda SOLO alias, año de nacimiento o categoría, disciplina, grupo y notas: nunca nombre real, email,
@@ -42,3 +44,32 @@ export type ManagedCreate = z.infer<typeof managedCreateSchema>;
 export function ageOk(birthYear: number | undefined, year: number): boolean {
   return birthYear === undefined || birthYear <= latestBirthYear(year);
 }
+
+/**
+ * Permiso implícito de la entrenadora sobre sus fichas (E2). La ficha no concede nada ella misma (no tiene cuenta): la dueña ve y
+ * planifica lo deportivo. **Nunca RECOVERY** (salud, art. 9: las fichas no la tienen). Una ficha archivada es solo lectura.
+ */
+export const MANAGED_SCOPES: CoachScope[] = ["LOAD", "SESSIONS", "PLANNING", "REPORTS"];
+export const managedGrant = (archivedAt: Date | null | undefined): { scopes: CoachScope[]; canPlan: boolean } => ({ scopes: [...MANAGED_SCOPES], canPlan: !archivedAt });
+
+/** Estado del plan de una atleta a partir del último día planificado (puro). «ending» = termina en ≤ `soonDays` días. */
+export type PlanState = "none" | "ending" | "ok";
+export function planState(planEndIso: string | null, todayIso: string, soonDays = 7): { state: PlanState; days: number | null } {
+  if (!planEndIso || planEndIso < todayIso) return { state: "none", days: null };
+  const days = Math.round((Date.parse(`${planEndIso}T00:00:00Z`) - Date.parse(`${todayIso}T00:00:00Z`)) / 864e5);
+  return { state: days <= soonDays ? "ending" : "ok", days };
+}
+
+/** Datos editables de una ficha (E3). `consent`/`birthYear` no se tocan aquí; archivar es una acción aparte. */
+export const managedUpdateSchema = z
+  .object({
+    alias: text(40).optional(),
+    category: text(40).nullable().optional(),
+    discipline: text(60).nullable().optional(),
+    group: text(40).nullable().optional(),
+    notes: z.string().trim().max(2000).nullable().optional(),
+    archived: z.boolean().optional(),
+  })
+  .strict()
+  .refine((v) => Object.keys(v).length > 0, { message: "Nada que cambiar" });
+export type ManagedUpdate = z.infer<typeof managedUpdateSchema>;

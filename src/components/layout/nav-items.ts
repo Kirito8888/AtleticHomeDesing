@@ -50,7 +50,7 @@ export const NAV_GROUPS: readonly { id: string; label: string; items: readonly N
     label: "Con otras personas",
     items: [
       { href: "/clubs", label: "Clubes", icon: Users, module: null },
-      { href: "/coach", label: "Mis atletas", icon: UsersRound, module: null, roles: ["COACH", "ADMIN"] },
+      { href: "/coach/athletes", label: "Mis atletas", icon: UsersRound, module: null, roles: ["COACH", "ADMIN"] },
     ],
   },
   {
