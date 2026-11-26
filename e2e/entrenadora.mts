@@ -5,6 +5,7 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 
+import { strToU8, zipSync } from "fflate";
 import { chromium, type Page } from "playwright-core";
 
 import { a11y, filledActions, hScroll, setLargeHc, smallTargets, WCAG22 } from "./a11y.mjs";
@@ -128,6 +129,66 @@ if ((await status(ath, "/api/coach/athletes", "POST", { alias: "x", category: "S
 await go(ath, "/coach/athletes");
 if (new URL(ath.url()).pathname.startsWith("/coach")) fail("una atleta se queda en /coach/athletes");
 log("aislamiento: otra entrenadora (404) y atleta (403)");
+
+
+// 5b. Importar un Word de mesociclo en la ficha (documento SINTÉTICO) y ver el plan completo
+const madridDay = (offset: number) => new Date(Date.parse(new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Madrid" }) + "T00:00:00Z") + offset * 864e5);
+const nextMonday = (() => {
+  let d = madridDay(7);
+  while (d.getUTCDay() !== 1) d = new Date(d.getTime() + 864e5);
+  return d;
+})();
+const dm = (d: Date) => `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+const full = (d: Date) => `${dm(d)}/${d.getUTCFullYear()}`;
+const wed = new Date(nextMonday.getTime() + 2 * 864e5);
+const fri = new Date(nextMonday.getTime() + 4 * 864e5);
+const xp = (t: string) => `<w:p><w:r><w:t>${t}</w:t></w:r></w:p>`;
+const xt = (rows: string[][]) => `<w:tbl>${rows.map((r) => `<w:tr>${r.map((c) => `<w:tc>${xp(c)}</w:tc>`).join("")}</w:tr>`).join("")}</w:tbl>`;
+const HEAD = ["Ejercicio", "Series", "Reps", "RIR", "Desc.", "Tempo", "Serie 1 kg×reps"];
+const docBody = [
+  xp("Mesociclo 9 · 1 semana · Hipertrofia"),
+  xt([["Nombre:", "Persona E2E Ficticia"], ["Inicio:", `Lunes ${full(nextMonday)}`], ["Días:", "Lunes y miércoles · unos 70 min"]]),
+  xp("Cómo leer tu plan"), xp("El RIR es cuántas repeticiones te quedan."),
+  xt([[`SEMANA 1`, "Bloque 1 · Hipertrofia", `CARGA · ${dm(nextMonday)}-${dm(fri)}`]]),
+  xp(`LUNES ${dm(nextMonday)} · Día A · Cadena anterior`), xt([HEAD, ["Prensa E2E de piernas", "3", "8-10", "2", "2:30", "3-1-1-0", ""]]),
+  xp(`MIÉRCOLES ${dm(wed)} · Día B · Cadena posterior`), xt([HEAD, ["Remo E2E en máquina", "3", "8-10", "2", "2:00", "3-0-1-0", ""]]),
+  xp("Medidas"), xp("Por la mañana, con la misma cinta."),
+].join("");
+const docx = Buffer.from(zipSync({ "word/document.xml": strToU8(`<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${docBody}</w:body></w:document>`) }));
+
+await go(coa, `/coach/athletes/${fichaId}`);
+await coa.getByTestId("ficha-plan").locator("summary").click();
+await coa.getByTestId("ficha-import").click();
+await coa.setInputFiles("#plan-file", { name: "plan.docx", mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", buffer: docx });
+await coa.getByLabel("Vista previa del plan").waitFor();
+const prevText = await coa.getByLabel("Vista previa del plan").innerText();
+if (!/2\s*días/.test(prevText) || !/2 ejercicios/.test(prevText)) fail(`vista previa del Word: ${prevText.slice(0, 160)}`);
+if (/Persona E2E/.test(await coa.locator("body").innerText())) fail("el nombre de la cabecera del Word aparece en pantalla");
+await coa.getByRole("button", { name: /Importar 2 días/ }).click();
+await coa.getByText(/Plan importado: 2 días/).waitFor();
+await go(coa, `/coach/athletes/${fichaId}`);
+await coa.getByTestId("ficha-plan-link").waitFor();
+await Promise.all([coa.waitForURL(/\/plan$/), coa.getByTestId("ficha-plan-link").click()]);
+await coa.getByTestId("plan-meso").waitFor();
+const planHtml = await coa.locator("main").innerHTML();
+for (const need of ["Prensa E2E de piernas", "Remo E2E en máquina", "2:30", "3-1-1-0", "Cómo leer tu plan", "Medidas"]) if (!planHtml.includes(need)) fail(`el plan de la ficha no muestra «${need}»`);
+if (/Persona E2E/.test(planHtml)) fail("el nombre de la cabecera quedó guardado en el plan");
+await coa.locator("[data-testid=plan-week] summary").first().click();
+if (await hScroll(coa)) fail("plan de la ficha: scroll horizontal");
+const badPlan = await smallTargets(coa, "main", { includeInline: true });
+if (badPlan.length) fail(`plan de la ficha: objetivos < 44 px: ${badPlan.join(", ")}`);
+for (const v of await a11y(coa, "plan de la ficha", WCAG22)) fail(v);
+await go(coa, `/coach/athletes/${fichaId}`);
+if (!/Plan activo hasta/.test(await coa.getByTestId("ficha-now").innerText())) fail("la ficha no dice «Plan activo hasta»");
+if ((await (await oth.goto(B + `/coach/athletes/${fichaId}/plan`))?.status()) !== 404) fail("otra entrenadora ve el plan de la ficha");
+const impStatus = await oth.evaluate(async (id) => {
+  const f = new FormData();
+  f.append("files", new File([new Uint8Array([1, 2, 3])], "x.docx"));
+  f.append("athleteId", id);
+  return (await fetch("/api/planning/import", { method: "POST", body: f })).status;
+}, fichaId);
+if (impStatus !== 403) fail(`otra entrenadora importó en la ficha (${impStatus})`);
+log("Word importado en la ficha: vista previa, plan completo y sin el nombre de la cabecera");
 
 // 6. Archivar: sale de la lista activa, aparece en «Archivadas» y no en «Planificar varios»
 await go(coa, `/coach/athletes/${fichaId}`);
