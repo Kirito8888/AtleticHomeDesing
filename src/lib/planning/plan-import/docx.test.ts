@@ -74,6 +74,10 @@ describe("plan en Word (.docx)", () => {
     expect(all).not.toMatch(/Persona Ficticia|Entrenadora"/);
     expect(m.warnings.join(" ")).toMatch(/nombre en la cabecera/);
   });
+  it("la duración puede ser un rango («unos 60-65 min» → 65)", () => {
+    const r = parsePlanDocx(docx(body.replace("unos 75 min", "unos 60-65 min")))!;
+    expect(r.days.every((d) => d.durationMin === 65)).toBe(true);
+  });
   it("lo que no es un plan devuelve null", () => {
     expect(parsePlanDocx(docx(p("Hola") + p("Sin fechas")))).toBeNull();
     expect(parsePlanDocx(new Uint8Array([1, 2, 3]))).toBeNull();
